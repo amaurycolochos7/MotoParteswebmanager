@@ -123,7 +123,6 @@ export default function AdminUsers() {
                     can_create_appointments: formData.can_create_appointments,
                     can_send_messages: formData.can_send_messages,
                     can_create_clients: formData.can_create_clients,
-                    can_create_clients: formData.can_create_clients,
                     can_edit_clients: formData.can_edit_clients,
                     can_delete_orders: formData.can_delete_orders,
                     ...(formData.password && { password_hash: formData.password })
@@ -138,7 +137,6 @@ export default function AdminUsers() {
                     commission_percentage: parseFloat(formData.commission_percentage) || 10,
                     can_create_appointments: formData.can_create_appointments,
                     can_send_messages: formData.can_send_messages,
-                    can_create_clients: formData.can_create_clients,
                     can_create_clients: formData.can_create_clients,
                     can_edit_clients: formData.can_edit_clients,
                     can_delete_orders: formData.can_delete_orders
