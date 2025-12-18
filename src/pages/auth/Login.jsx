@@ -219,7 +219,7 @@ export default function Login() {
 
         {/* Footer */}
         <div className="login-footer">
-          <p>© 2025 MotoPartes Club • Reparaciones y Modificaciones</p>
+          <p>© 2026 MotoPartes Club • Reparaciones y Modificaciones</p>
         </div>
       </div>
 
