@@ -43,7 +43,7 @@ const PAYMENT_METHODS = [
 
 export default function NewServiceOrder() {
     const navigate = useNavigate();
-    const { user, canCreateClients } = useAuth();
+    const { user, canCreateClients, hasPermission } = useAuth();
     const {
         findClientByPhone,
         searchClients,
@@ -51,7 +51,8 @@ export default function NewServiceOrder() {
         getClientMotorcycles,
         addMotorcycle,
         services,
-        addOrder
+        addOrder,
+        addService
     } = useData();
 
     // Format currency as Mexican Pesos
@@ -159,6 +160,46 @@ export default function NewServiceOrder() {
     // State for download loading
     const [downloading, setDownloading] = useState(false);
     const [downloadStatus, setDownloadStatus] = useState(null); // 'success' | 'error' | null
+
+    // State for new service form
+    const [showNewServiceForm, setShowNewServiceForm] = useState(false);
+    const [newServiceData, setNewServiceData] = useState({
+        name: '',
+        labor_cost: '',
+        materials_cost: ''
+    });
+    const [savingService, setSavingService] = useState(false);
+
+    // Handle create new service
+    const handleSaveNewService = async () => {
+        if (!newServiceData.name.trim()) {
+            alert('El nombre del servicio es obligatorio');
+            return;
+        }
+
+        setSavingService(true);
+        try {
+            const laborCost = parseFloat(newServiceData.labor_cost) || 0;
+            const materialsCost = parseFloat(newServiceData.materials_cost) || 0;
+
+            await addService({
+                name: newServiceData.name.trim(),
+                labor_cost: laborCost,
+                materials_cost: materialsCost,
+                base_price: laborCost + materialsCost,
+                is_active: true
+            });
+
+            // Reset form and close
+            setNewServiceData({ name: '', labor_cost: '', materials_cost: '' });
+            setShowNewServiceForm(false);
+        } catch (error) {
+            console.error('Error creating service:', error);
+            alert('Error al crear el servicio');
+        } finally {
+            setSavingService(false);
+        }
+    };
 
     // Download order summary with photos
     const downloadOrderSummary = async () => {
@@ -1015,6 +1056,93 @@ export default function NewServiceOrder() {
                 {currentStep === 3 && (
                     <div className="step-services">
                         <p className="text-secondary mb-md">Selecciona los servicios:</p>
+
+                        {/* Add New Service Button - only if has permission */}
+                        {hasPermission('can_create_services') && (
+                            <div className="mb-md">
+                                {!showNewServiceForm ? (
+                                    <button
+                                        className="btn btn-outline btn-sm"
+                                        onClick={() => setShowNewServiceForm(true)}
+                                        style={{ width: '100%', marginBottom: '1rem' }}
+                                    >
+                                        <Plus size={16} />
+                                        Agregar Nuevo Servicio al Catálogo
+                                    </button>
+                                ) : (
+                                    <div className="new-service-form card" style={{ padding: '1rem', marginBottom: '1rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)' }}>
+                                        <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9375rem', fontWeight: 600 }}>Nuevo Servicio</h4>
+                                        <div className="form-group">
+                                            <label className="form-label">Nombre del Servicio *</label>
+                                            <input
+                                                type="text"
+                                                className="form-input"
+                                                placeholder="Ej: Cambio de frenos traseros"
+                                                value={newServiceData.name}
+                                                onChange={(e) => setNewServiceData(prev => ({ ...prev, name: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div className="grid grid-2" style={{ gap: '0.75rem' }}>
+                                            <div className="form-group">
+                                                <label className="form-label">Mano de obra ($)</label>
+                                                <input
+                                                    type="number"
+                                                    className="form-input"
+                                                    placeholder="0.00"
+                                                    value={newServiceData.labor_cost}
+                                                    onChange={(e) => setNewServiceData(prev => ({ ...prev, labor_cost: e.target.value }))}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Refacción ($)</label>
+                                                <input
+                                                    type="number"
+                                                    className="form-input"
+                                                    placeholder="0.00"
+                                                    value={newServiceData.materials_cost}
+                                                    onChange={(e) => setNewServiceData(prev => ({ ...prev, materials_cost: e.target.value }))}
+                                                />
+                                            </div>
+                                        </div>
+                                        {(newServiceData.labor_cost || newServiceData.materials_cost) && (
+                                            <p style={{ fontSize: '0.875rem', color: 'var(--primary)', marginBottom: '0.75rem' }}>
+                                                Precio total: {formatMXN((parseFloat(newServiceData.labor_cost) || 0) + (parseFloat(newServiceData.materials_cost) || 0))}
+                                            </p>
+                                        )}
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <button
+                                                className="btn btn-secondary btn-sm"
+                                                onClick={() => {
+                                                    setShowNewServiceForm(false);
+                                                    setNewServiceData({ name: '', labor_cost: '', materials_cost: '' });
+                                                }}
+                                                disabled={savingService}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                className="btn btn-primary btn-sm"
+                                                onClick={handleSaveNewService}
+                                                disabled={savingService || !newServiceData.name.trim()}
+                                                style={{ flex: 1 }}
+                                            >
+                                                {savingService ? (
+                                                    <>
+                                                        <Loader2 size={16} className="spin" />
+                                                        Guardando...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Check size={16} />
+                                                        Guardar Servicio
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="services-list">
                             {services.filter(s => s.is_active).map(service => (
