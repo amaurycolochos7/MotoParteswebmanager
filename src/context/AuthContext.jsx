@@ -110,9 +110,35 @@ export function AuthProvider({ children }) {
         return user?.role === 'admin_mechanic';
     }, [user]);
 
-    // Verificar permiso específico
+    // Verificar permiso específico (rol o usuario)
     const hasPermission = useCallback((permission) => {
         if (!user) return false;
+
+        // Admin siempre tiene todos los permisos
+        if (user.role === 'admin') return true;
+
+        // Primero verificar permisos específicos del usuario (vienen de la BD)
+        // Estos son los permisos que se configuran por usuario individualmente
+        if (permission === 'can_create_services') {
+            return user.can_create_services === true;
+        }
+        if (permission === 'can_create_appointments') {
+            return user.can_create_appointments !== false;
+        }
+        if (permission === 'can_send_messages') {
+            return user.can_send_messages !== false;
+        }
+        if (permission === 'can_create_clients') {
+            return user.can_create_clients !== false;
+        }
+        if (permission === 'can_edit_clients') {
+            return user.can_edit_clients === true;
+        }
+        if (permission === 'can_delete_orders') {
+            return user.can_delete_orders === true;
+        }
+
+        // Luego verificar permisos por rol
         const permissions = ROLE_PERMISSIONS[user.role];
         return permissions?.[permission] || false;
     }, [user]);
