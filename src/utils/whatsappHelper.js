@@ -290,6 +290,7 @@ export const sendMessageWithPDF = async (phone, message, pdfBlob, filename) => {
 
     } catch (error) {
         console.error('[WhatsApp] Error uploading PDF:', error);
+
         return {
             success: false,
             automated: false,
@@ -297,3 +298,75 @@ export const sendMessageWithPDF = async (phone, message, pdfBlob, filename) => {
         };
     }
 };
+
+/**
+ * Get detailed order message with services breakdown
+ * @param {string} clientName - Client's name
+ * @param {string} motorcycle - Motorcycle description
+ * @param {string} orderNumber - Order number
+ * @param {Array} services - List of services
+ * @param {number} totalAmount - Total amount
+ * @param {string} link - Client portal link
+ * @param {Object} paymentInfo - Optional payment info { advancePayment, paymentMethod }
+ * @returns {string} - Formatted message
+ */
+export const getDetailedOrderMessage = (clientName, motorcycle, orderNumber, services, totalAmount, link, paymentInfo = null) => {
+    const servicesList = services && services.length > 0
+        ? services.map(s => `  - ${s.name} - $${(s.price || 0).toLocaleString('es-MX')}`).join('\n')
+        : '  - Revision General';
+
+    // Seccion del link solo si existe
+    const linkSection = link
+        ? `\n*Sigue el proceso de tu reparacion aqui:*\n${link}\n`
+        : '';
+
+    // Seccion de anticipo si existe
+    let paymentSection = '';
+    if (paymentInfo && paymentInfo.advancePayment > 0) {
+        const methodLabel = getPaymentMethodLabel(paymentInfo.paymentMethod);
+        const remaining = totalAmount - paymentInfo.advancePayment;
+
+        paymentSection = `
+💰 *ANTICIPO RECIBIDO: $${paymentInfo.advancePayment.toLocaleString('es-MX')}*
+  📌 Método: ${methodLabel}
+
+💵 *SALDO PENDIENTE: $${Math.max(0, remaining).toLocaleString('es-MX')}*
+`;
+    }
+
+    return `Hola ${clientName}!
+
+*Orden de Servicio ${orderNumber}*
+
+*Motocicleta:* ${motorcycle}
+
+*Servicios a realizar:*
+${servicesList}
+
+*TOTAL ESTIMADO: $${totalAmount.toLocaleString('es-MX')}*
+${paymentSection}${linkSection}
+Cualquier duda quedamos atentos.
+Gracias por confiar en Motopartes!`;
+};
+
+/**
+ * Get human-readable label for payment method
+ * @param {string} method - Payment method code
+ * @returns {string} - Readable label
+ */
+const getPaymentMethodLabel = (method) => {
+    switch (method) {
+        case 'cash':
+        case 'efectivo':
+            return 'Efectivo 💵';
+        case 'card':
+        case 'tarjeta':
+            return 'Tarjeta 💳';
+        case 'transfer':
+        case 'transferencia':
+            return 'Transferencia 🏦';
+        default:
+            return method || 'No especificado';
+    }
+};
+

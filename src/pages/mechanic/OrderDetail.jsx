@@ -9,6 +9,7 @@ import {
     Clock,
     DollarSign,
     Check,
+    CheckCircle,
     AlertCircle,
     ChevronDown,
     ChevronUp,
@@ -16,26 +17,32 @@ import {
     X,
     Send,
     Plus,
-    Bell
+    Trash2,
+    AlertTriangle,
+    Download
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
-import { sendAutomatedMessage, getOrderLinkMessage, getDeliveryNotificationMessage, getReadyForPickupMessage } from '../../utils/whatsappHelper';
+import {
+    getDetailedOrderMessage,
+    sendViaWhatsApp
+} from '../../utils/whatsappHelper';
 import Toast from '../../components/ui/Toast';
 import NoChatWarning from '../../components/ui/NoChatWarning';
-import PhotoGallery from '../../components/orders/PhotoGallery';
-import PhotoUpload from '../../components/orders/PhotoUpload';
+import OrderPhotosDownload from '../../components/ui/OrderPhotosDownload';
 
 export default function OrderDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { user } = useAuth();
-    const { orders, clients, motorcycles, statuses, serviceUpdates, updateOrderStatus, updateOrder, getOrderUpdates, addServiceUpdate } = useData();
+    const { user, canDeleteOrders } = useAuth();
+    const { orders, clients, statuses, serviceUpdates, updateOrderStatus, updateOrder, getOrderUpdates, addServiceUpdate, deleteOrder } = useData();
 
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showUpdateModal, setShowUpdateModal] = useState(false);
-    const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+    const [cancellationReason, setCancellationReason] = useState('');
     const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
     const [toast, setToast] = useState(null);
     const [showNoChatWarning, setShowNoChatWarning] = useState(false);
@@ -70,8 +77,8 @@ export default function OrderDetail() {
     };
 
     const order = useMemo(() => orders.find(o => o.id === id), [orders, id]);
-    const client = useMemo(() => order && clients.find(c => c.id === order.client_id), [order, clients]);
-    const motorcycle = useMemo(() => order && motorcycles.find(m => m.id === order.motorcycle_id), [order, motorcycles]);
+    const client = useMemo(() => order?.client || (order?.client_id && clients.find(c => c.id === order.client_id)), [order, clients]);
+    const motorcycle = useMemo(() => order?.motorcycle, [order]);
     const updates = useMemo(() => order ? getOrderUpdates(order.id) : [], [order, serviceUpdates]);
 
     if (!order) {
@@ -88,17 +95,24 @@ export default function OrderDetail() {
         );
     }
 
-    const currentStatus = statuses.find(s => s.name === order.status);
-    const currentStatusIndex = statuses.findIndex(s => s.name === order.status);
+    const statusName = typeof order.status === 'object' ? order.status?.name : order.status;
+    const currentStatus = statuses.find(s => s.name === statusName);
+    const currentStatusIndex = statuses.findIndex(s => s.name === statusName);
     const nextStatus = statuses[currentStatusIndex + 1];
 
     const toggleSection = (section) => {
         setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
     };
 
-    const handleStatusChange = async (newStatus) => {
-        const oldStatus = order.status;
-        updateOrderStatus(order.id, newStatus, user.id, statusNote);
+    const handleStatusChange = async (newStatusName) => {
+        const oldStatus = statusName;
+        // Buscar el ID del estado por nombre
+        const statusObj = statuses.find(s => s.name === newStatusName);
+        if (!statusObj) {
+            showToast('Error: Estado no encontrado', 'error');
+            return;
+        }
+        updateOrderStatus(order.id, statusObj.id, statusNote);
         setShowStatusModal(false);
         setStatusNote('');
 
@@ -150,51 +164,16 @@ export default function OrderDetail() {
 
     const handleQuickStatusAdvance = async () => {
         if (nextStatus) {
-            const oldStatus = order.status;
-            updateOrderStatus(order.id, nextStatus.name, user.id, '');
+            const oldStatus = statusName;
+            updateOrderStatus(order.id, nextStatus.id, '');
 
-            // Send automatic WhatsApp notification based on status
+            // Send automatic WhatsApp notification via manual link if desired
+            // For now, removing automated message as per user request to avoid errors
+            /* 
             if (nextStatus.name === 'Lista para Entregar' && oldStatus !== 'Lista para Entregar') {
-                try {
-                    const servicesTotal = order.services.reduce((sum, svc) => sum + (svc.price || 0), 0);
-                    const totalAmount = order.total_amount || servicesTotal;
-
-                    const message = getReadyForPickupMessage(
-                        client.full_name,
-                        `${motorcycle.brand} ${motorcycle.model}`,
-                        order.order_number,
-                        totalAmount
-                    );
-
-                    console.log('📤 Enviando notificación de "Lista para Entregar"...');
-                    const result = await sendAutomatedMessage(client.phone, message);
-
-                    if (result.success && result.automated) {
-                        console.log('✅ Notificación enviada exitosamente');
-                        showToast('✅ Cliente notificado: Moto lista para ser recogida', 'success');
-                    }
-                } catch (error) {
-                    console.error('Error enviando notificación:', error);
-                }
-            } else if (nextStatus.name === 'Entregada' && oldStatus !== 'Entregada') {
-                try {
-                    const message = getDeliveryNotificationMessage(
-                        client.full_name,
-                        `${motorcycle.brand} ${motorcycle.model}`,
-                        order.order_number
-                    );
-
-                    console.log('📤 Enviando confirmación de entrega...');
-                    const result = await sendAutomatedMessage(client.phone, message);
-
-                    if (result.success && result.automated) {
-                        console.log('✅ Confirmación de entrega enviada exitosamente');
-                        showToast('✅ Cliente notificado: Orden entregada. Gracias por su preferencia.', 'success');
-                    }
-                } catch (error) {
-                    console.error('Error enviando confirmación:', error);
-                }
+                 ... logic removed ...
             }
+            */
         }
     };
 
@@ -208,7 +187,7 @@ export default function OrderDetail() {
         setPaymentAmount('');
     };
 
-    const handleSendClientLink = async () => {
+    const handleSendClientLink = () => {
         // Validar que el cliente tenga número de teléfono
         if (!client?.phone) {
             showToast('❌ Este cliente no tiene número de teléfono registrado', 'error');
@@ -216,35 +195,42 @@ export default function OrderDetail() {
         }
 
         try {
-            setSendingWhatsApp(true);
+            const servicesTotal = order.services.reduce((sum, svc) => sum + (svc.price || 0), 0);
+            const totalAmount = order.total_amount || servicesTotal;
 
-            // Crear mensaje de WhatsApp con el link del portal
-            const message = getOrderLinkMessage(
+            // Generar URL completa para el link de seguimiento
+            const baseUrl = window.location.origin;
+            const trackingLink = order.client_link
+                ? `${baseUrl}${order.client_link}`
+                : null;
+
+            // Crear mensaje detallado con servicios y total
+            const message = getDetailedOrderMessage(
                 client.full_name,
                 `${motorcycle.brand} ${motorcycle.model}`,
-                order.client_link
+                order.order_number,
+                order.services,
+                totalAmount,
+                trackingLink,
+                {
+                    advancePayment: order.advance_payment || 0,
+                    paymentMethod: order.payment_method
+                }
             );
 
-            // Enviar por WhatsApp
-            const result = await sendAutomatedMessage(client.phone, message);
+            // Abrir WhatsApp directamente
+            sendViaWhatsApp(client.phone, message);
 
-            if (result.success && result.automated) {
-                showToast('✅ Link enviado exitosamente por WhatsApp', 'success');
+            showToast('✅ Abriendo WhatsApp con el detalle de la orden...', 'success');
 
-                // Actualizar timestamp de envío
-                updateOrder(order.id, {
-                    link_sent_at: new Date().toISOString()
-                });
-            } else if (!result.success) {
-                // Cualquier error - mostrar modal con instrucciones
-                setNoChatPhone(client.phone);
-                setShowNoChatWarning(true);
-            }
+            // Actualizar timestamp de envío
+            updateOrder(order.id, {
+                link_sent_at: new Date().toISOString()
+            });
+
         } catch (error) {
-            console.error('Error al enviar por WhatsApp:', error);
+            console.error('Error al abrir WhatsApp:', error);
             showToast(`❌ Error: ${error.message}`, 'error');
-        } finally {
-            setSendingWhatsApp(false);
         }
     };
 
@@ -265,6 +251,64 @@ export default function OrderDetail() {
         setShowUpdateModal(false);
     };
 
+    // ==========================================
+    // CANCELLATION LOGIC
+    // ==========================================
+    const handleBeginCancellation = () => {
+        if (canDeleteOrders()) {
+            setShowDeleteConfirmModal(true);
+        } else {
+            setShowCancelModal(true);
+        }
+    };
+
+    const handleRequestCancellation = async () => {
+        if (!cancellationReason.trim()) {
+            showToast('Debes indicar un motivo de cancelación', 'warning');
+            return;
+        }
+
+        try {
+            await updateOrder(order.id, {
+                cancellation_reason: cancellationReason,
+                cancellation_requested_at: new Date().toISOString()
+            });
+            setShowCancelModal(false);
+            showToast('Solicitud de cancelación enviada al administrador', 'info');
+        } catch (error) {
+            console.error('Error requesting cancellation:', error);
+            showToast('Error al solicitar cancelación', 'error');
+        }
+    };
+
+    const handleDeleteOrder = async () => {
+        try {
+            await deleteOrder(order.id);
+            showToast('Orden eliminada correctamente', 'success');
+            navigate(-1); // Go back
+        } catch (error) {
+            console.error('Error deleting order:', error);
+            showToast('Error al eliminar orden: ' + error.message, 'error');
+        }
+    };
+
+    const handleApproveCancellation = async () => {
+        setShowDeleteConfirmModal(true);
+    };
+
+    const handleRejectCancellation = async () => {
+        try {
+            await updateOrder(order.id, {
+                cancellation_reason: null,
+                cancellation_requested_at: null
+            });
+            showToast('Solicitud de cancelación rechazada', 'success');
+        } catch (error) {
+            console.error('Error rejecting cancellation:', error);
+            showToast('Error al rechazar solicitud', 'error');
+        }
+    };
+
     const getStatusBadgeClass = (status) => {
         switch (status) {
             case 'pending': return 'badge-warning';
@@ -274,25 +318,7 @@ export default function OrderDetail() {
         }
     };
 
-    const handleAddPhotos = (newPhotos) => {
-        const photosWithMetadata = newPhotos.map(photo => ({
-            ...photo,
-            id: `photo-${Date.now()}-${Math.random()}`,
-            uploaded_by: user.id,
-            uploaded_at: new Date().toISOString()
-        }));
 
-        const updatedPhotos = [...(order.photos || []), ...photosWithMetadata];
-        updateOrder(order.id, { photos: updatedPhotos });
-        setShowPhotoUpload(false);
-        showToast('✅ Fotos agregadas exitosamente', 'success');
-    };
-
-    const handleDeletePhoto = (photoIndex) => {
-        const updatedPhotos = (order.photos || []).filter((_, idx) => idx !== photoIndex);
-        updateOrder(order.id, { photos: updatedPhotos });
-        showToast('🗑️ Foto eliminada', 'success');
-    };
 
     return (
         <div className="order-detail">
@@ -320,12 +346,46 @@ export default function OrderDetail() {
                         color: currentStatus?.color,
                     }}
                 >
-                    {order.status}
+                    {statusName}
                 </span>
             </div>
 
+            {/* Cancellation Request Alert (Admin/Authorized View) */}
+            {order.cancellation_requested_at && (canDeleteOrders() || user.role === 'admin') && (
+                <div className="alert-box mb-lg" style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: '8px', padding: '16px' }}>
+                    <div className="flex items-start gap-md">
+                        <AlertTriangle className="text-danger" size={24} />
+                        <div style={{ flex: 1 }}>
+                            <h3 className="text-danger font-bold mb-xs">Solicitud de Cancelación pendiente</h3>
+                            <p className="mb-sm"><strong>Motivo:</strong> {order.cancellation_reason}</p>
+                            <p className="text-sm text-secondary mb-md">Solicitado el {new Date(order.cancellation_requested_at).toLocaleString('es-MX')}</p>
+
+                            <div className="flex gap-sm">
+                                <button className="btn btn-danger btn-sm" onClick={handleApproveCancellation}>
+                                    Aprobar y Eliminar
+                                </button>
+                                <button className="btn btn-outline btn-sm" onClick={handleRejectCancellation} style={{ background: 'white' }}>
+                                    Rechazar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Quick Actions */}
             <div className="quick-actions">
+                {/* Botón Finalizar Orden - Solo cuando está lista y pagada */}
+                {statusName !== 'Entregada' && (order.is_paid || statusName === 'Lista para Entregar') && (
+                    <button
+                        className="btn btn-finish btn-full"
+                        onClick={() => handleStatusChange('Entregada')}
+                    >
+                        <CheckCircle size={22} />
+                        Finalizar Orden
+                    </button>
+                )}
+
                 <button
                     className="btn btn-primary btn-full"
                     onClick={handleSendClientLink}
@@ -344,13 +404,13 @@ export default function OrderDetail() {
                     )}
                 </button>
 
-                {nextStatus && order.status !== 'Entregada' && (
+                {nextStatus && statusName !== 'Entregada' && statusName !== 'Lista para Entregar' && (
                     <button className="btn btn-secondary btn-full" onClick={handleQuickStatusAdvance}>
                         <Check size={20} />
                         Avanzar a: {nextStatus.name}
                     </button>
                 )}
-                {order.status === 'Lista para Entregar' && !order.is_paid && (
+                {statusName === 'Lista para Entregar' && !order.is_paid && (
                     <button className="btn btn-accent btn-full" onClick={() => setShowPaymentModal(true)}>
                         <DollarSign size={20} />
                         Registrar Pago
@@ -359,6 +419,15 @@ export default function OrderDetail() {
                 <button className="btn btn-outline" onClick={() => setShowStatusModal(true)}>
                     <Edit2 size={18} />
                     Cambiar Estado
+                </button>
+
+                <button
+                    className="btn btn-outline"
+                    onClick={handleBeginCancellation}
+                    style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
+                >
+                    <Trash2 size={18} />
+                    Cancelar Orden
                 </button>
             </div>
 
@@ -421,111 +490,56 @@ export default function OrderDetail() {
                 )}
             </div>
 
-            {/* Service Updates (Novedades) Section */}
-            <div className="detail-section">
-                <button className="section-header-btn" onClick={() => toggleSection('updates')}>
-                    <div className="section-title">
-                        <Bell size={20} />
-                        <span>Novedades</span>
-                        <span className="badge badge-secondary">{updates.length}</span>
-                    </div>
-                    {expandedSections.updates ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </button>
-
-                {expandedSections.updates && (
-                    <div className="section-content">
-                        <button
-                            className="btn btn-primary btn-full mb-md"
-                            onClick={() => setShowUpdateModal(true)}
-                        >
-                            <Plus size={18} />
-                            Agregar Novedad
-                        </button>
-
-                        {updates.length === 0 ? (
-                            <div className="text-center text-secondary">
-                                No hay novedades registradas
-                            </div>
-                        ) : (
-                            <div className="updates-list">
-                                {updates.map(update => (
-                                    <div key={update.id} className="update-item">
-                                        <div className="update-item-header">
-                                            <span className="update-type-label">{update.update_type}</span>
-                                        </div>
-                                        <h4 className="update-item-title">{update.title}</h4>
-                                        <p className="update-item-desc">{update.description}</p>
-                                        {update.estimated_price > 0 && (
-                                            <div className="update-item-price">
-                                                Precio estimado: <strong>${update.estimated_price}</strong>
-                                            </div>
-                                        )}
-                                        <div className="update-item-date">
-                                            {new Date(update.created_at).toLocaleDateString('es-MX')}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            {/* Photos Section */}
-            <div className="detail-section">
-                <button className="section-header-btn" onClick={() => toggleSection('photos')}>
-                    <div className="section-title">
-                        <Camera size={20} />
-                        <span>Galería de Fotos</span>
-                        <span className="badge badge-secondary">{(order.photos || []).length}</span>
-                    </div>
-                    {expandedSections.photos ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </button>
-
-                {expandedSections.photos && (
-                    <div className="section-content">
-                        <button
-                            className="btn btn-primary btn-full mb-md"
-                            onClick={() => setShowPhotoUpload(true)}
-                        >
-                            <Plus size={18} />
-                            Agregar Fotos
-                        </button>
-
-                        <PhotoGallery
-                            photos={order.photos || []}
-                            onDeletePhoto={handleDeletePhoto}
-                            canDelete={true}
-                        />
-                    </div>
-                )}
-            </div>
-
-            {/* Payment Info */}
-            <div className="payment-summary card">
-                <div className="payment-row">
-                    <span>Anticipo:</span>
-                    <strong className={order.advance_payment > 0 ? 'text-primary' : ''}>
-                        ${(order.advance_payment || 0).toLocaleString('es-MX')}
-                    </strong>
+            {/* Payment Summary - Premium Design */}
+            <div className="payment-card">
+                <div className="payment-card-header">
+                    <DollarSign size={20} />
+                    <span>Resumen de Pago</span>
                 </div>
-                <div className="payment-row">
-                    <span>Total:</span>
-                    <strong className="text-primary">
-                        ${(order.total_amount || 0).toLocaleString('es-MX')}
-                    </strong>
+
+                <div className="payment-card-body">
+                    <div className="payment-item">
+                        <span className="payment-label">Anticipo recibido</span>
+                        <span className={`payment-value ${order.advance_payment > 0 ? 'has-value' : ''}`}>
+                            ${(order.advance_payment || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                    </div>
+
+                    <div className="payment-divider" />
+
+                    <div className="payment-item total">
+                        <span className="payment-label">Total de la Orden</span>
+                        <span className="payment-value highlight">
+                            ${(order.total_amount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                    </div>
+
+                    <div className="payment-divider" />
+
+                    <div className="payment-item balance">
+                        <span className="payment-label">
+                            {order.is_paid ? 'Saldo Pagado' : 'Por Cobrar'}
+                        </span>
+                        <span className={`payment-value ${!order.is_paid && (order.total_amount - (order.advance_payment || 0)) > 0 ? 'pending' : 'paid'}`}>
+                            ${Math.max(0, (order.total_amount || 0) - (order.advance_payment || 0)).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                    </div>
                 </div>
-                <div className="payment-row">
-                    <span>Saldo:</span>
-                    <strong className={order.total_amount - (order.advance_payment || 0) > 0 ? 'text-accent' : 'text-primary'}>
-                        ${Math.max(0, (order.total_amount || 0) - (order.advance_payment || 0)).toLocaleString('es-MX')}
-                    </strong>
-                </div>
-                <div className="payment-status">
+
+                <div className="payment-card-footer">
                     {order.is_paid ? (
-                        <span className="badge badge-primary">PAGADO</span>
+                        <div className="payment-badge paid">
+                            <Check size={16} />
+                            PAGADO COMPLETO
+                        </div>
                     ) : (
-                        <span className="badge badge-warning">PENDIENTE</span>
+                        <button
+                            className="btn btn-payment btn-full"
+                            onClick={() => setShowPaymentModal(true)}
+                        >
+                            <DollarSign size={20} />
+                            Registrar Pago Completo
+                        </button>
                     )}
                 </div>
             </div>
@@ -568,204 +582,283 @@ export default function OrderDetail() {
             </div>
 
             {/* Status Change Modal */}
-            {showStatusModal && (
-                <div className="modal-overlay" onClick={() => setShowStatusModal(false)}>
-                    <div className="modal" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3 className="modal-title">Cambiar Estado</h3>
-                            <button className="modal-close" onClick={() => setShowStatusModal(false)}>
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            <div className="status-options">
-                                {statuses
-                                    .filter(status => status.name !== 'Autorización Pendiente')
-                                    .map(status => (
-                                        <button
-                                            key={status.id}
-                                            className={`status-option ${order.status === status.name ? 'current' : ''}`}
-                                            onClick={() => handleStatusChange(status.name)}
-                                            disabled={order.status === status.name}
-                                        >
-                                            <span
-                                                className="status-dot"
-                                                style={{ background: status.color }}
-                                            />
-                                            {status.name}
-                                            {order.status === status.name && <span className="current-badge">Actual</span>}
-                                        </button>
-                                    ))
-                                }
+            {
+                showStatusModal && (
+                    <div className="modal-overlay" onClick={() => setShowStatusModal(false)}>
+                        <div className="modal" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3 className="modal-title">Cambiar Estado</h3>
+                                <button className="modal-close" onClick={() => setShowStatusModal(false)}>
+                                    <X size={20} />
+                                </button>
                             </div>
+                            <div className="modal-body">
+                                <div className="status-options">
+                                    {statuses
+                                        .filter(status => status.name !== 'Autorización Pendiente')
+                                        .map(status => (
+                                            <button
+                                                key={status.id}
+                                                className={`status-option ${statusName === status.name ? 'current' : ''}`}
+                                                onClick={() => handleStatusChange(status.name)}
+                                                disabled={statusName === status.name}
+                                            >
+                                                <span
+                                                    className="status-dot"
+                                                    style={{ background: status.color }}
+                                                />
+                                                {status.name}
+                                                {statusName === status.name && <span className="current-badge">Actual</span>}
+                                            </button>
+                                        ))
+                                    }
+                                </div>
 
-                            <div className="form-group mt-md">
-                                <label className="form-label">Nota (opcional)</label>
-                                <textarea
-                                    className="form-textarea"
-                                    placeholder="Agregar nota sobre el cambio..."
-                                    value={statusNote}
-                                    onChange={e => setStatusNote(e.target.value)}
-                                    rows={2}
-                                />
+                                <div className="form-group mt-md">
+                                    <label className="form-label">Nota (opcional)</label>
+                                    <textarea
+                                        className="form-textarea"
+                                        placeholder="Agregar nota sobre el cambio..."
+                                        value={statusNote}
+                                        onChange={e => setStatusNote(e.target.value)}
+                                        rows={2}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Payment Modal */}
-            {showPaymentModal && (
-                <div className="modal-overlay" onClick={() => setShowPaymentModal(false)}>
-                    <div className="modal" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3 className="modal-title">Registrar Pago</h3>
-                            <button className="modal-close" onClick={() => setShowPaymentModal(false)}>
-                                <X size={20} />
-                            </button>
+            {
+                showPaymentModal && (
+                    <div className="modal-overlay" onClick={() => setShowPaymentModal(false)}>
+                        <div className="modal" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3 className="modal-title">Registrar Pago</h3>
+                                <button className="modal-close" onClick={() => setShowPaymentModal(false)}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label className="form-label">Total Cobrado</label>
+                                    <div className="input-with-icon">
+                                        <DollarSign className="input-icon" size={20} />
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="0.00"
+                                            value={paymentAmount}
+                                            onChange={e => setPaymentAmount(e.target.value)}
+                                            autoFocus
+                                        />
+                                    </div>
+                                </div>
+
+                                {order.advance_payment > 0 && (
+                                    <p className="text-secondary">
+                                        Anticipo recibido: ${order.advance_payment.toLocaleString('es-MX')}
+                                    </p>
+                                )}
+                            </div>
+                            <div className="modal-footer">
+                                <button className="btn btn-outline" onClick={() => setShowPaymentModal(false)}>
+                                    Cancelar
+                                </button>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={handlePaymentUpdate}
+                                    disabled={!paymentAmount || parseFloat(paymentAmount) <= 0}
+                                >
+                                    <Check size={18} />
+                                    Confirmar Pago
+                                </button>
+                            </div>
                         </div>
-                        <div className="modal-body">
-                            <div className="form-group">
-                                <label className="form-label">Total Cobrado</label>
-                                <div className="input-with-icon">
-                                    <DollarSign className="input-icon" size={20} />
-                                    <input
-                                        type="number"
+                    </div>
+                )
+            }
+
+            {/* Add Update Modal */}
+            {
+                showUpdateModal && (
+                    <div className="modal-overlay" onClick={() => setShowUpdateModal(false)}>
+                        <div className="modal" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3 className="modal-title">Agregar Novedad</h3>
+                                <button className="modal-close" onClick={() => setShowUpdateModal(false)}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="form-group">
+                                    <label className="form-label">Tipo</label>
+                                    <select
                                         className="form-input"
-                                        placeholder="0.00"
-                                        value={paymentAmount}
-                                        onChange={e => setPaymentAmount(e.target.value)}
+                                        value={updateForm.type}
+                                        onChange={e => setUpdateForm(prev => ({ ...prev, type: e.target.value }))}
+                                    >
+                                        <option value="additional_work">Trabajo Adicional</option>
+                                        <option value="part_needed">Repuesto Necesario</option>
+                                        <option value="info">Información</option>
+                                    </select>
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">Título</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Ej: Cambio de pastillas de freno"
+                                        value={updateForm.title}
+                                        onChange={e => setUpdateForm(prev => ({ ...prev, title: e.target.value }))}
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">Descripción</label>
+                                    <textarea
+                                        className="form-textarea"
+                                        placeholder="Describe el trabajo adicional detectado..."
+                                        value={updateForm.description}
+                                        onChange={e => setUpdateForm(prev => ({ ...prev, description: e.target.value }))}
+                                        rows={3}
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">Precio Estimado</label>
+                                    <div className="input-with-icon">
+                                        <DollarSign className="input-icon" size={20} />
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="0.00"
+                                            value={updateForm.price}
+                                            onChange={e => setUpdateForm(prev => ({ ...prev, price: e.target.value }))}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="checkbox-label">
+                                        <input
+                                            type="checkbox"
+                                            checked={updateForm.requiresAuth}
+                                            onChange={e => setUpdateForm(prev => ({ ...prev, requiresAuth: e.target.checked }))}
+                                        />
+                                        <span>Requiere autorización del cliente</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button className="btn btn-outline" onClick={() => setShowUpdateModal(false)}>
+                                    Cancelar
+                                </button>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={handleAddUpdate}
+                                >
+                                    <Plus size={18} />
+                                    Agregar Novedad
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Cancellation Modal */}
+            {
+                showCancelModal && (
+                    <div className="modal-overlay" onClick={() => setShowCancelModal(false)}>
+                        <div className="modal" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3 className="modal-title text-danger">Solicitar Cancelación</h3>
+                                <button className="modal-close" onClick={() => setShowCancelModal(false)}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="alert-box mb-md" style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '8px', padding: '12px', fontSize: '0.9rem' }}>
+                                    <div className="flex gap-sm">
+                                        <AlertTriangle size={18} className="text-warning" />
+                                        <span>
+                                            No tienes permisos para eliminar órdenes directamente.
+                                            Se enviará una solicitud al administrador.
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">Motivo de Cancelación <span className="text-danger">*</span></label>
+                                    <textarea
+                                        className="form-textarea"
+                                        placeholder="Explica por qué se debe cancelar esta orden..."
+                                        value={cancellationReason}
+                                        onChange={e => setCancellationReason(e.target.value)}
+                                        rows={3}
                                         autoFocus
                                     />
                                 </div>
                             </div>
-
-                            {order.advance_payment > 0 && (
-                                <p className="text-secondary">
-                                    Anticipo recibido: ${order.advance_payment.toLocaleString('es-MX')}
-                                </p>
-                            )}
-                        </div>
-                        <div className="modal-footer">
-                            <button className="btn btn-outline" onClick={() => setShowPaymentModal(false)}>
-                                Cancelar
-                            </button>
-                            <button
-                                className="btn btn-primary"
-                                onClick={handlePaymentUpdate}
-                                disabled={!paymentAmount || parseFloat(paymentAmount) <= 0}
-                            >
-                                <Check size={18} />
-                                Confirmar Pago
-                            </button>
+                            <div className="modal-footer">
+                                <button className="btn btn-outline" onClick={() => setShowCancelModal(false)}>
+                                    Volver
+                                </button>
+                                <button
+                                    className="btn btn-danger"
+                                    onClick={handleRequestCancellation}
+                                    disabled={!cancellationReason.trim()}
+                                >
+                                    Enviar Solicitud
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-            {/* Add Update Modal */}
-            {showUpdateModal && (
-                <div className="modal-overlay" onClick={() => setShowUpdateModal(false)}>
-                    <div className="modal" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3 className="modal-title">Agregar Novedad</h3>
-                            <button className="modal-close" onClick={() => setShowUpdateModal(false)}>
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            <div className="form-group">
-                                <label className="form-label">Tipo</label>
-                                <select
-                                    className="form-input"
-                                    value={updateForm.type}
-                                    onChange={e => setUpdateForm(prev => ({ ...prev, type: e.target.value }))}
-                                >
-                                    <option value="additional_work">Trabajo Adicional</option>
-                                    <option value="part_needed">Repuesto Necesario</option>
-                                    <option value="info">Información</option>
-                                </select>
+            {/* Delete Confirmation Modal */}
+            {
+                showDeleteConfirmModal && (
+                    <div className="modal-overlay" onClick={() => setShowDeleteConfirmModal(false)}>
+                        <div className="modal" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3 className="modal-title text-danger">Eliminar Orden</h3>
+                                <button className="modal-close" onClick={() => setShowDeleteConfirmModal(false)}>
+                                    <X size={20} />
+                                </button>
                             </div>
-
-                            <div className="form-group">
-                                <label className="form-label">Título</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder="Ej: Cambio de pastillas de freno"
-                                    value={updateForm.title}
-                                    onChange={e => setUpdateForm(prev => ({ ...prev, title: e.target.value }))}
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">Descripción</label>
-                                <textarea
-                                    className="form-textarea"
-                                    placeholder="Describe el trabajo adicional detectado..."
-                                    value={updateForm.description}
-                                    onChange={e => setUpdateForm(prev => ({ ...prev, description: e.target.value }))}
-                                    rows={3}
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">Precio Estimado</label>
-                                <div className="input-with-icon">
-                                    <DollarSign className="input-icon" size={20} />
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        placeholder="0.00"
-                                        value={updateForm.price}
-                                        onChange={e => setUpdateForm(prev => ({ ...prev, price: e.target.value }))}
-                                    />
+                            <div className="modal-body">
+                                <div className="alert-box mb-md" style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: '8px', padding: '16px', display: 'flex', gap: '12px' }}>
+                                    <AlertTriangle size={24} className="text-danger" style={{ flexShrink: 0 }} />
+                                    <div>
+                                        <p className="font-bold text-danger mb-xs">¿Estás seguro de que deseas eliminar esta orden permanentemente?</p>
+                                        <p className="text-sm">Esta acción <strong>no se puede deshacer</strong>. Se eliminarán todos los servicios, historial y datos asociados.</p>
+                                    </div>
                                 </div>
                             </div>
-
-                            <div className="form-group">
-                                <label className="checkbox-label">
-                                    <input
-                                        type="checkbox"
-                                        checked={updateForm.requiresAuth}
-                                        onChange={e => setUpdateForm(prev => ({ ...prev, requiresAuth: e.target.checked }))}
-                                    />
-                                    <span>Requiere autorización del cliente</span>
-                                </label>
+                            <div className="modal-footer">
+                                <button className="btn btn-outline" onClick={() => setShowDeleteConfirmModal(false)}>
+                                    Cancelar
+                                </button>
+                                <button
+                                    className="btn btn-danger"
+                                    onClick={handleDeleteOrder}
+                                >
+                                    <Trash2 size={18} />
+                                    Eliminar Definitivamente
+                                </button>
                             </div>
                         </div>
-                        <div className="modal-footer">
-                            <button className="btn btn-outline" onClick={() => setShowUpdateModal(false)}>
-                                Cancelar
-                            </button>
-                            <button
-                                className="btn btn-primary"
-                                onClick={handleAddUpdate}
-                            >
-                                <Plus size={18} />
-                                Agregar Novedad
-                            </button>
-                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-            {/* Photo Upload Modal */}
-            {showPhotoUpload && (
-                <div className="modal-overlay" onClick={() => setShowPhotoUpload(false)}>
-                    <div className="modal modal-large" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3 className="modal-title">📸 Agregar Fotos</h3>
-                            <button className="modal-close" onClick={() => setShowPhotoUpload(false)}>
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            <PhotoUpload onPhotosAdded={handleAddPhotos} />
-                        </div>
-                    </div>
-                </div>
-            )}
+
 
             <style>{`
         .order-detail {
@@ -1130,25 +1223,126 @@ export default function OrderDetail() {
             transform: rotate(360deg);
           }
         }
+
+        /* Payment Card - Premium Design */
+        .payment-card {
+          background: var(--bg-card);
+          border-radius: var(--radius-xl);
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+          border: 1px solid var(--border-color);
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .payment-card-header {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 1rem 1.25rem;
+          background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+          color: white;
+          font-weight: 600;
+          font-size: 0.9375rem;
+        }
+
+        .payment-card-body {
+          padding: 1rem 1.25rem;
+        }
+
+        .payment-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.75rem 0;
+        }
+
+        .payment-label {
+          color: var(--text-secondary);
+          font-size: 0.9375rem;
+        }
+
+        .payment-value {
+          font-size: 1.125rem;
+          font-weight: 700;
+          color: var(--text-primary);
+        }
+
+        .payment-value.has-value {
+          color: var(--primary);
+        }
+
+        .payment-value.highlight {
+          color: var(--primary);
+          font-size: 1.375rem;
+        }
+
+        .payment-value.pending {
+          color: var(--warning);
+        }
+
+        .payment-value.paid {
+          color: var(--success);
+        }
+
+        .payment-divider {
+          height: 1px;
+          background: linear-gradient(90deg, transparent 0%, var(--border-color) 50%, transparent 100%);
+        }
+
+        .payment-card-footer {
+          padding: 1rem 1.25rem;
+          background: var(--bg-hover);
+          border-top: 1px solid var(--border-light);
+        }
+
+        .payment-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          width: 100%;
+          padding: 0.75rem;
+          border-radius: var(--radius-lg);
+          font-size: 0.875rem;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+        }
+
+        .payment-badge.paid {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: white;
+        }
+
+        .payment-badge.pending {
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+          color: white;
+        }
       `}</style>
 
+            {/* Order Photos Download Section */}
+            <OrderPhotosDownload orderId={order.id} order={order} />
+
             {/* Toast Notifications */}
-            {toast && (
-                <Toast
-                    message={toast.message}
-                    type={toast.type}
-                    onClose={() => setToast(null)}
-                />
-            )}
+            {
+                toast && (
+                    <Toast
+                        message={toast.message}
+                        type={toast.type}
+                        onClose={() => setToast(null)}
+                    />
+                )
+            }
 
             {/* No Chat Warning Modal */}
-            {showNoChatWarning && (
-                <NoChatWarning
-                    phone={noChatPhone}
-                    onClose={() => setShowNoChatWarning(false)}
-                    onOpenWhatsApp={handleOpenWhatsAppManual}
-                />
-            )}
+            {
+                showNoChatWarning && (
+                    <NoChatWarning
+                        phone={noChatPhone}
+                        onClose={() => setShowNoChatWarning(false)}
+                        onOpenWhatsApp={handleOpenWhatsAppManual}
+                    />
+                )
+            }
         </div>
     );
 }

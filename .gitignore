@@ -12,16 +12,33 @@ dist
 dist-ssr
 *.local
 
-# Environment files (keep templates)
+# ========================================
+# ENVIRONMENT FILES - SECURITY CRITICAL
+# ========================================
+# NEVER commit real credentials to Git!
+# Only .env.example files should be committed (with placeholders only)
+
+# Root environment files
 .env
 .env.local
-whatsapp-backend/.env
+.env.development
+.env.production
+.env.staging
+.env.*.local
 
-# WhatsApp session data (importante - no subir sesiones)
+# WhatsApp backend environment files
+whatsapp-backend/.env
+whatsapp-backend/.env.local
+whatsapp-backend/.env.development
+whatsapp-backend/.env.production
+
+# WhatsApp session data (never commit sessions)
 whatsapp-backend/.wwebjs_auth/
 whatsapp-backend/.wwebjs_cache/
 
-# Editor directories and files
+# ========================================
+# Editor and IDE files
+# ========================================
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -31,3 +48,12 @@ whatsapp-backend/.wwebjs_cache/
 *.njsproj
 *.sln
 *.sw?
+
+# ========================================
+# Build and cache
+# ========================================
+.cache
+.parcel-cache
+.next
+.nuxt
+.output
