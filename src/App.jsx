@@ -1,39 +1,75 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
+import { ToastProvider } from './context/ToastContext';
 
 // Layout
 import AppLayout from './components/layout/AppLayout';
-import ProtectedRoute from './components/layout/ProtectedRoute';
 
 // Auth Pages
 import Login from './pages/auth/Login';
 
-// Mechanic Pages
-import MechanicDashboard from './pages/mechanic/MechanicDashboard';
-import NewServiceOrder from './pages/mechanic/NewServiceOrder';
-import MechanicOrders from './pages/mechanic/MechanicOrders';
-import MechanicHistory from './pages/mechanic/MechanicHistory';
-import OrderDetail from './pages/mechanic/OrderDetail';
-import ClientsList from './pages/mechanic/ClientsList';
-import AppointmentCalendar from './pages/mechanic/AppointmentCalendar';
-import QuotationsList from './pages/mechanic/QuotationsList';
-import NewQuotation from './pages/mechanic/NewQuotation';
-import RemindersPanel from './pages/mechanic/RemindersPanel';
-
 // Admin Pages
-import AdminDashboard from './pages/admin/AdminDashboard';
-import UserManagement from './pages/admin/UserManagement';
-import WhatsAppConnection from './pages/admin/WhatsAppConnection';
-import AdminSettings from './pages/admin/AdminSettings';
-import AnalyticsDashboard from './pages/admin/AnalyticsDashboard';
-import MechanicsManagement from './pages/admin/MechanicsManagement';
+import {
+  AdminDashboard,
+  AdminOrders,
+  AdminClients,
+  AdminUsers,
+  AdminServices,
+  AdminMechanics,
+  AdminAnalytics,
+  AdminMechanicOrders
+} from './pages/admin/index.jsx';
+
+// Mechanic Pages
+import {
+  MechanicDashboard,
+  MechanicNewOrder,
+  MechanicOrders,
+  MechanicOrderDetail,
+  MechanicClients,
+  MechanicAppointments,
+  MechanicHistory,
+  MechanicEarnings
+} from './pages/mechanic/index.jsx';
 
 // Public Pages
 import ClientPortal from './pages/public/ClientPortal';
 
 import './index.css';
 
+// Componente de ruta protegida
+function ProtectedRoute({ children, requiredRole = null }) {
+  const { isAuthenticated, user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="loading-overlay">
+        <div className="spinner spinner-lg"></div>
+        <p>Cargando...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Verificar rol si es necesario
+  if (requiredRole === 'admin' && user?.role !== 'admin') {
+    return <Navigate to="/mechanic" replace />;
+  }
+
+  if (requiredRole === 'mechanic') {
+    if (user?.role !== 'mechanic' && user?.role !== 'admin_mechanic') {
+      return <Navigate to="/admin" replace />;
+    }
+  }
+
+  return children;
+}
+
+// Componente principal de rutas
 function AppRoutes() {
   const { isAuthenticated, user, loading } = useAuth();
 
@@ -46,39 +82,28 @@ function AppRoutes() {
     );
   }
 
+  // Determinar ruta por defecto según rol
+  const getDefaultRoute = () => {
+    if (!isAuthenticated) return '/login';
+    if (user?.role === 'admin') return '/admin';
+    return '/mechanic';
+  };
+
   return (
     <Routes>
-      {/* Public Routes */}
+      {/* Ruta pública - Login */}
       <Route
         path="/login"
         element={
-          isAuthenticated
-            ? <Navigate to={user?.role === 'admin' ? '/admin' : '/mechanic'} replace />
-            : <Login />
+          isAuthenticated ? (
+            <Navigate to={getDefaultRoute()} replace />
+          ) : (
+            <Login />
+          )
         }
       />
 
-      {/* Mechanic Routes */}
-      <Route
-        path="/mechanic"
-        element={
-          <ProtectedRoute>
-            <AppLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<MechanicDashboard />} />
-        <Route path="new-order" element={<NewServiceOrder />} />
-        <Route path="orders" element={<MechanicOrders />} />
-        <Route path="history" element={<MechanicHistory />} />
-        <Route path="clients" element={<ClientsList />} />
-        <Route path="appointments" element={<AppointmentCalendar />} />
-        <Route path="quotations" element={<QuotationsList />} />
-        <Route path="quotations/new" element={<NewQuotation />} />
-        <Route path="order/:id" element={<OrderDetail />} />
-      </Route>
-
-      {/* Admin Routes */}
+      {/* Rutas de Admin */}
       <Route
         path="/admin"
         element={
@@ -88,21 +113,40 @@ function AppRoutes() {
         }
       >
         <Route index element={<AdminDashboard />} />
-        <Route path="orders" element={<MechanicOrders />} />
-        <Route path="users" element={<UserManagement />} />
-        <Route path="whatsapp" element={<WhatsAppConnection />} />
-        <Route path="settings" element={<AdminSettings />} />
-        <Route path="analytics" element={<AnalyticsDashboard />} />
-        <Route path="reminders" element={<RemindersPanel />} />
-        <Route path="mechanics" element={<MechanicsManagement />} />
+        <Route path="orders" element={<AdminOrders />} />
+        <Route path="clients" element={<AdminClients />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="users/:id/orders" element={<AdminMechanicOrders />} />
+        <Route path="services" element={<AdminServices />} />
+        <Route path="mechanics" element={<AdminMechanics />} />
+        <Route path="analytics" element={<AdminAnalytics />} />
       </Route>
 
-      {/* Public Client Portal (no auth required) */}
+      {/* Rutas de Mecánico */}
+      <Route
+        path="/mechanic"
+        element={
+          <ProtectedRoute requiredRole="mechanic">
+            <AppLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<MechanicDashboard />} />
+        <Route path="new-order" element={<MechanicNewOrder />} />
+        <Route path="orders" element={<MechanicOrders />} />
+        <Route path="order/:id" element={<MechanicOrderDetail />} />
+        <Route path="clients" element={<MechanicClients />} />
+        <Route path="appointments" element={<MechanicAppointments />} />
+        <Route path="history" element={<MechanicHistory />} />
+        <Route path="earnings" element={<MechanicEarnings />} />
+      </Route>
+
+      {/* Portal público para clientes (sin auth) */}
       <Route path="/orden/:token" element={<ClientPortal />} />
 
-      {/* Default Redirect */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      {/* Redirecciones por defecto */}
+      <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
+      <Route path="*" element={<Navigate to={getDefaultRoute()} replace />} />
     </Routes>
   );
 }
@@ -112,7 +156,9 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <DataProvider>
-          <AppRoutes />
+          <ToastProvider>
+            <AppRoutes />
+          </ToastProvider>
         </DataProvider>
       </AuthProvider>
     </BrowserRouter>

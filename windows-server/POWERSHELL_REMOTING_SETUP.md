@@ -54,7 +54,8 @@ Get-Service WinRM
 # Obtener la dirección IP del servidor
 ipconfig
 
-# Anota la IPv4 Address (ejemplo: 192.168.1.100)
+# Anota la IPv4 Address (ejemplo: 192.168.1.100)  
+
 ```
 
 ---
@@ -71,7 +72,7 @@ Enable-PSRemoting -Force
 
 # Agregar el servidor a los hosts confiables
 # Reemplaza 192.168.1.100 con la IP de tu servidor
-Set-Item WSMan:\localhost\Client\TrustedHosts -Value "192.168.1.100" -Force
+Set-Item WSMan:\localhost\Client\TrustedHosts -Value "10.0.2.15" -Force
 
 # O permitir cualquier host (menos seguro pero más flexible)
 Set-Item WSMan:\localhost\Client\TrustedHosts -Value "*" -Force
@@ -84,7 +85,7 @@ Restart-Service WinRM
 
 ```powershell
 # Probar conexión básica (reemplaza con tus datos)
-Test-WSMan -ComputerName 192.168.1.100
+Test-WSMan -ComputerName  192.168.1.104
 
 # Si funciona, verás información sobre el servidor remoto
 ```
@@ -98,7 +99,7 @@ Test-WSMan -ComputerName 192.168.1.100
 ```powershell
 # Conectarse al servidor
 # Reemplaza con la IP de tu servidor y tus credenciales
-$serverIP = "192.168.1.100"
+$serverIP = "192.168.1.104"
 $credential = Get-Credential
 
 # Entrar en sesión interactiva

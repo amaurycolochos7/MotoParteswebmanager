@@ -1,210 +1,195 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { authService } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
-// Demo users for local development
-const DEFAULT_PERMISSIONS = {
-    canManageAppointments: true,
-    canManageQuotes: true,
-    canViewAnalytics: false, // Only for admins by default
-};
-
-const DEMO_USERS = [
-    {
-        id: 'admin-001',
-        email: 'admin@motopartes.com',
-        password: 'admin123',
-        full_name: 'Usuario Maestro',
-        phone: '555-0001',
-        role: 'admin',
-        is_active: true,
-        permissions: {
-            canManageAppointments: true,
-            canManageQuotes: true,
-            canViewAnalytics: true,
-        },
-    },
-    {
-        id: 'mech-001',
-        email: 'mecanico@motopartes.com',
-        password: 'mech123',
-        full_name: 'Carlos Hernández',
-        phone: '555-0002',
-        role: 'mechanic',
-        is_active: true,
-        permissions: {
-            canManageAppointments: true,
-            canManageQuotes: true,
-            canViewAnalytics: false,
-        },
-    },
-];
-
 const STORAGE_KEY = 'motopartes_auth';
-const USERS_STORAGE_KEY = 'motopartes_users';
+
+// Permisos por rol
+const ROLE_PERMISSIONS = {
+    admin: {
+        canViewAllOrders: true,
+        canCreateOrders: false,        // Admin NO crea órdenes
+        canManageUsers: true,
+        canManageClients: true,
+        canManageServices: true,
+        canManageWhatsApp: true,
+        canViewAnalytics: true,
+        canViewMechanicStats: true,
+        canEditClients: true,
+        canDeleteClients: true,
+    },
+    mechanic: {
+        canViewAllOrders: false,       // Solo ve sus órdenes
+        canCreateOrders: true,          // Mecánico SÍ crea órdenes
+        canManageUsers: false,
+        canManageClients: false,        // Solo lectura
+        canManageServices: false,
+        canManageWhatsApp: false,
+        canViewAnalytics: false,
+        canViewMechanicStats: false,
+        canEditClients: false,
+        canDeleteClients: false,
+    },
+    admin_mechanic: {
+        canViewAllOrders: true,         // Ve todas las órdenes
+        canCreateOrders: true,          // Puede crear órdenes
+        canManageUsers: false,          // NO puede crear usuarios
+        canManageClients: true,         // Puede gestionar clientes
+        canManageServices: false,
+        canManageWhatsApp: false,       // NO puede configurar WhatsApp
+        canViewAnalytics: true,
+        canViewMechanicStats: false,
+        canEditClients: true,
+        canDeleteClients: false,
+    },
+};
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
-
-    // Initialize users from localStorage with migration support
-    const [users, setUsers] = useState(() => {
-        const stored = localStorage.getItem(USERS_STORAGE_KEY);
-        if (stored) {
-            try {
-                const parsedUsers = JSON.parse(stored);
-
-                // Migration: Add permissions to users that don't have them
-                const migratedUsers = parsedUsers.map(user => {
-                    if (!user.permissions) {
-                        console.log(`🔧 Migrating user ${user.email} to add permissions...`);
-                        return {
-                            ...user,
-                            permissions: {
-                                canManageAppointments: true,
-                                canManageQuotes: true,
-                                canViewAnalytics: user.role === 'admin',
-                            }
-                        };
-                    }
-                    return user;
-                });
-
-                console.log('✅ Loaded users from localStorage:', migratedUsers.length);
-                return migratedUsers;
-            } catch (e) {
-                console.error('Error loading users from localStorage:', e);
-            }
-        }
-
-        console.log('📦 No stored users found, using demo users');
-        return DEMO_USERS;
-    });
-
     const [loading, setLoading] = useState(true);
 
-    // Save users to storage whenever they change
+    // Cargar sesión al iniciar
     useEffect(() => {
-        console.log('💾 Saving users to localStorage:', users.length);
-        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-    }, [users]);
-
-    // Check for existing session on mount
-    useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
+        const loadSession = async () => {
             try {
-                const parsed = JSON.parse(stored);
-                setUser(parsed);
-            } catch (e) {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                if (stored) {
+                    const userData = JSON.parse(stored);
+                    // Verificar que el usuario sigue activo en la base de datos
+                    const freshUser = await authService.getProfile(userData.id);
+                    if (freshUser && freshUser.is_active) {
+                        setUser(freshUser);
+                    } else {
+                        localStorage.removeItem(STORAGE_KEY);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading session:', error);
                 localStorage.removeItem(STORAGE_KEY);
+            } finally {
+                setLoading(false);
             }
-        }
-        setLoading(false);
-    }, []);
-
-    const login = useCallback(async (email, password) => {
-        // Demo mode authentication
-        const foundUser = users.find(
-            (u) => u.email === email && u.password === password
-        );
-
-        if (!foundUser) {
-            throw new Error('Credenciales incorrectas');
-        }
-
-        if (!foundUser.is_active) {
-            throw new Error('Usuario desactivado');
-        }
-
-        const userData = {
-            id: foundUser.id,
-            email: foundUser.email,
-            full_name: foundUser.full_name,
-            phone: foundUser.phone,
-            role: foundUser.role,
         };
 
-        setUser(userData);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+        loadSession();
+    }, []);
 
-        return userData;
-    }, [users]);
+    // Login
+    const login = useCallback(async (email, password) => {
+        setLoading(true);
+        try {
+            const userData = await authService.login(email, password);
+            setUser(userData);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+            return userData;
+        } catch (error) {
+            // Re-throw the error so the Login component can catch it
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
+    // Logout
     const logout = useCallback(() => {
         setUser(null);
         localStorage.removeItem(STORAGE_KEY);
     }, []);
 
-    const addUser = useCallback((userData) => {
-        const newUser = {
-            id: `user-${Date.now()}`,
-            ...userData,
-            commission_percentage: userData.role === 'mechanic'
-                ? (userData.commission_percentage || 10)
-                : null,
-            permissions: userData.permissions || {
-                canManageAppointments: true,
-                canManageQuotes: true,
-                canViewAnalytics: userData.role === 'admin',
-            },
-            is_active: true,
-            created_at: new Date().toISOString(),
-        };
-        setUsers(prev => [...prev, newUser]);
-        return newUser;
-    }, []);
-
-    const updateUser = useCallback((id, userData) => {
-        setUsers(prev => prev.map(u => u.id === id ? { ...u, ...userData } : u));
-    }, []);
-
-    const deleteUser = useCallback((id) => {
-        setUsers(prev => prev.filter(u => u.id !== id));
-    }, []);
-
+    // Verificar rol
     const isAdmin = useCallback(() => {
         return user?.role === 'admin';
     }, [user]);
 
     const isMechanic = useCallback(() => {
-        // Admin también tiene acceso de mecánico
-        return user?.role === 'mechanic' || user?.role === 'admin';
+        return user?.role === 'mechanic' || user?.role === 'admin_mechanic';
     }, [user]);
 
+    const isAdminMechanic = useCallback(() => {
+        return user?.role === 'admin_mechanic';
+    }, [user]);
+
+    // Verificar permiso específico
     const hasPermission = useCallback((permission) => {
         if (!user) return false;
-        // Admins always have all permissions
-        if (user.role === 'admin') return true;
-        return user.permissions?.[permission] || false;
+        const permissions = ROLE_PERMISSIONS[user.role];
+        return permissions?.[permission] || false;
     }, [user]);
 
-    const canManageAppointments = useCallback(() => {
-        return hasPermission('canManageAppointments');
-    }, [hasPermission]);
+    // Obtener todos los permisos del usuario actual
+    const getPermissions = useCallback(() => {
+        if (!user) return {};
+        return ROLE_PERMISSIONS[user.role] || {};
+    }, [user]);
 
-    const canManageQuotes = useCallback(() => {
-        return hasPermission('canManageQuotes');
-    }, [hasPermission]);
+    // Verificar si puede acceder a una ruta
+    const canAccess = useCallback((route) => {
+        if (!user) return false;
 
-    const canViewAnalytics = useCallback(() => {
-        return hasPermission('canViewAnalytics');
-    }, [hasPermission]);
+        const adminOnlyRoutes = ['/admin/users', '/admin/whatsapp', '/admin/settings'];
+        const mechanicOnlyRoutes = ['/mechanic/new-order'];
+
+        if (adminOnlyRoutes.some(r => route.startsWith(r))) {
+            return user.role === 'admin';
+        }
+
+        if (mechanicOnlyRoutes.some(r => route.startsWith(r))) {
+            return user.role === 'mechanic' || user.role === 'admin_mechanic';
+        }
+
+        return true;
+    }, [user]);
+
+    // Permisos específicos del usuario (vienen de la BD)
+    const canCreateAppointments = useCallback(() => {
+        if (!user) return false;
+        // Admin siempre puede, mecánicos depende de su configuración
+        if (user.role === 'admin') return true;
+        return user.can_create_appointments !== false;
+    }, [user]);
+
+    const canSendMessages = useCallback(() => {
+        if (!user) return false;
+        // Admin siempre puede, mecánicos depende de su configuración
+        if (user.role === 'admin') return true;
+        return user.can_send_messages !== false;
+    }, [user]);
+
+    const canCreateClients = useCallback(() => {
+        if (!user) return false;
+        if (user.role === 'admin') return true;
+        return user.can_create_clients !== false; // Default true if undefined
+    }, [user]);
+
+    const canEditClients = useCallback(() => {
+        if (!user) return false;
+        if (user.role === 'admin') return true;
+        return user.can_edit_clients === true; // Default false if undefined
+    }, [user]);
+
+    const canDeleteOrders = useCallback(() => {
+        if (!user) return false;
+        if (user.role === 'admin') return true;
+        return user.can_delete_orders === true; // Default false if undefined
+    }, [user]);
 
     const value = {
         user,
-        users,
         loading,
         login,
         logout,
-        addUser,
-        updateUser,
-        deleteUser,
         isAdmin,
         isMechanic,
+        isAdminMechanic,
         hasPermission,
-        canManageAppointments,
-        canManageQuotes,
-        canViewAnalytics,
+        getPermissions,
+        canAccess,
+        canCreateAppointments,
+        canSendMessages,
+        canCreateClients,
+        canEditClients,
+        canDeleteOrders,
         isAuthenticated: !!user,
     };
 

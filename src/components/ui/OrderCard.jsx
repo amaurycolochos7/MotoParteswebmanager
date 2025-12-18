@@ -1,22 +1,19 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, ChevronRight } from 'lucide-react';
-import { useData } from '../../context/DataContext';
+export default function OrderCard({ order, statuses, baseUrl = '/mechanic/order' }) {
+  // Usar datos poblados directamente del objeto order
+  // Fallback seguro en caso de que order.client/motorcycle no existan
+  const client = order.client || {};
+  const motorcycle = order.motorcycle || {};
 
-export default function OrderCard({ order, statuses }) {
-  const { clients, motorcycles } = useData();
+  // Manejar status si viene como objeto (JOIN) o string
+  const statusName = order.status?.name || order.status;
 
-  const client = useMemo(() =>
-    clients.find(c => c.id === order.client_id),
-    [clients, order.client_id]
-  );
-
-  const motorcycle = useMemo(() =>
-    motorcycles.find(m => m.id === order.motorcycle_id),
-    [motorcycles, order.motorcycle_id]
-  );
-
-  const currentStatus = statuses?.find(s => s.name === order.status);
+  // Intentar obtener el objeto status completo para el color
+  // Si order.status es objeto, usalo. Si es string, búscalo en props.statuses
+  const statusObj = typeof order.status === 'object' ? order.status : statuses?.find(s => s.name === statusName);
+  const statusColor = statusObj?.color || '#64748b'; // Fallback color
 
   // Calculate time elapsed
   const timeElapsed = useMemo(() => {
@@ -32,26 +29,27 @@ export default function OrderCard({ order, statuses }) {
   }, [order.created_at]);
 
   return (
-    <Link to={`/mechanic/order/${order.id}`} className="order-card">
+    <Link to={`${baseUrl}/${order.id}`} className="order-card">
       <div className="order-card-header">
         <span className="order-card-number">{order.order_number}</span>
         <span
           className="badge"
           style={{
-            background: `${currentStatus?.color}20`,
-            color: currentStatus?.color
+            background: `${statusColor}20`,
+            color: statusColor
           }}
         >
-          {order.status}
+          {statusName}
         </span>
       </div>
 
       <div className="order-card-client">
-        {client?.full_name || 'Cliente'}
+        {client.full_name || 'Cliente sin nombre'}
       </div>
 
       <div className="order-card-moto">
-        {motorcycle?.brand} {motorcycle?.model} • {motorcycle?.plates || 'Sin placas'}
+        {motorcycle.brand ? `${motorcycle.brand} ${motorcycle.model}` : 'Moto no asignada'}
+        {motorcycle.plates && ` • ${motorcycle.plates}`}
       </div>
 
       <div className="order-card-footer">

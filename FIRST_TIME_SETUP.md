@@ -71,7 +71,7 @@ Sigue estos pasos EN ORDEN una vez que tengas Windows Server instalado.
   ```
 - [ ] Clona tu repositorio (necesitas subir el proyecto a GitHub primero):
   ```powershell
-  git clone https://github.com/TU-USUARIO/motopartes-manager.git
+  git clone https://github.com/CluberJunior/motopartes-manager.git
   cd motopartes-manager
   ```
 

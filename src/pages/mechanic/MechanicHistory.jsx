@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   History,
   Search,
@@ -22,6 +22,7 @@ import { useData } from '../../context/DataContext';
 export default function MechanicHistory() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { orders, clients, motorcycles, statuses, deleteOrder } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('date'); // date, amount, mechanic
@@ -31,28 +32,51 @@ export default function MechanicHistory() {
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   const isAdmin = user?.role === 'admin';
+  const periodFilter = searchParams.get('period'); // 'month' or null
 
   // Get orders based on user role
   const allOrders = useMemo(() => {
+    if (!orders) return [];
     if (isAdmin) {
       // Admin sees ALL orders
-      return orders || [];
+      return orders;
     }
     // Mechanic sees only their orders
-    return orders.filter(o => o.mechanic_id === user?.id) || [];
+    return orders.filter(o => o.mechanic_id === user?.id);
   }, [orders, user, isAdmin]);
 
   const deliveredOrders = useMemo(() => {
-    return allOrders.filter(o => o.status === 'Entregada');
-  }, [allOrders]);
+    let filtered = allOrders.filter(o => o.status?.name === 'Entregada' || o.status === 'Entregada' || o.is_paid);
+
+    const now = new Date();
+
+    // Apply period filter
+    if (periodFilter === 'month') {
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      filtered = filtered.filter(o => {
+        const orderDate = new Date(o.paid_at || o.completed_at || o.updated_at);
+        return orderDate >= monthStart;
+      });
+    } else if (periodFilter === 'week') {
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+      weekStart.setHours(0, 0, 0, 0);
+      filtered = filtered.filter(o => {
+        const orderDate = new Date(o.paid_at || o.completed_at || o.updated_at);
+        return orderDate >= weekStart;
+      });
+    }
+
+    return filtered;
+  }, [allOrders, periodFilter]);
 
   const filteredOrders = useMemo(() => {
     if (!searchQuery.trim()) return deliveredOrders;
 
     const query = searchQuery.toLowerCase();
     return deliveredOrders.filter(order => {
-      const client = clients.find(c => c.id === order.client_id);
-      const motorcycle = motorcycles.find(m => m.id === order.motorcycle_id);
+      const client = clients?.find(c => c.id === order.client_id);
+      const motorcycle = motorcycles?.find(m => m.id === order.motorcycle_id);
 
       return (
         order.order_number?.toLowerCase().includes(query) ||
@@ -253,9 +277,9 @@ export default function MechanicHistory() {
       ) : (
         <div className="orders-list">
           {sortedOrders.map(order => {
-            const client = clients.find(c => c.id === order.client_id);
-            const motorcycle = motorcycles.find(m => m.id === order.motorcycle_id);
-            const status = statuses.find(s => s.name === order.status);
+            const client = clients?.find(c => c.id === order.client_id);
+            const motorcycle = motorcycles?.find(m => m.id === order.motorcycle_id);
+            const status = statuses?.find(s => s.name === order.status);
 
             return (
               <div
@@ -280,7 +304,7 @@ export default function MechanicHistory() {
                       }}
                     >
                       <CheckCircle size={14} />
-                      {order.status}
+                      {typeof order.status === 'object' ? order.status?.name : order.status}
                     </div>
                     {isAdmin && (
                       <button
@@ -440,7 +464,7 @@ export default function MechanicHistory() {
                         }}
                       >
                         <CheckCircle size={16} />
-                        {selectedOrder.status}
+                        {typeof selectedOrder.status === 'object' ? selectedOrder.status?.name : selectedOrder.status}
                       </div>
                     </div>
 
@@ -1366,6 +1390,106 @@ export default function MechanicHistory() {
           gap: var(--spacing-xs);
           font-size: 1rem;
           font-weight: 600;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+          .stats-cards {
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: var(--spacing-xs);
+          }
+
+          .stat-card {
+            padding: var(--spacing-sm);
+            flex-direction: column;
+            text-align: center;
+            gap: var(--spacing-xs);
+          }
+
+          .stat-icon {
+            width: 32px;
+            height: 32px;
+          }
+
+          .stat-icon svg {
+            width: 16px;
+            height: 16px;
+          }
+
+          .stat-value {
+            font-size: 0.9375rem;
+          }
+
+          .stat-label {
+            font-size: 0.5625rem;
+            line-height: 1.2;
+          }
+
+          .page-title {
+            font-size: 1.25rem;
+          }
+
+          .sort-buttons {
+            flex-wrap: wrap;
+          }
+
+          .sort-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            font-size: 0.75rem;
+          }
+
+          .mechanic-highlight {
+            flex-direction: column;
+            text-align: center;
+          }
+
+          .info-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .details-modal {
+            max-height: 90vh;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .stats-cards {
+            grid-template-columns: 1fr;
+            gap: var(--spacing-sm);
+          }
+
+          .stat-card {
+            flex-direction: row;
+            text-align: left;
+            padding: var(--spacing-md);
+          }
+
+          .stat-icon {
+            width: 40px;
+            height: 40px;
+          }
+
+          .stat-value {
+            font-size: 1.125rem;
+          }
+
+          .stat-label {
+            font-size: 0.6875rem;
+          }
+
+          .order-info {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+          }
+
+          .card-footer {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--spacing-sm);
+          }
         }
       `}</style>
     </div>

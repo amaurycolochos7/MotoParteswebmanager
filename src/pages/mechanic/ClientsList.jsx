@@ -17,7 +17,7 @@ import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 
 export default function ClientsList() {
-    const { user, isAdmin } = useAuth();
+    const { user, isAdmin, canCreateClients, canEditClients } = useAuth();
     const { clients, addClient, updateClient, deleteClient, getClientMotorcycles, addMotorcycle, updateMotorcycle, deleteMotorcycle } = useData();
     const [searchQuery, setSearchQuery] = useState('');
     const [showModal, setShowModal] = useState(false);
@@ -70,81 +70,103 @@ export default function ClientsList() {
         setShowModal(true);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!formData.full_name.trim() || !formData.phone.trim()) {
             alert('Nombre y teléfono son obligatorios');
             return;
         }
 
-        if (editingClient) {
-            // Update existing client
-            updateClient(editingClient.id, {
-                full_name: formData.full_name.trim(),
-                phone: formData.phone.trim(),
-                email: formData.email.trim(),
-                notes: formData.notes.trim()
-            });
+        try {
+            if (editingClient) {
+                // Update existing client
+                await updateClient(editingClient.id, {
+                    full_name: formData.full_name.trim(),
+                    phone: formData.phone.trim(),
+                    email: formData.email.trim(),
+                    notes: formData.notes.trim()
+                });
 
-            // Update motorcycles
-            const currentMotos = getClientMotorcycles(editingClient.id);
+                // Update motorcycles
+                const currentMotos = getClientMotorcycles(editingClient.id);
 
-            // Delete removed motorcycles
-            currentMotos.forEach(moto => {
-                if (!motorcycles.find(m => m.id === moto.id)) {
-                    deleteMotorcycle(moto.id);
+                // Delete removed motorcycles
+                for (const moto of currentMotos) {
+                    if (!motorcycles.find(m => m.id === moto.id)) {
+                        await deleteMotorcycle(moto.id);
+                    }
                 }
-            });
 
-            // Add/Update motorcycles
-            motorcycles.forEach(moto => {
-                if (moto.id && moto.id.startsWith('moto-')) {
-                    // Existing moto - update
-                    updateMotorcycle(moto.id, {
-                        brand: moto.brand,
-                        model: moto.model,
-                        year: moto.year,
-                        plates: moto.plates,
-                        color: moto.color,
-                    });
-                } else {
-                    // New moto - add
-                    addMotorcycle({
-                        client_id: editingClient.id,
-                        brand: moto.brand,
-                        model: moto.model,
-                        year: moto.year,
-                        plates: moto.plates,
-                        color: moto.color,
-                    });
-                }
-            });
-        } else {
-            // Add new client
-            const newClient = addClient({
-                full_name: formData.full_name.trim(),
-                phone: formData.phone.trim(),
-                email: formData.email.trim(),
-                notes: formData.notes.trim()
-            });
+                // Add/Update motorcycles
+                for (const moto of motorcycles) {
+                    if (moto.id && typeof moto.id === 'string' && moto.id.startsWith('moto-') && !moto.id.includes('demo')) {
+                        // This check was a bit flaky in original code, relying on moto- prefix.
+                        // Better check: if it comes from DB it has UUID. If it's temp it might have temp ID.
+                        // Assuming getClientMotorcycles returns valid IDs.
+                        // Let's stick to update logic: exists in DB?
+                        // If logic was: if it was in initial list, it's update.
 
-            // Add motorcycles
-            motorcycles.forEach(moto => {
-                if (moto.brand && moto.model) {
-                    addMotorcycle({
-                        client_id: newClient.id,
-                        brand: moto.brand,
-                        model: moto.model,
-                        year: moto.year,
-                        plates: moto.plates,
-                        color: moto.color,
-                    });
+                        // Simplifying: we call update. DataContext update handles it.
+                        await updateMotorcycle(moto.id, {
+                            brand: moto.brand,
+                            model: moto.model,
+                            year: moto.year,
+                            plates: moto.plates,
+                            color: moto.color,
+                        });
+                    } else if (moto.id && !moto.id.toString().includes('demo') && !moto.id.toString().includes('temp')) {
+                        // Valid ID implies update
+                        await updateMotorcycle(moto.id, {
+                            brand: moto.brand,
+                            model: moto.model,
+                            year: moto.year,
+                            plates: moto.plates,
+                            color: moto.color,
+                        });
+                    } else {
+                        // New moto - add
+                        await addMotorcycle({
+                            client_id: editingClient.id,
+                            brand: moto.brand,
+                            model: moto.model,
+                            year: moto.year,
+                            plates: moto.plates,
+                            color: moto.color,
+                        });
+                    }
                 }
-            });
+            } else {
+                // Add new client
+                const newClient = await addClient({
+                    full_name: formData.full_name.trim(),
+                    phone: formData.phone.trim(),
+                    email: formData.email.trim(),
+                    notes: formData.notes.trim()
+                });
+
+                // Add motorcycles
+                if (newClient && newClient.id) {
+                    for (const moto of motorcycles) {
+                        if (moto.brand && moto.model) {
+                            await addMotorcycle({
+                                client_id: newClient.id,
+                                brand: moto.brand,
+                                model: moto.model,
+                                year: moto.year,
+                                plates: moto.plates,
+                                color: moto.color,
+                            });
+                        }
+                    }
+                }
+            }
+
+            setShowModal(false);
+            setFormData({ full_name: '', phone: '', email: '', notes: '' });
+            setMotorcyclesForm([]);
+        } catch (error) {
+            console.error('Error saving client:', error);
+            alert('Error al guardar: ' + error.message);
         }
-
-        setShowModal(false);
-        setFormData({ full_name: '', phone: '', email: '', notes: '' });
-        setMotorcyclesForm([]);
     };
 
     const handleDelete = (client) => {
@@ -194,11 +216,13 @@ export default function ClientsList() {
                     </p>
                 </div>
                 <button
-                    className="btn btn-primary"
+                    className="btn btn-primary btn-sm"
                     onClick={openAddModal}
+                    disabled={!canCreateClients()}
+                    style={{ display: canCreateClients() ? 'flex' : 'none' }}
                 >
-                    <Plus size={20} />
-                    <span>Nuevo</span>
+                    <Plus size={18} />
+                    <span className="btn-text-mobile">Nuevo Cliente</span>
                 </button>
             </div>
 
@@ -262,7 +286,7 @@ export default function ClientsList() {
                                         )}
                                     </div>
                                 </div>
-                                {isAdmin() && (
+                                {canEditClients() && (
                                     <div className="client-actions">
                                         <button
                                             className="btn-icon-small btn-edit"

@@ -1,1129 +1,538 @@
-import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import {
-  Bike,
-  Wrench,
-  DollarSign,
-  Clock,
-  ChevronRight,
-  Plus,
-  AlertCircle,
-  TrendingUp,
-  Calendar,
-  CheckCircle,
-  ListChecks,
-  X,
-  User,
-  Phone
-} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
-import SpeedometerGauge from '../../components/ui/SpeedometerGauge';
-import OrderCard from '../../components/ui/OrderCard';
+import {
+  ClipboardList,
+  Plus,
+  DollarSign,
+  Clock,
+  CheckCircle,
+  Bike,
+  ChevronRight
+} from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useMemo } from 'react';
 
 export default function MechanicDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const {
-    getActiveOrders,
-    getTodayStats,
-    getMechanicOrders,
-    getTodayOrders,
-    getTodayEarnings,
-    getWeekEarnings,
-    getMonthEarnings,
-    statuses,
-    clients,
-    motorcycles,
-    orders
-  } = useData();
+  const { orders, loading } = useData();
 
-  const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState(null); // 'today', 'completed', 'collected'
-  const [selectedMechanic, setSelectedMechanic] = useState(null);
+  // Mis órdenes activas
+  const myActiveOrders = useMemo(() => {
+    if (!orders) return [];
+    return orders.filter(o =>
+      o.mechanic_id === user?.id && !o.status?.is_terminal
+    );
+  }, [orders, user]);
 
-  const isAdmin = user?.role === 'admin';
-
-  const activeOrders = useMemo(() => {
-    return getActiveOrders(user?.id) || [];
-  }, [getActiveOrders, user?.id]);
-
-  const allOrders = useMemo(() => {
-    if (isAdmin) {
-      return orders || [];
+  // Estadísticas del mecánico - más útiles y claras
+  const stats = useMemo(() => {
+    if (!orders || !user) {
+      return { weekEarnings: 0, monthEarnings: 0, monthOrders: 0, pendingOrders: 0 };
     }
-    return getMechanicOrders(user?.id) || [];
-  }, [getMechanicOrders, user?.id, orders, isAdmin]);
 
-  const todayStats = useMemo(() => {
-    return getTodayStats(user?.id) || { totalOrders: 0, completedOrders: 0, totalCollected: 0 };
-  }, [getTodayStats, user?.id]);
+    const now = new Date();
+    const commissionRate = (user.commission_percentage || 10) / 100;
 
-  const todayOrders = useMemo(() => {
-    if (isAdmin) {
-      return getTodayOrders() || [];
-    }
-    return getTodayOrders(user?.id) || [];
-  }, [getTodayOrders, user?.id, isAdmin]);
+    // Inicio de la semana (lunes)
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+    weekStart.setHours(0, 0, 0, 0);
 
-  // Today's completed orders
-  const todayCompleted = useMemo(() => {
-    return todayOrders.filter(o => o.status === 'Entregada');
-  }, [todayOrders]);
+    // Inicio del mes
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // Today's paid orders
-  const todayPaid = useMemo(() => {
-    return todayOrders.filter(o => o.is_paid);
-  }, [todayOrders]);
+    // Mis órdenes completadas (pagadas)
+    const myPaidOrders = orders.filter(o =>
+      o.mechanic_id === user.id && o.is_paid
+    );
 
-  // Mechanics performance (for admin)
-  const mechanicsToday = useMemo(() => {
-    if (!isAdmin) return [];
+    // Ganancias de la semana
+    const weekOrders = myPaidOrders.filter(o =>
+      new Date(o.paid_at || o.created_at) >= weekStart
+    );
+    const weekLabor = weekOrders.reduce((sum, o) => sum + (parseFloat(o.labor_total) || 0), 0);
+    const weekEarnings = weekLabor * commissionRate;
 
-    const mechs = {};
-    todayOrders.forEach(order => {
-      const id = order.mechanic_id;
-      if (!mechs[id]) {
-        mechs[id] = {
-          id,
-          name: order.mechanic_name || 'Sin asignar',
-          orders: [],
-          completed: 0,
-          revenue: 0
-        };
-      }
-      mechs[id].orders.push(order);
-      if (order.status === 'Entregada') {
-        mechs[id].completed++;
-      }
-      if (order.is_paid) {
-        mechs[id].revenue += order.total_amount || 0;
-      }
-    });
+    // Ganancias del mes
+    const monthOrdersPaid = myPaidOrders.filter(o =>
+      new Date(o.paid_at || o.created_at) >= monthStart
+    );
+    const monthLabor = monthOrdersPaid.reduce((sum, o) => sum + (parseFloat(o.labor_total) || 0), 0);
+    const monthEarnings = monthLabor * commissionRate;
 
-    return Object.values(mechs).sort((a, b) => b.completed - a.completed);
-  }, [todayOrders, isAdmin]);
-
-  const dailyGoal = 5;
-  const progress = Math.min((todayStats.completedOrders / dailyGoal) * 100, 100);
-
-  const pendingPayments = useMemo(() => {
-    return activeOrders.filter(o =>
-      (o.status === 'Lista para Entregar' || o.status === 'Entregada') && !o.is_paid
-    ).length;
-  }, [activeOrders]);
-
-  // Earnings calculations (mechanics only)
-  const todayEarnings = useMemo(() => {
-    if (isAdmin) return null; // Admins don't have earnings
-    return getTodayEarnings(user?.id) || { laborTotal: 0, mechanicEarnings: 0, commissionRate: 10, orderCount: 0 };
-  }, [getTodayEarnings, user?.id, isAdmin]);
-
-  const weekEarnings = useMemo(() => {
-    if (isAdmin) return null;
-    return getWeekEarnings(user?.id) || { laborTotal: 0, mechanicEarnings: 0, commissionRate: 10, orderCount: 0 };
-  }, [getWeekEarnings, user?.id, isAdmin]);
-
-  const monthEarnings = useMemo(() => {
-    if (isAdmin) return null;
-    return getMonthEarnings(user?.id) || { laborTotal: 0, mechanicEarnings: 0, commissionRate: 10, orderCount: 0 };
-  }, [getMonthEarnings, user?.id, isAdmin]);
-
-  const quickActions = [
-    {
-      label: 'Nueva Orden',
-      icon: Plus,
-      to: '/mechanic/new-order',
-      color: 'primary',
-      description: 'Registrar servicio'
-    },
-    {
-      label: 'Órdenes Activas',
-      icon: ListChecks,
-      to: '/mechanic/orders',
-      color: 'secondary',
-      count: activeOrders.length,
-      description: 'En proceso'
-    },
-    {
-      label: 'Historial',
-      icon: Calendar,
-      to: '/mechanic/history',
-      color: 'accent',
-      count: allOrders.filter(o => o.status === 'Entregada').length,
-      description: 'Completados'
-    },
-  ];
-
-  const priorityOrders = useMemo(() => {
-    return activeOrders.filter(o =>
-      o.status === 'Lista para Entregar' && !o.is_paid
-    ).slice(0, 3);
-  }, [activeOrders]);
-
-  const handleStatClick = (type) => {
-    setModalType(type);
-    setShowModal(true);
-  };
-
-  const handleMechanicClick = (mechanic) => {
-    setSelectedMechanic(mechanic);
-  };
+    return {
+      weekEarnings,
+      monthEarnings,
+      monthOrders: monthOrdersPaid.length,
+      pendingOrders: myActiveOrders.length
+    };
+  }, [orders, user, myActiveOrders]);
 
   const formatCurrency = (amount) => {
-    return `$${amount.toLocaleString('es-MX')}`;
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount || 0);
   };
 
+  const getTimeAgo = (date) => {
+    const seconds = Math.floor((Date.now() - new Date(date)) / 1000);
+    if (seconds < 60) return 'Hace un momento';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `Hace ${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `Hace ${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `Hace ${days}d`;
+  };
+
+  if (loading) {
+    return (
+      <div className="loading-overlay" style={{ position: 'relative', minHeight: 400 }}>
+        <div className="spinner spinner-lg"></div>
+        <p>Cargando...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="dashboard">
-      {/* Header */}
+    <div className="mechanic-dashboard">
+      {/* Header con saludo */}
       <div className="dashboard-header">
-        <div>
-          <h1 className="greeting">Hola, {user?.full_name?.split(' ')[0]} 👋</h1>
-          <p className="date">
-            {new Date().toLocaleDateString('es-MX', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long'
-            })}
-          </p>
+        <div className="greeting">
+          <span className="greeting-emoji">👋</span>
+          <div>
+            <h1 className="greeting-name">Hola, {user?.full_name?.split(' ')[0]}</h1>
+            <p className="greeting-subtitle">
+              {myActiveOrders.length > 0
+                ? `Tienes ${myActiveOrders.length} orden${myActiveOrders.length > 1 ? 'es' : ''} pendiente${myActiveOrders.length > 1 ? 's' : ''}`
+                : 'No tienes órdenes pendientes'}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="quick-actions-grid">
-        {quickActions.map((action) => (
-          <Link
-            key={action.label}
-            to={action.to}
-            className={`action-card action-card-${action.color}`}
-          >
-            <div className="action-icon">
-              <action.icon size={24} />
-            </div>
-            <div className="action-content">
-              <div className="action-label">{action.label}</div>
-              <div className="action-description">{action.description}</div>
-            </div>
-            {action.count !== undefined && (
-              <div className="action-count">{action.count}</div>
-            )}
-            <ChevronRight className="action-arrow" size={20} />
-          </Link>
-        ))}
-      </div>
+      {/* Botón Nueva Orden destacado */}
+      <Link to="/mechanic/new-order" className="new-order-btn">
+        <Plus size={24} />
+        <span>Nueva Orden de Servicio</span>
+      </Link>
 
-      {/* Today's Summary - CLICKABLE */}
-      <div className="section-header">
-        <h2 className="section-title">Resumen de Hoy</h2>
-      </div>
-
+      {/* KPIs en grid 2x2 - Métricas claras */}
       <div className="stats-grid">
-        <div
-          className="stat-card stat-card-clickable"
-          onClick={() => handleStatClick('today')}
-        >
-          <div className="stat-icon stat-icon-primary">
-            <Bike size={20} />
+        <div className="stat-card stat-pending" onClick={() => navigate('/mechanic/orders')}>
+          <div className="stat-icon">
+            <Clock size={22} />
           </div>
-          <div className="stat-content">
-            <div className="stat-value">{todayStats.totalOrders}</div>
-            <div className="stat-label">Motos Hoy</div>
-          </div>
-          <ChevronRight className="stat-arrow" size={18} />
+          <div className="stat-value">{stats.pendingOrders}</div>
+          <div className="stat-label">Por Atender</div>
         </div>
 
-        <div
-          className="stat-card stat-card-clickable"
-          onClick={() => handleStatClick('completed')}
-        >
-          <div className="stat-icon stat-icon-success">
-            <CheckCircle size={20} />
+        <div className="stat-card stat-month-orders" onClick={() => navigate('/mechanic/history?period=month')}>
+          <div className="stat-icon">
+            <CheckCircle size={22} />
           </div>
-          <div className="stat-content">
-            <div className="stat-value">{todayStats.completedOrders}</div>
-            <div className="stat-label">Terminados</div>
-          </div>
-          <ChevronRight className="stat-arrow" size={18} />
+          <div className="stat-value">{stats.monthOrders}</div>
+          <div className="stat-label">Completadas<br />este mes</div>
         </div>
 
-        <div
-          className="stat-card stat-card-highlight stat-card-clickable"
-          onClick={() => handleStatClick('collected')}
-        >
-          <div className="stat-icon stat-icon-primary">
-            <DollarSign size={20} />
+        <div className="stat-card stat-week" onClick={() => navigate('/mechanic/earnings?period=week')}>
+          <div className="stat-icon">
+            <DollarSign size={22} />
           </div>
-          <div className="stat-content">
-            <div className="stat-value">{formatCurrency(todayStats.totalCollected)}</div>
-            <div className="stat-label">Cobrado Hoy</div>
+          <div className="stat-value">{formatCurrency(stats.weekEarnings)}</div>
+          <div className="stat-label">Esta Semana</div>
+        </div>
+
+        <div className="stat-card stat-month" onClick={() => navigate('/mechanic/earnings?period=month')}>
+          <div className="stat-icon">
+            <DollarSign size={22} />
           </div>
-          <ChevronRight className="stat-arrow" size={18} />
+          <div className="stat-value">{formatCurrency(stats.monthEarnings)}</div>
+          <div className="stat-label">Este Mes</div>
         </div>
       </div>
 
-      {/* Earnings Card (Mechanics Only) */}
-      {!isAdmin && todayEarnings && (
-        <div className="earnings-section">
-          <div className="earnings-card">
-            <div className="earnings-header">
-              <div className="earnings-title-wrapper">
-                <h3 className="earnings-title">💰 Mis Ganancias</h3>
-                <span className="commission-badge">
-                  {todayEarnings.commissionRate}% de mano de obra
-                </span>
-              </div>
-            </div>
-
-            <div className="earnings-grid">
-              <div className="earning-item">
-                <span className="earning-label">Hoy</span>
-                <span className="earning-amount">
-                  ${todayEarnings.mechanicEarnings.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-                <span className="earning-detail">
-                  {todayEarnings.orderCount} orden{todayEarnings.orderCount !== 1 ? 'es' : ''} • ${todayEarnings.laborTotal.toLocaleString('es-MX')} total
-                </span>
-              </div>
-
-              <div className="earning-item">
-                <span className="earning-label">Esta Semana</span>
-                <span className="earning-amount">
-                  ${weekEarnings.mechanicEarnings.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-                <span className="earning-detail">
-                  {weekEarnings.orderCount} orden{weekEarnings.orderCount !== 1 ? 'es' : ''}
-                </span>
-              </div>
-
-              <div className="earning-item earning-item-highlight">
-                <span className="earning-label">Este Mes</span>
-                <span className="earning-amount highlight">
-                  ${monthEarnings.mechanicEarnings.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-                <span className="earning-detail">
-                  {monthEarnings.orderCount} orden{monthEarnings.orderCount !== 1 ? 'es' : ''}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Daily Goal */}
-      <div className="gauge-section">
-        <h3 className="gauge-title">Meta Diaria</h3>
-        <SpeedometerGauge value={progress} max={100} label={`${todayStats.completedOrders}/${dailyGoal}`} />
-        <p className="gauge-subtitle">
-          {dailyGoal - todayStats.completedOrders > 0
-            ? `Faltan ${dailyGoal - todayStats.completedOrders} para completar tu meta`
-            : '¡Meta cumplida! 🎉'}
-        </p>
-      </div>
-
-      {/* Mechanics Performance (Admin Only) */}
-      {isAdmin && mechanicsToday.length > 0 && (
-        <div className="section">
+      {/* Órdenes Activas */}
+      <div className="section">
+        <div className="section-header">
           <h2 className="section-title">
-            <TrendingUp size={18} />
-            Mecánicos Activos Hoy
+            <ClipboardList size={20} />
+            Mis Órdenes Activas
           </h2>
-          <div className="mechanics-grid">
-            {mechanicsToday.map((mechanic, index) => (
+          {myActiveOrders.length > 0 && (
+            <Link to="/mechanic/orders" className="see-all">
+              Ver todas <ChevronRight size={16} />
+            </Link>
+          )}
+        </div>
+
+        {myActiveOrders.length === 0 ? (
+          <div className="empty-orders">
+            <div className="empty-icon">🔧</div>
+            <p className="empty-title">Sin órdenes activas</p>
+            <p className="empty-text">Crea una nueva orden para comenzar a trabajar</p>
+            <Link to="/mechanic/new-order" className="btn btn-primary">
+              <Plus size={18} />
+              Crear Orden
+            </Link>
+          </div>
+        ) : (
+          <div className="orders-list">
+            {myActiveOrders.slice(0, 5).map(order => (
               <div
-                key={mechanic.id}
-                className="mechanic-card-compact clickable"
-                onClick={() => handleMechanicClick(mechanic)}
+                key={order.id}
+                className="order-card"
+                onClick={() => navigate(`/mechanic/order/${order.id}`)}
               >
-                <div className="mechanic-rank">#{index + 1}</div>
-                <div className="mechanic-info">
-                  <div className="mechanic-name">{mechanic.name}</div>
-                  <div className="mechanic-stats-compact">
-                    <span>{mechanic.orders.length} órdenes</span>
-                    <span>•</span>
-                    <span className="text-success">{mechanic.completed} completadas</span>
+                <div className="order-main">
+                  <div className="order-number">#{order.order_number}</div>
+                  <div className="order-client">{order.client?.full_name}</div>
+                  <div className="order-moto">
+                    <Bike size={14} />
+                    {order.motorcycle?.brand} {order.motorcycle?.model}
                   </div>
                 </div>
-                <div className="mechanic-revenue-compact">{formatCurrency(mechanic.revenue)}</div>
-                <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
+                <div className="order-side">
+                  <span
+                    className="order-status"
+                    style={{
+                      background: `${order.status?.color}20`,
+                      color: order.status?.color
+                    }}
+                  >
+                    {order.status?.name}
+                  </span>
+                  <div className="order-amount">{formatCurrency(order.total_amount)}</div>
+                  <div className="order-time">{getTimeAgo(order.created_at)}</div>
+                </div>
+                <ChevronRight size={20} className="order-arrow" />
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Alerts */}
-      {pendingPayments > 0 && (
-        <div className="alert alert-warning">
-          <AlertCircle size={20} />
-          <span>{pendingPayments} orden{pendingPayments > 1 ? 'es' : ''} pendiente{pendingPayments > 1 ? 's' : ''} de pago</span>
-        </div>
-      )}
-
-      {/* Priority Orders */}
-      {priorityOrders.length > 0 && (
-        <div className="section">
-          <h2 className="section-title">
-            <Clock size={18} />
-            Requieren Atención
-          </h2>
-          <div className="orders-list">
-            {priorityOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                statuses={statuses}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Modals */}
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal modal-large" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">
-                {modalType === 'today' && 'Motos Ingresadas Hoy'}
-                {modalType === 'completed' && 'Servicios Completados Hoy'}
-                {modalType === 'collected' && 'Cobros del Día'}
-              </h3>
-              <button className="modal-close" onClick={() => setShowModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="modal-body">
-              {modalType === 'today' && (
-                <div className="modal-orders-list">
-                  {todayOrders.length === 0 ? (
-                    <div className="empty-state">
-                      <Bike size={48} className="empty-icon" />
-                      <p>No hay motos ingresadas hoy</p>
-                    </div>
-                  ) : (
-                    todayOrders.map(order => {
-                      const client = clients.find(c => c.id === order.client_id);
-                      const motorcycle = motorcycles.find(m => m.id === order.motorcycle_id);
-                      const status = statuses.find(s => s.name === order.status);
-
-                      return (
-                        <div
-                          key={order.id}
-                          className="modal-order-item clickable"
-                          onClick={() => {
-                            navigate(`/mechanic/order/${order.id}`);
-                            setShowModal(false);
-                          }}
-                        >
-                          <div className="modal-order-info">
-                            <div className="modal-order-number">{order.order_number}</div>
-                            <div className="modal-order-details">
-                              <User size={14} /> {client?.full_name}
-                              <span className="separator">•</span>
-                              <Bike size={14} /> {motorcycle?.brand} {motorcycle?.model}
-                              {isAdmin && (
-                                <>
-                                  <span className="separator">•</span>
-                                  <Wrench size={14} /> {order.mechanic_name}
-                                </>
-                              )}
-                            </div>
-                          </div>
-                          <div
-                            className="modal-order-status"
-                            style={{
-                              background: `${status?.color}20`,
-                              color: status?.color
-                            }}
-                          >
-                            {order.status}
-                          </div>
-                          <ChevronRight size={16} />
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-
-              {modalType === 'completed' && (
-                <div className="modal-orders-list">
-                  {todayCompleted.length === 0 ? (
-                    <div className="empty-state">
-                      <CheckCircle size={48} className="empty-icon" />
-                      <p>No hay servicios completados hoy</p>
-                    </div>
-                  ) : (
-                    todayCompleted.map(order => {
-                      const client = clients.find(c => c.id === order.client_id);
-                      const motorcycle = motorcycles.find(m => m.id === order.motorcycle_id);
-
-                      return (
-                        <div
-                          key={order.id}
-                          className="modal-order-item clickable"
-                          onClick={() => {
-                            navigate(`/mechanic/order/${order.id}`);
-                            setShowModal(false);
-                          }}
-                        >
-                          <div className="modal-order-info">
-                            <div className="modal-order-number">{order.order_number}</div>
-                            <div className="modal-order-details">
-                              <User size={14} /> {client?.full_name}
-                              <span className="separator">•</span>
-                              <Bike size={14} /> {motorcycle?.brand} {motorcycle?.model}
-                              {isAdmin && (
-                                <>
-                                  <span className="separator">•</span>
-                                  <Wrench size={14} /> {order.mechanic_name}
-                                </>
-                              )}
-                            </div>
-                          </div>
-                          <div className="modal-order-amount">
-                            {formatCurrency(order.total_amount || 0)}
-                          </div>
-                          <ChevronRight size={16} />
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-
-              {modalType === 'collected' && (
-                <div className="modal-orders-list">
-                  {todayPaid.length === 0 ? (
-                    <div className="empty-state">
-                      <DollarSign size={48} className="empty-icon" />
-                      <p>No hay cobros registrados hoy</p>
-                    </div>
-                  ) : (
-                    <>
-                      {todayPaid.map(order => {
-                        const client = clients.find(c => c.id === order.client_id);
-                        const motorcycle = motorcycles.find(m => m.id === order.motorcycle_id);
-
-                        return (
-                          <div
-                            key={order.id}
-                            className="modal-order-item clickable"
-                            onClick={() => {
-                              navigate(`/mechanic/order/${order.id}`);
-                              setShowModal(false);
-                            }}
-                          >
-                            <div className="modal-order-info">
-                              <div className="modal-order-number">{order.order_number}</div>
-                              <div className="modal-order-details">
-                                <User size={14} /> {client?.full_name}
-                                <span className="separator">•</span>
-                                <Bike size={14} /> {motorcycle?.brand} {motorcycle?.model}
-                                {isAdmin && (
-                                  <>
-                                    <span className="separator">•</span>
-                                    <Wrench size={14} /> {order.mechanic_name}
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                            <div className="modal-order-amount payment-badge">
-                              ✓ {formatCurrency(order.total_amount || 0)}
-                            </div>
-                            <ChevronRight size={16} />
-                          </div>
-                        );
-                      })}
-                      <div className="modal-total">
-                        <span>Total Cobrado:</span>
-                        <span className="total-amount">{formatCurrency(todayStats.totalCollected)}</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Mechanic Details Modal */}
-      {selectedMechanic && (
-        <div className="modal-overlay" onClick={() => setSelectedMechanic(null)}>
-          <div className="modal modal-large" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">
-                <Wrench size={20} />
-                {selectedMechanic.name}
-              </h3>
-              <button className="modal-close" onClick={() => setSelectedMechanic(null)}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <div className="mechanic-summary-grid">
-                <div className="summary-stat">
-                  <span className="summary-value">{selectedMechanic.orders.length}</span>
-                  <span className="summary-label">Total</span>
-                </div>
-                <div className="summary-stat">
-                  <span className="summary-value text-success">{selectedMechanic.completed}</span>
-                  <span className="summary-label">Completadas</span>
-                </div>
-                <div className="summary-stat">
-                  <span className="summary-value text-primary">{formatCurrency(selectedMechanic.revenue)}</span>
-                  <span className="summary-label">Generado</span>
-                </div>
-              </div>
-
-              <div className="modal-orders-list">
-                {selectedMechanic.orders.map(order => {
-                  const client = clients.find(c => c.id === order.client_id);
-                  const motorcycle = motorcycles.find(m => m.id === order.motorcycle_id);
-                  const status = statuses.find(s => s.name === order.status);
-
-                  return (
-                    <div
-                      key={order.id}
-                      className="modal-order-item clickable"
-                      onClick={() => {
-                        navigate(`/mechanic/order/${order.id}`);
-                        setSelectedMechanic(null);
-                      }}
-                    >
-                      <div className="modal-order-info">
-                        <div className="modal-order-number">{order.order_number}</div>
-                        <div className="modal-order-details">
-                          <User size={14} /> {client?.full_name}
-                          <span className="separator">•</span>
-                          <Bike size={14} /> {motorcycle?.brand} {motorcycle?.model}
-                        </div>
-                      </div>
-                      <div
-                        className="modal-order-status"
-                        style={{
-                          background: `${status?.color}20`,
-                          color: status?.color
-                        }}
-                      >
-                        {order.status}
-                      </div>
-                      <ChevronRight size={16} />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Accesos rápidos */}
+      <div className="quick-links">
+        <Link to="/mechanic/history" className="quick-link">
+          <CheckCircle size={20} />
+          Historial
+        </Link>
+        <Link to="/mechanic/earnings" className="quick-link">
+          <DollarSign size={20} />
+          Ganancias
+        </Link>
+        <Link to="/mechanic/clients" className="quick-link">
+          <ClipboardList size={20} />
+          Clientes
+        </Link>
+      </div>
 
       <style>{`
-        .dashboard {
-          padding-bottom: 100px;
+        .mechanic-dashboard {
+          padding-bottom: 2rem;
         }
 
+        /* Header */
         .dashboard-header {
-          margin-bottom: var(--spacing-lg);
+          margin-bottom: 1.5rem;
         }
 
         .greeting {
-          font-size: 1.75rem;
-          font-weight: 700;
-          margin-bottom: 4px;
-        }
-
-        .date {
-          color: var(--text-secondary);
-          font-size: 0.875rem;
-          text-transform: capitalize;
-        }
-
-        .quick-actions-grid {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-sm);
-          margin-bottom: var(--spacing-xl);
-        }
-
-        .action-card {
           display: flex;
           align-items: center;
-          gap: var(--spacing-md);
-          padding: var(--spacing-md);
-          background: var(--bg-card);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-lg);
-          text-decoration: none;
-          color: inherit;
-          position: relative;
-          transition: all var(--transition-fast);
+          gap: 1rem;
         }
 
-        .action-card:hover {
-          transform: translateX(4px);
-          border-color: var(--primary);
+        .greeting-emoji {
+          font-size: 2.5rem;
         }
 
-        .action-card-primary {
-          background: linear-gradient(135deg, var(--primary) 0%, #2563eb 100%);
+        .greeting-name {
+          font-size: 1.5rem;
+          font-weight: 700;
+          margin: 0;
+          color: var(--text-primary);
+        }
+
+        .greeting-subtitle {
+          font-size: 0.9375rem;
+          color: var(--text-secondary);
+          margin: 0.25rem 0 0 0;
+        }
+
+        /* Nueva Orden Button */
+        .new-order-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.75rem;
+          width: 100%;
+          padding: 1rem;
+          background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
           color: white;
-          border: none;
+          border-radius: var(--radius-lg);
+          font-size: 1.125rem;
+          font-weight: 600;
+          text-decoration: none;
+          margin-bottom: 1.5rem;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+          transition: all 0.2s;
         }
 
-        .action-icon {
-          width: 48px;
-          height: 48px;
-          background: rgba(59, 130, 246, 0.15);
+        .new-order-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .new-order-btn:active {
+          transform: scale(0.98);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0.75rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+          background: var(--bg-card);
+          border-radius: var(--radius-lg);
+          padding: 1rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          border: 2px solid transparent;
+        }
+
+        .stat-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .stat-card:active {
+          transform: scale(0.98);
+        }
+
+        .stat-icon {
+          width: 40px;
+          height: 40px;
           border-radius: var(--radius-md);
           display: flex;
           align-items: center;
           justify-content: center;
-          flex-shrink: 0;
+          margin-bottom: 0.75rem;
         }
 
-        .action-card-primary .action-icon {
-          background: rgba(255, 255, 255, 0.2);
+        .stat-pending .stat-icon {
+          background: #fef3c7;
+          color: #f59e0b;
         }
 
-        .action-content {
-          flex: 1;
+        .stat-month-orders .stat-icon {
+          background: #d1fae5;
+          color: #10b981;
         }
 
-        .action-label {
-          font-weight: 600;
-          font-size: 1rem;
-          margin-bottom: 2px;
+        .stat-week .stat-icon {
+          background: #dbeafe;
+          color: #3b82f6;
         }
 
-        .action-description {
-          font-size: 0.75rem;
-          opacity: 0.8;
+        .stat-month .stat-icon {
+          background: #e0e7ff;
+          color: #6366f1;
         }
 
-        .action-count {
-          width: 32px;
-          height: 32px;
-          background: rgba(59, 130, 246, 0.2);
-          border-radius: var(--radius-full);
-          display: flex;
-          align-items: center;
-          justify-content: center;
+        .stat-value {
+          font-size: 1.5rem;
           font-weight: 700;
-          font-size: 0.875rem;
-          color: var(--primary);
+          color: var(--text-primary);
+          line-height: 1;
         }
 
-        .action-card-primary .action-count {
-          background: rgba(255, 255, 255, 0.25);
-          color: white;
+        .stat-label {
+          font-size: 0.8125rem;
+          color: var(--text-secondary);
+          margin-top: 0.25rem;
         }
 
-        .action-arrow {
-          color: var(--text-muted);
-        }
-
-        .action-card-primary .action-arrow {
-          color: rgba(255, 255, 255, 0.8);
+        /* Section */
+        .section {
+          margin-bottom: 1.5rem;
         }
 
         .section-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: var(--spacing-md);
+          margin-bottom: 1rem;
         }
 
         .section-title {
           display: flex;
           align-items: center;
-          gap: var(--spacing-sm);
+          gap: 0.5rem;
           font-size: 1.125rem;
           font-weight: 600;
-        }
-
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: var(--spacing-sm);
-          margin-bottom: var(--spacing-xl);
-        }
-
-        .stat-card {
-          position: relative;
-          background: var(--bg-card);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-lg);
-          padding: var(--spacing-md);
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-sm);
-          transition: all var(--transition-fast);
-        }
-
-        .stat-card-clickable {
-          cursor: pointer;
-        }
-
-        .stat-card-clickable:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-          border-color: var(--primary);
-        }
-
-        .stat-card-highlight {
-          grid-column: span 2;
-          background: linear-gradient(135deg, var(--bg-card) 0%, var(--primary-light) 100%);
-          border-color: var(--primary);
-        }
-
-        .stat-arrow {
-          position: absolute;
-          top: var(--spacing-sm);
-          right: var(--spacing-sm);
-          color: var(--text-muted);
-        }
-
-        .gauge-section {
-          background: var(--bg-card);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-lg);
-          padding: var(--spacing-lg);
-          text-align: center;
-          margin-bottom: var(--spacing-xl);
-        }
-
-        .gauge-title {
-          font-size: 1rem;
-          font-weight: 600;
-          margin-bottom: var(--spacing-md);
-        }
-
-        .gauge-subtitle {
-          margin-top: var(--spacing-md);
-          font-size: 0.875rem;
-          color: var(--text-secondary);
-        }
-
-        .earnings-section {
-          margin-bottom: var(--spacing-xl);
-        }
-
-        .earnings-card {
-          background: linear-gradient(135deg, var(--bg-card) 0%, var(--accent-light) 100%);
-          border: 1px solid var(--accent);
-          border-radius: var(--radius-lg);
-          padding: var(--spacing-lg);
-        }
-
-        .earnings-header {
-          margin-bottom: var(--spacing-md);
-        }
-
-        .earnings-title-wrapper {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-xs);
-        }
-
-        .earnings-title {
-          font-size: 1.125rem;
-          font-weight: 700;
           margin: 0;
         }
 
-        .commission-badge {
-          display: inline-block;
-          padding: 4px 12px;
-          background: rgba(139, 92, 246, 0.15);
-          color: var(--accent);
-          border-radius: var(--radius-md);
-          font-size: 0.75rem;
-          font-weight: 600;
-          align-self: flex-start;
-        }
-
-        .earnings-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: var(--spacing-md);
-        }
-
-        .earning-item {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .earning-label {
-          font-size: 0.75rem;
-          color: var(--text-secondary);
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .earning-amount {
-          font-size: 1.25rem;
-          font-weight: 700;
-          color: var(--accent);
-        }
-
-        .earning-amount.highlight {
-          font-size: 1.5rem;
-          color: var(--accent);
-        }
-
-        .earning-detail {
-          font-size: 0.6875rem;
-          color: var(--text-muted);
-        }
-
-        .earning-item-highlight {
-          background: rgba(139, 92, 246, 0.1);
-          padding: var(--spacing-md);
-          border-radius: var(--radius-md);
-        }
-
-        @media (max-width: 640px) {
-          .earnings-grid {
-            grid-template-columns: 1fr;
-            gap: var(--spacing-sm);
-          }
-
-          .earning-amount {
-            font-size: 1.125rem;
-          }
-
-          .earning-amount.highlight {
-            font-size: 1.375rem;
-          }
-        }
-
-        .section {
-          margin-bottom: var(--spacing-xl);
-        }
-
-        .mechanics-grid {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-sm);
-        }
-
-        .mechanic-card-compact {
+        .see-all {
           display: flex;
           align-items: center;
-          gap: var(--spacing-md);
-          padding: var(--spacing-md);
-          background: var(--bg-card);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-md);
-          cursor: pointer;
-          transition: all var(--transition-fast);
-        }
-
-        .mechanic-card-compact:hover {
-          border-color: var(--primary);
-          transform: translateX(4px);
-        }
-
-        .mechanic-rank {
-          width: 32px;
-          height: 32px;
-          background: var(--primary-light);
+          gap: 0.25rem;
           color: var(--primary);
-          border-radius: var(--radius-full);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 700;
           font-size: 0.875rem;
-          flex-shrink: 0;
-        }
-
-        .mechanic-info {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .mechanic-name {
           font-weight: 600;
-          font-size: 0.9375rem;
+          text-decoration: none;
         }
 
-        .mechanic-stats-compact {
-          display: flex;
-          gap: 4px;
-          font-size: 0.75rem;
-          color: var(--text-secondary);
-          margin-top: 2px;
-        }
-
-        .mechanic-revenue-compact {
-          font-weight: 700;
-          color: var(--primary);
-          font-size: 0.9375rem;
-        }
-
-        .alert {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-sm);
-          padding: var(--spacing-md);
-          border-radius: var(--radius-md);
-          margin-bottom: var(--spacing-lg);
-        }
-
-        .alert-warning {
-          background: #fef3c7;
-          color: #92400e;
-          border: 1px solid #fde68a;
-        }
-
-        .orders-list {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-md);
-        }
-
-        .modal-large {
-          max-width: 600px;
-          max-height: 85vh;
-        }
-
-        .modal-orders-list {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-sm);
-          max-height: 60vh;
-          overflow-y: auto;
-        }
-
-        .modal-order-item {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-md);
-          padding: var(--spacing-md);
-          background: var(--bg-tertiary);
-          border-radius: var(--radius-md);
-          cursor: pointer;
-          transition: all var(--transition-fast);
-          border: 1px solid transparent;
-        }
-
-        .modal-order-item:hover {
-          background: var(--bg-hover);
-          border-color: var(--primary);
-          transform: translateX(4px);
-        }
-
-        .modal-order-info {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .modal-order-number {
-          font-weight: 700;
-          color: var(--primary);
-          font-size: 0.9375rem;
-          margin-bottom: 4px;
-        }
-
-        .modal-order-details {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 0.75rem;
-          color: var(--text-secondary);
-          flex-wrap: wrap;
-        }
-
-        .separator {
-          color: var(--text-muted);
-        }
-
-        .modal-order-status {
-          padding: 4px 10px;
-          border-radius: var(--radius-sm);
-          font-size: 0.75rem;
-          font-weight: 600;
-          white-space: nowrap;
-        }
-
-        .modal-order-amount {
-          font-weight: 700;
-          color: var(--primary);
-          font-size: 1rem;
-          white-space: nowrap;
-        }
-
-        .payment-badge {
-          background: #d1fae5;
-          color: #065f46;
-          padding: 4px 10px;
-          border-radius: var(--radius-sm);
-        }
-
-        .modal-total {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: var(--spacing-md);
+        /* Empty State */
+        .empty-orders {
           background: var(--bg-card);
-          border-radius: var(--radius-md);
-          border: 2px solid var(--primary);
-          margin-top: var(--spacing-md);
-          font-weight: 700;
-        }
-
-        .total-amount {
-          font-size: 1.375rem;
-          color: var(--primary);
-        }
-
-        .mechanic-summary-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: var(--spacing-md);
-          margin-bottom: var(--spacing-lg);
-        }
-
-        .summary-stat {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding: var(--spacing-md);
-          background: var(--bg-tertiary);
-          border-radius: var(--radius-md);
-        }
-
-        .summary-value {
-          font-size: 1.5rem;
-          font-weight: 700;
-          color: var(--text-primary);
-        }
-
-        .summary-label {
-          font-size: 0.75rem;
-          color: var(--text-secondary);
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin-top: 4px;
-        }
-
-        .empty-state {
+          border-radius: var(--radius-lg);
+          padding: 2rem;
           text-align: center;
-          padding: var(--spacing-xl);
-          color: var(--text-secondary);
         }
 
         .empty-icon {
-          opacity: 0.3;
-          margin-bottom: var(--spacing-md);
+          font-size: 3rem;
+          margin-bottom: 1rem;
+        }
+
+        .empty-title {
+          font-size: 1.125rem;
+          font-weight: 600;
+          margin: 0 0 0.5rem 0;
+        }
+
+        .empty-text {
+          color: var(--text-secondary);
+          font-size: 0.9375rem;
+          margin: 0 0 1rem 0;
+        }
+
+        /* Orders List */
+        .orders-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .order-card {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          background: var(--bg-card);
+          border-radius: var(--radius-lg);
+          padding: 1rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          border: 1px solid var(--border-light);
+        }
+
+        .order-card:hover {
+          background: var(--bg-hover);
+          border-color: var(--primary-light);
+        }
+
+        .order-card:active {
+          transform: scale(0.99);
+        }
+
+        .order-main {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .order-number {
+          font-weight: 700;
+          color: var(--primary);
+          font-size: 0.9375rem;
+        }
+
+        .order-client {
+          font-weight: 600;
+          font-size: 0.9375rem;
+          margin: 0.25rem 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .order-moto {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          font-size: 0.8125rem;
+          color: var(--text-secondary);
+        }
+
+        .order-side {
+          text-align: right;
+        }
+
+        .order-status {
+          display: inline-block;
+          padding: 0.25rem 0.5rem;
+          border-radius: var(--radius-full);
+          font-size: 0.75rem;
+          font-weight: 600;
+          margin-bottom: 0.25rem;
+        }
+
+        .order-amount {
+          font-weight: 700;
+          color: var(--success);
+          font-size: 0.9375rem;
+        }
+
+        .order-time {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+        }
+
+        .order-arrow {
+          color: var(--text-muted);
+          flex-shrink: 0;
+        }
+
+        /* Quick Links */
+        .quick-links {
+          display: flex;
+          gap: 0.75rem;
+        }
+
+        .quick-link {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 1rem 0.5rem;
+          background: var(--bg-card);
+          border-radius: var(--radius-lg);
+          text-decoration: none;
+          color: var(--text-secondary);
+          font-size: 0.8125rem;
+          font-weight: 600;
+          transition: all 0.2s;
+          border: 1px solid var(--border-light);
+        }
+
+        .quick-link:hover {
+          background: var(--bg-hover);
+          color: var(--primary);
+        }
+
+        .quick-link:active {
+          transform: scale(0.98);
         }
       `}</style>
     </div>
