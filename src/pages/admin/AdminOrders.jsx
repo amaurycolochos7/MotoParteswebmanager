@@ -10,12 +10,13 @@ import {
     DollarSign,
     Clock,
     CheckCircle,
-    XCircle
+    XCircle,
+    Trash2
 } from 'lucide-react';
 import OrderCard from '../../components/ui/OrderCard';
 
 export default function AdminOrders() {
-    const { orders, statuses, loading } = useData();
+    const { orders, statuses, loading, deleteOrder } = useData();
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [paidFilter, setPaidFilter] = useState('all');
@@ -228,13 +229,27 @@ export default function AdminOrders() {
                                                 </div>
                                             </td>
                                             <td>
-                                                <Link
-                                                    to={`/admin/order/${order.id}`}
-                                                    className="btn btn-ghost btn-icon-sm"
-                                                    title="Ver detalle"
-                                                >
-                                                    <Eye size={18} />
-                                                </Link>
+                                                <div style={{ display: 'flex', gap: '4px' }}>
+                                                    <Link
+                                                        to={`/admin/order/${order.id}`}
+                                                        className="btn btn-ghost btn-icon-sm"
+                                                        title="Ver detalle"
+                                                    >
+                                                        <Eye size={18} />
+                                                    </Link>
+                                                    <button
+                                                        className="btn btn-ghost btn-icon-sm"
+                                                        title="Eliminar orden"
+                                                        style={{ color: 'var(--danger)' }}
+                                                        onClick={() => {
+                                                            if (window.confirm(`¿Eliminar orden ${order.order_number}?`)) {
+                                                                deleteOrder(order.id);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -251,6 +266,7 @@ export default function AdminOrders() {
                                 order={order}
                                 statuses={statuses}
                                 baseUrl="/admin/order"
+                                onDelete={deleteOrder}
                             />
                         ))}
                     </div>
