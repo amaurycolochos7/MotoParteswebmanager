@@ -313,8 +313,8 @@ export default function ClientPortal() {
                 .portal-header {
                     text-align: center;
                     padding: 2rem 0;
-                    border-bottom: 1px solid #e2e8f0;
                     margin-bottom: 1.5rem;
+                    background: transparent;
                 }
 
                 .portal-header h1 {
@@ -417,13 +417,18 @@ export default function ClientPortal() {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    margin-bottom: 1rem;
+                    gap: 1rem;
+                    flex-wrap: wrap;
+                    margin-bottom: 1.25rem;
+                    padding-bottom: 1rem;
+                    border-bottom: 1px solid #e2e8f0;
                 }
 
                 .order-header h2 {
-                    font-size: 1.125rem;
+                    font-size: 1.25rem;
                     color: #2563eb;
                     margin: 0;
+                    font-weight: 700;
                 }
 
                 .status-badge {
