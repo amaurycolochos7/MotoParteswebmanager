@@ -214,6 +214,19 @@ export const authService = {
             return true;
         }
 
+        // Primero, desasociar clientes creados por este usuario
+        await supabase
+            .from('clients')
+            .update({ created_by: null })
+            .eq('created_by', id);
+
+        // Desasociar órdenes asignadas a este mecánico
+        await supabase
+            .from('orders')
+            .update({ mechanic_id: null })
+            .eq('mechanic_id', id);
+
+        // Ahora sí, eliminar el usuario
         const { error } = await supabase
             .from('profiles')
             .delete()

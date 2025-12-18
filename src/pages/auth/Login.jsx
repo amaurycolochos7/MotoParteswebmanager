@@ -215,12 +215,6 @@ export default function Login() {
               )}
             </button>
           </form>
-
-          {/* Info de prueba (temporal) */}
-          <div className="login-demo-info">
-            <p><strong>Credenciales de prueba:</strong></p>
-            <p>admin@motopartes.com / admin123</p>
-          </div>
         </div>
 
         {/* Footer */}
