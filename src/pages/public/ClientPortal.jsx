@@ -121,7 +121,7 @@ export default function ClientPortal() {
     <div className="portal-container">
       {/* Header */}
       <div className="portal-header">
-        <Bike size={36} color="#2563eb" />
+        <img src="/logo.png" alt="MotoPartes" className="portal-logo" />
         <h1>MotoPartes</h1>
         <p>Tu taller de confianza</p>
       </div>
@@ -278,11 +278,7 @@ export default function ClientPortal() {
 
       {/* Footer */}
       <div className="portal-footer">
-        <p>¿Tienes dudas? Contáctanos</p>
-        <a href="tel:5551234567" className="btn btn-secondary">
-          <Phone size={18} />
-          (555) 123-4567
-        </a>
+        <p>© 2026 MotoPartes • Reparaciones y Modificaciones</p>
       </div>
 
       <style>{`
@@ -315,6 +311,13 @@ export default function ClientPortal() {
                     padding: 2rem 0;
                     margin-bottom: 1.5rem;
                     background: transparent;
+                }
+
+                .portal-logo {
+                    width: 80px;
+                    height: 80px;
+                    object-fit: contain;
+                    margin-bottom: 0.5rem;
                 }
 
                 .portal-header h1 {
