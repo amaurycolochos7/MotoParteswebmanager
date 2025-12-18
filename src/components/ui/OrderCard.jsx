@@ -38,69 +38,64 @@ export default function OrderCard({ order, statuses, baseUrl = '/mechanic/order'
   };
 
   return (
-    <div className="order-card-wrapper" style={{ position: 'relative' }}>
-      <Link to={`${baseUrl}/${order.id}`} className="order-card">
-        <div className="order-card-header">
-          <span className="order-card-number">{order.order_number}</span>
-          <span
-            className="badge"
-            style={{
-              background: `${statusColor}20`,
-              color: statusColor
-            }}
-          >
-            {statusName}
-          </span>
-        </div>
-
-        <div className="order-card-client">
-          {client.full_name || 'Cliente sin nombre'}
-        </div>
-
-        <div className="order-card-moto">
-          {motorcycle.brand ? `${motorcycle.brand} ${motorcycle.model}` : 'Moto no asignada'}
-          {motorcycle.plates && ` • ${motorcycle.plates}`}
-        </div>
-
-        <div className="order-card-footer">
-          <div className="order-card-time">
-            <Clock size={12} />
-            {timeElapsed}
-          </div>
-          {order.total_amount > 0 && (
-            <span className="order-card-amount">
-              ${order.total_amount.toLocaleString('es-MX')}
-            </span>
-          )}
-          <ChevronRight size={16} style={{ marginLeft: 'auto', color: 'var(--text-muted)' }} />
-        </div>
-      </Link>
-
-      {onDelete && (
-        <button
-          className="order-card-delete-btn"
-          onClick={handleDelete}
-          title="Eliminar orden"
+    <Link to={`${baseUrl}/${order.id}`} className="order-card">
+      <div className="order-card-header">
+        <span className="order-card-number">{order.order_number}</span>
+        <span
+          className="badge"
           style={{
-            position: 'absolute',
-            top: '12px',
-            right: '12px',
-            width: '32px',
-            height: '32px',
-            borderRadius: '8px',
-            border: 'none',
-            background: 'rgba(239, 68, 68, 0.1)',
-            color: 'var(--danger)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            zIndex: 2
+            background: `${statusColor}20`,
+            color: statusColor
           }}
         >
-          <Trash2 size={16} />
-        </button>
-      )}
-    </div>
+          {statusName}
+        </span>
+      </div>
+
+      <div className="order-card-client">
+        {client.full_name || 'Cliente sin nombre'}
+      </div>
+
+      <div className="order-card-moto">
+        {motorcycle.brand ? `${motorcycle.brand} ${motorcycle.model}` : 'Moto no asignada'}
+        {motorcycle.plates && ` • ${motorcycle.plates}`}
+      </div>
+
+      <div className="order-card-footer">
+        <div className="order-card-time">
+          <Clock size={12} />
+          {timeElapsed}
+        </div>
+        {order.total_amount > 0 && (
+          <span className="order-card-amount">
+            ${order.total_amount.toLocaleString('es-MX')}
+          </span>
+        )}
+
+        {onDelete ? (
+          <button
+            onClick={handleDelete}
+            title="Eliminar orden"
+            style={{
+              marginLeft: 'auto',
+              width: '28px',
+              height: '28px',
+              borderRadius: '6px',
+              border: 'none',
+              background: 'rgba(239, 68, 68, 0.1)',
+              color: 'var(--danger)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
+            }}
+          >
+            <Trash2 size={14} />
+          </button>
+        ) : (
+          <ChevronRight size={16} style={{ marginLeft: 'auto', color: 'var(--text-muted)' }} />
+        )}
+      </div>
+    </Link>
   );
 }
