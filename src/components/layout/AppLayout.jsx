@@ -46,8 +46,8 @@ export default function AppLayout() {
         { to: '/admin/analytics', icon: BarChart3, label: 'Reportes' },
     ];
 
-    // Navegación para Mecánico
-    const mechanicNavItems = [
+    // Navegación para Mecánico - construida dinámicamente basada en permisos
+    const baseMechanicNavItems = [
         { section: 'Principal' },
         { to: '/mechanic', icon: LayoutDashboard, label: 'Mi Dashboard', end: true },
         { to: '/mechanic/new-order', icon: PlusCircle, label: 'Nueva Orden' },
@@ -56,11 +56,20 @@ export default function AppLayout() {
         { section: 'Consultas' },
         { to: '/mechanic/clients', icon: Users, label: 'Clientes' },
         { to: '/mechanic/appointments', icon: Calendar, label: 'Citas' },
+    ];
 
+    // Agregar opción de Servicios si tiene permiso
+    if (hasPermission('can_create_services')) {
+        baseMechanicNavItems.push({ to: '/mechanic/services', icon: Settings, label: 'Servicios' });
+    }
+
+    baseMechanicNavItems.push(
         { section: 'Historial' },
         { to: '/mechanic/history', icon: History, label: 'Historial' },
         { to: '/mechanic/earnings', icon: DollarSign, label: 'Mis Ganancias' },
-    ];
+    );
+
+    const mechanicNavItems = baseMechanicNavItems;
 
     // Determinar qué navegación mostrar
     const navItems = isAdmin() ? adminNavItems : mechanicNavItems;

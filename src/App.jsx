@@ -29,6 +29,7 @@ import {
   MechanicOrderDetail,
   MechanicClients,
   MechanicAppointments,
+  MechanicServices,
   MechanicHistory,
   MechanicEarnings
 } from './pages/mechanic/index.jsx';
@@ -137,6 +138,7 @@ function AppRoutes() {
         <Route path="order/:id" element={<MechanicOrderDetail />} />
         <Route path="clients" element={<MechanicClients />} />
         <Route path="appointments" element={<MechanicAppointments />} />
+        <Route path="services" element={<MechanicServices />} />
         <Route path="history" element={<MechanicHistory />} />
         <Route path="earnings" element={<MechanicEarnings />} />
       </Route>
