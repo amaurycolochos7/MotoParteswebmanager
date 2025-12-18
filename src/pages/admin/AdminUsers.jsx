@@ -21,7 +21,8 @@ import {
     Eye,
     EyeOff,
     MonitorSmartphone,
-    ClipboardList
+    ClipboardList,
+    Wrench
 } from 'lucide-react';
 
 export default function AdminUsers() {
@@ -42,6 +43,7 @@ export default function AdminUsers() {
         can_create_appointments: true,
         can_send_messages: true,
         can_create_clients: true,
+        can_create_services: false,
         can_edit_clients: false,
         can_delete_orders: false
     });
@@ -74,6 +76,7 @@ export default function AdminUsers() {
                 can_create_appointments: user.can_create_appointments !== false,
                 can_send_messages: user.can_send_messages !== false,
                 can_create_clients: user.can_create_clients !== false,
+                can_create_services: user.can_create_services === true,
                 can_edit_clients: user.can_edit_clients === true,
                 can_delete_orders: user.can_delete_orders === true
             });
@@ -89,6 +92,7 @@ export default function AdminUsers() {
                 can_create_appointments: true,
                 can_send_messages: true,
                 can_create_clients: true,
+                can_create_services: false,
                 can_edit_clients: false,
                 can_delete_orders: false
             });
@@ -123,6 +127,7 @@ export default function AdminUsers() {
                     can_create_appointments: formData.can_create_appointments,
                     can_send_messages: formData.can_send_messages,
                     can_create_clients: formData.can_create_clients,
+                    can_create_services: formData.can_create_services,
                     can_edit_clients: formData.can_edit_clients,
                     can_delete_orders: formData.can_delete_orders,
                     ...(formData.password && { password_hash: formData.password })
@@ -138,6 +143,7 @@ export default function AdminUsers() {
                     can_create_appointments: formData.can_create_appointments,
                     can_send_messages: formData.can_send_messages,
                     can_create_clients: formData.can_create_clients,
+                    can_create_services: formData.can_create_services,
                     can_edit_clients: formData.can_edit_clients,
                     can_delete_orders: formData.can_delete_orders
                 });
@@ -455,6 +461,17 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                                                 <User size={16} />
                                                 <Plus size={10} style={{ marginLeft: -4 }} />
                                                 Puede crear clientes
+                                            </span>
+                                        </label>
+                                        <label className="toggle-label">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.can_create_services}
+                                                onChange={(e) => setFormData({ ...formData, can_create_services: e.target.checked })}
+                                            />
+                                            <span className="toggle-content">
+                                                <Wrench size={16} />
+                                                Puede crear servicios
                                             </span>
                                         </label>
                                         <label className="toggle-label">

@@ -5,8 +5,8 @@ import { Calendar, Plus, User, Phone, Clock, Wrench, X, Edit2, Trash2, AlertCirc
 import AppointmentModal from '../../components/appointments/AppointmentModal';
 
 export default function AppointmentCalendar() {
-    const { appointments, clients, motorcycles, addAppointment, addClient, updateAppointment } = useData();
-    const { user, users, canManageAppointments } = useAuth();
+    const { appointments = [], clients = [], motorcycles = [], addAppointment, addClient, updateAppointment } = useData();
+    const { user, users = [], canManageAppointments } = useAuth();
 
 
     const [showList, setShowList] = useState(false);
@@ -17,8 +17,8 @@ export default function AppointmentCalendar() {
     const [editData, setEditData] = useState({});
     const [cancelReason, setCancelReason] = useState('');
 
-    // Filter pending appointments
-    const pendingAppointments = appointments
+    // Filter pending appointments (con protección para undefined)
+    const pendingAppointments = (appointments || [])
         .filter(apt => apt.status !== 'cancelled' && apt.status !== 'completed')
         .sort((a, b) => {
             const dateA = new Date(a.scheduled_date + 'T' + a.scheduled_time);
