@@ -48,55 +48,15 @@ export const sendViaWhatsApp = (phone, message) => {
 };
 
 /**
- * Send automated WhatsApp message via backend (if connected) or fallback to WhatsApp Web
+ * Send WhatsApp message - Opens WhatsApp Web with pre-filled message
  * @param {string} phone - Phone number
  * @param {string} message - Message to send
  * @returns {Promise<{success: boolean, automated: boolean}>}
  */
 export const sendAutomatedMessage = async (phone, message) => {
-    try {
-        // Import whatsappService dynamically to avoid circular dependencies
-        const { getConnectionStatus, sendMessage } = await import('../services/whatsappService');
-
-        // Check if WhatsApp backend is connected
-        const status = await getConnectionStatus();
-
-        if (status.connected) {
-            // Send via backend API (automated)
-            const result = await sendMessage(phone, message);
-
-            if (result.success) {
-                return { success: true, automated: true };
-            } else {
-                // Return error without fallback - let UI handle it
-                return {
-                    success: false,
-                    automated: false,
-                    errorCode: result.errorCode || 'SEND_FAILED',
-                    message: result.message || result.error,
-                    phone: result.phone || phone
-                };
-            }
-        } else {
-            // Not connected - return error to show in UI
-            return {
-                success: false,
-                automated: false,
-                errorCode: 'NOT_CONNECTED',
-                message: 'WhatsApp backend no está conectado',
-                phone: phone
-            };
-        }
-    } catch (error) {
-        console.error('Error in automated message:', error);
-        return {
-            success: false,
-            automated: false,
-            errorCode: 'EXCEPTION',
-            message: error.message,
-            phone: phone
-        };
-    }
+    // Open WhatsApp Web with the message
+    sendViaWhatsApp(phone, message);
+    return { success: true, automated: false };
 };
 
 /**
