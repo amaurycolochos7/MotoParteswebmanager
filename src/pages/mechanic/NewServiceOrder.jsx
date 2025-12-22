@@ -8,6 +8,7 @@ import {
     Plus,
     X,
     User,
+    UserPlus,
     Phone,
     Mail,
     FileText,
@@ -21,11 +22,15 @@ import {
     ImagePlus,
     AlertCircle,
     Download,
-    Loader2
+    Loader2,
+    Crown,
+    Send
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useToast } from '../../context/ToastContext';
 import { saveOrderPhotos } from '../../services/photoStorageService';
+import { orderRequestsService } from '../../lib/supabase';
 
 const STEPS = [
     { id: 1, title: 'Cliente', icon: User },
@@ -43,7 +48,7 @@ const PAYMENT_METHODS = [
 
 export default function NewServiceOrder() {
     const navigate = useNavigate();
-    const { user, canCreateClients, hasPermission } = useAuth();
+    const { user, canCreateClients, hasPermission, requiresApproval } = useAuth();
     const {
         findClientByPhone,
         searchClients,
@@ -54,6 +59,7 @@ export default function NewServiceOrder() {
         addOrder,
         addService
     } = useData();
+    const toast = useToast();
 
     // Format currency as Mexican Pesos
     const formatMXN = (amount) => {
@@ -119,6 +125,30 @@ export default function NewServiceOrder() {
     const [clientMotos, setClientMotos] = useState([]);
     const [searchPerformed, setSearchPerformed] = useState(false);
 
+    // Master mechanics for auxiliary flow
+    const [masterMechanics, setMasterMechanics] = useState([]);
+    const [selectedMaster, setSelectedMaster] = useState(null);
+    const isAuxiliary = requiresApproval && requiresApproval();
+
+    // Load master mechanics for auxiliary
+    useEffect(() => {
+        if (isAuxiliary) {
+            loadMasterMechanics();
+        }
+    }, [isAuxiliary]);
+
+    const loadMasterMechanics = async () => {
+        try {
+            const masters = await orderRequestsService.getMasterMechanics();
+            setMasterMechanics(masters || []);
+            if (masters && masters.length === 1) {
+                setSelectedMaster(masters[0].id);
+            }
+        } catch (error) {
+            console.error('Error loading master mechanics:', error);
+        }
+    };
+
     // Search client by phone
     const handlePhoneSearch = () => {
         if (formData.clientPhone.length < 10) return;
@@ -170,6 +200,17 @@ export default function NewServiceOrder() {
     });
     const [savingService, setSavingService] = useState(false);
 
+    // State for quick client+moto creation modal
+    const [showQuickClientModal, setShowQuickClientModal] = useState(false);
+    const [quickClientData, setQuickClientData] = useState({
+        full_name: '',
+        phone: '',
+        email: '',
+        notes: ''
+    });
+    const [quickMotorcycles, setQuickMotorcycles] = useState([]);
+    const [savingQuickClient, setSavingQuickClient] = useState(false);
+
     // Handle create new service
     const handleSaveNewService = async () => {
         if (!newServiceData.name.trim()) {
@@ -199,6 +240,85 @@ export default function NewServiceOrder() {
         } finally {
             setSavingService(false);
         }
+    };
+
+    // Handle quick client creation with motorcycles
+    const handleSaveQuickClient = async () => {
+        if (!quickClientData.full_name.trim() || !quickClientData.phone.trim()) {
+            alert('Nombre y teléfono son obligatorios');
+            return;
+        }
+
+        setSavingQuickClient(true);
+        try {
+            // Create the client
+            const newClient = await addClient({
+                full_name: quickClientData.full_name.trim(),
+                phone: quickClientData.phone.trim(),
+                email: quickClientData.email.trim() || null,
+                notes: quickClientData.notes.trim() || null,
+            });
+
+            // Create motorcycles for this client
+            for (const moto of quickMotorcycles) {
+                if (moto.brand && moto.model) {
+                    await addMotorcycle({
+                        client_id: newClient.id,
+                        brand: moto.brand,
+                        model: moto.model,
+                        year: moto.year ? parseInt(moto.year) : null,
+                        plates: moto.plates || '',
+                        color: moto.color || '',
+                    });
+                }
+            }
+
+            // Auto-select the new client
+            const motos = getClientMotorcycles(newClient.id);
+            setFormData(prev => ({
+                ...prev,
+                selectedClient: newClient,
+                clientName: newClient.full_name,
+                clientPhone: newClient.phone,
+                clientEmail: newClient.email || '',
+                clientNotes: newClient.notes || '',
+                isNewClient: false,
+            }));
+            setClientMotos(motos);
+            setSearchPerformed(true);
+
+            // Reset and close modal
+            setQuickClientData({ full_name: '', phone: '', email: '', notes: '' });
+            setQuickMotorcycles([]);
+            setShowQuickClientModal(false);
+        } catch (error) {
+            console.error('Error creating client:', error);
+            alert('Error al crear el cliente: ' + error.message);
+        } finally {
+            setSavingQuickClient(false);
+        }
+    };
+
+    // Quick motorcycles form helpers
+    const addQuickMoto = () => {
+        setQuickMotorcycles(prev => [...prev, {
+            id: `temp-${Date.now()}`,
+            brand: '',
+            model: '',
+            year: new Date().getFullYear().toString(),
+            plates: '',
+            color: '',
+        }]);
+    };
+
+    const updateQuickMoto = (index, field, value) => {
+        setQuickMotorcycles(prev => prev.map((moto, i) =>
+            i === index ? { ...moto, [field]: value } : moto
+        ));
+    };
+
+    const removeQuickMoto = (index) => {
+        setQuickMotorcycles(prev => prev.filter((_, i) => i !== index));
     };
 
     // Download order summary with photos
@@ -436,6 +556,9 @@ export default function NewServiceOrder() {
         try {
             // Create client if new
             let clientId = formData.selectedClient?.id;
+            let clientName = formData.selectedClient?.full_name || formData.clientName;
+            let clientPhone = formData.selectedClient?.phone || formData.clientPhone;
+
             if (formData.isNewClient) {
                 const newClient = await addClient({
                     phone: formData.clientPhone,
@@ -444,10 +567,16 @@ export default function NewServiceOrder() {
                     notes: formData.clientNotes,
                 });
                 clientId = newClient.id;
+                clientName = newClient.full_name;
+                clientPhone = newClient.phone;
             }
 
             // Create motorcycle if new
             let motoId = formData.selectedMoto?.id;
+            let motoBrand = formData.selectedMoto?.brand || formData.motoData.brand;
+            let motoModel = formData.selectedMoto?.model || formData.motoData.model;
+            let motoPlates = formData.selectedMoto?.plates || formData.motoData.plates;
+
             if (formData.isNewMoto) {
                 const newMoto = await addMotorcycle({
                     client_id: clientId,
@@ -456,17 +585,18 @@ export default function NewServiceOrder() {
                     mileage: parseInt(formData.motoData.mileage) || null,
                 });
                 motoId = newMoto.id;
+                motoBrand = newMoto.brand;
+                motoModel = newMoto.model;
+                motoPlates = newMoto.plates;
             }
 
-            // Create order
+            // Build services array
             const orderServices = formData.selectedServices.map(svcId => {
                 const svc = services.find(s => s.id === svcId);
                 return {
                     service_id: svcId,
                     name: svc?.name,
-                    price: svc?.base_price || 0,
-                    labor_cost: svc?.labor_cost || 0,
-                    materials_cost: svc?.materials_cost || 0
+                    price: svc?.base_price || 0
                 };
             });
 
@@ -474,18 +604,52 @@ export default function NewServiceOrder() {
                 orderServices.push({
                     service_id: null,
                     name: formData.customService.trim(),
-                    price: (parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0),
-                    labor_cost: parseFloat(formData.customServiceLabor) || 0,
-                    materials_cost: parseFloat(formData.customServiceMaterials) || 0,
-                    is_custom: true,
+                    price: (parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0)
                 });
             }
-
-
 
             // Calculate total amount from services
             const totalAmount = orderServices.reduce((sum, svc) => sum + (svc.price || 0), 0);
 
+            // ============ AUXILIARY MECHANIC FLOW ============
+            if (isAuxiliary) {
+                if (!selectedMaster) {
+                    toast.error('Debes seleccionar un mecánico maestro para enviar la solicitud');
+                    setLoading(false);
+                    return;
+                }
+
+                // Create order request instead of order
+                const requestData = {
+                    client_id: clientId,
+                    client_name: clientName,
+                    client_phone: clientPhone,
+                    motorcycle_id: motoId,
+                    moto_brand: motoBrand,
+                    moto_model: motoModel,
+                    moto_plates: motoPlates,
+                    services: orderServices,
+                    custom_service: formData.customService,
+                    customer_complaint: formData.customerComplaint,
+                    damage_checks: formData.damageChecks,
+                    has_advance: formData.hasAdvance,
+                    advance_payment: formData.hasAdvance ? parseFloat(formData.advanceAmount) || 0 : 0,
+                    payment_method: formData.hasAdvance ? formData.paymentMethod : null,
+                    total_amount: totalAmount,
+                };
+
+                await orderRequestsService.create({
+                    requested_by: user.id,
+                    requested_to: selectedMaster,
+                    order_data: requestData
+                });
+
+                toast.success('Solicitud enviada al mecánico maestro. Te notificaremos cuando sea aprobada.');
+                navigate('/mechanic');
+                return;
+            }
+
+            // ============ NORMAL MECHANIC FLOW ============
             const order = await addOrder({
                 client_id: clientId,
                 motorcycle_id: motoId,
@@ -493,50 +657,35 @@ export default function NewServiceOrder() {
                 mechanic_name: user.full_name,
                 services: orderServices,
                 custom_service: formData.customService,
+                custom_service_labor: formData.customService ? (parseFloat(formData.customServiceLabor) || 0) : 0,
+                custom_service_materials: formData.customService ? (parseFloat(formData.customServiceMaterials) || 0) : 0,
                 customer_complaint: formData.customerComplaint,
-                photos: [], // Photos removed from UI
+                photos: [],
                 damage_checks: formData.damageChecks,
                 has_advance: formData.hasAdvance,
                 advance_payment: formData.hasAdvance ? parseFloat(formData.advanceAmount) || 0 : 0,
                 payment_method: formData.hasAdvance ? formData.paymentMethod : null,
-                total_amount: totalAmount,
             });
 
-            // Guardar fotos en localStorage para poder descargarlas después
-            console.log('📸 Verificando fotos para guardar...');
-            console.log('📸 entryPhotos:', {
-                front: !!formData.entryPhotos.front,
-                back: !!formData.entryPhotos.back,
-                leftSide: !!formData.entryPhotos.leftSide,
-                rightSide: !!formData.entryPhotos.rightSide
-            });
-            console.log('📸 order.id:', order.id);
-
+            // Save photos to localStorage
             const hasAnyPhoto = formData.entryPhotos.front || formData.entryPhotos.back || formData.entryPhotos.leftSide || formData.entryPhotos.rightSide;
-            console.log('📸 Tiene alguna foto:', hasAnyPhoto);
 
             if (hasAnyPhoto) {
                 const photoData = {
                     entryPhotos: formData.entryPhotos,
                     additionalPhotos: formData.additionalPhotos,
                     damageDescription: formData.damageDescription,
-                    clientName: formData.clientName || formData.selectedClient?.full_name,
-                    clientPhone: formData.selectedClient?.phone || formData.clientPhone,
-                    motoInfo: formData.isNewMoto
-                        ? `${formData.motoData.brand} ${formData.motoData.model}`
-                        : `${formData.selectedMoto?.brand} ${formData.selectedMoto?.model}`,
+                    clientName: clientName,
+                    clientPhone: clientPhone,
+                    motoInfo: `${motoBrand} ${motoModel}`,
                     motoYear: formData.isNewMoto ? formData.motoData.year : formData.selectedMoto?.year,
-                    motoPlates: formData.isNewMoto ? formData.motoData.plates : formData.selectedMoto?.plates,
+                    motoPlates: motoPlates,
                     services: orderServices,
                     totalAmount,
                     hasAdvance: formData.hasAdvance,
                     advanceAmount: formData.advanceAmount
                 };
-                console.log('📸 Guardando fotos con saveOrderPhotos...');
-                const saved = saveOrderPhotos(order.id, photoData);
-                console.log('📸 Resultado de guardado:', saved);
-            } else {
-                console.log('⚠️ No hay fotos para guardar');
+                saveOrderPhotos(order.id, photoData);
             }
 
             navigate(`/mechanic/order/${order.id}`);
@@ -556,7 +705,8 @@ export default function NewServiceOrder() {
             case 2:
                 return formData.selectedMoto || (formData.isNewMoto && formData.motoData.brand && formData.motoData.model);
             case 3:
-                return formData.selectedServices.length > 0 || formData.customService.trim();
+                // Services are now optional - can skip if cost/service unknown
+                return true;
             case 4:
                 // Las 4 fotos obligatorias deben estar tomadas
                 const { front, back, leftSide, rightSide } = formData.entryPhotos;
@@ -723,6 +873,25 @@ export default function NewServiceOrder() {
                 {/* Step 1: Client */}
                 {currentStep === 1 && (
                     <div className="step-client">
+                        {/* Quick Add New Client Button */}
+                        {canCreateClients() && (
+                            <button
+                                className="btn btn-secondary btn-full btn-quick-client"
+                                onClick={() => {
+                                    setQuickClientData({ full_name: '', phone: '', email: '', notes: '' });
+                                    setQuickMotorcycles([]);
+                                    setShowQuickClientModal(true);
+                                }}
+                            >
+                                <UserPlus size={20} />
+                                Agregar Nuevo Cliente
+                            </button>
+                        )}
+
+                        <div className="search-divider">
+                            <span>o busca uno existente</span>
+                        </div>
+
                         <div className="form-group">
                             <label className="form-label">Buscar Cliente (nombre o teléfono)</label>
                             <div className="search-input-wrapper">
@@ -1538,6 +1707,37 @@ export default function NewServiceOrder() {
                             </div>
                         )}
 
+                        {/* Master Mechanic Selector for Auxiliaries */}
+                        {isAuxiliary && (
+                            <div className="master-selector-section">
+                                <div className="master-selector-header">
+                                    <Crown size={20} />
+                                    <div>
+                                        <h4>Selecciona tu Mecánico Maestro</h4>
+                                        <p>Tu solicitud será enviada para aprobación</p>
+                                    </div>
+                                </div>
+                                <select
+                                    className="form-select master-select"
+                                    value={selectedMaster || ''}
+                                    onChange={(e) => setSelectedMaster(e.target.value)}
+                                >
+                                    <option value="">-- Selecciona un maestro --</option>
+                                    {masterMechanics.map(master => (
+                                        <option key={master.id} value={master.id}>
+                                            {master.full_name}
+                                        </option>
+                                    ))}
+                                </select>
+                                {masterMechanics.length === 0 && (
+                                    <p className="no-masters-warning">
+                                        <AlertCircle size={16} />
+                                        No hay mecánicos maestros disponibles
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
                         {/* Order Summary */}
                         <div className="order-summary card mt-lg">
                             <h3 className="card-title mb-md">Resumen de la Orden</h3>
@@ -1559,10 +1759,29 @@ export default function NewServiceOrder() {
                                 </strong>
                             </div>
 
-                            <div className="summary-row">
+                            <div className="summary-row" style={{ marginBottom: 'var(--spacing-sm)', fontWeight: 'bold' }}>
                                 <span>Servicios:</span>
-                                <strong>{formData.selectedServices.length + (formData.customService ? 1 : 0)}</strong>
                             </div>
+
+                            {/* List selected services from catalog */}
+                            {formData.selectedServices.map(svcId => {
+                                const svc = services.find(s => s.id === svcId);
+                                if (!svc) return null;
+                                return (
+                                    <div key={svcId} className="summary-row" style={{ paddingLeft: 'var(--spacing-md)', fontSize: '0.9rem' }}>
+                                        <span style={{ color: 'var(--text-muted)' }}>• {svc.name}</span>
+                                        <strong>{formatMXN(svc.base_price)}</strong>
+                                    </div>
+                                );
+                            })}
+
+                            {/* Show custom service if exists */}
+                            {formData.customService && (
+                                <div className="summary-row" style={{ paddingLeft: 'var(--spacing-md)', fontSize: '0.9rem' }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>• {formData.customService}</span>
+                                    <strong>{formatMXN((parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0))}</strong>
+                                </div>
+                            )}
 
                             <div className="divider" style={{ margin: 'var(--spacing-sm) 0' }} />
 
@@ -1680,8 +1899,17 @@ export default function NewServiceOrder() {
                             </>
                         ) : (
                             <>
-                                <Check size={20} />
-                                Crear Orden
+                                {isAuxiliary ? (
+                                    <>
+                                        <Send size={20} />
+                                        Enviar Solicitud
+                                    </>
+                                ) : (
+                                    <>
+                                        <Check size={20} />
+                                        Crear Orden
+                                    </>
+                                )}
                             </>
                         )}
                     </button>
@@ -2291,7 +2519,388 @@ export default function NewServiceOrder() {
         .step-navigation .btn-primary {
           flex: 2;
         }
+
+        /* Master Mechanic Selector */
+        .master-selector-section {
+          background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%);
+          border: 1px solid rgba(245, 158, 11, 0.3);
+          border-radius: var(--radius-lg);
+          padding: var(--spacing-md);
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .master-selector-header {
+          display: flex;
+          align-items: flex-start;
+          gap: var(--spacing-sm);
+          margin-bottom: var(--spacing-md);
+          color: var(--warning);
+        }
+
+        .master-selector-header h4 {
+          font-size: 1rem;
+          font-weight: 600;
+          margin: 0;
+          color: var(--text-primary);
+        }
+
+        .master-selector-header p {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          margin: 0;
+        }
+
+        .master-select {
+          width: 100%;
+          padding: var(--spacing-md);
+          background: var(--bg-card);
+          border: 2px solid var(--border-color);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
+          font-size: 1rem;
+          font-weight: 500;
+        }
+
+        .master-select:focus {
+          border-color: var(--warning);
+          outline: none;
+        }
+
+        .no-masters-warning {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          color: var(--danger);
+          font-size: 0.875rem;
+          margin-top: var(--spacing-sm);
+        }
+
+        /* Quick Client Button */
+        .btn-quick-client {
+          background: linear-gradient(135deg, var(--secondary) 0%, #059669 100%) !important;
+          color: white !important;
+          border: none !important;
+          padding: var(--spacing-md) !important;
+          font-weight: 600;
+          margin-bottom: var(--spacing-md);
+        }
+
+        .btn-quick-client:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .search-divider {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-md);
+          margin-bottom: var(--spacing-md);
+          color: var(--text-muted);
+          font-size: 0.875rem;
+        }
+
+        .search-divider::before,
+        .search-divider::after {
+          content: '';
+          flex: 1;
+          height: 1px;
+          background: var(--border-color);
+        }
+
+        /* Quick Client Modal Styles */
+        .quick-client-modal {
+          max-height: 90vh;
+          overflow-y: auto;
+        }
+
+        .quick-client-modal .modal-body {
+          padding: var(--spacing-lg);
+        }
+
+        .form-section {
+          margin-bottom: var(--spacing-lg);
+        }
+
+        .form-section-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: var(--spacing-md);
+        }
+
+        .form-section-title {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          font-size: 1rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          margin: 0;
+        }
+
+        .motos-form-list {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-md);
+        }
+
+        .moto-form-item {
+          background: var(--bg-tertiary);
+          border-radius: var(--radius-md);
+          padding: var(--spacing-md);
+        }
+
+        .moto-form-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: var(--spacing-sm);
+        }
+
+        .moto-number {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: var(--secondary);
+        }
+
+        .empty-message {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--spacing-sm);
+          padding: var(--spacing-lg);
+          color: var(--text-muted);
+          background: var(--bg-tertiary);
+          border-radius: var(--radius-md);
+          font-size: 0.875rem;
+        }
       `}</style>
+
+            {/* Quick Client Creation Modal */}
+            {showQuickClientModal && (
+                <div className="modal-overlay" onClick={() => setShowQuickClientModal(false)}>
+                    <div className="modal modal-large quick-client-modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title">
+                                <UserPlus size={22} />
+                                Nuevo Cliente
+                            </h3>
+                            <button className="modal-close" onClick={() => setShowQuickClientModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="modal-body">
+                            {/* Client Info */}
+                            <div className="form-section">
+                                <h4 className="form-section-title">
+                                    <User size={18} />
+                                    Datos del Cliente
+                                </h4>
+
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Nombre Completo <span style={{ color: 'var(--danger)' }}>*</span>
+                                    </label>
+                                    <div className="input-with-icon">
+                                        <User className="input-icon" size={20} />
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="Juan Pérez"
+                                            value={quickClientData.full_name}
+                                            onChange={e => setQuickClientData(prev => ({ ...prev, full_name: e.target.value }))}
+                                            autoFocus
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Teléfono <span style={{ color: 'var(--danger)' }}>*</span>
+                                    </label>
+                                    <div className="input-with-icon">
+                                        <Phone className="input-icon" size={20} />
+                                        <input
+                                            type="tel"
+                                            className="form-input"
+                                            placeholder="10 dígitos"
+                                            value={quickClientData.phone}
+                                            onChange={e => setQuickClientData(prev => ({
+                                                ...prev,
+                                                phone: e.target.value.replace(/\D/g, '').slice(0, 10)
+                                            }))}
+                                            maxLength={10}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">Email (opcional)</label>
+                                    <div className="input-with-icon">
+                                        <Mail className="input-icon" size={20} />
+                                        <input
+                                            type="email"
+                                            className="form-input"
+                                            placeholder="cliente@email.com"
+                                            value={quickClientData.email}
+                                            onChange={e => setQuickClientData(prev => ({ ...prev, email: e.target.value }))}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">Notas (opcional)</label>
+                                    <textarea
+                                        className="form-textarea"
+                                        placeholder="Información adicional del cliente..."
+                                        value={quickClientData.notes}
+                                        onChange={e => setQuickClientData(prev => ({ ...prev, notes: e.target.value }))}
+                                        rows={2}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Motorcycles Section */}
+                            <div className="form-section">
+                                <div className="form-section-header">
+                                    <h4 className="form-section-title">
+                                        <Bike size={18} />
+                                        Motocicletas
+                                    </h4>
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={addQuickMoto}
+                                    >
+                                        <Plus size={16} />
+                                        Agregar Moto
+                                    </button>
+                                </div>
+
+                                {quickMotorcycles.length === 0 ? (
+                                    <div className="empty-message">
+                                        <AlertCircle size={20} />
+                                        <span>Sin motocicletas (puedes agregarlas después)</span>
+                                    </div>
+                                ) : (
+                                    <div className="motos-form-list">
+                                        {quickMotorcycles.map((moto, index) => (
+                                            <div key={moto.id} className="moto-form-item">
+                                                <div className="moto-form-header">
+                                                    <span className="moto-number">Moto #{index + 1}</span>
+                                                    <button
+                                                        type="button"
+                                                        className="btn-icon-small btn-delete"
+                                                        onClick={() => removeQuickMoto(index)}
+                                                        style={{
+                                                            width: '28px',
+                                                            height: '28px',
+                                                            borderRadius: '6px',
+                                                            border: 'none',
+                                                            background: 'rgba(239, 68, 68, 0.1)',
+                                                            color: 'var(--danger)',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                        }}
+                                                    >
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+
+                                                <div className="grid grid-2">
+                                                    <div className="form-group">
+                                                        <label className="form-label">Marca *</label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-input"
+                                                            placeholder="Honda"
+                                                            value={moto.brand}
+                                                            onChange={e => updateQuickMoto(index, 'brand', e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Modelo *</label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-input"
+                                                            placeholder="CB500X"
+                                                            value={moto.model}
+                                                            onChange={e => updateQuickMoto(index, 'model', e.target.value)}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-2">
+                                                    <div className="form-group">
+                                                        <label className="form-label">Año</label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-input"
+                                                            placeholder="2024"
+                                                            value={moto.year}
+                                                            onChange={e => updateQuickMoto(index, 'year', e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div className="form-group">
+                                                        <label className="form-label">Placas</label>
+                                                        <input
+                                                            type="text"
+                                                            className="form-input"
+                                                            placeholder="ABC-123"
+                                                            value={moto.plates}
+                                                            onChange={e => updateQuickMoto(index, 'plates', e.target.value.toUpperCase())}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="form-group">
+                                                    <label className="form-label">Color</label>
+                                                    <input
+                                                        type="text"
+                                                        className="form-input"
+                                                        placeholder="Negro, Rojo..."
+                                                        value={moto.color}
+                                                        onChange={e => updateQuickMoto(index, 'color', e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="modal-footer">
+                            <button
+                                className="btn btn-outline"
+                                onClick={() => setShowQuickClientModal(false)}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                className="btn btn-primary"
+                                onClick={handleSaveQuickClient}
+                                disabled={!quickClientData.full_name.trim() || !quickClientData.phone.trim() || savingQuickClient}
+                            >
+                                {savingQuickClient ? (
+                                    <>
+                                        <Loader2 size={18} className="spinner" />
+                                        Guardando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Check size={18} />
+                                        Crear Cliente
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

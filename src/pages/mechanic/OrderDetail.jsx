@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { ordersService, authService } from '../../lib/supabase';
 import {
     getDetailedOrderMessage,
     sendViaWhatsApp
@@ -36,6 +37,10 @@ export default function OrderDetail() {
     const navigate = useNavigate();
     const { user, canDeleteOrders } = useAuth();
     const { orders, clients, statuses, serviceUpdates, updateOrderStatus, updateOrder, getOrderUpdates, addServiceUpdate, deleteOrder } = useData();
+
+    // State for fetched order (when not found in context)
+    const [fetchedOrder, setFetchedOrder] = useState(null);
+    const [loadingOrder, setLoadingOrder] = useState(false);
 
     const [showStatusModal, setShowStatusModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -55,6 +60,19 @@ export default function OrderDetail() {
     });
     const [statusNote, setStatusNote] = useState('');
     const [paymentAmount, setPaymentAmount] = useState('');
+    // Finalization form - used when marking order as paid
+    const [finalizationForm, setFinalizationForm] = useState({
+        serviceDescription: '',
+        laborCost: '',
+        partsCost: '',
+    });
+    // Add service modal and form
+    const [showAddServiceModal, setShowAddServiceModal] = useState(false);
+    const [addServiceForm, setAddServiceForm] = useState({
+        name: '',
+        laborCost: '',
+        partsCost: '',
+    });
     const [updateForm, setUpdateForm] = useState({
         type: 'additional_work',
         title: '',
@@ -76,10 +94,55 @@ export default function OrderDetail() {
         }
     };
 
-    const order = useMemo(() => orders.find(o => o.id === id), [orders, id]);
+    // Try to find order in context first
+    const contextOrder = useMemo(() => orders.find(o => o.id === id), [orders, id]);
+
+    // Fetch order from DB if not found in context
+    useEffect(() => {
+        const fetchOrder = async () => {
+            if (!contextOrder && id && !fetchedOrder && !loadingOrder) {
+                setLoadingOrder(true);
+                try {
+                    const dbOrder = await ordersService.getById(id);
+                    if (dbOrder) {
+                        setFetchedOrder(dbOrder);
+                    }
+                } catch (error) {
+                    console.error('Error fetching order:', error);
+                } finally {
+                    setLoadingOrder(false);
+                }
+            }
+        };
+        fetchOrder();
+    }, [contextOrder, id, fetchedOrder, loadingOrder]);
+
+    // Use context order or fetched order
+    const order = contextOrder || fetchedOrder;
+
+    // Debug log
+    useEffect(() => {
+        if (order) {
+            console.log('Order data:', order);
+            console.log('Order services:', order.services);
+        }
+    }, [order]);
+
     const client = useMemo(() => order?.client || (order?.client_id && clients.find(c => c.id === order.client_id)), [order, clients]);
     const motorcycle = useMemo(() => order?.motorcycle, [order]);
     const updates = useMemo(() => order ? getOrderUpdates(order.id) : [], [order, serviceUpdates]);
+
+    // Show loading while fetching
+    if (loadingOrder) {
+        return (
+            <div className="page">
+                <div className="loading-container">
+                    <div className="spinner spinner-lg"></div>
+                    <p>Cargando orden...</p>
+                </div>
+            </div>
+        );
+    }
 
     if (!order) {
         return (
@@ -177,20 +240,74 @@ export default function OrderDetail() {
         }
     };
 
-    const handlePaymentUpdate = () => {
-        const total = parseFloat(paymentAmount) || 0;
-        updateOrder(order.id, {
-            total_amount: total,
-            is_paid: true,
-        });
-        setShowPaymentModal(false);
-        setPaymentAmount('');
+    const handlePaymentUpdate = async () => {
+        const laborCost = parseFloat(finalizationForm.laborCost) || 0;
+        const partsCost = parseFloat(finalizationForm.partsCost) || 0;
+        const manualTotal = parseFloat(paymentAmount) || 0;
+
+        // Use manual total if provided, otherwise calculate from labor + parts
+        const total = manualTotal > 0 ? manualTotal : (laborCost + partsCost);
+
+        try {
+            // Update order with finalization details
+            await updateOrder(order.id, {
+                total_amount: total,
+                labor_total: laborCost,
+                parts_total: partsCost,
+                mechanic_notes: finalizationForm.serviceDescription || order.mechanic_notes,
+                is_paid: true,
+                paid_at: new Date().toISOString(),
+            });
+
+            showToast('✅ Orden finalizada correctamente', 'success');
+            setShowPaymentModal(false);
+            setPaymentAmount('');
+            setFinalizationForm({ serviceDescription: '', laborCost: '', partsCost: '' });
+        } catch (error) {
+            console.error('Error finalizing order:', error);
+            showToast('Error al finalizar orden', 'error');
+        }
     };
 
-    const handleSendClientLink = () => {
+    const handleAddService = async () => {
+        const laborCost = parseFloat(addServiceForm.laborCost) || 0;
+        const partsCost = parseFloat(addServiceForm.partsCost) || 0;
+
+        // Validation
+        if (!addServiceForm.name.trim()) {
+            showToast('El nombre del servicio es requerido', 'warning');
+            return;
+        }
+
+        if (laborCost <= 0 && partsCost <= 0) {
+            showToast('Debes ingresar al menos mano de obra o refacciones', 'warning');
+            return;
+        }
+
+        try {
+            await ordersService.addService(order.id, {
+                name: addServiceForm.name,
+                laborCost,
+                partsCost,
+                price: laborCost + partsCost
+            });
+
+            showToast('✅ Servicio agregado correctamente', 'success');
+            setShowAddServiceModal(false);
+            setAddServiceForm({ name: '', laborCost: '', partsCost: '' });
+
+            // Reload order to show new service
+            window.location.reload();
+        } catch (error) {
+            console.error('Error adding service:', error);
+            showToast('Error al agregar servicio', 'error');
+        }
+    };
+
+    const handleSendClientLink = async () => {
         // Validar que el cliente tenga número de teléfono
         if (!client?.phone) {
-            showToast('❌ Este cliente no tiene número de teléfono registrado', 'error');
+            showToast('Este cliente no tiene número de teléfono registrado', 'error');
             return;
         }
 
@@ -204,6 +321,36 @@ export default function OrderDetail() {
                 ? `${baseUrl}${order.client_link}`
                 : null;
 
+            // Determinar contacto del mecánico responsable
+            // Si el usuario actual es auxiliar y la orden tiene approved_by, mostrar el número del maestro
+            let contactInfo = null;
+
+            // Verificar si el usuario actual requiere aprobación (es auxiliar)
+            const isAuxiliary = user?.requires_approval === true;
+
+            if (isAuxiliary && order.approved_by) {
+                // Es una orden de mecánico auxiliar - buscar datos del supervisor
+                let supervisorData = order.supervisor;
+
+                // Si no tenemos los datos del supervisor, intentar buscarlos
+                if (!supervisorData && order.approved_by) {
+                    try {
+                        supervisorData = await authService.getProfile(order.approved_by);
+                    } catch (e) {
+                        console.log('No se pudo obtener datos del supervisor:', e);
+                    }
+                }
+
+                if (supervisorData && supervisorData.phone) {
+                    contactInfo = {
+                        mechanicName: supervisorData.full_name,
+                        mechanicPhone: supervisorData.phone,
+                        isSupervisor: true
+                    };
+                }
+            }
+            // Si es maestro, no mostrar número (solo "cualquier duda quedamos atentos")
+
             // Crear mensaje detallado con servicios y total
             const message = getDetailedOrderMessage(
                 client.full_name,
@@ -215,13 +362,18 @@ export default function OrderDetail() {
                 {
                     advancePayment: order.advance_payment || 0,
                     paymentMethod: order.payment_method
-                }
+                },
+                {
+                    laborTotal: order.labor_total || 0,
+                    partsTotal: order.parts_total || 0
+                },
+                contactInfo
             );
 
             // Abrir WhatsApp directamente
             sendViaWhatsApp(client.phone, message);
 
-            showToast('✅ Abriendo WhatsApp con el detalle de la orden...', 'success');
+            showToast('Abriendo WhatsApp con el detalle de la orden...', 'success');
 
             // Actualizar timestamp de envío
             updateOrder(order.id, {
@@ -230,7 +382,7 @@ export default function OrderDetail() {
 
         } catch (error) {
             console.error('Error al abrir WhatsApp:', error);
-            showToast(`❌ Error: ${error.message}`, 'error');
+            showToast(`Error: ${error.message}`, 'error');
         }
     };
 
@@ -412,8 +564,8 @@ export default function OrderDetail() {
                 )}
                 {statusName === 'Lista para Entregar' && !order.is_paid && (
                     <button className="btn btn-accent btn-full" onClick={() => setShowPaymentModal(true)}>
-                        <DollarSign size={20} />
-                        Registrar Pago
+                        <CheckCircle size={20} />
+                        Finalizar y Cobrar
                     </button>
                 )}
                 <button className="btn btn-outline" onClick={() => setShowStatusModal(true)}>
@@ -464,21 +616,113 @@ export default function OrderDetail() {
                     <div className="section-title">
                         <Wrench size={20} />
                         <span>Servicios</span>
-                        <span className="badge badge-primary">{order.services?.length || 0}</span>
+                        <span className="badge badge-primary">{(order.services?.length || 0) + (order.mechanic_notes ? 1 : 0)}</span>
                     </div>
                     {expandedSections.services ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                 </button>
 
                 {expandedSections.services && (
                     <div className="section-content">
-                        {order.services?.map((service, idx) => (
-                            <div key={idx} className="service-item-detail">
-                                <span>{service.name}</span>
-                                {service.price > 0 && (
-                                    <span className="text-primary">${service.price}</span>
-                                )}
+                        {/* Show mechanic notes if exists */}
+                        {order.mechanic_notes && (
+                            <div className="service-item-detail custom-service">
+                                <div className="service-info">
+                                    <span className="service-name">{order.mechanic_notes}</span>
+                                    <span className="service-breakdown">
+                                        <span className="breakdown-item custom">Trabajo realizado</span>
+                                    </span>
+                                </div>
+                                <span className="text-primary">${order.total_amount?.toLocaleString('es-MX') || '0'}</span>
                             </div>
-                        ))}
+                        )}
+
+
+                        {order.services?.map((service, idx) => {
+                            // Calculate values - fallback to price as labor if no breakdown exists
+                            const laborCost = parseFloat(service.labor_cost) || 0;
+                            const materialsCost = parseFloat(service.materials_cost) || 0;
+                            const price = parseFloat(service.price) || 0;
+                            const hasBreakdown = laborCost > 0 || materialsCost > 0;
+
+                            return (
+                                <div
+                                    key={idx}
+                                    className="service-item-detail"
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'flex-start',
+                                        gap: 'var(--spacing-md)',
+                                        padding: 'var(--spacing-sm) 0',
+                                        borderBottom: '1px solid rgba(0,0,0,0.05)'
+                                    }}
+                                >
+                                    <div className="service-info" style={{ flex: 1, minWidth: 0 }}>
+                                        <span className="service-name" style={{
+                                            wordWrap: 'break-word',
+                                            wordBreak: 'break-word',
+                                            display: 'block'
+                                        }}>
+                                            {service.name}
+                                        </span>
+                                    </div>
+                                    {price > 0 && (
+                                        <span
+                                            className="text-primary"
+                                            style={{
+                                                fontWeight: 'bold',
+                                                whiteSpace: 'nowrap',
+                                                flexShrink: 0
+                                            }}
+                                        >
+                                            ${price.toLocaleString('es-MX')}
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                        })}
+
+                        {/* Empty state when no services found */}
+                        {(!order.services || order.services.length === 0) && !order.mechanic_notes && (
+                            <div className="empty-services" style={{ padding: 'var(--spacing-md)', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                <p style={{ margin: 0 }}>Servicios no registrados individualmente</p>
+                            </div>
+                        )}
+
+                        {/* Add Service Button - Discreet */}
+                        <button
+                            className="btn-add-service"
+                            onClick={() => setShowAddServiceModal(true)}
+                            style={{
+                                marginTop: 'var(--spacing-sm)',
+                                padding: '8px 12px',
+                                fontSize: '0.85rem',
+                                background: 'transparent',
+                                border: '1px dashed var(--border-color)',
+                                borderRadius: 'var(--radius-md)',
+                                color: 'var(--text-muted)',
+                                cursor: 'pointer',
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px',
+                                transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.target.style.borderColor = 'var(--primary)';
+                                e.target.style.color = 'var(--primary)';
+                                e.target.style.background = 'rgba(59, 130, 246, 0.05)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.target.style.borderColor = 'var(--border-color)';
+                                e.target.style.color = 'var(--text-muted)';
+                                e.target.style.background = 'transparent';
+                            }}
+                        >
+                            <Plus size={16} />
+                            Agregar Servicio
+                        </button>
 
                         {order.customer_complaint && (
                             <div className="complaint-box">
@@ -486,6 +730,38 @@ export default function OrderDetail() {
                                 <p>{order.customer_complaint}</p>
                             </div>
                         )}
+
+                        {/* Internal Financial Breakdown */}
+                        <div className="internal-breakdown">
+                            <div className="breakdown-header">
+                                <DollarSign size={16} />
+                                <span>{(order.labor_total > 0 || order.parts_total > 0) ? 'Desglose Interno (Control)' : 'Total Estimado'}</span>
+                            </div>
+                            <div className="breakdown-items">
+                                {(order.labor_total > 0 || order.parts_total > 0) ? (
+                                    <>
+                                        <div className="breakdown-row">
+                                            <span className="breakdown-label">Mano de Obra:</span>
+                                            <span className="breakdown-value labor">
+                                                ${(order.labor_total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                        <div className="breakdown-row">
+                                            <span className="breakdown-label">Refacciones:</span>
+                                            <span className="breakdown-value parts">
+                                                ${(order.parts_total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                    </>
+                                ) : null}
+                                <div className="breakdown-row total">
+                                    <span className="breakdown-label">Total:</span>
+                                    <span className="breakdown-value">
+                                        ${(order.total_amount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
@@ -630,36 +906,105 @@ export default function OrderDetail() {
                 )
             }
 
-            {/* Payment Modal */}
+            {/* Payment Modal - Finalization */}
             {
                 showPaymentModal && (
                     <div className="modal-overlay" onClick={() => setShowPaymentModal(false)}>
-                        <div className="modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h3 className="modal-title">Registrar Pago</h3>
+                                <h3 className="modal-title">Finalizar Orden</h3>
                                 <button className="modal-close" onClick={() => setShowPaymentModal(false)}>
                                     <X size={20} />
                                 </button>
                             </div>
                             <div className="modal-body">
+                                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: 'var(--spacing-md)' }}>
+                                    Ingresa los detalles finales del trabajo realizado antes de marcar como pagado.
+                                </p>
+
+                                {/* Service Description */}
                                 <div className="form-group">
-                                    <label className="form-label">Total Cobrado</label>
+                                    <label className="form-label">¿Qué trabajo se realizó?</label>
+                                    <textarea
+                                        className="form-textarea"
+                                        placeholder="Ej: Cambio de aceite, revisión de frenos, afinación completa..."
+                                        value={finalizationForm.serviceDescription}
+                                        onChange={e => setFinalizationForm(prev => ({ ...prev, serviceDescription: e.target.value }))}
+                                        rows={3}
+                                    />
+                                </div>
+
+                                {/* Labor Cost */}
+                                <div className="form-group">
+                                    <label className="form-label">Mano de Obra</label>
                                     <div className="input-with-icon">
                                         <DollarSign className="input-icon" size={20} />
                                         <input
                                             type="number"
                                             className="form-input"
                                             placeholder="0.00"
+                                            value={finalizationForm.laborCost}
+                                            onChange={e => setFinalizationForm(prev => ({ ...prev, laborCost: e.target.value }))}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Parts Cost */}
+                                <div className="form-group">
+                                    <label className="form-label">Refacciones / Materiales</label>
+                                    <div className="input-with-icon">
+                                        <DollarSign className="input-icon" size={20} />
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="0.00"
+                                            value={finalizationForm.partsCost}
+                                            onChange={e => setFinalizationForm(prev => ({ ...prev, partsCost: e.target.value }))}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Calculated Total */}
+                                <div style={{
+                                    background: 'rgba(16, 185, 129, 0.1)',
+                                    padding: 'var(--spacing-md)',
+                                    borderRadius: 'var(--radius-md)',
+                                    marginTop: 'var(--spacing-md)'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                        <span>Mano de obra:</span>
+                                        <span>${(parseFloat(finalizationForm.laborCost) || 0).toLocaleString('es-MX')}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                        <span>Refacciones:</span>
+                                        <span>${(parseFloat(finalizationForm.partsCost) || 0).toLocaleString('es-MX')}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '1.1rem', borderTop: '1px solid var(--border-color)', paddingTop: '8px', marginTop: '8px' }}>
+                                        <span>Total:</span>
+                                        <span style={{ color: 'var(--success)' }}>
+                                            ${((parseFloat(finalizationForm.laborCost) || 0) + (parseFloat(finalizationForm.partsCost) || 0)).toLocaleString('es-MX')}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Override Total (optional) */}
+                                <div className="form-group" style={{ marginTop: 'var(--spacing-md)' }}>
+                                    <label className="form-label">Total Final (opcional - solo si difiere)</label>
+                                    <div className="input-with-icon">
+                                        <DollarSign className="input-icon" size={20} />
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="Dejar vacío para usar suma automática"
                                             value={paymentAmount}
                                             onChange={e => setPaymentAmount(e.target.value)}
-                                            autoFocus
                                         />
                                     </div>
                                 </div>
 
                                 {order.advance_payment > 0 && (
-                                    <p className="text-secondary">
-                                        Anticipo recibido: ${order.advance_payment.toLocaleString('es-MX')}
+                                    <p className="text-secondary" style={{ marginTop: 'var(--spacing-sm)' }}>
+                                        ✓ Anticipo recibido: ${order.advance_payment.toLocaleString('es-MX')}
                                     </p>
                                 )}
                             </div>
@@ -668,12 +1013,15 @@ export default function OrderDetail() {
                                     Cancelar
                                 </button>
                                 <button
-                                    className="btn btn-primary"
+                                    className="btn btn-success"
                                     onClick={handlePaymentUpdate}
-                                    disabled={!paymentAmount || parseFloat(paymentAmount) <= 0}
+                                    disabled={
+                                        !(finalizationForm.laborCost || finalizationForm.partsCost || paymentAmount) ||
+                                        ((parseFloat(finalizationForm.laborCost) || 0) + (parseFloat(finalizationForm.partsCost) || 0) + (parseFloat(paymentAmount) || 0)) <= 0
+                                    }
                                 >
-                                    <Check size={18} />
-                                    Confirmar Pago
+                                    <CheckCircle size={18} />
+                                    Finalizar y Cobrar
                                 </button>
                             </div>
                         </div>
@@ -763,6 +1111,96 @@ export default function OrderDetail() {
                                 >
                                     <Plus size={18} />
                                     Agregar Novedad
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Add Service Modal */}
+            {
+                showAddServiceModal && (
+                    <div className="modal-overlay" onClick={() => setShowAddServiceModal(false)}>
+                        <div className="modal" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3 className="modal-title">Agregar Servicio Adicional</h3>
+                                <button className="modal-close" onClick={() => setShowAddServiceModal(false)}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: 'var(--spacing-md)' }}>
+                                    Agrega un servicio que se realizó durante o después del trabajo inicial.
+                                </p>
+
+                                <div className="form-group">
+                                    <label className="form-label">Nombre del Servicio <span className="text-danger">*</span></label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Ej: Cambio de filtro, Soldadura, etc."
+                                        value={addServiceForm.name}
+                                        onChange={e => setAddServiceForm(prev => ({ ...prev, name: e.target.value }))}
+                                        autoFocus
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">Mano de Obra</label>
+                                    <div className="input-with-icon">
+                                        <DollarSign className="input-icon" size={20} />
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="0.00"
+                                            value={addServiceForm.laborCost}
+                                            onChange={e => setAddServiceForm(prev => ({ ...prev, laborCost: e.target.value }))}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label className="form-label">Refacciones / Materiales</label>
+                                    <div className="input-with-icon">
+                                        <DollarSign className="input-icon" size={20} />
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            placeholder="0.00"
+                                            value={addServiceForm.partsCost}
+                                            onChange={e => setAddServiceForm(prev => ({ ...prev, partsCost: e.target.value }))}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div style={{
+                                    background: 'rgba(59, 130, 246, 0.1)',
+                                    padding: 'var(--spacing-sm)',
+                                    borderRadius: 'var(--radius-md)',
+                                    fontSize: '0.875rem',
+                                    marginTop: 'var(--spacing-sm)'
+                                }}>
+                                    <strong>Total del servicio: </strong>
+                                    <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>
+                                        ${((parseFloat(addServiceForm.laborCost) || 0) + (parseFloat(addServiceForm.partsCost) || 0)).toLocaleString('es-MX')}
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button className="btn btn-outline" onClick={() => setShowAddServiceModal(false)}>
+                                    Cancelar
+                                </button>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={handleAddService}
+                                    disabled={
+                                        !addServiceForm.name.trim() ||
+                                        ((parseFloat(addServiceForm.laborCost) || 0) + (parseFloat(addServiceForm.partsCost) || 0)) <= 0
+                                    }
+                                >
+                                    <Plus size={18} />
+                                    Agregar Servicio
                                 </button>
                             </div>
                         </div>
@@ -1316,6 +1754,118 @@ export default function OrderDetail() {
         .payment-badge.pending {
           background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
           color: white;
+        }
+
+        /* Service Item with Breakdown */
+        .service-item-detail {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          padding: var(--spacing-sm) 0;
+          border-bottom: 1px solid var(--border-light);
+        }
+
+        .service-item-detail:last-of-type {
+          border-bottom: none;
+        }
+
+        .service-info {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          flex: 1;
+        }
+
+        .service-name {
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+
+        .service-breakdown {
+          display: flex;
+          gap: var(--spacing-sm);
+          flex-wrap: wrap;
+        }
+
+        .breakdown-item {
+          font-size: 0.75rem;
+          padding: 2px 8px;
+          border-radius: var(--radius-sm);
+        }
+
+        .breakdown-item.labor {
+          background: rgba(59, 130, 246, 0.1);
+          color: var(--primary);
+        }
+
+        .breakdown-item.parts {
+          background: rgba(245, 158, 11, 0.1);
+          color: var(--warning);
+        }
+
+        /* Internal Financial Breakdown */
+        .internal-breakdown {
+          margin-top: var(--spacing-md);
+          padding: var(--spacing-md);
+          background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+          border-radius: var(--radius-md);
+          border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .internal-breakdown .breakdown-header {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          font-size: 0.8125rem;
+          font-weight: 700;
+          color: var(--primary);
+          margin-bottom: var(--spacing-sm);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .internal-breakdown .breakdown-items {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-xs);
+        }
+
+        .internal-breakdown .breakdown-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: var(--spacing-xs) 0;
+        }
+
+        .internal-breakdown .breakdown-row.total {
+          border-top: 1px dashed var(--border-color);
+          padding-top: var(--spacing-sm);
+          margin-top: var(--spacing-xs);
+        }
+
+        .internal-breakdown .breakdown-label {
+          font-size: 0.875rem;
+          color: var(--text-secondary);
+        }
+
+        .internal-breakdown .breakdown-value {
+          font-size: 0.9375rem;
+          font-weight: 700;
+          color: var(--text-primary);
+        }
+
+        .internal-breakdown .breakdown-value.labor {
+          color: var(--primary);
+        }
+
+        .internal-breakdown .breakdown-value.parts {
+          color: var(--warning);
+        }
+
+        .internal-breakdown .breakdown-row.total .breakdown-label,
+        .internal-breakdown .breakdown-row.total .breakdown-value {
+          font-weight: 800;
+          color: var(--text-primary);
         }
       `}</style>
 

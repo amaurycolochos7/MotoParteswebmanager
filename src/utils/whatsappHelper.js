@@ -260,7 +260,7 @@ export const sendMessageWithPDF = async (phone, message, pdfBlob, filename) => {
 };
 
 /**
- * Get detailed order message with services breakdown
+ * Get detailed order message with services breakdown including labor and parts
  * @param {string} clientName - Client's name
  * @param {string} motorcycle - Motorcycle description
  * @param {string} orderNumber - Order number
@@ -268,30 +268,57 @@ export const sendMessageWithPDF = async (phone, message, pdfBlob, filename) => {
  * @param {number} totalAmount - Total amount
  * @param {string} link - Client portal link
  * @param {Object} paymentInfo - Optional payment info { advancePayment, paymentMethod }
+ * @param {Object} orderTotals - Optional order totals { laborTotal, partsTotal }
+ * @param {Object} contactInfo - Optional contact info { mechanicName, mechanicPhone, isSupervisor }
  * @returns {string} - Formatted message
  */
-export const getDetailedOrderMessage = (clientName, motorcycle, orderNumber, services, totalAmount, link, paymentInfo = null) => {
-    const servicesList = services && services.length > 0
-        ? services.map(s => `  - ${s.name} - $${(s.price || 0).toLocaleString('es-MX')}`).join('\n')
-        : '  - Revision General';
+export const getDetailedOrderMessage = (clientName, motorcycle, orderNumber, services, totalAmount, link, paymentInfo = null, orderTotals = null, contactInfo = null) => {
+    // Format services list - just names, no breakdown per service
+    let servicesList = '';
 
-    // Seccion del link solo si existe
+    if (services && services.length > 0) {
+        servicesList = services.map(s => `  - ${s.name}`).join('\n');
+    } else {
+        servicesList = '  - Revisión General';
+    }
+
+    // Format totals breakdown
+    let totalsSection = '';
+    if (orderTotals && (orderTotals.laborTotal > 0 || orderTotals.partsTotal > 0)) {
+        totalsSection = `
+*DESGLOSE:*
+  Mano de Obra: $${(orderTotals.laborTotal || 0).toLocaleString('es-MX')}
+  Refacciones: $${(orderTotals.partsTotal || 0).toLocaleString('es-MX')}
+`;
+    }
+
+    // Link section only if it exists
     const linkSection = link
-        ? `\n*Sigue el proceso de tu reparacion aqui:*\n${link}\n`
+        ? `\n*Sigue el proceso de tu reparación aquí:*\n${link}\n`
         : '';
 
-    // Seccion de anticipo si existe
+    // Advance payment section if exists
     let paymentSection = '';
     if (paymentInfo && paymentInfo.advancePayment > 0) {
         const methodLabel = getPaymentMethodLabel(paymentInfo.paymentMethod);
         const remaining = totalAmount - paymentInfo.advancePayment;
 
         paymentSection = `
-💰 *ANTICIPO RECIBIDO: $${paymentInfo.advancePayment.toLocaleString('es-MX')}*
-  📌 Método: ${methodLabel}
+*ANTICIPO RECIBIDO: $${paymentInfo.advancePayment.toLocaleString('es-MX')}*
+  Método: ${methodLabel}
 
-💵 *SALDO PENDIENTE: $${Math.max(0, remaining).toLocaleString('es-MX')}*
+*SALDO PENDIENTE: $${Math.max(0, remaining).toLocaleString('es-MX')}*
 `;
+    }
+
+    // Contact section - only show if auxiliary mechanic with supervisor
+    // Master mechanic = no phone number shown
+    // Auxiliary mechanic = show supervisor's phone number
+    let contactSection = 'Cualquier duda quedamos atentos.';
+    if (contactInfo && contactInfo.isSupervisor && contactInfo.mechanicPhone) {
+        const contactName = contactInfo.mechanicName || 'nuestro equipo';
+        const formattedPhone = formatPhoneForDisplay(contactInfo.mechanicPhone);
+        contactSection = `Cualquier duda comunícate con ${contactName}:\n${formattedPhone}`;
     }
 
     return `Hola ${clientName}!
@@ -300,13 +327,36 @@ export const getDetailedOrderMessage = (clientName, motorcycle, orderNumber, ser
 
 *Motocicleta:* ${motorcycle}
 
-*Servicios a realizar:*
+*Servicios realizados:*
 ${servicesList}
-
-*TOTAL ESTIMADO: $${totalAmount.toLocaleString('es-MX')}*
+${totalsSection}
+*TOTAL: $${(totalAmount || 0).toLocaleString('es-MX')}*
 ${paymentSection}${linkSection}
-Cualquier duda quedamos atentos.
+${contactSection}
+
 Gracias por confiar en Motopartes!`;
+};
+
+/**
+ * Format phone number for display in message
+ * @param {string} phone - Raw phone number
+ * @returns {string} - Formatted phone for display
+ */
+const formatPhoneForDisplay = (phone) => {
+    if (!phone) return '';
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length === 10) {
+        return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+    if (digits.startsWith('521') && digits.length === 13) {
+        const local = digits.slice(3);
+        return `(${local.slice(0, 3)}) ${local.slice(3, 6)}-${local.slice(6)}`;
+    }
+    if (digits.startsWith('52') && digits.length === 12) {
+        const local = digits.slice(2);
+        return `(${local.slice(0, 3)}) ${local.slice(3, 6)}-${local.slice(6)}`;
+    }
+    return phone;
 };
 
 /**
@@ -318,13 +368,13 @@ const getPaymentMethodLabel = (method) => {
     switch (method) {
         case 'cash':
         case 'efectivo':
-            return 'Efectivo 💵';
+            return 'Efectivo';
         case 'card':
         case 'tarjeta':
-            return 'Tarjeta 💳';
+            return 'Tarjeta';
         case 'transfer':
         case 'transferencia':
-            return 'Transferencia 🏦';
+            return 'Transferencia';
         default:
             return method || 'No especificado';
     }

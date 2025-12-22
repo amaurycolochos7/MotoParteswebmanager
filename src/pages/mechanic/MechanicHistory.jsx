@@ -20,7 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 
 export default function MechanicHistory() {
-  const { user } = useAuth();
+  const { user, isMasterMechanic } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { orders, clients, motorcycles, statuses, deleteOrder } = useData();
@@ -214,7 +214,7 @@ export default function MechanicHistory() {
             <DollarSign size={20} />
           </div>
           <div className="stat-content">
-            <div className="stat-value">${stats.totalRevenue.toLocaleString('es-MX')}</div>
+            <div className="stat-value">${stats.totalRevenue.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <div className="stat-label">Total Generado</div>
           </div>
         </div>
@@ -223,7 +223,7 @@ export default function MechanicHistory() {
             <DollarSign size={20} />
           </div>
           <div className="stat-content">
-            <div className="stat-value">${Math.round(stats.avgRevenue).toLocaleString('es-MX')}</div>
+            <div className="stat-value">${Math.round(stats.avgRevenue).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             <div className="stat-label">Promedio</div>
           </div>
         </div>
@@ -319,18 +319,20 @@ export default function MechanicHistory() {
                 </div>
 
                 <div className="card-content">
-                  {/* Mechanic - SUPER VISIBLE */}
-                  <div className="mechanic-highlight">
-                    <div className="mechanic-icon-badge">
-                      <Wrench size={20} />
-                    </div>
-                    <div className="mechanic-details">
-                      <div className="mechanic-label">Mecánico Asignado</div>
-                      <div className="mechanic-name-large">
-                        {order.mechanic_name || 'Sin asignar'}
+                  {/* Mechanic - Only show for admin or when viewing other's orders */}
+                  {(isAdmin || (order.mechanic_id !== user?.id && !isMasterMechanic?.())) && (
+                    <div className="mechanic-highlight">
+                      <div className="mechanic-icon-badge">
+                        <Wrench size={20} />
+                      </div>
+                      <div className="mechanic-details">
+                        <div className="mechanic-label">Mecánico Asignado</div>
+                        <div className="mechanic-name-large">
+                          {order.mechanic_name || 'Sin asignar'}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Client & Motorcycle */}
                   <div className="info-grid">
@@ -363,7 +365,7 @@ export default function MechanicHistory() {
                           <div key={idx} className="service-item">
                             <span className="service-dot">•</span>
                             <span className="service-name">{service.description}</span>
-                            <span className="service-price">${service.price?.toLocaleString('es-MX')}</span>
+                            <span className="service-price">${service.price?.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                         ))}
                       </div>
@@ -379,7 +381,7 @@ export default function MechanicHistory() {
                     </div>
                     <div className="amount-info">
                       <DollarSign size={18} />
-                      <span className="amount-value">${(order.total_amount || 0).toLocaleString('es-MX')}</span>
+                      <span className="amount-value">${(order.total_amount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 </div>
@@ -389,239 +391,244 @@ export default function MechanicHistory() {
             );
           })}
         </div>
-      )}
+      )
+      }
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && orderToDelete && (
-        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
-          <div className="modal delete-modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-icon-danger">
-                <AlertCircle size={24} />
+      {
+        showDeleteModal && orderToDelete && (
+          <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+            <div className="modal delete-modal" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <div className="modal-icon-danger">
+                  <AlertCircle size={24} />
+                </div>
+                <button className="modal-close" onClick={() => setShowDeleteModal(false)}>
+                  <X size={20} />
+                </button>
               </div>
-              <button className="modal-close" onClick={() => setShowDeleteModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
 
-            <div className="modal-body">
-              <h3 className="modal-title">¿Eliminar orden?</h3>
-              <p className="modal-description">
-                Esta acción eliminará permanentemente la orden <strong>{orderToDelete.order_number}</strong> del historial.
-              </p>
-              <div className="modal-warning">
-                <AlertCircle size={16} />
-                <span>Esta acción no se puede deshacer</span>
+              <div className="modal-body">
+                <h3 className="modal-title">¿Eliminar orden?</h3>
+                <p className="modal-description">
+                  Esta acción eliminará permanentemente la orden <strong>{orderToDelete.order_number}</strong> del historial.
+                </p>
+                <div className="modal-warning">
+                  <AlertCircle size={16} />
+                  <span>Esta acción no se puede deshacer</span>
+                </div>
               </div>
-            </div>
 
-            <div className="modal-footer">
-              <button
-                className="btn btn-secondary"
-                onClick={() => setShowDeleteModal(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                className="btn btn-danger"
-                onClick={confirmDelete}
-              >
-                <Trash2 size={16} />
-                Eliminar Orden
-              </button>
+              <div className="modal-footer">
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowDeleteModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={confirmDelete}
+                >
+                  <Trash2 size={16} />
+                  Eliminar Orden
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Details Modal - ONLY FOR ADMIN */}
-      {showDetailsModal && selectedOrder && (
-        <div className="modal-overlay" onClick={() => setShowDetailsModal(false)}>
-          <div className="modal details-modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Detalles del Servicio</h3>
-              <button className="modal-close" onClick={() => setShowDetailsModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
+      {
+        showDetailsModal && selectedOrder && (
+          <div className="modal-overlay" onClick={() => setShowDetailsModal(false)}>
+            <div className="modal details-modal" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3 className="modal-title">Detalles del Servicio</h3>
+                <button className="modal-close" onClick={() => setShowDetailsModal(false)}>
+                  <X size={20} />
+                </button>
+              </div>
 
-            <div className="modal-body">
-              {(() => {
-                const client = clients.find(c => c.id === selectedOrder.client_id);
-                const motorcycle = motorcycles.find(m => m.id === selectedOrder.motorcycle_id);
-                const status = statuses.find(s => s.name === selectedOrder.status);
+              <div className="modal-body">
+                {(() => {
+                  const client = clients.find(c => c.id === selectedOrder.client_id);
+                  const motorcycle = motorcycles.find(m => m.id === selectedOrder.motorcycle_id);
+                  const status = statuses.find(s => s.name === selectedOrder.status);
 
-                return (
-                  <>
-                    {/* Order Number & Status */}
-                    <div className="detail-header">
-                      <div className="detail-order-number">{selectedOrder.order_number}</div>
-                      <div
-                        className="detail-status-badge"
-                        style={{
-                          background: `${status?.color}20`,
-                          color: status?.color
-                        }}
-                      >
-                        <CheckCircle size={16} />
-                        {typeof selectedOrder.status === 'object' ? selectedOrder.status?.name : selectedOrder.status}
-                      </div>
-                    </div>
-
-                    {/* Mechanic Section - DESTACADO */}
-                    <div className="detail-section mechanic-section">
-                      <div className="section-header">
-                        <Wrench size={18} />
-                        <span>Mecánico Responsable</span>
-                      </div>
-                      <div className="mechanic-card-detail">
-                        <div className="mechanic-avatar">
-                          <User size={28} />
-                        </div>
-                        <div className="mechanic-info-detail">
-                          <div className="mechanic-name-detail">{selectedOrder.mechanic_name || 'Sin asignar'}</div>
-                          <div className="mechanic-role">Técnico Especializado</div>
+                  return (
+                    <>
+                      {/* Order Number & Status */}
+                      <div className="detail-header">
+                        <div className="detail-order-number">{selectedOrder.order_number}</div>
+                        <div
+                          className="detail-status-badge"
+                          style={{
+                            background: `${status?.color}20`,
+                            color: status?.color
+                          }}
+                        >
+                          <CheckCircle size={16} />
+                          {typeof selectedOrder.status === 'object' ? selectedOrder.status?.name : selectedOrder.status}
                         </div>
                       </div>
-                    </div>
 
-                    {/* Client & Motorcycle Grid */}
-                    <div className="detail-grid">
-                      <div className="detail-section">
+                      {/* Mechanic Section - DESTACADO */}
+                      <div className="detail-section mechanic-section">
                         <div className="section-header">
-                          <User size={16} />
-                          <span>Cliente</span>
+                          <Wrench size={18} />
+                          <span>Mecánico Responsable</span>
                         </div>
-                        <div className="detail-content">
-                          <div className="detail-text-large">{client?.full_name || 'Desconocido'}</div>
-                          {client?.phone && (
-                            <div className="detail-text-small">
-                              📱 {client.phone}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="detail-section">
-                        <div className="section-header">
-                          <Bike size={16} />
-                          <span>Motocicleta</span>
-                        </div>
-                        <div className="detail-content">
-                          <div className="detail-text-large">{motorcycle?.brand} {motorcycle?.model}</div>
-                          <div className="detail-text-small">
-                            {motorcycle?.year} • {motorcycle?.plate}
+                        <div className="mechanic-card-detail">
+                          <div className="mechanic-avatar">
+                            <User size={28} />
+                          </div>
+                          <div className="mechanic-info-detail">
+                            <div className="mechanic-name-detail">{selectedOrder.mechanic_name || 'Sin asignar'}</div>
+                            <div className="mechanic-role">Técnico Especializado</div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Services Section */}
-                    {selectedOrder.services && selectedOrder.services.length > 0 && (
-                      <div className="detail-section">
-                        <div className="section-header">
-                          <Wrench size={16} />
-                          <span>Servicios Realizados ({selectedOrder.services.length})</span>
+                      {/* Client & Motorcycle Grid */}
+                      <div className="detail-grid">
+                        <div className="detail-section">
+                          <div className="section-header">
+                            <User size={16} />
+                            <span>Cliente</span>
+                          </div>
+                          <div className="detail-content">
+                            <div className="detail-text-large">{client?.full_name || 'Desconocido'}</div>
+                            {client?.phone && (
+                              <div className="detail-text-small">
+                                📱 {client.phone}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="services-detail-list">
-                          {selectedOrder.services.map((service, idx) => (
-                            <div key={idx} className="service-detail-item">
-                              <div className="service-detail-left">
-                                <div className="service-detail-number">{idx + 1}</div>
-                                <div className="service-detail-info">
-                                  <div className="service-detail-name">{service.description || 'Servicio sin nombre'}</div>
-                                  {service.notes && (
-                                    <div className="service-detail-notes">{service.notes}</div>
-                                  )}
+
+                        <div className="detail-section">
+                          <div className="section-header">
+                            <Bike size={16} />
+                            <span>Motocicleta</span>
+                          </div>
+                          <div className="detail-content">
+                            <div className="detail-text-large">{motorcycle?.brand} {motorcycle?.model}</div>
+                            <div className="detail-text-small">
+                              {motorcycle?.year} • {motorcycle?.plate}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Services Section */}
+                      {selectedOrder.services && selectedOrder.services.length > 0 && (
+                        <div className="detail-section">
+                          <div className="section-header">
+                            <Wrench size={16} />
+                            <span>Servicios Realizados ({selectedOrder.services.length})</span>
+                          </div>
+                          <div className="services-detail-list">
+                            {selectedOrder.services.map((service, idx) => (
+                              <div key={idx} className="service-detail-item">
+                                <div className="service-detail-left">
+                                  <div className="service-detail-number">{idx + 1}</div>
+                                  <div className="service-detail-info">
+                                    <div className="service-detail-name">{service.description || 'Servicio sin nombre'}</div>
+                                    {service.notes && (
+                                      <div className="service-detail-notes">{service.notes}</div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="service-detail-price">
+                                  ${service.price?.toLocaleString('es-MX')}
                                 </div>
                               </div>
-                              <div className="service-detail-price">
-                                ${service.price?.toLocaleString('es-MX')}
+                            ))}
+                          </div>
+                          <div className="services-total">
+                            <span>Total Servicios:</span>
+                            <span className="total-amount">
+                              ${selectedOrder.services.reduce((sum, s) => sum + (s.price || 0), 0).toLocaleString('es-MX')}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Timeline Section */}
+                      <div className="detail-section">
+                        <div className="section-header">
+                          <Clock size={16} />
+                          <span>Línea de Tiempo</span>
+                        </div>
+                        <div className="timeline">
+                          <div className="timeline-item">
+                            <div className="timeline-dot"></div>
+                            <div className="timeline-content">
+                              <div className="timeline-label">Ingresada</div>
+                              <div className="timeline-date">
+                                {formatDate(selectedOrder.created_at)} • {formatTime(selectedOrder.created_at)}
                               </div>
                             </div>
-                          ))}
-                        </div>
-                        <div className="services-total">
-                          <span>Total Servicios:</span>
-                          <span className="total-amount">
-                            ${selectedOrder.services.reduce((sum, s) => sum + (s.price || 0), 0).toLocaleString('es-MX')}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Timeline Section */}
-                    <div className="detail-section">
-                      <div className="section-header">
-                        <Clock size={16} />
-                        <span>Línea de Tiempo</span>
-                      </div>
-                      <div className="timeline">
-                        <div className="timeline-item">
-                          <div className="timeline-dot"></div>
-                          <div className="timeline-content">
-                            <div className="timeline-label">Ingresada</div>
-                            <div className="timeline-date">
-                              {formatDate(selectedOrder.created_at)} • {formatTime(selectedOrder.created_at)}
+                          </div>
+                          <div className="timeline-item">
+                            <div className="timeline-dot timeline-dot-success"></div>
+                            <div className="timeline-content">
+                              <div className="timeline-label">Entregada</div>
+                              <div className="timeline-date">
+                                {formatDate(selectedOrder.updated_at)} • {formatTime(selectedOrder.updated_at)}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="timeline-item">
-                          <div className="timeline-dot timeline-dot-success"></div>
-                          <div className="timeline-content">
-                            <div className="timeline-label">Entregada</div>
-                            <div className="timeline-date">
-                              {formatDate(selectedOrder.updated_at)} • {formatTime(selectedOrder.updated_at)}
-                            </div>
+                          <div className="timeline-duration">
+                            <Clock size={14} />
+                            <span>Duración total: {getDuration(selectedOrder.created_at, selectedOrder.updated_at)}</span>
                           </div>
                         </div>
-                        <div className="timeline-duration">
-                          <Clock size={14} />
-                          <span>Duración total: {getDuration(selectedOrder.created_at, selectedOrder.updated_at)}</span>
-                        </div>
                       </div>
-                    </div>
 
-                    {/* Payment Info */}
-                    <div className="detail-section">
-                      <div className="section-header">
-                        <DollarSign size={16} />
-                        <span>Información de Pago</span>
-                      </div>
-                      <div className="payment-info">
-                        <div className="payment-row">
-                          <span>Total de la Orden:</span>
-                          <span className="payment-amount">
-                            ${(selectedOrder.total_amount || 0).toLocaleString('es-MX')}
-                          </span>
+                      {/* Payment Info */}
+                      <div className="detail-section">
+                        <div className="section-header">
+                          <DollarSign size={16} />
+                          <span>Información de Pago</span>
                         </div>
-                        <div className="payment-row">
-                          <span>Estado de Pago:</span>
-                          <span className={`payment-status ${selectedOrder.is_paid ? 'paid' : 'pending'}`}>
-                            {selectedOrder.is_paid ? '✓ Pagado' : '⏳ Pendiente'}
-                          </span>
+                        <div className="payment-info">
+                          <div className="payment-row">
+                            <span>Total de la Orden:</span>
+                            <span className="payment-amount">
+                              ${(selectedOrder.total_amount || 0).toLocaleString('es-MX')}
+                            </span>
+                          </div>
+                          <div className="payment-row">
+                            <span>Estado de Pago:</span>
+                            <span className={`payment-status ${selectedOrder.is_paid ? 'paid' : 'pending'}`}>
+                              {selectedOrder.is_paid ? '✓ Pagado' : '⏳ Pendiente'}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Action Button */}
-                    <button
-                      className="btn btn-primary btn-full"
-                      onClick={() => {
-                        navigate(`/mechanic/order/${selectedOrder.id}`);
-                        setShowDetailsModal(false);
-                      }}
-                    >
-                      Ver Detalles Completos
-                      <ChevronRight size={18} />
-                    </button>
-                  </>
-                );
-              })()}
+                      {/* Action Button */}
+                      <button
+                        className="btn btn-primary btn-full"
+                        onClick={() => {
+                          navigate(`/mechanic/order/${selectedOrder.id}`);
+                          setShowDetailsModal(false);
+                        }}
+                      >
+                        Ver Detalles Completos
+                        <ChevronRight size={18} />
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       <style>{`
         .mechanic-history {
@@ -1492,6 +1499,6 @@ export default function MechanicHistory() {
           }
         }
       `}</style>
-    </div>
+    </div >
   );
 }

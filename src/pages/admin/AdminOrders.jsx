@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
     Search,
     Filter,
@@ -17,13 +17,42 @@ import OrderCard from '../../components/ui/OrderCard';
 
 export default function AdminOrders() {
     const { orders, statuses, loading, deleteOrder } = useData();
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // Estados de filtros base
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [paidFilter, setPaidFilter] = useState('all');
+    const [dateFilter, setDateFilter] = useState('all');
+
+    // Inicializar filtros desde URL
+    useEffect(() => {
+        const filterParam = searchParams.get('filter');
+        if (filterParam === 'today') {
+            setDateFilter('today');
+        } else if (filterParam === 'active') {
+            setDateFilter('active');
+        }
+
+        // Limpiar parámetros para no re-aplicar accidentalmente
+        if (filterParam) {
+            setSearchParams({});
+        }
+    }, [searchParams]);
 
     // Filtrar órdenes
     const filteredOrders = useMemo(() => {
+        const now = new Date();
+        const todayStr = now.toDateString();
+
+        // Start of week
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+
         return orders.filter(order => {
+            const orderDate = new Date(order.created_at);
+
             // Búsqueda
             const searchLower = searchTerm.toLowerCase();
             const matchesSearch = !searchTerm ||
@@ -42,9 +71,20 @@ export default function AdminOrders() {
                 (paidFilter === 'paid' && order.is_paid) ||
                 (paidFilter === 'pending' && !order.is_paid);
 
-            return matchesSearch && matchesStatus && matchesPaid;
+            // Filtro de fecha
+            let matchesDate = true;
+            if (dateFilter === 'today') {
+                matchesDate = orderDate.toDateString() === todayStr;
+            } else if (dateFilter === 'week') {
+                matchesDate = orderDate >= startOfWeek;
+            } else if (dateFilter === 'active') {
+                // Filtrar las que NO son terminales (usando is_terminal del estado)
+                matchesDate = !order.status?.is_terminal;
+            }
+
+            return matchesSearch && matchesStatus && matchesPaid && matchesDate;
         });
-    }, [orders, searchTerm, statusFilter, paidFilter]);
+    }, [orders, searchTerm, statusFilter, paidFilter, dateFilter]);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('es-MX', {
@@ -109,6 +149,17 @@ export default function AdminOrders() {
                                 {status.name}
                             </option>
                         ))}
+                    </select>
+
+                    <select
+                        className="form-select"
+                        value={dateFilter}
+                        onChange={(e) => setDateFilter(e.target.value)}
+                    >
+                        <option value="all">Cualquier fecha</option>
+                        <option value="today">Hoy</option>
+                        <option value="week">Esta semana</option>
+                        <option value="active">Activas (En taller)</option>
                     </select>
 
                     <select

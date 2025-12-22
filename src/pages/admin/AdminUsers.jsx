@@ -22,7 +22,10 @@ import {
     EyeOff,
     MonitorSmartphone,
     ClipboardList,
-    Wrench
+    Wrench,
+    Crown,
+    Users,
+    CheckCircle
 } from 'lucide-react';
 
 export default function AdminUsers() {
@@ -45,7 +48,10 @@ export default function AdminUsers() {
         can_create_clients: true,
         can_create_services: false,
         can_edit_clients: false,
-        can_delete_orders: false
+        can_delete_orders: false,
+        is_master_mechanic: false,
+        requires_approval: false,
+        can_view_approved_orders: true
     });
 
     useEffect(() => {
@@ -78,7 +84,10 @@ export default function AdminUsers() {
                 can_create_clients: user.can_create_clients !== false,
                 can_create_services: user.can_create_services === true,
                 can_edit_clients: user.can_edit_clients === true,
-                can_delete_orders: user.can_delete_orders === true
+                can_delete_orders: user.can_delete_orders === true,
+                is_master_mechanic: user.is_master_mechanic === true,
+                requires_approval: user.requires_approval === true,
+                can_view_approved_orders: user.can_view_approved_orders !== false
             });
         } else {
             setEditingUser(null);
@@ -94,7 +103,10 @@ export default function AdminUsers() {
                 can_create_clients: true,
                 can_create_services: false,
                 can_edit_clients: false,
-                can_delete_orders: false
+                can_delete_orders: false,
+                is_master_mechanic: false,
+                requires_approval: false,
+                can_view_approved_orders: true
             });
         }
         setShowPassword(false); // Reset visualización
@@ -130,6 +142,9 @@ export default function AdminUsers() {
                     can_create_services: formData.can_create_services,
                     can_edit_clients: formData.can_edit_clients,
                     can_delete_orders: formData.can_delete_orders,
+                    is_master_mechanic: formData.is_master_mechanic,
+                    requires_approval: formData.requires_approval,
+                    can_view_approved_orders: formData.can_view_approved_orders,
                     ...(formData.password && { password_hash: formData.password })
                 });
             } else {
@@ -145,7 +160,10 @@ export default function AdminUsers() {
                     can_create_clients: formData.can_create_clients,
                     can_create_services: formData.can_create_services,
                     can_edit_clients: formData.can_edit_clients,
-                    can_delete_orders: formData.can_delete_orders
+                    can_delete_orders: formData.can_delete_orders,
+                    is_master_mechanic: formData.is_master_mechanic,
+                    requires_approval: formData.requires_approval,
+                    can_view_approved_orders: formData.can_view_approved_orders
                 });
             }
             handleCloseModal();
@@ -210,7 +228,7 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
         const roles = {
             admin: { label: 'Administrador', color: 'var(--danger)' },
             mechanic: { label: 'Mecánico', color: 'var(--primary)' },
-            admin_mechanic: { label: 'Admin-Mecánico', color: 'var(--warning)' }
+            admin_mechanic: { label: 'Mecánico Maestro', color: 'var(--warning)' }
         };
         const config = roles[role] || roles.mechanic;
         return (
@@ -407,7 +425,7 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                                         onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                                     >
                                         <option value="mechanic">Mecánico</option>
-                                        <option value="admin_mechanic">Admin-Mecánico</option>
+                                        <option value="admin_mechanic">Mecánico Maestro</option>
                                         <option value="admin">Administrador</option>
                                     </select>
                                 </div>
@@ -489,6 +507,63 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                                                 Puede editar y eliminar (Clientes y Órdenes)
                                             </span>
                                         </label>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Tipo de Mecánico (Maestro/Auxiliar) */}
+                            {formData.role === 'mechanic' && (
+                                <div className="permissions-section mechanic-type-section">
+                                    <label className="form-label">
+                                        <Crown size={16} style={{ marginRight: 6, color: 'var(--warning)' }} />
+                                        Tipo de Mecánico
+                                    </label>
+                                    <div className="permissions-grid">
+                                        <label className="toggle-label toggle-highlight">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.is_master_mechanic}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    is_master_mechanic: e.target.checked,
+                                                    requires_approval: e.target.checked ? false : formData.requires_approval
+                                                })}
+                                            />
+                                            <span className="toggle-content">
+                                                <Crown size={16} />
+                                                Mecánico Maestro
+                                                <small className="toggle-hint">Puede aprobar órdenes de auxiliares</small>
+                                            </span>
+                                        </label>
+                                        <label className="toggle-label toggle-highlight">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.requires_approval}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    requires_approval: e.target.checked,
+                                                    is_master_mechanic: e.target.checked ? false : formData.is_master_mechanic
+                                                })}
+                                            />
+                                            <span className="toggle-content">
+                                                <Users size={16} />
+                                                Requiere Aprobación (Auxiliar)
+                                                <small className="toggle-hint">Debe solicitar aprobación para crear órdenes</small>
+                                            </span>
+                                        </label>
+                                        {formData.requires_approval && (
+                                            <label className="toggle-label">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.can_view_approved_orders}
+                                                    onChange={(e) => setFormData({ ...formData, can_view_approved_orders: e.target.checked })}
+                                                />
+                                                <span className="toggle-content">
+                                                    <CheckCircle size={16} />
+                                                    Puede ver órdenes aprobadas
+                                                </span>
+                                            </label>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -777,6 +852,39 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                     align-items: center;
                     gap: var(--spacing-xs);
                     font-size: 0.875rem;
+                    flex-wrap: wrap;
+                }
+
+                .toggle-hint {
+                    width: 100%;
+                    font-size: 0.75rem;
+                    color: var(--text-muted);
+                    margin-left: 20px;
+                }
+
+                .toggle-highlight {
+                    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%);
+                    border: 1px solid rgba(245, 158, 11, 0.2);
+                }
+
+                .toggle-highlight:hover {
+                    background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(249, 115, 22, 0.1) 100%);
+                }
+
+                .mechanic-type-section {
+                    background: linear-gradient(135deg, rgba(251, 191, 36, 0.05) 0%, rgba(245, 158, 11, 0.02) 100%);
+                    border: 1px solid rgba(245, 158, 11, 0.15);
+                    border-radius: var(--radius-md);
+                    padding: var(--spacing-md);
+                    margin-top: var(--spacing-md);
+                }
+
+                .mechanic-type-section .form-label {
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: var(--spacing-sm);
+                    color: var(--warning);
+                    font-weight: 600;
                 }
 
                 .form-group {

@@ -61,6 +61,11 @@ export default function OrderCard({ order, statuses, baseUrl = '/mechanic/order'
         {motorcycle.plates && ` • ${motorcycle.plates}`}
       </div>
 
+      <div className="order-card-mechanic" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Mecánico:</span>
+        {order.mechanic?.full_name || 'Sin asignar'}
+      </div>
+
       <div className="order-card-footer">
         <div className="order-card-time">
           <Clock size={12} />

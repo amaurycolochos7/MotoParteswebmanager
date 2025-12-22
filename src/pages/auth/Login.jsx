@@ -220,6 +220,9 @@ export default function Login() {
         {/* Footer */}
         <div className="login-footer">
           <p>© 2026 MotoPartes Club • Reparaciones y Modificaciones</p>
+          <p style={{ marginTop: '4px', opacity: 0.8, fontSize: '0.75rem', fontWeight: 500 }}>
+            Dev Full Stack - Amaury Gordillo
+          </p>
         </div>
       </div>
 

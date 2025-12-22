@@ -200,6 +200,32 @@ export function AuthProvider({ children }) {
         return user.can_delete_orders === true; // Default false if undefined
     }, [user]);
 
+    // Master/Auxiliary Mechanic checks
+    // Admin-Mecánico es automáticamente Maestro
+    const isMasterMechanic = useCallback(() => {
+        if (!user) return false;
+        // Admin-Mecánico es automáticamente maestro
+        if (user.role === 'admin_mechanic') return true;
+        return user.is_master_mechanic === true;
+    }, [user]);
+
+    const isAuxiliaryMechanic = useCallback(() => {
+        if (!user) return false;
+        return user.requires_approval === true;
+    }, [user]);
+
+    const requiresApproval = useCallback(() => {
+        if (!user) return false;
+        return user.requires_approval === true;
+    }, [user]);
+
+    const canViewApprovedOrders = useCallback(() => {
+        if (!user) return false;
+        if (user.role === 'admin') return true;
+        if (user.is_master_mechanic) return true;
+        return user.can_view_approved_orders !== false; // Default true
+    }, [user]);
+
     const value = {
         user,
         loading,
@@ -208,6 +234,10 @@ export function AuthProvider({ children }) {
         isAdmin,
         isMechanic,
         isAdminMechanic,
+        isMasterMechanic,
+        isAuxiliaryMechanic,
+        requiresApproval,
+        canViewApprovedOrders,
         hasPermission,
         getPermissions,
         canAccess,

@@ -31,7 +31,12 @@ import {
   MechanicAppointments,
   MechanicServices,
   MechanicHistory,
-  MechanicEarnings
+  MechanicEarnings,
+  MasterRequests,
+  AuxiliaryDashboard,
+  MyRequests,
+  AuxiliaryPayments,
+  AuxiliaryOrders
 } from './pages/mechanic/index.jsx';
 
 // Public Pages
@@ -141,6 +146,11 @@ function AppRoutes() {
         <Route path="services" element={<MechanicServices />} />
         <Route path="history" element={<MechanicHistory />} />
         <Route path="earnings" element={<MechanicEarnings />} />
+        <Route path="requests" element={<MasterRequests />} />
+        <Route path="auxiliaries" element={<AuxiliaryDashboard />} />
+        <Route path="my-requests" element={<MyRequests />} />
+        <Route path="my-payments" element={<AuxiliaryPayments />} />
+        <Route path="auxiliary/:id/orders" element={<AuxiliaryOrders />} />
       </Route>
 
       {/* Portal público para clientes (sin auth) */}

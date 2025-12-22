@@ -9,7 +9,9 @@ import {
     Tag,
     X,
     Save,
-    Check
+    Check,
+    AlertTriangle,
+    Info
 } from 'lucide-react';
 
 export default function AdminServices() {
@@ -24,6 +26,7 @@ export default function AdminServices() {
         description: ''
     });
     const [confirmDelete, setConfirmDelete] = useState(null);
+    const [deleteError, setDeleteError] = useState(null);
 
     const categories = [
         { value: 'mantenimiento', label: 'Mantenimiento' },
@@ -96,8 +99,23 @@ export default function AdminServices() {
         try {
             await deleteService(confirmDelete.id);
             setConfirmDelete(null);
+            setDeleteError(null);
         } catch (error) {
-            alert('Error al eliminar: ' + error.message);
+            // Detectar error de llave foránea
+            const errorMessage = error.message || '';
+            if (errorMessage.includes('foreign key') || errorMessage.includes('order_services')) {
+                setDeleteError({
+                    serviceName: confirmDelete.name,
+                    type: 'in_use'
+                });
+            } else {
+                setDeleteError({
+                    serviceName: confirmDelete.name,
+                    type: 'generic',
+                    message: errorMessage
+                });
+            }
+            setConfirmDelete(null);
         }
     };
 
@@ -324,6 +342,57 @@ export default function AdminServices() {
                 </div>
             )}
 
+            {/* Modal de Error - Servicio en uso */}
+            {deleteError && (
+                <div className="modal-overlay" onClick={() => setDeleteError(null)}>
+                    <div className="modal modal-sm error-modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header error-header">
+                            <div className="error-icon-container">
+                                <AlertTriangle size={32} />
+                            </div>
+                            <h3 className="modal-title">No se puede eliminar</h3>
+                            <button className="modal-close" onClick={() => setDeleteError(null)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body error-body">
+                            {deleteError.type === 'in_use' ? (
+                                <>
+                                    <p className="error-main-text">
+                                        El servicio <strong>"{deleteError.serviceName}"</strong> está siendo utilizado en una o más órdenes de servicio.
+                                    </p>
+                                    <div className="info-box">
+                                        <Info size={18} />
+                                        <div>
+                                            <p className="info-title">¿Por qué no se puede eliminar?</p>
+                                            <p className="info-text">
+                                                Para mantener la integridad del historial de órdenes, los servicios que ya han sido facturados no pueden eliminarse.
+                                                Esto asegura que los registros financieros y el historial de trabajo permanezcan precisos.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="alternative-box">
+                                        <p className="alternative-title">💡 Alternativa sugerida:</p>
+                                        <p className="alternative-text">
+                                            Si ya no deseas ofrecer este servicio, puedes <strong>editarlo</strong> para cambiar su nombre o marcarlo como descontinuado agregando "(Descontinuado)" al nombre.
+                                        </p>
+                                    </div>
+                                </>
+                            ) : (
+                                <p className="error-main-text">
+                                    Error al eliminar: {deleteError.message}
+                                </p>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-primary" onClick={() => setDeleteError(null)}>
+                                Entendido
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style>{`
                 .services-grid {
                     display: grid;
@@ -501,6 +570,90 @@ export default function AdminServices() {
                     color: var(--danger);
                     font-size: 0.875rem;
                     margin-top: 0.5rem;
+                }
+
+                /* Error Modal Styles */
+                .error-modal {
+                    max-width: 480px;
+                }
+
+                .error-header {
+                    flex-wrap: wrap;
+                    gap: var(--spacing-sm);
+                    padding-bottom: var(--spacing-md);
+                    border-bottom: 1px solid var(--border-light);
+                }
+
+                .error-icon-container {
+                    width: 56px;
+                    height: 56px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #d97706;
+                    margin: 0 auto var(--spacing-sm);
+                }
+
+                .error-body {
+                    padding: var(--spacing-lg) var(--spacing-md);
+                }
+
+                .error-main-text {
+                    font-size: 0.9375rem;
+                    color: var(--text-primary);
+                    margin-bottom: var(--spacing-md);
+                    line-height: 1.5;
+                }
+
+                .info-box {
+                    display: flex;
+                    gap: var(--spacing-sm);
+                    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+                    border: 1px solid #93c5fd;
+                    border-radius: var(--radius-md);
+                    padding: var(--spacing-md);
+                    margin-bottom: var(--spacing-md);
+                }
+
+                .info-box svg {
+                    color: #2563eb;
+                    flex-shrink: 0;
+                    margin-top: 2px;
+                }
+
+                .info-title {
+                    font-weight: 600;
+                    color: #1e40af;
+                    font-size: 0.8125rem;
+                    margin-bottom: 4px;
+                }
+
+                .info-text {
+                    font-size: 0.8125rem;
+                    color: #1e3a8a;
+                    line-height: 1.5;
+                }
+
+                .alternative-box {
+                    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+                    border: 1px solid #86efac;
+                    border-radius: var(--radius-md);
+                    padding: var(--spacing-md);
+                }
+
+                .alternative-title {
+                    font-weight: 600;
+                    color: #166534;
+                    font-size: 0.875rem;
+                    margin-bottom: 4px;
+                }
+
+                .alternative-text {
+                    font-size: 0.8125rem;
+                    color: #15803d;
+                    line-height: 1.5;
                 }
             `}</style>
         </div>

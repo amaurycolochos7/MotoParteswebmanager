@@ -226,6 +226,11 @@ export { default as MechanicOrders } from './MechanicOrders';
 export { default as MechanicOrderDetail } from './OrderDetail';
 export { default as MechanicHistory } from './MechanicHistory';
 export { default as MechanicEarnings } from './MechanicEarnings';
+export { default as MasterRequests } from './MasterRequests';
+export { default as AuxiliaryDashboard } from './AuxiliaryDashboard';
+export { default as MyRequests } from './MyRequests';
+export { default as AuxiliaryPayments } from './AuxiliaryPayments';
+export { default as AuxiliaryOrders } from './AuxiliaryOrders';
 
 // Componente placeholder
 function PlaceholderPage({ title, subtitle }) {

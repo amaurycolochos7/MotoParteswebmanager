@@ -7,7 +7,8 @@ import {
   Clock,
   CheckCircle,
   Bike,
-  ChevronRight
+  ChevronRight,
+  Wrench
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
@@ -91,15 +92,39 @@ export default function MechanicDashboard() {
 
   if (loading) {
     return (
-      <div className="loading-overlay" style={{ position: 'relative', minHeight: 400 }}>
-        <div className="spinner spinner-lg"></div>
-        <p>Cargando...</p>
+      <div className="mechanic-dashboard fade-in">
+        {/* Skeleton header */}
+        <div className="dashboard-header">
+          <div className="greeting">
+            <div className="skeleton skeleton-circle" style={{ width: 48, height: 48 }}></div>
+            <div style={{ flex: 1 }}>
+              <div className="skeleton skeleton-text" style={{ width: '60%', height: 24 }}></div>
+              <div className="skeleton skeleton-text-sm" style={{ width: '80%', marginTop: 8 }}></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Skeleton button */}
+        <div className="skeleton" style={{ height: 56, borderRadius: 12, marginBottom: 24 }}></div>
+
+        {/* Skeleton stats */}
+        <div className="stats-grid">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="skeleton" style={{ height: 100, borderRadius: 12 }}></div>
+          ))}
+        </div>
+
+        {/* Skeleton orders */}
+        <div className="skeleton skeleton-text" style={{ width: '50%', height: 20, marginBottom: 16 }}></div>
+        {[1, 2, 3].map(i => (
+          <div key={i} className="skeleton" style={{ height: 80, borderRadius: 12, marginBottom: 12 }}></div>
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="mechanic-dashboard">
+    <div className="mechanic-dashboard fade-in">
       {/* Header con saludo */}
       <div className="dashboard-header">
         <div className="greeting">
@@ -116,12 +141,12 @@ export default function MechanicDashboard() {
       </div>
 
       {/* Botón Nueva Orden destacado */}
-      <Link to="/mechanic/new-order" className="new-order-btn">
+      <Link to="/mechanic/new-order" className="new-order-btn btn-new-order btn-shine">
         <Plus size={24} />
         <span>Nueva Orden de Servicio</span>
       </Link>
 
-      {/* KPIs en grid 2x2 - Métricas claras */}
+      {/* KPIs en grid - Métricas claras */}
       <div className="stats-grid">
         <div className="stat-card stat-pending" onClick={() => navigate('/mechanic/orders')}>
           <div className="stat-icon">
@@ -138,22 +163,16 @@ export default function MechanicDashboard() {
           <div className="stat-value">{stats.monthOrders}</div>
           <div className="stat-label">Completadas<br />este mes</div>
         </div>
+      </div>
 
-        <div className="stat-card stat-week" onClick={() => navigate('/mechanic/earnings?period=week')}>
-          <div className="stat-icon">
-            <DollarSign size={22} />
-          </div>
-          <div className="stat-value">{formatCurrency(stats.weekEarnings)}</div>
-          <div className="stat-label">Esta Semana</div>
+      {/* Resumen Semanal - Card destacada */}
+      <div className="weekly-summary" onClick={() => navigate('/mechanic/earnings?period=week')}>
+        <div className="weekly-header">
+          <DollarSign size={20} />
+          <span>Reporte Semanal</span>
         </div>
-
-        <div className="stat-card stat-month" onClick={() => navigate('/mechanic/earnings?period=month')}>
-          <div className="stat-icon">
-            <DollarSign size={22} />
-          </div>
-          <div className="stat-value">{formatCurrency(stats.monthEarnings)}</div>
-          <div className="stat-label">Este Mes</div>
-        </div>
+        <div className="weekly-amount">{formatCurrency(stats.weekEarnings)}</div>
+        <div className="weekly-label">Ganancias esta semana</div>
       </div>
 
       {/* Órdenes Activas */}
@@ -171,13 +190,18 @@ export default function MechanicDashboard() {
         </div>
 
         {myActiveOrders.length === 0 ? (
-          <div className="empty-orders">
-            <div className="empty-icon">🔧</div>
-            <p className="empty-title">Sin órdenes activas</p>
-            <p className="empty-text">Crea una nueva orden para comenzar a trabajar</p>
-            <Link to="/mechanic/new-order" className="btn btn-primary">
+          <div className="empty-orders empty-state-animated">
+            <div className="empty-icon">
+              <Wrench size={32} className="wrench-animated" />
+            </div>
+            <h3>¡Todo listo!</h3>
+            <p>No tienes órdenes activas en este momento</p>
+            <div className="motivational">
+              <span>💪 Crea una orden y comienza a ganar</span>
+            </div>
+            <Link to="/mechanic/new-order" className="btn btn-primary btn-gradient btn-shine" style={{ marginTop: '1rem' }}>
               <Plus size={18} />
-              Crear Orden
+              Crear Nueva Orden
             </Link>
           </div>
         ) : (
@@ -359,6 +383,49 @@ export default function MechanicDashboard() {
         .stat-label {
           font-size: 0.8125rem;
           color: var(--text-secondary);
+          margin-top: 0.25rem;
+        }
+
+        /* Weekly Summary Card */
+        .weekly-summary {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          border-radius: var(--radius-lg);
+          padding: 1.25rem;
+          margin-bottom: 1.5rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+        }
+
+        .weekly-summary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+        }
+
+        .weekly-summary:active {
+          transform: scale(0.98);
+        }
+
+        .weekly-header {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          color: rgba(255, 255, 255, 0.9);
+          font-size: 0.875rem;
+          font-weight: 600;
+          margin-bottom: 0.5rem;
+        }
+
+        .weekly-amount {
+          font-size: 2rem;
+          font-weight: 700;
+          color: white;
+          line-height: 1;
+        }
+
+        .weekly-label {
+          font-size: 0.8125rem;
+          color: rgba(255, 255, 255, 0.8);
           margin-top: 0.25rem;
         }
 

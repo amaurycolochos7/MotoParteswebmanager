@@ -16,12 +16,14 @@ import {
     ChevronLeft,
     LogOut,
     Menu,
-    Bike
+    Bike,
+    Crown,
+    Send
 } from 'lucide-react';
 import ConnectionStatus from '../ui/ConnectionStatus';
 
 export default function AppLayout() {
-    const { user, logout, isAdmin, isMechanic, hasPermission } = useAuth();
+    const { user, logout, isAdmin, isMechanic, isMasterMechanic, requiresApproval, hasPermission } = useAuth();
     const navigate = useNavigate();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -49,7 +51,7 @@ export default function AppLayout() {
     // Navegación para Mecánico - construida dinámicamente basada en permisos
     const baseMechanicNavItems = [
         { section: 'Principal' },
-        { to: '/mechanic', icon: LayoutDashboard, label: 'Mi Dashboard', end: true },
+        { to: '/mechanic', icon: LayoutDashboard, label: 'Inicio', end: true },
         { to: '/mechanic/new-order', icon: PlusCircle, label: 'Nueva Orden' },
         { to: '/mechanic/orders', icon: ClipboardList, label: 'Mis Órdenes' },
 
@@ -61,6 +63,24 @@ export default function AppLayout() {
     // Agregar opción de Servicios si tiene permiso
     if (hasPermission('can_create_services')) {
         baseMechanicNavItems.push({ to: '/mechanic/services', icon: Settings, label: 'Servicios' });
+    }
+
+    // Agregar sección de Maestro si es mecánico maestro
+    if (isMasterMechanic && isMasterMechanic()) {
+        baseMechanicNavItems.push(
+            { section: 'Maestro' },
+            { to: '/mechanic/requests', icon: Crown, label: 'Solicitudes' },
+            { to: '/mechanic/auxiliaries', icon: Users, label: 'Mis Auxiliares' }
+        );
+    }
+
+    // Agregar sección de Auxiliar si requiere aprobación
+    if (requiresApproval && requiresApproval()) {
+        baseMechanicNavItems.push(
+            { section: 'Auxiliar' },
+            { to: '/mechanic/my-requests', icon: Send, label: 'Mis Solicitudes' },
+            { to: '/mechanic/my-payments', icon: DollarSign, label: 'Mis Pagos' }
+        );
     }
 
     baseMechanicNavItems.push(
@@ -89,7 +109,7 @@ export default function AppLayout() {
         const roles = {
             admin: 'Administrador',
             mechanic: 'Mecánico',
-            admin_mechanic: 'Admin-Mecánico'
+            admin_mechanic: 'Mecánico Maestro'
         };
         return roles[role] || role;
     };
@@ -109,8 +129,11 @@ export default function AppLayout() {
             <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
                 <div className="sidebar-header">
                     <div className="sidebar-logo">
-                        <Bike size={28} />
-                        <span>MotoPartes</span>
+                        <img
+                            src="/logo-motopartes.png"
+                            alt="MotoPartes Club"
+                            className="logo-image"
+                        />
                     </div>
                 </div>
 
@@ -149,7 +172,17 @@ export default function AppLayout() {
                         </div>
                         <div className="user-info">
                             <div className="user-name">{user?.full_name}</div>
-                            <div className="user-role">{getRoleName(user?.role)}</div>
+                            <div className="user-role-badge">
+                                {isMasterMechanic && isMasterMechanic() && (
+                                    <span className="role-chip master"><Crown size={12} /> Maestro</span>
+                                )}
+                                {requiresApproval && requiresApproval() && (
+                                    <span className="role-chip auxiliary">Auxiliar</span>
+                                )}
+                                {!isMasterMechanic?.() && !requiresApproval?.() && (
+                                    <span className="role-chip">{getRoleName(user?.role)}</span>
+                                )}
+                            </div>
                         </div>
                     </div>
                     <button
@@ -174,8 +207,11 @@ export default function AppLayout() {
                         <Menu size={24} />
                     </button>
                     <div className="header-logo">
-                        <Bike size={24} />
-                        <span>MotoPartes</span>
+                        <img
+                            src="/logo-motopartes.png"
+                            alt="MotoPartes"
+                            style={{ height: 32, width: 'auto' }}
+                        />
                     </div>
                     <div style={{ width: 40 }} />
                 </div>
@@ -233,6 +269,53 @@ export default function AppLayout() {
                     .page-header-bar {
                         display: none;
                     }
+                }
+
+                /* Logo image styling */
+                .sidebar-logo .logo-image {
+                    height: 60px;
+                    width: auto;
+                    filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.3));
+                    transition: filter 0.3s ease, transform 0.3s ease;
+                }
+
+                .sidebar-logo:hover .logo-image {
+                    filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.5));
+                    transform: scale(1.02);
+                }
+
+                /* Role chips */
+                .user-role-badge {
+                    margin-top: 4px;
+                }
+
+                .role-chip {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 3px 10px;
+                    border-radius: 12px;
+                    font-size: 0.6875rem;
+                    font-weight: 600;
+                    letter-spacing: 0.3px;
+                    background: rgba(148, 163, 184, 0.3);
+                    color: rgba(226, 232, 240, 0.9);
+                }
+
+                .role-chip.master {
+                    background: linear-gradient(135deg, rgba(234, 179, 8, 0.3) 0%, rgba(251, 191, 36, 0.4) 100%);
+                    color: #fbbf24;
+                    border: 1px solid rgba(234, 179, 8, 0.3);
+                }
+
+                .role-chip.master svg {
+                    color: #fbbf24;
+                }
+
+                .role-chip.auxiliary {
+                    background: linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(52, 211, 153, 0.4) 100%);
+                    color: #34d399;
+                    border: 1px solid rgba(16, 185, 129, 0.3);
                 }
             `}</style>
         </div>
