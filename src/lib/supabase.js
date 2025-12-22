@@ -250,26 +250,63 @@ export const authService = {
             return true;
         }
 
-        // Primero, desasociar clientes creados por este usuario
-        await supabase
-            .from('clients')
-            .update({ created_by: null })
-            .eq('created_by', id);
+        try {
+            // 1. Desasociar clientes (esto es suave, no queremos borrar al cliente)
+            await supabase
+                .from('clients')
+                .update({ created_by: null })
+                .eq('created_by', id);
 
-        // Desasociar órdenes asignadas a este mecánico
-        await supabase
-            .from('orders')
-            .update({ mechanic_id: null })
-            .eq('mechanic_id', id);
+            // 2. Eliminar solicitudes de órdenes (tanto enviadas como recibidas)
+            await supabase
+                .from('order_requests')
+                .delete()
+                .or(`requested_by.eq.${id},requested_to.eq.${id}`);
 
-        // Ahora sí, eliminar el usuario
-        const { error } = await supabase
-            .from('profiles')
-            .delete()
-            .eq('id', id);
+            // 3. Eliminar ganancias (esto es crítico para desvincular órdenes)
+            await supabase
+                .from('mechanic_earnings')
+                .delete()
+                .or(`mechanic_id.eq.${id},supervisor_id.eq.${id}`);
 
-        if (error) throw error;
-        return true;
+            // 4. Eliminar solicitudes de pago
+            await supabase
+                .from('payment_requests')
+                .delete()
+                .or(`from_master_id.eq.${id},to_auxiliary_id.eq.${id}`);
+
+            // 5. Obtener los IDs de todas las órdenes del mecánico para borrar sus detalles
+            const { data: userOrders } = await supabase
+                .from('orders')
+                .select('id')
+                .eq('mechanic_id', id);
+
+            if (userOrders && userOrders.length > 0) {
+                const orderIds = userOrders.map(o => o.id);
+
+                // Eliminar dependencias de las órdenes
+                await supabase.from('order_services').delete().in('order_id', orderIds);
+                await supabase.from('order_updates').delete().in('order_id', orderIds);
+                // Si existen estas tablas (basado en arquitectura estándar):
+                try { await supabase.from('order_parts').delete().in('order_id', orderIds); } catch (e) { }
+                try { await supabase.from('order_photos').delete().in('order_id', orderIds); } catch (e) { }
+
+                // Eliminar las órdenes mismas
+                await supabase.from('orders').delete().in('id', orderIds);
+            }
+
+            // 6. Finalmente, eliminar el perfil
+            const { error } = await supabase
+                .from('profiles')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('Error in deep cascade delete:', error);
+            throw error;
+        }
     }
 };
 

@@ -23,6 +23,7 @@ export function DataProvider({ children }) {
     const [services, setServices] = useState([]);
     const [statuses, setStatuses] = useState([]);
     const [serviceUpdates, setServiceUpdates] = useState([]);
+    const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -38,17 +39,19 @@ export function DataProvider({ children }) {
             setError(null);
             try {
                 // Cargar datos en paralelo
-                const [clientsData, servicesData, statusesData, updatesData] = await Promise.all([
+                const [clientsData, servicesData, statusesData, updatesData, usersData] = await Promise.all([
                     clientsService.getAll(),
                     servicesService.getAll(),
                     statusesService.getAll(),
-                    orderUpdatesService.getAll()
+                    orderUpdatesService.getAll(),
+                    authService.getAllUsers()
                 ]);
 
                 setClients(clientsData || []);
                 setServices(servicesData || []);
                 setStatuses(statusesData || []);
                 setServiceUpdates(updatesData || []);
+                setUsers(usersData || []);
 
                 // Cargar órdenes según rol
                 let ordersData;
@@ -349,6 +352,18 @@ export function DataProvider({ children }) {
         };
     }, [orders]);
 
+    // =============================================
+    // USUARIOS
+    // =============================================
+    const refreshUsers = useCallback(async () => {
+        try {
+            const data = await authService.getAllUsers();
+            setUsers(data || []);
+        } catch (err) {
+            console.error('Error refreshing users:', err);
+        }
+    }, []);
+
     const value = {
         // Estado
         loading,
@@ -400,6 +415,10 @@ export function DataProvider({ children }) {
         getMechanicsPerformance,
         getDashboardStats,
         getMechanicEarnings,
+
+        // Usuarios
+        users,
+        refreshUsers,
     };
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

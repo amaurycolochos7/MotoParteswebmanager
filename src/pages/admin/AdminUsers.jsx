@@ -34,6 +34,9 @@ export default function AdminUsers() {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [userToDelete, setUserToDelete] = useState(null);
+    const [deletingPermanently, setDeletingPermanently] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
     const [formData, setFormData] = useState({
@@ -184,19 +187,25 @@ export default function AdminUsers() {
         }
     };
 
-    const handleDeleteUser = async (user) => {
-        const confirmed = window.confirm(
-            `¿Estás seguro de que deseas ELIMINAR permanentemente a "${user.full_name}"?\n\nEsta acción NO se puede deshacer.`
-        );
+    const handleDeleteUser = (user) => {
+        setUserToDelete(user);
+        setShowDeleteModal(true);
+    };
 
-        if (!confirmed) return;
+    const confirmDeletePermanent = async () => {
+        if (!userToDelete) return;
 
+        setDeletingPermanently(true);
         try {
-            await authService.deleteUserPermanently(user.id);
+            await authService.deleteUserPermanently(userToDelete.id);
+            setShowDeleteModal(false);
+            setUserToDelete(null);
             loadUsers();
-            toast.success('Usuario eliminado permanentemente');
+            toast.success('Usuario y todas sus dependencias eliminados permanentemente');
         } catch (error) {
             toast.error('Error al eliminar: ' + error.message);
+        } finally {
+            setDeletingPermanently(false);
         }
     };
 
@@ -575,6 +584,79 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                             <button className="btn btn-primary" onClick={handleSave}>
                                 <Save size={18} />
                                 Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Confirmación de Borrado Permanente */}
+            {showDeleteModal && (
+                <div className="modal-overlay danger" onClick={() => !deletingPermanently && setShowDeleteModal(false)}>
+                    <div className="modal modal-mobile modal-danger" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3 className="modal-title" style={{ color: 'var(--danger)' }}>
+                                <AlertTriangle size={24} style={{ marginRight: 8 }} />
+                                Confirmar Borrado Total
+                            </h3>
+                            <button
+                                className="modal-close"
+                                onClick={() => setShowDeleteModal(false)}
+                                disabled={deletingPermanently}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="danger-warning-box">
+                                <p>Estás a punto de eliminar permanentemente a:</p>
+                                <div className="user-to-delete-info">
+                                    <strong>{userToDelete?.full_name}</strong>
+                                    <span>{userToDelete?.email}</span>
+                                </div>
+
+                                <div className="cascade-warning">
+                                    <h4 style={{ color: '#991b1b', fontSize: '0.9rem', marginBottom: '8px', fontWeight: 700 }}>
+                                        Esta acción forzará el borrado de:
+                                    </h4>
+                                    <ul style={{ paddingLeft: '20px', fontSize: '0.85rem', color: '#7f1d1d' }}>
+                                        <li>Todas sus órdenes de servicio</li>
+                                        <li>Historial de servicios y fotos</li>
+                                        <li>Registros de ganancias y comisiones</li>
+                                        <li>Solicitudes de pago y de órdenes</li>
+                                    </ul>
+                                </div>
+
+                                <p style={{ marginTop: '16px', fontWeight: 600, color: '#dc2626', fontSize: '0.9rem' }}>
+                                    ¡Esta acción es irreversible y destruirá todos los datos asociados!
+                                </p>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => setShowDeleteModal(false)}
+                                disabled={deletingPermanently}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                className="btn btn-danger"
+                                onClick={confirmDeletePermanent}
+                                disabled={deletingPermanently}
+                                style={{ background: 'var(--danger)', color: 'white' }}
+                            >
+                                {deletingPermanently ? (
+                                    <>
+                                        <span className="spinner spinner-white" style={{ width: 16, height: 16 }}></span>
+                                        Borrando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trash2 size={18} />
+                                        ELIMINAR TODO
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -1129,6 +1211,41 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                     .danger-btn {
                         justify-content: center;
                     }
+                }
+
+                /* Danger Modal Styles */
+                .modal-danger {
+                    border-top: 4px solid var(--danger);
+                }
+
+                .danger-warning-box {
+                    background: #fff5f5;
+                    border: 1px solid #feb2b2;
+                    padding: 20px;
+                    border-radius: 12px;
+                }
+
+                .user-to-delete-info {
+                    margin: 12px 0;
+                    padding: 12px;
+                    background: white;
+                    border: 1px solid #fed7d7;
+                    border-radius: 8px;
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .cascade-warning {
+                    margin-top: 16px;
+                    padding: 12px;
+                    background: #fffaf0;
+                    border-left: 4px solid #f6ad55;
+                    border-radius: 4px;
+                }
+
+                .spinner-white {
+                    border-color: rgba(255, 255, 255, 0.3);
+                    border-top-color: white;
                 }
             `}</style>
         </div>

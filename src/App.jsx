@@ -120,6 +120,8 @@ function AppRoutes() {
       >
         <Route index element={<AdminDashboard />} />
         <Route path="orders" element={<AdminOrders />} />
+        <Route path="order/:id" element={<MechanicOrderDetail />} />
+        <Route path="orders/:id" element={<MechanicOrderDetail />} />
         <Route path="clients" element={<AdminClients />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="users/:id/orders" element={<AdminMechanicOrders />} />

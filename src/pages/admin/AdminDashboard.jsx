@@ -266,7 +266,7 @@ export default function AdminDashboard() {
                       <div
                         key={order.id}
                         className="order-compact"
-                        onClick={() => navigate(`/admin/orders/${order.id}`)}
+                        onClick={() => navigate(`/admin/order/${order.id}`)}
                       >
                         <div className="order-compact-header">
                           <span className="order-number">#{order.order_number}</span>
@@ -352,7 +352,7 @@ export default function AdminDashboard() {
               <div
                 key={order.id}
                 className="order-compact"
-                onClick={() => navigate(`/admin/orders/${order.id}`)}
+                onClick={() => navigate(`/admin/order/${order.id}`)}
               >
                 <div className="order-compact-header">
                   <span className="order-number">#{order.order_number}</span>
