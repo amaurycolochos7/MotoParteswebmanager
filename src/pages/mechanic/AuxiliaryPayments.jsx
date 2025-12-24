@@ -66,7 +66,8 @@ export default function AuxiliaryPayments() {
             // Auto-download receipt
             const paymentWithDates = {
                 ...payment,
-                responded_at: new Date().toISOString()
+                responded_at: new Date().toISOString(),
+                commission_percentage: user?.commission_percentage || payment.commission_percentage
             };
             await generatePaymentReceipt(paymentWithDates, true);
 
@@ -82,7 +83,11 @@ export default function AuxiliaryPayments() {
     const handleDownloadReceipt = async (payment) => {
         try {
             setDownloading(payment.id);
-            await generatePaymentReceipt(payment, true);
+            const paymentWithCommission = {
+                ...payment,
+                commission_percentage: user?.commission_percentage || payment.commission_percentage
+            };
+            await generatePaymentReceipt(paymentWithCommission, true);
             toast.success('Comprobante descargado');
         } catch (error) {
             console.error('Error downloading receipt:', error);

@@ -356,6 +356,17 @@ export default function NewServiceOrder() {
                 return sum + (svc?.base_price || 0);
             }, 0) + (parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0);
 
+            // Calculate labor and parts totals for breakdown
+            const downloadLaborTotal = formData.selectedServices.reduce((sum, svcId) => {
+                const svc = services.find(s => s.id === svcId);
+                return sum + (svc?.labor_cost || svc?.base_price || 0);
+            }, 0) + (parseFloat(formData.customServiceLabor) || 0);
+
+            const downloadPartsTotal = formData.selectedServices.reduce((sum, svcId) => {
+                const svc = services.find(s => s.id === svcId);
+                return sum + (svc?.materials_cost || 0);
+            }, 0) + (parseFloat(formData.customServiceMaterials) || 0);
+
             // Generate services list with improved styling
             const servicesList = formData.selectedServices.map(svcId => {
                 const svc = services.find(s => s.id === svcId);
@@ -440,6 +451,18 @@ export default function NewServiceOrder() {
                 return `<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0;"><span style="color: #444; font-size: 15px;">${svc?.name || 'Servicio'}</span><span style="font-weight: 700; color: #1a1a2e;">${formatMXN(svc?.base_price || 0)}</span></div>`;
             }).join('')}
                             ${formData.customService ? `<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0;"><span style="color: #444; font-size: 15px;">${formData.customService}</span><span style="font-weight: 700; color: #1a1a2e;">${formatMXN((parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0))}</span></div>` : ''}
+                            ${downloadPartsTotal > 0 ? `
+                                <div style="margin-top: 12px; padding: 12px 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                    <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px;">
+                                        <span style="color: #64748b;">Mano de Obra</span>
+                                        <span style="font-weight: 600; color: #334155;">${formatMXN(downloadLaborTotal)}</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; font-size: 14px;">
+                                        <span style="color: #64748b;">Refacciones</span>
+                                        <span style="font-weight: 600; color: #334155;">${formatMXN(downloadPartsTotal)}</span>
+                                    </div>
+                                </div>
+                            ` : ''}
                             <div style="display: flex; justify-content: space-between; padding: 20px 0 0 0; margin-top: 12px; border-top: 2px solid #1a1a2e;">
                                 <span style="font-size: 18px; font-weight: 800; color: #1a1a2e;">TOTAL</span>
                                 <span style="font-size: 24px; font-weight: 900; color: #dc2626;">${formatMXN(total)}</span>
@@ -590,26 +613,35 @@ export default function NewServiceOrder() {
                 motoPlates = newMoto.plates;
             }
 
-            // Build services array
+            // Build services array with labor/materials breakdown
             const orderServices = formData.selectedServices.map(svcId => {
                 const svc = services.find(s => s.id === svcId);
                 return {
                     service_id: svcId,
                     name: svc?.name,
-                    price: svc?.base_price || 0
+                    price: svc?.base_price || 0,
+                    labor_cost: svc?.labor_cost || svc?.base_price || 0, // Use labor_cost if available, else full price as labor
+                    materials_cost: svc?.materials_cost || 0
                 };
             });
 
             if (formData.customService.trim()) {
+                const customLabor = parseFloat(formData.customServiceLabor) || 0;
+                const customMaterials = parseFloat(formData.customServiceMaterials) || 0;
                 orderServices.push({
                     service_id: null,
                     name: formData.customService.trim(),
-                    price: (parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0)
+                    price: customLabor + customMaterials,
+                    labor_cost: customLabor,
+                    materials_cost: customMaterials
                 });
             }
 
-            // Calculate total amount from services
+            // Calculate total amount and breakdowns from services
             const totalAmount = orderServices.reduce((sum, svc) => sum + (svc.price || 0), 0);
+            const laborTotal = orderServices.reduce((sum, svc) => sum + (svc.labor_cost || 0), 0);
+            const partsTotal = orderServices.reduce((sum, svc) => sum + (svc.materials_cost || 0), 0);
+
 
             // ============ AUXILIARY MECHANIC FLOW ============
             if (isAuxiliary) {
@@ -665,6 +697,8 @@ export default function NewServiceOrder() {
                 has_advance: formData.hasAdvance,
                 advance_payment: formData.hasAdvance ? parseFloat(formData.advanceAmount) || 0 : 0,
                 payment_method: formData.hasAdvance ? formData.paymentMethod : null,
+                labor_total: laborTotal,
+                parts_total: partsTotal,
             });
 
             // Save photos to localStorage
@@ -682,6 +716,8 @@ export default function NewServiceOrder() {
                     motoPlates: motoPlates,
                     services: orderServices,
                     totalAmount,
+                    laborTotal,
+                    partsTotal,
                     hasAdvance: formData.hasAdvance,
                     advanceAmount: formData.advanceAmount
                 };
@@ -1396,43 +1432,66 @@ export default function NewServiceOrder() {
                                     <span>💰</span> Resumen de Cotización
                                 </h3>
 
-                                <div className="summary-items">
-                                    {formData.selectedServices.map(svcId => {
+                                {(() => {
+                                    const totalLabor = formData.selectedServices.reduce((sum, svcId) => {
                                         const svc = services.find(s => s.id === svcId);
-                                        return (
-                                            <div key={svcId} className="summary-item">
-                                                <span className="item-name">{svc?.name}</span>
-                                                <span className="item-price">{formatMXN(svc?.base_price)}</span>
-                                            </div>
-                                        );
-                                    })}
+                                        return sum + (svc?.labor_cost || svc?.base_price || 0);
+                                    }, 0) + (parseFloat(formData.customServiceLabor) || 0);
 
-                                    {formData.customService && (
-                                        <div className="summary-item custom">
-                                            <div className="item-details">
-                                                <span className="item-name">{formData.customService}</span>
-                                                <span className="item-breakdown">
-                                                    M.O: {formatMXN(parseFloat(formData.customServiceLabor) || 0)} •
-                                                    Ref: {formatMXN(parseFloat(formData.customServiceMaterials) || 0)}
-                                                </span>
+                                    const totalMaterials = formData.selectedServices.reduce((sum, svcId) => {
+                                        const svc = services.find(s => s.id === svcId);
+                                        return sum + (svc?.materials_cost || 0);
+                                    }, 0) + (parseFloat(formData.customServiceMaterials) || 0);
+
+                                    const grandTotal = formData.selectedServices.reduce((sum, svcId) => {
+                                        const svc = services.find(s => s.id === svcId);
+                                        return sum + (svc?.base_price || 0);
+                                    }, 0) + (parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0);
+
+                                    return (
+                                        <div style={{
+                                            background: 'white',
+                                            borderRadius: '12px',
+                                            padding: '20px',
+                                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                        }}>
+                                            {/* Mano de obra */}
+                                            <div style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                padding: '12px 0',
+                                                borderBottom: '1px solid #f3f4f6'
+                                            }}>
+                                                <span style={{ fontSize: '0.95rem', color: '#374151' }}>Mano de obra</span>
+                                                <span style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937' }}>{formatMXN(totalLabor)}</span>
                                             </div>
-                                            <span className="item-price">
-                                                {formatMXN((parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0))}
-                                            </span>
+
+                                            {/* Refacciones */}
+                                            <div style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                padding: '12px 0',
+                                                borderBottom: '1px solid #f3f4f6'
+                                            }}>
+                                                <span style={{ fontSize: '0.95rem', color: '#374151' }}>Refacciones</span>
+                                                <span style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937' }}>{formatMXN(totalMaterials)}</span>
+                                            </div>
+
+                                            {/* Total */}
+                                            <div style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                padding: '16px 0 4px 0'
+                                            }}>
+                                                <span style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1f2937' }}>TOTAL A PAGAR</span>
+                                                <span style={{ fontSize: '1.4rem', fontWeight: '800', color: '#2563eb' }}>{formatMXN(grandTotal)}</span>
+                                            </div>
                                         </div>
-                                    )}
-                                </div>
-
-                                <div className="summary-total-section">
-                                    <div className="total-label">TOTAL A PAGAR</div>
-                                    <div className="total-amount">
-                                        {formatMXN(formData.selectedServices
-                                            .reduce((sum, svcId) => {
-                                                const svc = services.find(s => s.id === svcId);
-                                                return sum + (svc?.base_price || 0);
-                                            }, 0) + (parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0))}
-                                    </div>
-                                </div>
+                                    );
+                                })()}
                             </div>
                         )}
                     </div>
@@ -1768,33 +1827,57 @@ export default function NewServiceOrder() {
                                 const svc = services.find(s => s.id === svcId);
                                 if (!svc) return null;
                                 return (
-                                    <div key={svcId} className="summary-row" style={{ paddingLeft: 'var(--spacing-md)', fontSize: '0.9rem' }}>
+                                    <div key={svcId} style={{ paddingLeft: 'var(--spacing-md)', fontSize: '0.9rem', marginBottom: '4px' }}>
                                         <span style={{ color: 'var(--text-muted)' }}>• {svc.name}</span>
-                                        <strong>{formatMXN(svc.base_price)}</strong>
                                     </div>
                                 );
                             })}
 
                             {/* Show custom service if exists */}
                             {formData.customService && (
-                                <div className="summary-row" style={{ paddingLeft: 'var(--spacing-md)', fontSize: '0.9rem' }}>
+                                <div style={{ paddingLeft: 'var(--spacing-md)', fontSize: '0.9rem', marginBottom: '4px' }}>
                                     <span style={{ color: 'var(--text-muted)' }}>• {formData.customService}</span>
-                                    <strong>{formatMXN((parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0))}</strong>
                                 </div>
                             )}
 
                             <div className="divider" style={{ margin: 'var(--spacing-sm) 0' }} />
 
-                            <div className="summary-row">
-                                <span>Total Servicios:</span>
-                                <strong className="text-primary" style={{ fontSize: '1.25rem' }}>
-                                    {formatMXN(formData.selectedServices
-                                        .reduce((sum, svcId) => {
-                                            const svc = services.find(s => s.id === svcId);
-                                            return sum + (svc?.base_price || 0);
-                                        }, 0) + (parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0))}
-                                </strong>
-                            </div>
+                            {/* Desglose Mano de obra y Refacciones */}
+                            {(() => {
+                                const totalLabor = formData.selectedServices.reduce((sum, svcId) => {
+                                    const svc = services.find(s => s.id === svcId);
+                                    return sum + (svc?.labor_cost || svc?.base_price || 0);
+                                }, 0) + (parseFloat(formData.customServiceLabor) || 0);
+
+                                const totalMaterials = formData.selectedServices.reduce((sum, svcId) => {
+                                    const svc = services.find(s => s.id === svcId);
+                                    return sum + (svc?.materials_cost || 0);
+                                }, 0) + (parseFloat(formData.customServiceMaterials) || 0);
+
+                                const grandTotal = formData.selectedServices.reduce((sum, svcId) => {
+                                    const svc = services.find(s => s.id === svcId);
+                                    return sum + (svc?.base_price || 0);
+                                }, 0) + (parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0);
+
+                                return (
+                                    <>
+                                        <div className="summary-row">
+                                            <span>Mano de obra:</span>
+                                            <strong>{formatMXN(totalLabor)}</strong>
+                                        </div>
+                                        <div className="summary-row">
+                                            <span>Refacciones:</span>
+                                            <strong>{formatMXN(totalMaterials)}</strong>
+                                        </div>
+                                        <div className="summary-row" style={{ marginTop: 'var(--spacing-sm)' }}>
+                                            <span style={{ fontWeight: '600' }}>Total Servicios:</span>
+                                            <strong className="text-primary" style={{ fontSize: '1.25rem' }}>
+                                                {formatMXN(grandTotal)}
+                                            </strong>
+                                        </div>
+                                    </>
+                                );
+                            })()}
 
                             {formData.hasAdvance && (
                                 <div className="summary-row">

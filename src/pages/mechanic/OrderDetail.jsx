@@ -735,32 +735,59 @@ export default function OrderDetail() {
                         <div className="internal-breakdown">
                             <div className="breakdown-header">
                                 <DollarSign size={16} />
-                                <span>{(order.labor_total > 0 || order.parts_total > 0) ? 'Desglose Interno (Control)' : 'Total Estimado'}</span>
+                                <span>Total Estimado</span>
                             </div>
-                            <div className="breakdown-items">
-                                {(order.labor_total > 0 || order.parts_total > 0) ? (
-                                    <>
+                            {(() => {
+                                // Always calculate from services first (most accurate source)
+                                let laborTotal = 0;
+                                let partsTotal = 0;
+
+                                if (order.services?.length > 0) {
+                                    order.services.forEach(svc => {
+                                        const svcLabor = parseFloat(svc.labor_cost) || 0;
+                                        const svcMaterials = parseFloat(svc.materials_cost) || 0;
+                                        const svcPrice = parseFloat(svc.price) || 0;
+
+                                        // If service has breakdown, use it
+                                        if (svcLabor > 0 || svcMaterials > 0) {
+                                            laborTotal += svcLabor;
+                                            partsTotal += svcMaterials;
+                                        } else {
+                                            // No breakdown, price is treated as labor
+                                            laborTotal += svcPrice;
+                                        }
+                                    });
+                                }
+
+                                // Fallback to order totals if no services calculated
+                                if (laborTotal === 0 && partsTotal === 0) {
+                                    laborTotal = parseFloat(order.labor_total) || 0;
+                                    partsTotal = parseFloat(order.parts_total) || 0;
+                                }
+
+                                return (
+                                    <div className="breakdown-items">
                                         <div className="breakdown-row">
                                             <span className="breakdown-label">Mano de Obra:</span>
                                             <span className="breakdown-value labor">
-                                                ${(order.labor_total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                                                ${laborTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                                             </span>
                                         </div>
                                         <div className="breakdown-row">
                                             <span className="breakdown-label">Refacciones:</span>
                                             <span className="breakdown-value parts">
-                                                ${(order.parts_total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                                                ${partsTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                                             </span>
                                         </div>
-                                    </>
-                                ) : null}
-                                <div className="breakdown-row total">
-                                    <span className="breakdown-label">Total:</span>
-                                    <span className="breakdown-value">
-                                        ${(order.total_amount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                                    </span>
-                                </div>
-                            </div>
+                                        <div className="breakdown-row total">
+                                            <span className="breakdown-label">Total:</span>
+                                            <span className="breakdown-value">
+                                                ${(order.total_amount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 )}
@@ -910,103 +937,90 @@ export default function OrderDetail() {
             {
                 showPaymentModal && (
                     <div className="modal-overlay" onClick={() => setShowPaymentModal(false)}>
-                        <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
+                        <div className="modal" onClick={e => e.stopPropagation()}>
                             <div className="modal-header">
-                                <h3 className="modal-title">Finalizar Orden</h3>
+                                <h3 className="modal-title">Registrar Pago Completo</h3>
                                 <button className="modal-close" onClick={() => setShowPaymentModal(false)}>
                                     <X size={20} />
                                 </button>
                             </div>
                             <div className="modal-body">
-                                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: 'var(--spacing-md)' }}>
-                                    Ingresa los detalles finales del trabajo realizado antes de marcar como pagado.
-                                </p>
+                                {/* Order Summary */}
+                                {(() => {
+                                    // Always calculate from services first (most accurate source)
+                                    let laborTotal = 0;
+                                    let partsTotal = 0;
 
-                                {/* Service Description */}
-                                <div className="form-group">
-                                    <label className="form-label">¿Qué trabajo se realizó?</label>
-                                    <textarea
-                                        className="form-textarea"
-                                        placeholder="Ej: Cambio de aceite, revisión de frenos, afinación completa..."
-                                        value={finalizationForm.serviceDescription}
-                                        onChange={e => setFinalizationForm(prev => ({ ...prev, serviceDescription: e.target.value }))}
-                                        rows={3}
-                                    />
-                                </div>
+                                    if (order.services?.length > 0) {
+                                        order.services.forEach(svc => {
+                                            const svcLabor = parseFloat(svc.labor_cost) || 0;
+                                            const svcMaterials = parseFloat(svc.materials_cost) || 0;
+                                            const svcPrice = parseFloat(svc.price) || 0;
 
-                                {/* Labor Cost */}
-                                <div className="form-group">
-                                    <label className="form-label">Mano de Obra</label>
-                                    <div className="input-with-icon">
-                                        <DollarSign className="input-icon" size={20} />
-                                        <input
-                                            type="number"
-                                            className="form-input"
-                                            placeholder="0.00"
-                                            value={finalizationForm.laborCost}
-                                            onChange={e => setFinalizationForm(prev => ({ ...prev, laborCost: e.target.value }))}
-                                        />
-                                    </div>
-                                </div>
+                                            // If service has breakdown, use it
+                                            if (svcLabor > 0 || svcMaterials > 0) {
+                                                laborTotal += svcLabor;
+                                                partsTotal += svcMaterials;
+                                            } else {
+                                                // No breakdown, price is treated as labor
+                                                laborTotal += svcPrice;
+                                            }
+                                        });
+                                    }
 
-                                {/* Parts Cost */}
-                                <div className="form-group">
-                                    <label className="form-label">Refacciones / Materiales</label>
-                                    <div className="input-with-icon">
-                                        <DollarSign className="input-icon" size={20} />
-                                        <input
-                                            type="number"
-                                            className="form-input"
-                                            placeholder="0.00"
-                                            value={finalizationForm.partsCost}
-                                            onChange={e => setFinalizationForm(prev => ({ ...prev, partsCost: e.target.value }))}
-                                        />
-                                    </div>
-                                </div>
+                                    // Fallback to order totals if no services calculated
+                                    if (laborTotal === 0 && partsTotal === 0) {
+                                        laborTotal = parseFloat(order.labor_total) || 0;
+                                        partsTotal = parseFloat(order.parts_total) || 0;
+                                    }
 
-                                {/* Calculated Total */}
-                                <div style={{
-                                    background: 'rgba(16, 185, 129, 0.1)',
-                                    padding: 'var(--spacing-md)',
-                                    borderRadius: 'var(--radius-md)',
-                                    marginTop: 'var(--spacing-md)'
+                                    const totalAmount = order.total_amount || (laborTotal + partsTotal);
+                                    const advancePayment = order.advance_payment || 0;
+                                    const remaining = Math.max(0, totalAmount - advancePayment);
+
+                                    return (
+                                        <div style={{
+                                            background: 'var(--bg-tertiary)',
+                                            borderRadius: 'var(--radius-md)',
+                                            padding: 'var(--spacing-md)',
+                                            marginBottom: 'var(--spacing-md)'
+                                        }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                <span style={{ color: 'var(--text-muted)' }}>Mano de obra:</span>
+                                                <span style={{ fontWeight: '500' }}>${laborTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                <span style={{ color: 'var(--text-muted)' }}>Refacciones:</span>
+                                                <span style={{ fontWeight: '500' }}>${partsTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid var(--border-color)', marginBottom: '8px' }}>
+                                                <span style={{ fontWeight: '600' }}>Total:</span>
+                                                <span style={{ fontWeight: '700', fontSize: '1.1rem' }}>${totalAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                            {advancePayment > 0 && (
+                                                <>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                        <span style={{ color: 'var(--success)' }}>Anticipo recibido:</span>
+                                                        <span style={{ color: 'var(--success)', fontWeight: '500' }}>-${advancePayment.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px dashed var(--border-color)' }}>
+                                                        <span style={{ fontWeight: '700', color: 'var(--primary)' }}>Por cobrar:</span>
+                                                        <span style={{ fontWeight: '800', fontSize: '1.25rem', color: 'var(--primary)' }}>${remaining.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+
+                                <p style={{
+                                    fontSize: '0.875rem',
+                                    color: 'var(--text-muted)',
+                                    textAlign: 'center',
+                                    marginBottom: '0'
                                 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                        <span>Mano de obra:</span>
-                                        <span>${(parseFloat(finalizationForm.laborCost) || 0).toLocaleString('es-MX')}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                        <span>Refacciones:</span>
-                                        <span>${(parseFloat(finalizationForm.partsCost) || 0).toLocaleString('es-MX')}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '1.1rem', borderTop: '1px solid var(--border-color)', paddingTop: '8px', marginTop: '8px' }}>
-                                        <span>Total:</span>
-                                        <span style={{ color: 'var(--success)' }}>
-                                            ${((parseFloat(finalizationForm.laborCost) || 0) + (parseFloat(finalizationForm.partsCost) || 0)).toLocaleString('es-MX')}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Override Total (optional) */}
-                                <div className="form-group" style={{ marginTop: 'var(--spacing-md)' }}>
-                                    <label className="form-label">Total Final (opcional - solo si difiere)</label>
-                                    <div className="input-with-icon">
-                                        <DollarSign className="input-icon" size={20} />
-                                        <input
-                                            type="number"
-                                            className="form-input"
-                                            placeholder="Dejar vacío para usar suma automática"
-                                            value={paymentAmount}
-                                            onChange={e => setPaymentAmount(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-
-                                {order.advance_payment > 0 && (
-                                    <p className="text-secondary" style={{ marginTop: 'var(--spacing-sm)' }}>
-                                        ✓ Anticipo recibido: ${order.advance_payment.toLocaleString('es-MX')}
-                                    </p>
-                                )}
+                                    Al confirmar, la orden se marcará como pagada y finalizada.
+                                </p>
                             </div>
                             <div className="modal-footer">
                                 <button className="btn btn-outline" onClick={() => setShowPaymentModal(false)}>
@@ -1014,14 +1028,48 @@ export default function OrderDetail() {
                                 </button>
                                 <button
                                     className="btn btn-success"
-                                    onClick={handlePaymentUpdate}
-                                    disabled={
-                                        !(finalizationForm.laborCost || finalizationForm.partsCost || paymentAmount) ||
-                                        ((parseFloat(finalizationForm.laborCost) || 0) + (parseFloat(finalizationForm.partsCost) || 0) + (parseFloat(paymentAmount) || 0)) <= 0
-                                    }
+                                    onClick={() => {
+                                        // Always calculate from services first (most accurate source)
+                                        let laborTotal = 0;
+                                        let partsTotal = 0;
+
+                                        if (order.services?.length > 0) {
+                                            order.services.forEach(svc => {
+                                                const svcLabor = parseFloat(svc.labor_cost) || 0;
+                                                const svcMaterials = parseFloat(svc.materials_cost) || 0;
+                                                const svcPrice = parseFloat(svc.price) || 0;
+
+                                                // If service has breakdown, use it
+                                                if (svcLabor > 0 || svcMaterials > 0) {
+                                                    laborTotal += svcLabor;
+                                                    partsTotal += svcMaterials;
+                                                } else {
+                                                    // No breakdown, price is treated as labor
+                                                    laborTotal += svcPrice;
+                                                }
+                                            });
+                                        }
+
+                                        // Fallback to order totals if no services calculated
+                                        if (laborTotal === 0 && partsTotal === 0) {
+                                            laborTotal = parseFloat(order.labor_total) || 0;
+                                            partsTotal = parseFloat(order.parts_total) || 0;
+                                        }
+
+                                        // Update finalization form with calculated values
+                                        setFinalizationForm({
+                                            serviceDescription: '',
+                                            laborCost: laborTotal.toString(),
+                                            partsCost: partsTotal.toString()
+                                        });
+                                        setPaymentAmount('');
+
+                                        // Call the payment handler
+                                        handlePaymentUpdate();
+                                    }}
                                 >
                                     <CheckCircle size={18} />
-                                    Finalizar y Cobrar
+                                    Confirmar Pago
                                 </button>
                             </div>
                         </div>

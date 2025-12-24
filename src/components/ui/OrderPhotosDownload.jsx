@@ -58,6 +58,10 @@ export default function OrderPhotosDownload({ orderId, order, showAsButton = fal
             const entryPhotos = freshPhotos?.entryPhotos || {};
             const additionalPhotos = freshPhotos?.additionalPhotos || [];
 
+            // Get labor and parts breakdown from saved photos or order
+            const laborTotal = freshPhotos?.laborTotal || order?.labor_total || 0;
+            const partsTotal = freshPhotos?.partsTotal || order?.parts_total || 0;
+
             console.log('📸 Entry photos disponibles:', Object.keys(entryPhotos).filter(k => entryPhotos[k]).length);
 
             const servicesList = services.map(svc =>
@@ -66,6 +70,20 @@ export default function OrderPhotosDownload({ orderId, order, showAsButton = fal
                     <span style="font-weight: 700; color: #1e293b;">${formatMXN(svc.price || 0)}</span>
                 </div>`
             ).join('');
+
+            // Create breakdown section if there's materials cost
+            const breakdownSection = partsTotal > 0 ? `
+                <div style="margin-top: 8px; padding: 10px 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+                        <span style="color: #64748b;">Mano de Obra</span>
+                        <span style="font-weight: 600; color: #334155;">${formatMXN(laborTotal)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                        <span style="color: #64748b;">Refacciones</span>
+                        <span style="font-weight: 600; color: #334155;">${formatMXN(partsTotal)}</span>
+                    </div>
+                </div>
+            ` : '';
 
             tempContainer.innerHTML = `
                 <!-- HEADER PREMIUM - Fondo Blanco Profesional -->
@@ -116,6 +134,7 @@ export default function OrderPhotosDownload({ orderId, order, showAsButton = fal
                             </div>
                             <div style="padding: 16px 20px;">
                                 ${servicesList}
+                                ${breakdownSection}
                                 <div style="display: flex; justify-content: space-between; padding: 16px 0 0 0; margin-top: 12px; border-top: 2px solid #1a1a2e;">
                                     <span style="font-size: 16px; font-weight: 800; color: #1a1a2e;">TOTAL</span>
                                     <span style="font-size: 22px; font-weight: 900; color: #dc2626;">${formatMXN(totalAmount)}</span>

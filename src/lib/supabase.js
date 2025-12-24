@@ -879,7 +879,9 @@ export const ordersService = {
                 order_id: order.id,
                 service_id: s.service_id,
                 name: s.name,
-                price: s.price
+                price: s.price,
+                labor_cost: s.labor_cost || s.price || 0,
+                materials_cost: s.materials_cost || 0
             }));
 
             const { error: servicesError } = await supabase
@@ -1052,13 +1054,86 @@ export const ordersService = {
             return true;
         }
 
-        const { error } = await supabase
-            .from('orders')
-            .delete()
-            .eq('id', orderId);
+        try {
+            console.log('Deleting order with cascade:', orderId);
 
-        if (error) throw error;
-        return true;
+            // 1. Delete mechanic_earnings (this is what was causing the FK constraint error)
+            const { error: earningsError } = await supabase
+                .from('mechanic_earnings')
+                .delete()
+                .eq('order_id', orderId);
+
+            if (earningsError) {
+                console.warn('Error deleting mechanic_earnings (may not exist):', earningsError);
+            }
+
+            // 2. Delete order_services
+            const { error: servicesError } = await supabase
+                .from('order_services')
+                .delete()
+                .eq('order_id', orderId);
+
+            if (servicesError) {
+                console.warn('Error deleting order_services:', servicesError);
+            }
+
+            // 3. Delete order_updates
+            const { error: updatesError } = await supabase
+                .from('order_updates')
+                .delete()
+                .eq('order_id', orderId);
+
+            if (updatesError) {
+                console.warn('Error deleting order_updates:', updatesError);
+            }
+
+            // 4. Delete order_photos
+            const { error: photosError } = await supabase
+                .from('order_photos')
+                .delete()
+                .eq('order_id', orderId);
+
+            if (photosError) {
+                console.warn('Error deleting order_photos:', photosError);
+            }
+
+            // 5. Delete order_parts (if exists)
+            try {
+                await supabase
+                    .from('order_parts')
+                    .delete()
+                    .eq('order_id', orderId);
+            } catch (e) {
+                console.warn('order_parts table might not exist');
+            }
+
+            // 6. Delete order_history (if exists)
+            try {
+                await supabase
+                    .from('order_history')
+                    .delete()
+                    .eq('order_id', orderId);
+            } catch (e) {
+                console.warn('order_history table might not exist');
+            }
+
+            // 7. Finally, delete the order itself
+            const { error } = await supabase
+                .from('orders')
+                .delete()
+                .eq('id', orderId);
+
+            if (error) {
+                console.error('Error deleting order:', error);
+                throw error;
+            }
+
+            console.log('Order deleted successfully:', orderId);
+            return true;
+        } catch (error) {
+            console.error('Error in cascading delete for order:', error);
+            throw error;
+        }
     }
 };
 
@@ -1937,6 +2012,7 @@ export const paymentRequestsService = {
                 auxiliary_name: auxiliary?.full_name || 'Auxiliar',
                 total_amount: paymentData.total_amount,
                 labor_amount: paymentData.labor_amount,
+                commission_percentage: paymentData.commission_percentage || 50,
                 orders_summary: paymentData.orders_summary,
                 earning_ids: paymentData.earning_ids,
                 status: 'pending',

@@ -71,6 +71,7 @@ export default function AuxiliaryDashboard() {
                 to_auxiliary_id: aux.mechanic_id,
                 total_amount: aux.pending_payment,
                 labor_amount: aux.total_labor,
+                commission_percentage: aux.commission_percentage || 10,
                 orders_summary: aux.pending_orders_list || [],
                 earning_ids: aux.pending_orders_list?.map(o => o.earning_id).filter(Boolean) || [],
                 notes: `Pago Liquidación - ${aux.total_orders} órdenes`
