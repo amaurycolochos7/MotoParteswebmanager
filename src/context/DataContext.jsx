@@ -379,7 +379,8 @@ export function DataProvider({ children }) {
         searchClients,
         getClientMotorcycles,
 
-        // Motocicletas
+        // Motocicletas - computed from clients
+        motorcycles: clients.flatMap(c => c.motorcycles || []),
         addMotorcycle,
         updateMotorcycle,
         deleteMotorcycle,

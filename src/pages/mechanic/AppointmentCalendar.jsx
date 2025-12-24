@@ -5,8 +5,8 @@ import { Calendar, Plus, User, Phone, Clock, Wrench, X, Edit2, Trash2, AlertCirc
 import AppointmentModal from '../../components/appointments/AppointmentModal';
 
 export default function AppointmentCalendar() {
-    const { appointments = [], clients = [], motorcycles = [], addAppointment, addClient, updateAppointment } = useData();
-    const { user, users = [], canManageAppointments } = useAuth();
+    const { appointments = [], clients = [], motorcycles = [], users = [], addAppointment, addClient, updateAppointment } = useData();
+    const { user, canManageAppointments } = useAuth();
 
 
     const [showList, setShowList] = useState(false);

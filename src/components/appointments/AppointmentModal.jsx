@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Calendar, Clock, User, Wrench, Plus, Search, Phone } from 'lucide-react';
+import { X, Calendar, Clock, User, Wrench, Plus, Phone } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function AppointmentModal({ onClose, onSave, selectedDate, clients, motorcycles, users, onAddClient }) {
@@ -9,7 +9,7 @@ export default function AppointmentModal({ onClose, onSave, selectedDate, client
         scheduled_date: selectedDate ? selectedDate.toISOString().split('T')[0] : '',
         scheduled_time: '09:00',
         estimated_duration: 60,
-        assigned_mechanic_id: '', // Will be set in useEffect
+        assigned_mechanic_id: '',
         service_type: '',
         notes: ''
     });
@@ -28,27 +28,33 @@ export default function AppointmentModal({ onClose, onSave, selectedDate, client
         : [];
 
     const { user } = useAuth();
-    // Include both mechanics and admins (admins can also do mechanic work)
-    const mechanics = users?.filter(u => (u.role === 'mechanic' || u.role === 'admin') && u.is_active) || [];
+    // Only show mechanics (not admin), with role label
+    const mechanics = users?.filter(u => u.role === 'mechanic' && u.is_active) || [];
+    console.log('[AppointmentModal] All users:', users);
+    console.log('[AppointmentModal] Filtered mechanics:', mechanics.map(m => ({ name: m.full_name, role: m.role, is_active: m.is_active, is_master: m.is_master_mechanic })));
 
-    // No auto-assign mechanic - let user select manually
+    // Filter clients by search term
+    const filteredClients = clientSearch.trim()
+        ? clients.filter(client => {
+            const searchLower = clientSearch.toLowerCase();
+            return (
+                client.full_name.toLowerCase().includes(searchLower) ||
+                (client.phone && client.phone.includes(searchLower))
+            );
+        })
+        : clients;
 
-    // Filter clients by name or phone
-    const filteredClients = clients.filter(client => {
-        const searchLower = clientSearch.toLowerCase();
-        return (
-            client.full_name.toLowerCase().includes(searchLower) ||
-            (client.phone && client.phone.includes(searchLower))
-        );
-    });
-
-    const handleClientChange = (clientId) => {
+    const handleClientSelect = (clientId) => {
+        console.log('[AppointmentModal] handleClientSelect:', clientId);
         const client = clients.find(c => c.id === clientId);
+        console.log('[AppointmentModal] Found client:', client);
+        console.log('[AppointmentModal] All motorcycles:', motorcycles);
+        console.log('[AppointmentModal] Client motorcycles:', motorcycles.filter(m => m.client_id === clientId));
         setSelectedClient(client);
         setFormData(prev => ({
             ...prev,
             client_id: clientId,
-            motorcycle_id: '' // Reset motorcycle when client changes
+            motorcycle_id: ''
         }));
     };
 
@@ -58,7 +64,6 @@ export default function AppointmentModal({ onClose, onSave, selectedDate, client
             return;
         }
 
-        // Create new client (this should call a function from DataContext)
         const newClient = {
             id: `client-${Date.now()}`,
             ...newClientData,
@@ -69,10 +74,7 @@ export default function AppointmentModal({ onClose, onSave, selectedDate, client
             onAddClient(newClient);
         }
 
-        // Select the new client
-        handleClientChange(newClient.id);
-
-        // Reset form and close
+        handleClientSelect(newClient.id);
         setShowNewClientForm(false);
         setNewClientData({ full_name: '', phone: '', email: '' });
     };
@@ -85,10 +87,8 @@ export default function AppointmentModal({ onClose, onSave, selectedDate, client
             return;
         }
 
-        // Save appointment
         onSave(formData);
 
-        // Send WhatsApp confirmation to client
         const client = clients.find(c => c.id === formData.client_id);
         const motorcycle = motorcycles.find(m => m.id === formData.motorcycle_id);
         const mechanic = mechanics.find(m => m.id === formData.assigned_mechanic_id);
@@ -134,14 +134,13 @@ ${formData.notes ? `📝 *Notas:* ${formData.notes}
                 console.log('✅ Confirmación de cita enviada por WhatsApp');
             } catch (error) {
                 console.error('Error enviando confirmación:', error);
-                // Don't block the appointment creation if WhatsApp fails
             }
         }
     };
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal modal-large" onClick={e => e.stopPropagation()}>
+            <div className="modal appointment-modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3 className="modal-title">
                         <Calendar size={20} />
@@ -154,116 +153,98 @@ ${formData.notes ? `📝 *Notas:* ${formData.notes}
 
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
-                        <div className="form-grid">
-                            {/* Client Search/Select */}
-                            <div className="form-group form-group-full">
-                                <div className="client-header">
-                                    <label className="form-label">
-                                        <User size={16} />
-                                        Cliente *
-                                    </label>
+                        {/* Client Selection */}
+                        <div className="form-group">
+                            <div className="form-label-row">
+                                <label className="form-label">
+                                    <User size={16} />
+                                    Cliente *
+                                </label>
+                                <button
+                                    type="button"
+                                    className="btn-link"
+                                    onClick={() => setShowNewClientForm(!showNewClientForm)}
+                                >
+                                    <Plus size={14} />
+                                    {showNewClientForm ? 'Cancelar' : 'Nuevo'}
+                                </button>
+                            </div>
+
+                            {showNewClientForm ? (
+                                <div className="new-client-form">
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Nombre completo *"
+                                        value={newClientData.full_name}
+                                        onChange={e => setNewClientData(prev => ({ ...prev, full_name: e.target.value }))}
+                                    />
+                                    <input
+                                        type="tel"
+                                        className="form-input"
+                                        placeholder="Teléfono *"
+                                        value={newClientData.phone}
+                                        onChange={e => setNewClientData(prev => ({ ...prev, phone: e.target.value }))}
+                                    />
                                     <button
                                         type="button"
-                                        className="btn-add-client"
-                                        onClick={() => setShowNewClientForm(!showNewClientForm)}
+                                        className="btn btn-primary btn-sm"
+                                        onClick={handleAddNewClient}
                                     >
-                                        <Plus size={16} />
-                                        {showNewClientForm ? 'Cancelar' : 'Nuevo Cliente'}
+                                        Agregar Cliente
                                     </button>
                                 </div>
+                            ) : (
+                                <>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Filtrar por nombre o teléfono..."
+                                        value={clientSearch}
+                                        onChange={e => setClientSearch(e.target.value)}
+                                    />
+                                    <select
+                                        className="form-input"
+                                        value={formData.client_id}
+                                        onChange={e => handleClientSelect(e.target.value)}
+                                        required
+                                    >
+                                        <option value="">-- Seleccionar cliente --</option>
+                                        {filteredClients.map(client => (
+                                            <option key={client.id} value={client.id}>
+                                                {client.full_name} • {client.phone || 'Sin teléfono'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </>
+                            )}
+                        </div>
 
-                                {showNewClientForm ? (
-                                    <div className="new-client-form">
-                                        <div className="new-client-grid">
-                                            <div className="form-group">
-                                                <input
-                                                    type="text"
-                                                    className="form-input"
-                                                    placeholder="Nombre completo *"
-                                                    value={newClientData.full_name}
-                                                    onChange={e => setNewClientData(prev => ({ ...prev, full_name: e.target.value }))}
-                                                />
-                                            </div>
-                                            <div className="form-group">
-                                                <div className="input-with-icon">
-                                                    <Phone className="input-icon" size={18} />
-                                                    <input
-                                                        type="tel"
-                                                        className="form-input"
-                                                        placeholder="Teléfono *"
-                                                        value={newClientData.phone}
-                                                        onChange={e => setNewClientData(prev => ({ ...prev, phone: e.target.value }))}
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="form-group">
-                                                <input
-                                                    type="email"
-                                                    className="form-input"
-                                                    placeholder="Email (opcional)"
-                                                    value={newClientData.email}
-                                                    onChange={e => setNewClientData(prev => ({ ...prev, email: e.target.value }))}
-                                                />
-                                            </div>
-                                            <button
-                                                type="button"
-                                                className="btn btn-primary btn-sm"
-                                                onClick={handleAddNewClient}
-                                            >
-                                                <Plus size={16} />
-                                                Agregar
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="input-with-icon">
-                                            <Search className="input-icon" size={18} />
-                                            <input
-                                                type="text"
-                                                className="form-input"
-                                                placeholder="Buscar por nombre o teléfono..."
-                                                value={clientSearch}
-                                                onChange={e => setClientSearch(e.target.value)}
-                                            />
-                                        </div>
-                                        <select
-                                            className="form-input client-select"
-                                            value={formData.client_id}
-                                            onChange={e => handleClientChange(e.target.value)}
-                                            required
-                                        >
-                                            <option value="">Seleccionar cliente...</option>
-                                            {filteredClients.map(client => (
-                                                <option key={client.id} value={client.id}>
-                                                    {client.full_name} {client.phone && `• ${client.phone}`}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </>
-                                )}
-                            </div>
+                        {/* Motorcycle */}
+                        <div className="form-group">
+                            <label className="form-label">Motocicleta *</label>
+                            <select
+                                className="form-input"
+                                value={formData.motorcycle_id}
+                                onChange={e => setFormData(prev => ({ ...prev, motorcycle_id: e.target.value }))}
+                                disabled={!selectedClient}
+                                required
+                            >
+                                <option value="">
+                                    {selectedClient
+                                        ? (clientMotorcycles.length > 0 ? '-- Seleccionar moto --' : 'Sin motos registradas')
+                                        : 'Primero selecciona un cliente'}
+                                </option>
+                                {clientMotorcycles.map(moto => (
+                                    <option key={moto.id} value={moto.id}>
+                                        {moto.brand} {moto.model} ({moto.year})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-                            {/* Motorcycle */}
-                            <div className="form-group">
-                                <label className="form-label">Motocicleta *</label>
-                                <select
-                                    className="form-input"
-                                    value={formData.motorcycle_id}
-                                    onChange={e => setFormData(prev => ({ ...prev, motorcycle_id: e.target.value }))}
-                                    disabled={!selectedClient}
-                                    required
-                                >
-                                    <option value="">Seleccionar moto...</option>
-                                    {clientMotorcycles.map(moto => (
-                                        <option key={moto.id} value={moto.id}>
-                                            {moto.brand} {moto.model} ({moto.year})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Date */}
+                        {/* Date & Time Row */}
+                        <div className="form-row">
                             <div className="form-group">
                                 <label className="form-label">
                                     <Calendar size={16} />
@@ -277,8 +258,6 @@ ${formData.notes ? `📝 *Notas:* ${formData.notes}
                                     required
                                 />
                             </div>
-
-                            {/* Time */}
                             <div className="form-group">
                                 <label className="form-label">
                                     <Clock size={16} />
@@ -292,29 +271,28 @@ ${formData.notes ? `📝 *Notas:* ${formData.notes}
                                     required
                                 />
                             </div>
+                        </div>
 
-                            {/* Duration */}
+                        {/* Duration & Mechanic Row */}
+                        <div className="form-row">
                             <div className="form-group">
-                                <label className="form-label">Duración Estimada (min)</label>
+                                <label className="form-label">Duración</label>
                                 <select
                                     className="form-input"
                                     value={formData.estimated_duration}
                                     onChange={e => setFormData(prev => ({ ...prev, estimated_duration: parseInt(e.target.value) }))}
                                 >
-                                    <option value="30">30 minutos</option>
+                                    <option value="30">30 min</option>
                                     <option value="60">1 hora</option>
-                                    <option value="90">1.5 horas</option>
-                                    <option value="120">2 horas</option>
-                                    <option value="180">3 horas</option>
-                                    <option value="240">4 horas</option>
+                                    <option value="90">1.5 hrs</option>
+                                    <option value="120">2 hrs</option>
+                                    <option value="180">3 hrs</option>
                                 </select>
                             </div>
-
-                            {/* Mechanic */}
                             <div className="form-group">
                                 <label className="form-label">
                                     <Wrench size={16} />
-                                    Mecánico Asignado
+                                    Mecánico
                                 </label>
                                 <select
                                     className="form-input"
@@ -322,37 +300,40 @@ ${formData.notes ? `📝 *Notas:* ${formData.notes}
                                     onChange={e => setFormData(prev => ({ ...prev, assigned_mechanic_id: e.target.value }))}
                                 >
                                     <option value="">Sin asignar</option>
-                                    {mechanics.map(mech => (
-                                        <option key={mech.id} value={mech.id}>
-                                            {mech.full_name}
-                                        </option>
-                                    ))}
+                                    {mechanics.map(mech => {
+                                        const roleLabel = mech.is_master_mechanic ? '👨‍🔧 Maestro' : '🔧 Auxiliar';
+                                        return (
+                                            <option key={mech.id} value={mech.id}>
+                                                {mech.full_name} ({roleLabel})
+                                            </option>
+                                        );
+                                    })}
                                 </select>
                             </div>
+                        </div>
 
-                            {/* Service Type */}
-                            <div className="form-group form-group-full">
-                                <label className="form-label">Tipo de Servicio</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder="Ej: Mantenimiento preventivo, Reparación general..."
-                                    value={formData.service_type}
-                                    onChange={e => setFormData(prev => ({ ...prev, service_type: e.target.value }))}
-                                />
-                            </div>
+                        {/* Service Type */}
+                        <div className="form-group">
+                            <label className="form-label">Tipo de Servicio</label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                placeholder="Ej: Mantenimiento preventivo..."
+                                value={formData.service_type}
+                                onChange={e => setFormData(prev => ({ ...prev, service_type: e.target.value }))}
+                            />
+                        </div>
 
-                            {/* Notes */}
-                            <div className="form-group form-group-full">
-                                <label className="form-label">Notas</label>
-                                <textarea
-                                    className="form-textarea"
-                                    placeholder="Notas adicionales sobre la cita..."
-                                    value={formData.notes}
-                                    onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                                    rows={3}
-                                />
-                            </div>
+                        {/* Notes */}
+                        <div className="form-group">
+                            <label className="form-label">Notas</label>
+                            <textarea
+                                className="form-textarea"
+                                placeholder="Notas adicionales..."
+                                value={formData.notes}
+                                onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                                rows={2}
+                            />
                         </div>
                     </div>
 
@@ -361,83 +342,99 @@ ${formData.notes ? `📝 *Notas:* ${formData.notes}
                             Cancelar
                         </button>
                         <button type="submit" className="btn btn-primary">
-                            <Calendar size={18} />
+                            <Calendar size={16} />
                             Agendar Cita
                         </button>
                     </div>
                 </form>
 
                 <style>{`
-                    .form-grid {
-                        display: grid;
-                        grid-template-columns: repeat(2, 1fr);
-                        gap: var(--spacing-md);
+                    .appointment-modal {
+                        width: 100%;
+                        max-width: 500px;
+                        max-height: 90vh;
+                        display: flex;
+                        flex-direction: column;
                     }
 
-                    .form-group-full {
-                        grid-column: 1 / -1;
+                    .appointment-modal .modal-body {
+                        flex: 1;
+                        overflow-y: auto;
+                        padding: var(--spacing-md);
+                    }
+
+                    .appointment-modal .modal-footer {
+                        flex-shrink: 0;
+                        display: flex;
+                        gap: var(--spacing-sm);
+                        padding: var(--spacing-md);
+                        border-top: 1px solid var(--border-color);
+                        background: var(--bg-primary);
+                    }
+
+                    .appointment-modal .modal-footer .btn {
+                        flex: 1;
+                    }
+
+                    .form-label-row {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: var(--spacing-xs);
                     }
 
                     .form-label {
                         display: flex;
                         align-items: center;
-                        gap: var(--spacing-xs);
+                        gap: 6px;
                         font-size: 0.875rem;
                         font-weight: 600;
                         margin-bottom: var(--spacing-xs);
                     }
 
-                    .client-header {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        margin-bottom: var(--spacing-sm);
+                    .form-label-row .form-label {
+                        margin-bottom: 0;
                     }
 
-                    .btn-add-client {
+                    .btn-link {
                         display: flex;
                         align-items: center;
                         gap: 4px;
-                        padding: 6px 12px;
-                        background: var(--primary-light);
-                        color: var(--primary);
+                        background: none;
                         border: none;
-                        border-radius: var(--radius-md);
+                        color: var(--primary);
                         font-size: 0.8125rem;
                         font-weight: 600;
                         cursor: pointer;
-                        transition: all var(--transition-fast);
+                        padding: 4px 8px;
+                        border-radius: var(--radius-sm);
                     }
 
-                    .btn-add-client:hover {
-                        background: var(--primary);
-                        color: white;
+                    .btn-link:hover {
+                        background: var(--primary-light);
                     }
 
-                    .client-select {
-                        margin-top: var(--spacing-xs);
-                        max-height: 200px;
+                    .form-group {
+                        margin-bottom: var(--spacing-md);
                     }
 
-                    .new-client-form {
-                        padding: var(--spacing-md);
-                        background: var(--bg-secondary);
-                        border-radius: var(--radius-md);
-                        margin-top: var(--spacing-xs);
-                    }
-
-                    .new-client-grid {
+                    .form-row {
                         display: grid;
                         grid-template-columns: 1fr 1fr;
                         gap: var(--spacing-sm);
                     }
 
-                    .new-client-grid .form-group:nth-child(3) {
-                        grid-column: 1 / -1;
+                    .form-row .form-group {
+                        margin-bottom: var(--spacing-md);
                     }
 
-                    .new-client-grid button {
-                        grid-column: 1 / -1;
+                    .new-client-form {
+                        display: flex;
+                        flex-direction: column;
+                        gap: var(--spacing-sm);
+                        padding: var(--spacing-md);
+                        background: var(--bg-secondary);
+                        border-radius: var(--radius-md);
                     }
 
                     .btn-sm {
@@ -445,38 +442,19 @@ ${formData.notes ? `📝 *Notas:* ${formData.notes}
                         font-size: 0.875rem;
                     }
 
-                    .input-with-icon {
-                        position: relative;
-                        display: flex;
-                        align-items: center;
-                    }
-
-                    .input-icon {
-                        position: absolute;
-                        left: 12px;
-                        color: var(--text-muted);
-                        pointer-events: none;
-                    }
-
-                    .input-with-icon .form-input {
-                        padding-left: 40px;
-                    }
-
                     @media (max-width: 640px) {
-                        .form-grid {
-                            grid-template-columns: 1fr;
+                        .appointment-modal {
+                            max-height: 85vh;
+                            margin: 10px;
                         }
 
-                        .new-client-grid {
-                            grid-template-columns: 1fr;
+                        .appointment-modal .modal-body {
+                            max-height: calc(85vh - 140px);
                         }
 
-                        .new-client-grid .form-group:nth-child(3) {
-                            grid-column: 1;
-                        }
-
-                        .new-client-grid button {
-                            grid-column: 1;
+                        .form-row {
+                            grid-template-columns: 1fr 1fr;
+                            gap: var(--spacing-xs);
                         }
                     }
                 `}</style>
