@@ -808,6 +808,13 @@ export const whatsappBotService = {
         } catch { return false; }
     },
 
+    async startSession(mechanicId) {
+        try {
+            const res = await waBotFetch(`/sessions/${mechanicId}/start`, { method: 'POST' });
+            return res.ok;
+        } catch { return false; }
+    },
+
     async logoutSession(mechanicId) {
         try {
             const res = await waBotFetch(`/sessions/${mechanicId}/logout`, { method: 'POST' });

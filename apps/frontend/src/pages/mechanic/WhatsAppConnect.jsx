@@ -56,6 +56,14 @@ export default function WhatsAppConnect() {
                 setSessionData(statusRes);
                 setQrCode(null);
             } else {
+                // Check if session exists on server
+                if (statusRes.exists === false) {
+                    // Start new session
+                    await whatsappBotService.startSession(user.id);
+                    setStatus('disconnected'); // "Iniciando..."
+                    return;
+                }
+
                 // Not connected, try to get QR
                 const qrRes = await whatsappBotService.getQR(user.id);
                 if (qrRes.qr) {
