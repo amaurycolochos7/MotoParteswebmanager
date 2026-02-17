@@ -39,7 +39,7 @@ export function DataProvider({ children }) {
             setError(null);
             try {
                 // Cargar datos en paralelo
-                const [clientsData, servicesData, statusesData, updatesData, usersData] = await Promise.all([
+                const [clientsRes, servicesRes, statusesRes, updatesRes, usersRes] = await Promise.all([
                     clientsService.getAll(),
                     servicesService.getAll(),
                     statusesService.getAll(),
@@ -47,20 +47,23 @@ export function DataProvider({ children }) {
                     authService.getAllUsers()
                 ]);
 
-                setClients(clientsData || []);
-                setServices(servicesData || []);
-                setStatuses(statusesData || []);
-                setServiceUpdates(updatesData || []);
-                setUsers(usersData || []);
+                if (clientsRes.error) console.error('Error clients:', clientsRes.error);
+                if (servicesRes.error) console.error('Error services:', servicesRes.error);
+
+                setClients(clientsRes.data || []);
+                setServices(servicesRes.data || []);
+                setStatuses(statusesRes.data || []);
+                setServiceUpdates(updatesRes.data || []);
+                setUsers(usersRes.data || []);
 
                 // Cargar órdenes según rol
-                let ordersData;
+                let ordersRes;
                 if (hasPermission('canViewAllOrders')) {
-                    ordersData = await ordersService.getAll();
+                    ordersRes = await ordersService.getAll();
                 } else {
-                    ordersData = await ordersService.getByMechanic(user.id);
+                    ordersRes = await ordersService.getByMechanic(user.id);
                 }
-                setOrders(ordersData || []);
+                setOrders(ordersRes.data || []);
 
             } catch (err) {
                 console.error('Error loading data:', err);
@@ -78,7 +81,8 @@ export function DataProvider({ children }) {
     // =============================================
     const refreshClients = useCallback(async () => {
         try {
-            const data = await clientsService.getAll();
+            const { data, error } = await clientsService.getAll();
+            if (error) throw error;
             setClients(data || []);
         } catch (err) {
             console.error('Error refreshing clients:', err);
@@ -86,19 +90,22 @@ export function DataProvider({ children }) {
     }, []);
 
     const addClient = useCallback(async (clientData) => {
-        const newClient = await clientsService.create(clientData, user?.id);
-        setClients(prev => [newClient, ...prev]);
+        const { data: newClient, error } = await clientsService.create(clientData, user?.id);
+        if (error) throw error;
+        setClients(prev => prev ? [newClient, ...prev] : [newClient]);
         return newClient;
     }, [user]);
 
     const updateClient = useCallback(async (id, updates) => {
-        const updated = await clientsService.update(id, updates);
+        const { data: updated, error } = await clientsService.update(id, updates);
+        if (error) throw error;
         setClients(prev => prev.map(c => c.id === id ? { ...c, ...updated } : c));
         return updated;
     }, []);
 
     const deleteClient = useCallback(async (id) => {
-        await clientsService.delete(id);
+        const { error } = await clientsService.delete(id);
+        if (error) throw error;
         setClients(prev => prev.filter(c => c.id !== id));
     }, []);
 
@@ -127,7 +134,9 @@ export function DataProvider({ children }) {
     // MOTOCICLETAS
     // =============================================
     const addMotorcycle = useCallback(async (motoData) => {
-        const newMoto = await motorcyclesService.create(motoData);
+        const { data: newMoto, error } = await motorcyclesService.create(motoData);
+        if (error) throw error;
+
         // Actualizar cliente con la nueva moto
         setClients(prev => prev.map(c => {
             if (c.id === motoData.client_id) {
@@ -142,7 +151,9 @@ export function DataProvider({ children }) {
     }, []);
 
     const updateMotorcycle = useCallback(async (id, updates) => {
-        const updated = await motorcyclesService.update(id, updates);
+        const { data: updated, error } = await motorcyclesService.update(id, updates);
+        if (error) throw error;
+
         setClients(prev => prev.map(c => ({
             ...c,
             motorcycles: c.motorcycles?.map(m => m.id === id ? { ...m, ...updated } : m)
@@ -151,7 +162,9 @@ export function DataProvider({ children }) {
     }, []);
 
     const deleteMotorcycle = useCallback(async (id) => {
-        await motorcyclesService.delete(id);
+        const { error } = await motorcyclesService.delete(id);
+        if (error) throw error;
+
         setClients(prev => prev.map(c => ({
             ...c,
             motorcycles: c.motorcycles?.filter(m => m.id !== id)
@@ -163,33 +176,36 @@ export function DataProvider({ children }) {
     // =============================================
     const refreshOrders = useCallback(async () => {
         try {
-            let data;
+            let res;
             if (hasPermission('canViewAllOrders')) {
-                data = await ordersService.getAll();
+                res = await ordersService.getAll();
             } else {
-                data = await ordersService.getByMechanic(user?.id);
+                res = await ordersService.getByMechanic(user?.id);
             }
-            setOrders(data || []);
+            setOrders(res.data || []);
         } catch (err) {
             console.error('Error refreshing orders:', err);
         }
     }, [user, hasPermission]);
 
     const getOrderById = useCallback(async (id) => {
-        return ordersService.getById(id);
+        const { data } = await ordersService.getById(id);
+        return data;
     }, []);
 
     const addOrder = useCallback(async (orderData) => {
-        const newOrder = await ordersService.create({
+        const { data: newOrder, error } = await ordersService.create({
             ...orderData,
             mechanic_id: orderData.mechanic_id || user?.id
         });
+        if (error) throw error;
         await refreshOrders(); // Recargar para obtener datos completos
         return newOrder;
     }, [user, refreshOrders]);
 
     const updateOrderStatus = useCallback(async (orderId, statusId, notes = '') => {
-        await ordersService.updateStatus(orderId, statusId, user?.id, notes);
+        const { error } = await ordersService.updateStatus(orderId, statusId, user?.id, notes);
+        if (error) throw error;
         await refreshOrders();
     }, [user, refreshOrders]);
 
@@ -197,7 +213,8 @@ export function DataProvider({ children }) {
         // Obtener la orden para calcular ganancias
         const order = orders.find(o => o.id === orderId);
 
-        await ordersService.markAsPaid(orderId);
+        const { error } = await ordersService.markAsPaid(orderId);
+        if (error) throw error;
 
         // Registrar ganancias automáticamente
         if (order && order.mechanic_id) {
@@ -210,7 +227,7 @@ export function DataProvider({ children }) {
             // Si no hay approved_by, intentar obtenerlo del perfil del mecánico
             if (!supervisorId) {
                 try {
-                    const mechanic = await authService.getProfile(order.mechanic_id);
+                    const { data: mechanic } = await authService.getProfile(order.mechanic_id);
                     if (mechanic?.requires_approval && mechanic?.supervisor_id) {
                         supervisorId = mechanic.supervisor_id;
                     }
@@ -234,12 +251,14 @@ export function DataProvider({ children }) {
     }, [orders, refreshOrders]);
 
     const updateOrder = useCallback(async (orderId, updates) => {
-        await ordersService.update(orderId, updates);
+        const { error } = await ordersService.update(orderId, updates);
+        if (error) throw error;
         await refreshOrders();
     }, [refreshOrders]);
 
     const deleteOrder = useCallback(async (orderId) => {
-        await ordersService.delete(orderId);
+        const { error } = await ordersService.delete(orderId);
+        if (error) throw error;
         setOrders(prev => prev.filter(o => o.id !== orderId));
     }, []);
 
@@ -262,7 +281,8 @@ export function DataProvider({ children }) {
 
     const getClientOrders = useCallback(async (clientId) => {
         try {
-            return await ordersService.getByClient(clientId);
+            const { data } = await ordersService.getByClient(clientId);
+            return data || [];
         } catch (err) {
             console.error('Error getting client orders:', err);
             return [];
@@ -273,19 +293,22 @@ export function DataProvider({ children }) {
     // SERVICIOS
     // =============================================
     const addService = useCallback(async (serviceData) => {
-        const newService = await servicesService.create(serviceData);
+        const { data: newService, error } = await servicesService.create(serviceData);
+        if (error) throw error;
         setServices(prev => [...prev, newService]);
         return newService;
     }, []);
 
     const updateService = useCallback(async (id, updates) => {
-        const updated = await servicesService.update(id, updates);
+        const { data: updated, error } = await servicesService.update(id, updates);
+        if (error) throw error;
         setServices(prev => prev.map(s => s.id === id ? { ...s, ...updated } : s));
         return updated;
     }, []);
 
     const deleteService = useCallback(async (id) => {
-        await servicesService.delete(id);
+        const { error } = await servicesService.delete(id);
+        if (error) throw error;
         setServices(prev => prev.filter(s => s.id !== id));
     }, []);
 
@@ -297,10 +320,11 @@ export function DataProvider({ children }) {
     }, [serviceUpdates]);
 
     const addServiceUpdate = useCallback(async (updateData) => {
-        const newUpdate = await orderUpdatesService.create({
+        const { data: newUpdate, error } = await orderUpdatesService.create({
             ...updateData,
             created_by: user?.id
         });
+        if (error) throw error;
         setServiceUpdates(prev => [newUpdate, ...prev]);
         return newUpdate;
     }, [user]);
@@ -310,11 +334,13 @@ export function DataProvider({ children }) {
     // =============================================
     const getMechanicsPerformance = useCallback(async (startDate, endDate) => {
         if (!hasPermission('canViewMechanicStats')) return [];
-        return statsService.getMechanicsPerformance(startDate, endDate);
+        const { data } = await statsService.getMechanicsPerformance(startDate, endDate);
+        return data || [];
     }, [hasPermission]);
 
     const getDashboardStats = useCallback(async () => {
-        return statsService.getDashboardStats();
+        const { data } = await statsService.getDashboardStats();
+        return data;
     }, []);
 
     // =============================================
@@ -357,7 +383,7 @@ export function DataProvider({ children }) {
     // =============================================
     const refreshUsers = useCallback(async () => {
         try {
-            const data = await authService.getAllUsers();
+            const { data } = await authService.getAllUsers();
             setUsers(data || []);
         } catch (err) {
             console.error('Error refreshing users:', err);
