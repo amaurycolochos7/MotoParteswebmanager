@@ -1,0 +1,4 @@
+﻿motopartes-api=ELFE1JRABBmYk3SwTXl3J
+motopartes-whatsapp=98AFhrOOdotktKOOd0F9T
+motopartes-frontend=FqqKFeBMC7ViF-C8Hb0vi
+db=postgres-index-virtual-system-t2hbwn|Kma4PuLTPy7nRKYVpjUeF

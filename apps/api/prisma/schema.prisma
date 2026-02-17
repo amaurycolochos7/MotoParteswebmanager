@@ -1,0 +1,393 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================
+// 1. PERFILES DE USUARIO
+// =============================================
+model Profile {
+  id                    String   @id @default(uuid()) @db.Uuid
+  email                 String   @unique
+  password_hash         String?
+  full_name             String
+  phone                 String?
+  role                  String   @default("mechanic") // admin, mechanic, admin_mechanic
+  commission_percentage Decimal  @default(10.00) @db.Decimal(5, 2)
+  is_active             Boolean  @default(true)
+  avatar_url            String?
+  is_master_mechanic    Boolean  @default(false)
+  requires_approval     Boolean  @default(false)
+  can_create_services   Boolean  @default(false)
+  can_create_appointments Boolean @default(true)
+  can_send_messages     Boolean  @default(true)
+  can_create_clients    Boolean  @default(true)
+  can_edit_clients      Boolean  @default(false)
+  can_delete_orders     Boolean  @default(false)
+  can_view_approved_orders Boolean @default(true)
+  created_at            DateTime @default(now()) @db.Timestamptz
+  updated_at            DateTime @default(now()) @updatedAt @db.Timestamptz
+
+  // Relations
+  created_clients       Client[]          @relation("ClientCreator")
+  motorcycles_assigned  Order[]           @relation("OrderMechanic")
+  orders_approved       Order[]           @relation("OrderApprover")
+  uploaded_photos       OrderPhoto[]
+  appointments_assigned Appointment[]     @relation("AppointmentMechanic")
+  appointments_created  Appointment[]     @relation("AppointmentCreator")
+  order_history         OrderHistory[]
+  earnings              MechanicEarning[]
+  whatsapp_sessions     WhatsappSession[]
+
+  // Order Requests
+  requests_sent         OrderRequest[]    @relation("RequestSender")
+  requests_received     OrderRequest[]    @relation("RequestReceiver")
+
+  // Payment Requests
+  payments_sent         PaymentRequest[]  @relation("PaymentSender")
+  payments_received     PaymentRequest[]  @relation("PaymentReceiver")
+
+  @@map("profiles")
+}
+
+// =============================================
+// 2. CLIENTES
+// =============================================
+model Client {
+  id          String   @id @default(uuid()) @db.Uuid
+  phone       String   @unique
+  full_name   String
+  email       String?
+  notes       String?
+  created_by  String?  @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz
+
+  // Relations
+  creator      Profile?      @relation("ClientCreator", fields: [created_by], references: [id])
+  motorcycles  Motorcycle[]
+  orders       Order[]
+  appointments Appointment[]
+
+  @@map("clients")
+}
+
+// =============================================
+// 3. MOTOCICLETAS
+// =============================================
+model Motorcycle {
+  id         String   @id @default(uuid()) @db.Uuid
+  client_id  String   @db.Uuid
+  brand      String
+  model      String
+  year       Int?
+  plates     String?
+  color      String?
+  vin        String?
+  mileage    Int      @default(0)
+  notes      String?
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  client       Client        @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  orders       Order[]
+  appointments Appointment[]
+
+  @@map("motorcycles")
+}
+
+// =============================================
+// 4. CATÁLOGO DE SERVICIOS
+// =============================================
+model Service {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  description   String?
+  base_price    Decimal  @db.Decimal(10, 2)
+  category      String   @default("general")
+  is_active     Boolean  @default(true)
+  display_order Int      @default(0)
+  created_at    DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  order_services OrderService[]
+
+  @@map("services")
+}
+
+// =============================================
+// 5. ESTADOS DE ÓRDENES
+// =============================================
+model OrderStatus {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String   @unique
+  description   String?
+  color         String   @default("#3b82f6")
+  display_order Int      @default(0)
+  is_terminal   Boolean  @default(false)
+  created_at    DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  orders Order[]
+
+  @@map("order_statuses")
+}
+
+// =============================================
+// 6. ÓRDENES DE SERVICIO
+// =============================================
+model Order {
+  id                 String    @id @default(uuid()) @db.Uuid
+  order_number       String    @unique
+  client_id          String?   @db.Uuid
+  motorcycle_id      String?   @db.Uuid
+  mechanic_id        String?   @db.Uuid
+  approved_by        String?   @db.Uuid
+  status_id          String?   @db.Uuid
+  customer_complaint String?
+  initial_diagnosis  String?
+  mechanic_notes     String?
+  labor_total        Decimal   @default(0) @db.Decimal(10, 2)
+  parts_total        Decimal   @default(0) @db.Decimal(10, 2)
+  total_amount       Decimal   @default(0) @db.Decimal(10, 2)
+  advance_payment    Decimal   @default(0) @db.Decimal(10, 2)
+  payment_method     String?
+  is_paid            Boolean   @default(false)
+  paid_at            DateTime? @db.Timestamptz
+  public_token       String?   @unique
+  client_link        String?
+  client_last_seen_at DateTime? @db.Timestamptz
+  link_sent_at       DateTime? @db.Timestamptz
+  created_at         DateTime  @default(now()) @db.Timestamptz
+  updated_at         DateTime  @default(now()) @updatedAt @db.Timestamptz
+  completed_at       DateTime? @db.Timestamptz
+
+  // Relations
+  client       Client?         @relation(fields: [client_id], references: [id])
+  motorcycle   Motorcycle?     @relation(fields: [motorcycle_id], references: [id])
+  mechanic     Profile?        @relation("OrderMechanic", fields: [mechanic_id], references: [id])
+  approver     Profile?        @relation("OrderApprover", fields: [approved_by], references: [id])
+  status       OrderStatus?    @relation(fields: [status_id], references: [id])
+  services     OrderService[]
+  parts        OrderPart[]
+  photos       OrderPhoto[]
+  history      OrderHistory[]
+  updates      OrderUpdate[]
+  earnings     MechanicEarning[]
+
+  @@map("orders")
+}
+
+// =============================================
+// 7. SERVICIOS POR ORDEN
+// =============================================
+model OrderService {
+  id         String   @id @default(uuid()) @db.Uuid
+  order_id   String   @db.Uuid
+  service_id String?  @db.Uuid
+  name       String
+  price      Decimal  @db.Decimal(10, 2)
+  cost       Decimal  @default(0) @db.Decimal(10, 2)
+  quantity   Int      @default(1)
+  notes      String?
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  order   Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  service Service? @relation(fields: [service_id], references: [id])
+
+  @@map("order_services")
+}
+
+// =============================================
+// 8. REFACCIONES POR ORDEN
+// =============================================
+model OrderPart {
+  id          String   @id @default(uuid()) @db.Uuid
+  order_id    String   @db.Uuid
+  name        String
+  part_number String?
+  cost        Decimal  @db.Decimal(10, 2)
+  price       Decimal  @db.Decimal(10, 2)
+  quantity    Int      @default(1)
+  notes       String?
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  order Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@map("order_parts")
+}
+
+// =============================================
+// 9. FOTOS DE ÓRDENES
+// =============================================
+model OrderPhoto {
+  id          String   @id @default(uuid()) @db.Uuid
+  order_id    String   @db.Uuid
+  url         String
+  category    String?  // before, after, evidence
+  caption     String?
+  uploaded_by String?  @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  order    Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  uploader Profile? @relation(fields: [uploaded_by], references: [id])
+
+  @@map("order_photos")
+}
+
+// =============================================
+// 10. HISTORIAL DE CAMBIOS
+// =============================================
+model OrderHistory {
+  id         String   @id @default(uuid()) @db.Uuid
+  order_id   String   @db.Uuid
+  changed_by String?  @db.Uuid
+  old_status String?
+  new_status String
+  notes      String?
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  order   Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  changer Profile? @relation(fields: [changed_by], references: [id])
+
+  @@map("order_history")
+}
+
+// =============================================
+// 11. ACTUALIZACIONES DE ORDEN
+// =============================================
+model OrderUpdate {
+  id         String   @id @default(uuid()) @db.Uuid
+  order_id   String   @db.Uuid
+  title      String
+  message    String?
+  created_by String?  @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  order Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@map("order_updates")
+}
+
+// =============================================
+// 12. CITAS/RECORDATORIOS
+// =============================================
+model Appointment {
+  id                   String   @id @default(uuid()) @db.Uuid
+  client_id            String?  @db.Uuid
+  motorcycle_id        String?  @db.Uuid
+  assigned_mechanic_id String?  @db.Uuid
+  scheduled_date       DateTime @db.Timestamptz
+  service_type         String?
+  notes                String?
+  status               String   @default("scheduled") // scheduled, confirmed, completed, cancelled
+  reminder_sent        Boolean  @default(false)
+  created_by           String?  @db.Uuid
+  created_at           DateTime @default(now()) @db.Timestamptz
+
+  // Relations
+  client    Client?     @relation(fields: [client_id], references: [id])
+  motorcycle Motorcycle? @relation(fields: [motorcycle_id], references: [id])
+  mechanic  Profile?    @relation("AppointmentMechanic", fields: [assigned_mechanic_id], references: [id])
+  creator   Profile?    @relation("AppointmentCreator", fields: [created_by], references: [id])
+
+  @@map("appointments")
+}
+
+// =============================================
+// 13. SESIÓN WHATSAPP (Multi-sesión)
+// =============================================
+model WhatsappSession {
+  id              String    @id @default(uuid()) @db.Uuid
+  mechanic_id     String?   @unique @db.Uuid
+  is_connected    Boolean   @default(false)
+  phone_number    String?
+  session_name    String?
+  connected_at    DateTime? @db.Timestamptz
+  disconnected_at DateTime? @db.Timestamptz
+  last_heartbeat  DateTime? @db.Timestamptz
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  // Relations
+  mechanic Profile? @relation(fields: [mechanic_id], references: [id])
+
+  @@map("whatsapp_sessions")
+}
+
+// =============================================
+// 14. SOLICITUDES DE ORDEN (Auxiliar → Maestro)
+// =============================================
+model OrderRequest {
+  id             String    @id @default(uuid()) @db.Uuid
+  requested_by   String    @db.Uuid
+  requested_to   String    @db.Uuid
+  order_data     Json?
+  status         String    @default("pending") // pending, approved, rejected
+  response_notes String?
+  responded_at   DateTime? @db.Timestamptz
+  created_at     DateTime  @default(now()) @db.Timestamptz
+
+  // Relations
+  requester Profile @relation("RequestSender", fields: [requested_by], references: [id])
+  approver  Profile @relation("RequestReceiver", fields: [requested_to], references: [id])
+
+  @@map("order_requests")
+}
+
+// =============================================
+// 15. GANANCIAS DE MECÁNICOS
+// =============================================
+model MechanicEarning {
+  id                 String    @id @default(uuid()) @db.Uuid
+  order_id           String    @db.Uuid
+  mechanic_id        String    @db.Uuid
+  labor_amount       Decimal   @default(0) @db.Decimal(10, 2)
+  commission_rate    Decimal   @default(0) @db.Decimal(5, 2)
+  earned_amount      Decimal   @default(0) @db.Decimal(10, 2)
+  is_paid            Boolean   @default(false)
+  paid_at            DateTime? @db.Timestamptz
+  week_start         DateTime? @db.Timestamptz
+  payment_request_id String?   @db.Uuid
+  created_at         DateTime  @default(now()) @db.Timestamptz
+
+  // Relations
+  order    Order   @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  mechanic Profile @relation(fields: [mechanic_id], references: [id])
+
+  @@map("mechanic_earnings")
+}
+
+// =============================================
+// 16. SOLICITUDES DE PAGO (Maestro → Auxiliar)
+// =============================================
+model PaymentRequest {
+  id            String    @id @default(uuid()) @db.Uuid
+  master_id     String    @db.Uuid
+  auxiliary_id  String    @db.Uuid
+  total_amount  Decimal   @default(0) @db.Decimal(10, 2)
+  earning_ids   Json?     // Array of earning IDs included
+  order_details Json?     // Details of orders
+  status        String    @default("pending") // pending, accepted, rejected
+  notes         String?
+  accepted_at   DateTime? @db.Timestamptz
+  created_at    DateTime  @default(now()) @db.Timestamptz
+
+  // Relations
+  master    Profile @relation("PaymentSender", fields: [master_id], references: [id])
+  auxiliary Profile @relation("PaymentReceiver", fields: [auxiliary_id], references: [id])
+
+  @@map("payment_requests")
+}

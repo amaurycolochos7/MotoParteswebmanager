@@ -1,0 +1,21 @@
+{
+    "name": "motopartes-whatsapp-bot",
+    "private": true,
+    "version": "1.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "node --watch src/index.js",
+        "start": "node src/index.js"
+    },
+    "dependencies": {
+        "@prisma/client": "^6.5.0",
+        "express": "^5.1.0",
+        "cors": "^2.8.5",
+        "whatsapp-web.js": "^1.26.1-alpha.3",
+        "qrcode": "^1.5.4",
+        "dotenv": "^16.5.0"
+    },
+    "devDependencies": {
+        "prisma": "^6.5.0"
+    }
+}
