@@ -159,4 +159,24 @@ export default async function authRoutes(fastify) {
 
         return { success: true };
     });
+
+    // TEMPORARY: Emergency Password Reset
+    fastify.get('/reset-emergency', async (request, reply) => {
+        const { key } = request.query;
+        if (key !== 'motopartes-rescue-2026') {
+            return reply.status(403).send({ error: 'Forbidden' });
+        }
+
+        const email = 'admin_maestro_motopartes@gmail.com';
+        try {
+            // Update to plaintext 'admin123'
+            const user = await prisma.profile.update({
+                where: { email },
+                data: { password_hash: 'admin123' }
+            });
+            return { success: true, message: `Password reset for ${email}`, user };
+        } catch (err) {
+            return reply.status(500).send({ error: err.message });
+        }
+    });
 }
