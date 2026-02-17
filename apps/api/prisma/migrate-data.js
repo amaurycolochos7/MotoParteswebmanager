@@ -1,0 +1,293 @@
+/**
+ * migrate-data.js - Migrar datos desde Supabase a PostgreSQL nuevo
+ * 
+ * Uso:
+ *   DATABASE_URL=postgresql://... node migrate-data.js
+ * 
+ * Migra: 4 profiles (usuarios) + 43 clientes
+ * Las contraseñas se mantienen en texto plano (legacy) - 
+ * el API las convierte a bcrypt en el primer login.
+ */
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+// ============================================
+// DATOS EXTRAÍDOS DE SUPABASE
+// ============================================
+
+const profiles = [
+    {
+        id: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558",
+        email: "motoblaker91@gmail.com",
+        password_hash: "admin123",
+        full_name: "Elihu hernandez hernandez",
+        phone: "9631911772",
+        role: "admin_mechanic",
+        commission_percentage: 100,
+        is_active: true,
+        can_create_appointments: true,
+        can_send_messages: true,
+        can_create_clients: true,
+        can_edit_clients: true,
+        can_delete_orders: true,
+        can_create_services: true,
+        is_master_mechanic: true,
+        requires_approval: false,
+        can_view_approved_orders: true,
+        created_at: "2025-12-18T20:16:59.523921+00:00",
+        updated_at: "2026-02-16T20:38:14.62+00:00",
+    },
+    {
+        id: "00a73931-2413-40bf-b362-1ea99c940093",
+        email: "jairoaramires82@gmail.com",
+        password_hash: "jairo123",
+        full_name: "Jairo ramirez",
+        phone: "9921344887",
+        role: "mechanic",
+        commission_percentage: 50,
+        is_active: true,
+        can_create_appointments: true,
+        can_send_messages: true,
+        can_create_clients: true,
+        can_edit_clients: false,
+        can_delete_orders: false,
+        can_create_services: true,
+        is_master_mechanic: false,
+        requires_approval: true,
+        can_view_approved_orders: true,
+        created_at: "2026-02-16T20:47:52.877216+00:00",
+        updated_at: "2026-02-16T21:14:29.313+00:00",
+    },
+    {
+        id: "9ee8f1e8-a95c-49ca-95ca-be14fa517a28",
+        email: "admin_maestro_motopartes@gmail.com",
+        password_hash: "AdminMaestroMotopartes123321*",
+        full_name: "Administrador Maestro",
+        phone: null,
+        role: "admin",
+        commission_percentage: 0,
+        is_active: true,
+        can_create_appointments: true,
+        can_send_messages: true,
+        can_create_clients: true,
+        can_edit_clients: true,
+        can_delete_orders: true,
+        can_create_services: false,
+        is_master_mechanic: false,
+        requires_approval: false,
+        can_view_approved_orders: true,
+        created_at: "2025-12-18T05:35:31.240309+00:00",
+        updated_at: "2025-12-18T05:35:31.240309+00:00",
+    },
+    {
+        id: "d1b5a85e-f745-4155-aeaf-2bf1dcff9a3a",
+        email: "maciel77@gmail.com",
+        password_hash: "admin123",
+        full_name: "Maciel Hernandez hernandez",
+        phone: "9921135725",
+        role: "mechanic",
+        commission_percentage: 100,
+        is_active: true,
+        can_create_appointments: true,
+        can_send_messages: true,
+        can_create_clients: true,
+        can_edit_clients: true,
+        can_delete_orders: true,
+        can_create_services: true,
+        is_master_mechanic: true,
+        requires_approval: false,
+        can_view_approved_orders: true,
+        created_at: "2025-12-22T23:43:27.506972+00:00",
+        updated_at: "2025-12-22T23:43:27.506972+00:00",
+    },
+];
+
+const clients = [
+    { id: "bd79e818-79d9-4f6f-8d8a-601b7f6b9143", phone: "9921122822", full_name: "Carlos morales", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-24T14:39:37.228933+00:00" },
+    { id: "daeff24e-5697-4d2f-a5aa-5937a4d8f2fc", phone: "9921135361", full_name: "Jose antonio", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-26T14:34:35.588401+00:00" },
+    { id: "43a0e14c-9744-488e-84e6-3ea8c7674b55", phone: "9619343262", full_name: "Itzayana", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-18T20:19:00.065789+00:00" },
+    { id: "f38e68c3-273f-4d7f-9b60-7f28fc818436", phone: "9631691575", full_name: "Jose ferrer", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-18T21:35:14.956094+00:00" },
+    { id: "4ef31bbf-383a-4291-a793-17c2c5251b6c", phone: "9921078236", full_name: "David galdamez", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-19T14:57:00.032353+00:00" },
+    { id: "3684e468-2a6c-4d7a-9434-380250155b28", phone: "9921112334", full_name: "Jose antonio", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-19T16:27:20.783434+00:00" },
+    { id: "5e737e53-0f74-4e18-ac11-dbe18536b1ef", phone: "9921113309", full_name: "Marco antonio", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-19T17:58:40.560006+00:00" },
+    { id: "c256d47e-0050-495d-b42b-ca03c8095936", phone: "9632727840", full_name: "Kevin guillermo", email: "", notes: "", created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-19T18:44:01.860388+00:00" },
+    { id: "96da3bc3-fcac-4961-af19-bf66f5ce3d61", phone: "9921396670", full_name: "Mario de la torre", email: "", notes: "", created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-20T14:25:41.082086+00:00" },
+    { id: "1bb0cae5-c2d1-47a3-b87d-253bcf3bb741", phone: "9921093764", full_name: "Jorge", email: "", notes: "", created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-22T17:59:48.12329+00:00" },
+    { id: "758580d7-b5bb-48f5-ac87-7c84af82147b", phone: "9921154045", full_name: "Hugo coutiño", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-22T18:01:52.021577+00:00" },
+    { id: "da0e0d5f-5cd6-4f3a-9264-55b215235d88", phone: "9921000425", full_name: "Juan Carlos", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-28T15:14:19.888679+00:00" },
+    { id: "800829cc-bc2e-45c0-853e-ada69829f68a", phone: "9921423374", full_name: "Fredi garcia ft180", email: null, notes: "Moto con consumo de aceite", created_by: null, created_at: "2025-12-20T16:54:37.813671+00:00" },
+    { id: "c56542e1-404c-45e1-a5b0-27ea380379b1", phone: "9612251242", full_name: "David Alfonso", email: null, notes: null, created_by: null, created_at: "2025-12-20T17:35:27.103324+00:00" },
+    { id: "cadd2867-8951-469b-82cd-dd1c0b9e1aad", phone: "9921149293", full_name: "Juan oneyber", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-31T16:56:33.811433+00:00" },
+    { id: "02b9e172-7bd3-4e61-9841-5bb9bc99a6a6", phone: "9611074762", full_name: "Oscar velasquez", email: "", notes: "", created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-23T18:02:52.213794+00:00" },
+    { id: "e9e505bb-46b2-4698-8a26-3b6d1eb11f3a", phone: "9921003109", full_name: "Sergio Coutiño", email: null, notes: null, created_by: "d1b5a85e-f745-4155-aeaf-2bf1dcff9a3a", created_at: "2025-12-23T20:35:58.505342+00:00" },
+    { id: "31c68515-4c3e-4802-a5f3-cea2dbdfc275", phone: "9611084293", full_name: "Librado hernandez", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-24T17:08:18.510517+00:00" },
+    { id: "dab80ab4-738c-455e-801c-251e8e3af17c", phone: "9615798269", full_name: "Edgar gordillo", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-29T15:08:42.652171+00:00" },
+    { id: "d290445d-d873-4be5-9ff1-5b7b63932fb5", phone: "9631344202", full_name: "Armando najera", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-29T18:33:40.052135+00:00" },
+    { id: "db2ed7e9-270d-44c5-bf0a-ddfcb0372748", phone: "9612703858", full_name: "Silmar", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-30T15:08:15.534924+00:00" },
+    { id: "f02413e4-b0ee-4126-8941-2a7c8471df04", phone: "9921188395", full_name: "Alejandro martines", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-30T15:34:28.467277+00:00" },
+    { id: "aefed9e0-a0c9-4bb2-8ccb-0da5b70746d2", phone: "9921198367", full_name: "Erik ocampo", email: "", notes: "", created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2025-12-30T18:19:45.087972+00:00" },
+    { id: "6f0eefe6-36f5-4ced-b432-712592a797aa", phone: "5656183575", full_name: "Gonsalo martines.", email: "", notes: "", created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-02T18:26:11.418875+00:00" },
+    { id: "ea6addab-b582-406c-9382-235132e83a46", phone: "9926995032", full_name: "Dario", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-03T18:21:56.88916+00:00" },
+    { id: "1c6a8f98-4340-4310-b3e4-1411eb1bdb78", phone: "9612033133", full_name: "Ana maria", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-03T18:27:02.795064+00:00" },
+    { id: "151cd55e-977c-41e6-9d56-b2edd9e479d8", phone: "9631457983", full_name: "Luis gerardo", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-06T14:22:57.407923+00:00" },
+    { id: "e8058553-69b8-4a07-820b-661ef0d9335f", phone: "9926906724", full_name: "Edilsar reyes", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-08T15:26:54.466596+00:00" },
+    { id: "fb0341bf-df89-4584-aa5c-ae930adde03a", phone: "9921217982", full_name: "Angel", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-08T16:20:44.237494+00:00" },
+    { id: "a1e08a96-7ba9-40a6-a5b6-7935e758d59f", phone: "9612346026", full_name: "Bulmaro", email: "", notes: "", created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-12T17:48:52.521122+00:00" },
+    { id: "0a0fa5e3-0c28-436e-ae1a-bb597b0faa1d", phone: "9619195568", full_name: "Jose alfredo", email: "", notes: "", created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-16T16:52:32.845449+00:00" },
+    { id: "f97366ac-48ad-45f2-a79a-ea8165c0c2e9", phone: "9921386215", full_name: "Sarai Vazquez", email: null, notes: null, created_by: "d1b5a85e-f745-4155-aeaf-2bf1dcff9a3a", created_at: "2026-01-16T17:25:34.984844+00:00" },
+    { id: "5c2d8a3b-9770-42d9-b385-002fa194b1fa", phone: "9921406449", full_name: "Ivan garcia", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-19T18:44:17.676284+00:00" },
+    { id: "b951c08f-d46d-497f-8db2-9ffaf1225d34", phone: "8443116692", full_name: "Manuel sanchez", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-19T20:05:17.144776+00:00" },
+    { id: "7d0827cb-e06a-40fd-8b97-a0227d024256", phone: "9921126900", full_name: "Carlos calvo", email: "", notes: "", created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-01-19T16:22:16.561726+00:00" },
+    { id: "f21707df-c174-4cb0-a8dc-22f09a9c3ecf", phone: "9921026457", full_name: "Luis Aguilar", email: null, notes: null, created_by: "d1b5a85e-f745-4155-aeaf-2bf1dcff9a3a", created_at: "2026-01-20T17:23:54.85139+00:00" },
+    { id: "6a3577bb-2b50-4b83-b138-451206b880f3", phone: "9612709989", full_name: "Ana Claudia Martínez Espinosa", email: null, notes: null, created_by: "d1b5a85e-f745-4155-aeaf-2bf1dcff9a3a", created_at: "2026-01-23T19:10:41.437449+00:00" },
+    { id: "aedbdf23-fabb-45ac-aeac-38e0a94be8b4", phone: "9921155181", full_name: "Leonardo", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-02-03T16:02:58.638131+00:00" },
+    { id: "8faf88ad-b95c-4340-9b31-266d4c432e4c", phone: "9921488067", full_name: "Alexis", email: "", notes: "", created_by: "d1b5a85e-f745-4155-aeaf-2bf1dcff9a3a", created_at: "2026-02-04T18:04:19.041187+00:00" },
+    { id: "39f0b47c-8bcc-4bd4-b237-363c7d6067ba", phone: "9921003215", full_name: "Deysi", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-02-09T16:19:57.866562+00:00" },
+    { id: "64ae2b7b-bd12-48e3-8ef5-968f6694bc81", phone: "9632307844", full_name: "Alejandro", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-02-09T17:03:36.996359+00:00" },
+    { id: "18375679-2549-4376-a6cb-a6991b46644b", phone: "9926995102", full_name: "Guillermo vazquez", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-02-09T20:01:01.097317+00:00" },
+    { id: "08f06a2c-7b6c-403a-841a-378d208c72a5", phone: "9614583283", full_name: "Victor david", email: null, notes: null, created_by: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558", created_at: "2026-02-10T16:24:55.687352+00:00" },
+];
+
+// ============================================
+// MIGRACIÓN
+// ============================================
+
+async function migrate() {
+    console.log('🚀 Iniciando migración de datos desde Supabase...\n');
+
+    // 1. Seed de statuses (necesario antes de todo)
+    console.log('📋 Creando estados de orden...');
+    const statuses = [
+        { name: 'Registrada', color: '#06b6d4', display_order: 1, is_terminal: false },
+        { name: 'En Revisión', color: '#f59e0b', display_order: 2, is_terminal: false },
+        { name: 'En Proceso', color: '#3b82f6', display_order: 3, is_terminal: false },
+        { name: 'Esperando Refacciones', color: '#8b5cf6', display_order: 4, is_terminal: false },
+        { name: 'Lista para Entregar', color: '#22c55e', display_order: 5, is_terminal: false },
+        { name: 'Entregada', color: '#6b7280', display_order: 6, is_terminal: true },
+        { name: 'Cancelada', color: '#ef4444', display_order: 7, is_terminal: true },
+    ];
+    for (const s of statuses) {
+        await prisma.orderStatus.upsert({ where: { name: s.name }, update: s, create: s });
+    }
+    console.log('  ✅ 7 estados creados');
+
+    // 2. Seed de servicios
+    console.log('📋 Creando catálogo de servicios...');
+    const services = [
+        { name: 'Cambio de Aceite', base_price: 250, category: 'mantenimiento', display_order: 1 },
+        { name: 'Afinación', base_price: 800, category: 'motor', display_order: 2 },
+        { name: 'Frenos', base_price: 400, category: 'frenos', display_order: 3 },
+        { name: 'Sistema Eléctrico', base_price: 600, category: 'electrico', display_order: 4 },
+        { name: 'Suspensión', base_price: 500, category: 'suspension', display_order: 5 },
+        { name: 'Diagnóstico General', base_price: 150, category: 'general', display_order: 6 },
+        { name: 'Lavado y Engrasado', base_price: 200, category: 'mantenimiento', display_order: 7 },
+    ];
+    for (const s of services) {
+        const existing = await prisma.service.findFirst({ where: { name: s.name } });
+        if (!existing) await prisma.service.create({ data: s });
+    }
+    console.log('  ✅ 7 servicios creados');
+
+    // 3. Migrar perfiles (usuarios)
+    console.log('\n👤 Migrando perfiles...');
+    let profileCount = 0;
+    for (const p of profiles) {
+        try {
+            await prisma.profile.upsert({
+                where: { id: p.id },
+                update: {
+                    email: p.email,
+                    password_hash: p.password_hash,
+                    full_name: p.full_name,
+                    phone: p.phone,
+                    role: p.role,
+                    commission_percentage: p.commission_percentage,
+                    is_active: p.is_active,
+                    can_create_appointments: p.can_create_appointments,
+                    can_send_messages: p.can_send_messages,
+                    can_create_clients: p.can_create_clients,
+                    can_edit_clients: p.can_edit_clients,
+                    can_delete_orders: p.can_delete_orders,
+                    can_create_services: p.can_create_services,
+                    is_master_mechanic: p.is_master_mechanic,
+                    requires_approval: p.requires_approval,
+                    can_view_approved_orders: p.can_view_approved_orders,
+                },
+                create: {
+                    id: p.id,
+                    email: p.email,
+                    password_hash: p.password_hash,
+                    full_name: p.full_name,
+                    phone: p.phone,
+                    role: p.role,
+                    commission_percentage: p.commission_percentage,
+                    is_active: p.is_active,
+                    can_create_appointments: p.can_create_appointments,
+                    can_send_messages: p.can_send_messages,
+                    can_create_clients: p.can_create_clients,
+                    can_edit_clients: p.can_edit_clients,
+                    can_delete_orders: p.can_delete_orders,
+                    can_create_services: p.can_create_services,
+                    is_master_mechanic: p.is_master_mechanic,
+                    requires_approval: p.requires_approval,
+                    can_view_approved_orders: p.can_view_approved_orders,
+                    created_at: new Date(p.created_at),
+                    updated_at: new Date(p.updated_at),
+                },
+            });
+            profileCount++;
+            console.log(`  ✅ ${p.full_name} (${p.role})`);
+        } catch (err) {
+            console.error(`  ❌ ${p.full_name}: ${err.message}`);
+        }
+    }
+    console.log(`\n  📊 ${profileCount}/${profiles.length} perfiles migrados\n`);
+
+    // 4. Migrar clientes
+    console.log('👥 Migrando clientes...');
+    let clientCount = 0;
+    for (const c of clients) {
+        try {
+            await prisma.client.upsert({
+                where: { id: c.id },
+                update: {
+                    phone: c.phone,
+                    full_name: c.full_name,
+                    email: c.email || null,
+                    notes: c.notes || null,
+                    created_by: c.created_by,
+                },
+                create: {
+                    id: c.id,
+                    phone: c.phone,
+                    full_name: c.full_name,
+                    email: c.email || null,
+                    notes: c.notes || null,
+                    created_by: c.created_by,
+                    created_at: new Date(c.created_at),
+                },
+            });
+            clientCount++;
+        } catch (err) {
+            console.error(`  ❌ ${c.full_name}: ${err.message}`);
+        }
+    }
+    console.log(`  ✅ ${clientCount}/${clients.length} clientes migrados\n`);
+
+    // Summary
+    console.log('='.repeat(50));
+    console.log('🎉 MIGRACIÓN COMPLETADA');
+    console.log('='.repeat(50));
+    console.log(`  Perfiles:  ${profileCount}`);
+    console.log(`  Clientes:  ${clientCount}`);
+    console.log(`  Estados:   7`);
+    console.log(`  Servicios: 7`);
+    console.log('');
+    console.log('⚠️  Las contraseñas son legacy (texto plano).');
+    console.log('    Se convertirán a bcrypt automáticamente en el primer login.');
+}
+
+migrate()
+    .catch((e) => { console.error('❌ Error fatal:', e); process.exit(1); })
+    .finally(() => prisma.$disconnect());
