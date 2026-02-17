@@ -231,6 +231,7 @@ export { default as AuxiliaryDashboard } from './AuxiliaryDashboard';
 export { default as MyRequests } from './MyRequests';
 export { default as AuxiliaryPayments } from './AuxiliaryPayments';
 export { default as AuxiliaryOrders } from './AuxiliaryOrders';
+export { default as WhatsAppConnect } from './WhatsAppConnect';
 
 // Componente placeholder
 function PlaceholderPage({ title, subtitle }) {

@@ -36,7 +36,8 @@ import {
   AuxiliaryDashboard,
   MyRequests,
   AuxiliaryPayments,
-  AuxiliaryOrders
+  AuxiliaryOrders,
+  WhatsAppConnect
 } from './pages/mechanic/index.jsx';
 
 // Public Pages
@@ -153,6 +154,7 @@ function AppRoutes() {
         <Route path="my-requests" element={<MyRequests />} />
         <Route path="my-payments" element={<AuxiliaryPayments />} />
         <Route path="auxiliary/:id/orders" element={<AuxiliaryOrders />} />
+        <Route path="whatsapp" element={<WhatsAppConnect />} />
       </Route>
 
       {/* Portal público para clientes (sin auth) */}

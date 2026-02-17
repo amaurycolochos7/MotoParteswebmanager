@@ -70,7 +70,8 @@ export default function AppLayout() {
         baseMechanicNavItems.push(
             { section: 'Maestro' },
             { to: '/mechanic/requests', icon: Crown, label: 'Solicitudes' },
-            { to: '/mechanic/auxiliaries', icon: Users, label: 'Mis Auxiliares' }
+            { to: '/mechanic/auxiliaries', icon: Users, label: 'Mis Auxiliares' },
+            { to: '/mechanic/whatsapp', icon: MessageSquare, label: 'Conectar Bot' }
         );
     }
 
