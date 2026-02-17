@@ -12,16 +12,14 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
-COPY package*.json ./
-COPY prisma ./prisma/ 
+# Copy from apps/whatsapp-bot/ (context is repo root)
+COPY apps/whatsapp-bot/package*.json ./
+COPY apps/whatsapp-bot/prisma ./prisma/
 
-RUN npm ci --omit=dev 2>/dev/null || npm install --omit=dev
+RUN npm ci --omit=dev
 RUN npx prisma generate
 
-COPY src ./src/
-
-# Create auth dir for session persistence (mounted as volume)
-RUN mkdir -p .wwebjs_auth
+COPY apps/whatsapp-bot/src ./src/
 
 EXPOSE 3001
 
