@@ -12,15 +12,16 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
-# Copy from apps/whatsapp-bot/ (context is repo root)
+# Copy from repo root context (dockerContextPath: .)
 COPY apps/whatsapp-bot/package*.json ./
 COPY apps/whatsapp-bot/prisma ./prisma/
 
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 RUN npx prisma generate
 
 COPY apps/whatsapp-bot/src ./src/
 
-EXPOSE 3001
+EXPOSE 3001 3002
 
 CMD ["node", "src/index.js"]
+

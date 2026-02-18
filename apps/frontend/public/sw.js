@@ -21,13 +21,19 @@ self.addEventListener('install', (event) => {
 
 // Fetch event
 self.addEventListener('fetch', (event) => {
+    const url = new URL(event.request.url);
+
+    // SKIP API requests — let them go directly to the Vite proxy / backend
+    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/api')) {
+        return;
+    }
+
     // Para navegación (HTML), usar Network First
     if (event.request.mode === 'navigate' ||
-        (event.request.method === 'GET' && event.request.headers.get('accept').includes('text/html'))) {
+        (event.request.method === 'GET' && event.request.headers.get('accept')?.includes('text/html'))) {
         event.respondWith(
             fetch(event.request)
                 .then(response => {
-                    // Opcional: actualizar caché con la versión más reciente
                     const copy = response.clone();
                     caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
                     return response;
@@ -42,15 +48,14 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
         caches.match(event.request)
             .then((response) => {
-                // Return cache or fetch from network
                 return response || fetch(event.request);
             })
             .catch(() => {
-                // Si la red falla y no hay caché para activos (como JS hashed), 
-                // para evitar pantalla blanca, podríamos intentar servir el index.html
                 if (event.request.destination === 'script' || event.request.destination === 'style') {
                     console.log('Resource fetch failed, might be offline or old hash');
                 }
+                // Return a proper error response instead of undefined
+                return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
             })
     );
 });
