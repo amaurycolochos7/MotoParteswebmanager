@@ -203,6 +203,13 @@ export default function WhatsAppConnect() {
 
                 .loading-state {
                     color: var(--text-secondary);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: var(--spacing-md);
+                    height: 100%;
+                    min-height: 200px;
                 }
 
                 .connected-state {

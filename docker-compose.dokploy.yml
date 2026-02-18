@@ -50,7 +50,7 @@ services:
       API_KEY: ${API_KEY:-motopartes-whatsapp-key}
       PORT: 3002
       # Puppeteer config for Docker
-      PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome-stable
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
     volumes:
       - whatsapp_sessions:/app/.wwebjs_auth
     depends_on:
