@@ -62,7 +62,7 @@ services:
       - motopartes-network
     # Bot is internal only, expose if debugging needed
     ports:
-      - "3002:3002"
+      - "3011:3002"
 
 volumes:
   postgres_data:

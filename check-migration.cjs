@@ -2,10 +2,9 @@ const { Client } = require('ssh2');
 const c = new Client();
 c.on('ready', () => {
     console.log('Connected');
-    const id = 'ad5f4816afb1';
-    c.exec(`docker exec ${id} ls -la /app/scripts/`, (err, stream) => {
+    const dbId = '475b3426cc79';
+    c.exec(`docker exec ${dbId} psql -U motopartes -d motopartes -c "SELECT count(*) FROM profiles; SELECT count(*) FROM clients; SELECT count(*) FROM motorcycles;"`, (err, stream) => {
         stream.pipe(process.stdout);
-        stream.stderr.pipe(process.stderr);
         stream.on('close', () => c.end());
     });
 });

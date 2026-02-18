@@ -9,7 +9,7 @@ c.on('ready', () => {
     });
 
     // 2. Check netstat
-    c.exec('netstat -tulpn | grep 3002', (err, stream) => {
+    c.exec('netstat -tulpn | grep 5435', (err, stream) => {
         stream.pipe(process.stdout);
         stream.on('close', () => c.end());
     });
