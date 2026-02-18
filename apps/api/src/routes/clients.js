@@ -33,18 +33,27 @@ export default async function clientsRoutes(fastify) {
     });
 
     // POST /api/clients
-    fastify.post('/', async (request) => {
-        const data = request.body;
-        return prisma.client.create({
-            data: {
-                phone: data.phone,
-                full_name: data.full_name,
-                email: data.email || null,
-                notes: data.notes || null,
-                created_by: request.user.id
-            },
-            include: { motorcycles: true }
-        });
+    fastify.post('/', async (request, reply) => {
+        try {
+            const data = request.body;
+            const client = await prisma.client.create({
+                data: {
+                    phone: data.phone,
+                    full_name: data.full_name,
+                    email: data.email || null,
+                    notes: data.notes || null,
+                    created_by: request.user.id
+                },
+                include: { motorcycles: true }
+            });
+            return client;
+        } catch (error) {
+            request.log.error(error);
+            if (error.code === 'P2002') {
+                return reply.status(409).send({ error: 'El teléfono ya está registrado' });
+            }
+            return reply.status(500).send({ error: 'Error al crear cliente', details: error.message });
+        }
     });
 
     // PUT /api/clients/:id

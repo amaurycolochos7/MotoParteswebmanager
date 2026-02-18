@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { whatsappBotService } from '../../lib/api';
-import { QRCodeSVG } from 'qrcode.react';
+// QR image comes as base64 data URL from the bot API
 import {
     Smartphone,
     RefreshCw,
@@ -25,9 +25,9 @@ export default function WhatsAppConnect() {
         return () => stopPolling();
     }, []);
 
-    // Start polling when in QR mode
+    // Start polling when waiting for QR or status update
     useEffect(() => {
-        if (status === 'qr' || status === 'loading') {
+        if (status === 'qr' || status === 'loading' || status === 'disconnected') {
             startPolling();
         } else {
             stopPolling();
@@ -81,9 +81,9 @@ export default function WhatsAppConnect() {
     };
 
     const handleRestartSession = async () => {
-        // This functionality might need a backend endpoint to force restart/logout
-        // For now, we just reload the status
         setStatus('loading');
+        // Force logout/destroy session to start fresh
+        await whatsappBotService.logoutSession(user.id);
         checkStatus();
     };
 
@@ -129,6 +129,10 @@ export default function WhatsAppConnect() {
                                     <span className="value">{sessionData?.platform || 'Web'}</span>
                                 </div>
                             </div>
+
+                            <button className="btn btn-danger mt-lg gap-sm" onClick={handleRestartSession}>
+                                <LogOut size={18} /> Cerrar Sesión
+                            </button>
                         </div>
                     )}
 
@@ -144,7 +148,7 @@ export default function WhatsAppConnect() {
                             </div>
 
                             <div className="qr-container">
-                                <QRCodeSVG value={qrCode} size={256} level="L" includeMargin={true} />
+                                <img src={qrCode} alt="WhatsApp QR Code" style={{ width: 256, height: 256 }} />
                             </div>
 
                             <p className="qr-refresh-hint">

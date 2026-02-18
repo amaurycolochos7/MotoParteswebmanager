@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-motopartes}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - motopartes-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5435:5432"
+
+  api:
+    image: motopartes-api
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-motopartes}
+      JWT_SECRET: ${JWT_SECRET:-supersecretkey}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:5174,https://motopartes.com}
+      PORT: 3000
+    ports:
+      - "3010:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - motopartes-network
+
+  whatsapp-bot:
+    image: motopartes-whatsapp-bot
+    build:
+      context: ./apps/whatsapp-bot
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-motopartes}
+      API_KEY: ${API_KEY:-motopartes-whatsapp-key}
+      PORT: 3002
+      # Puppeteer config for Docker
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome-stable
+    volumes:
+      - whatsapp_sessions:/app/.wwebjs_auth
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+    networks:
+      - motopartes-network
+    # Bot is internal only, expose if debugging needed
+    ports:
+      - "3002:3002"
+
+volumes:
+  postgres_data:
+  whatsapp_sessions:
+
+networks:
+  motopartes-network:
+    driver: bridge

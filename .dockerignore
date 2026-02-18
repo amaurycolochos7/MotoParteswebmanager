@@ -1,0 +1,10 @@
+node_modules
+.git
+.env
+.DS_Store
+dist
+coverage
+npm-debug.log
+yarn-error.log
+apps/*/node_modules
+apps/*/.wwebjs_auth

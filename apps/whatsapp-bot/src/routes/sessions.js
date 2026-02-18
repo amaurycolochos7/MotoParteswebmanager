@@ -48,7 +48,10 @@ router.get('/:mechanicId/qr', async (req, res) => {
 router.post('/:mechanicId/start', async (req, res) => {
     const sessionManager = req.app.get('sessionManager');
     try {
-        await sessionManager.startSession(req.params.mechanicId);
+        // Fire-and-forget: start initialization in background, respond immediately
+        sessionManager.startSession(req.params.mechanicId).catch(err => {
+            console.error(`❌ Background session start failed for ${req.params.mechanicId}:`, err.message);
+        });
         res.json({ success: true, message: 'Session starting...' });
     } catch (err) {
         res.status(500).json({ error: err.message });

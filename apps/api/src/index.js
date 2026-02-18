@@ -22,7 +22,16 @@ const fastify = Fastify({ logger: true });
 
 // Plugins
 await fastify.register(cors, {
-  origin: true,
+  origin: (origin, cb) => {
+    const allowedOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : [];
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error('Not allowed by CORS'));
+  },
   credentials: true
 });
 
@@ -58,3 +67,5 @@ try {
   fastify.log.error(err);
   process.exit(1);
 }
+
+// Forces restart for config reload

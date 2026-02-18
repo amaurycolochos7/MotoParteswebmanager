@@ -5,6 +5,7 @@
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 const WA_BOT_URL = import.meta.env.VITE_WHATSAPP_BOT_URL || '/api/whatsapp-bot';
+const WA_BOT_KEY = import.meta.env.VITE_WHATSAPP_BOT_KEY || 'motopartes-whatsapp-key';
 
 // Token management
 let authToken = localStorage.getItem('motopartes_token');
@@ -773,7 +774,11 @@ export const paymentRequestsService = {
 // WhatsApp Bot Client (for sending)
 // =============================================
 async function waBotFetch(path, options = {}) {
-    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    const headers = {
+        'Content-Type': 'application/json',
+        'x-api-key': WA_BOT_KEY,
+        ...options.headers
+    };
     const res = await fetch(`${WA_BOT_URL}${path}`, { ...options, headers });
     return res;
 }
@@ -799,13 +804,6 @@ export const whatsappBotService = {
             const res = await waBotFetch(`/sessions/${mechanicId}/qr`);
             return res.ok ? res.json() : { qr: null };
         } catch { return { qr: null }; }
-    },
-
-    async startSession(mechanicId) {
-        try {
-            const res = await waBotFetch(`/sessions/${mechanicId}/start`, { method: 'POST' });
-            return res.ok;
-        } catch { return false; }
     },
 
     async startSession(mechanicId) {

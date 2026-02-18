@@ -18,11 +18,11 @@ export default function AdminMechanicOrders() {
             try {
                 setLoading(true);
                 // 1. Obtener datos del mecánico
-                const mechanicData = await authService.getProfile(id);
+                const { data: mechanicData } = await authService.getProfile(id);
                 setMechanic(mechanicData);
 
                 // 2. Obtener TODAS las órdenes (Historial completo)
-                const history = await ordersService.getByMechanic(id);
+                const { data: history } = await ordersService.getByMechanic(id);
                 setOrders(history || []);
             } catch (error) {
                 console.error('Error loading mechanic history:', error);

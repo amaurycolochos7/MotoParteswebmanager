@@ -17,8 +17,13 @@ export default async function motorcyclesRoutes(fastify) {
     });
 
     // POST /api/motorcycles
-    fastify.post('/', async (request) => {
-        return prisma.motorcycle.create({ data: request.body });
+    fastify.post('/', async (request, reply) => {
+        try {
+            return await prisma.motorcycle.create({ data: request.body });
+        } catch (error) {
+            request.log.error(error);
+            return reply.status(500).send({ error: 'Error al crear motocicleta', details: error.message });
+        }
     });
 
     // PUT /api/motorcycles/:id

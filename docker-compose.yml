@@ -2,6 +2,8 @@ services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    ports:
+      - "5434:5432"
     environment:
       POSTGRES_DB: motopartes
       POSTGRES_USER: motopartes
@@ -31,7 +33,9 @@ services:
       retries: 3
 
   whatsapp-bot:
-    build: ./apps/whatsapp-bot
+    build:
+      context: ./apps/whatsapp-bot
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -41,9 +45,9 @@ services:
     environment:
       DATABASE_URL: postgresql://motopartes:${DB_PASSWORD:-MotoPartes2026!}@postgres:5432/motopartes
       API_KEY: ${WHATSAPP_API_KEY:-motopartes-whatsapp-key}
-      PORT: 3001
+      PORT: 3002
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3002/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 3

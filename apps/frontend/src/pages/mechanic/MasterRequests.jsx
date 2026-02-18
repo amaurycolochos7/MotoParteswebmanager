@@ -43,8 +43,12 @@ export default function MasterRequests() {
 
     const loadRequests = async () => {
         try {
-            const data = await orderRequestsService.getPendingForMaster(user?.id);
-            setRequests(data || []);
+            const { data, error } = await orderRequestsService.getPendingForMaster(user?.id);
+            if (error) {
+                console.error('Error loading requests:', error);
+                toast.error('Error al cargar solicitudes');
+            }
+            setRequests(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error loading requests:', error);
             toast.error('Error al cargar solicitudes');

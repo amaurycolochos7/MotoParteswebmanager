@@ -28,7 +28,7 @@ export default function AdminMechanics() {
     const loadUsers = async () => {
         try {
             setLoading(true);
-            const users = await authService.getAllUsers();
+            const { data: users } = await authService.getAllUsers();
             setAllUsers(users || []);
         } catch (error) {
             console.error('Error loading users:', error);

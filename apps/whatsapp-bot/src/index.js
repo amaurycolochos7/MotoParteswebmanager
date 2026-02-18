@@ -8,8 +8,42 @@ import messagesRouter from './routes/messages.js';
 
 const app = express();
 const prisma = new PrismaClient();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
+// Initialize SessionManager
+const sessionManager = new SessionManager(prisma);
+
+// ─── Graceful Shutdown ─────────────────────────────────────────
+let isShuttingDown = false;
+
+async function shutdown(code = 0) {
+    if (isShuttingDown) return; // evitar doble shutdown
+    isShuttingDown = true;
+    console.log('\n🛑 Shutting down, destroying all WhatsApp sessions...');
+    try {
+        await sessionManager.destroyAll();
+    } catch (e) {
+        console.error('Error during session cleanup:', e);
+    }
+    try {
+        await prisma.$disconnect();
+    } catch (e) { /* ignore */ }
+    console.log('👋 Bye.');
+    process.exit(code);
+}
+
+process.on('SIGINT', () => shutdown(0));
+process.on('SIGTERM', () => shutdown(0));
+process.on('uncaughtException', async (err) => {
+    console.error('💥 Uncaught Exception:', err);
+    await shutdown(1);
+});
+process.on('unhandledRejection', async (reason, p) => {
+    console.error('💥 Unhandled Rejection at:', p, 'reason:', reason);
+    await shutdown(1);
+});
+
+// ─── Express Setup ─────────────────────────────────────────────
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: '10mb' }));
 
@@ -23,9 +57,6 @@ app.use('/api', (req, res, next) => {
     if (host === 'localhost' || host === 'whatsapp-bot' || host === '127.0.0.1') return next();
     return res.status(401).json({ error: 'API key requerida' });
 });
-
-// Initialize SessionManager
-const sessionManager = new SessionManager(prisma);
 
 // Make sessionManager available to routes
 app.set('sessionManager', sessionManager);
@@ -47,7 +78,7 @@ app.get('/health', (req, res) => {
 });
 
 // Start
-app.listen(PORT, '0.0.0.0', async () => {
+const server = app.listen(PORT, '0.0.0.0', async () => {
     console.log(`📱 WhatsApp Bot running on port ${PORT}`);
     // Restore persisted sessions on boot
     try {
@@ -63,4 +94,8 @@ app.listen(PORT, '0.0.0.0', async () => {
     } catch (err) {
         console.error('Error restoring sessions:', err.message);
     }
+});
+
+server.on('error', (err) => {
+    console.error('Server error:', err);
 });
