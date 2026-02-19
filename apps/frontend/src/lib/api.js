@@ -32,7 +32,7 @@ async function apiFetch(path, options = {}) {
 
     const res = await fetch(`${API_URL}${path}`, { ...options, headers });
 
-    if (res.status === 401) {
+    if (res.status === 401 && !path.includes('/auth/login')) {
         setToken(null);
         window.location.href = '/login';
         throw new Error('Sesión expirada');
