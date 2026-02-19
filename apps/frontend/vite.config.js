@@ -17,7 +17,7 @@ export default defineConfig({
     ],
     proxy: {
       '/api/whatsapp-bot': {
-        target: VPS_BOT,
+        target: 'http://187.77.11.79:3001',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/whatsapp-bot/, '/api'),
       },

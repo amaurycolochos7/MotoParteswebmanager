@@ -8,7 +8,7 @@ import messagesRouter from './routes/messages.js';
 
 const app = express();
 const prisma = new PrismaClient();
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3001;
 
 // Initialize SessionManager
 const sessionManager = new SessionManager(prisma);
