@@ -49,7 +49,9 @@ app.use(express.json({ limit: '10mb' }));
 
 // API Key middleware
 const API_KEY = process.env.API_KEY || 'motopartes-whatsapp-key';
-app.use('/api', (req, res, next) => {
+app.use((req, res, next) => {
+    // Skip auth for health check
+    if (req.path === '/health') return next();
     const key = req.headers['x-api-key'];
     if (key && key === API_KEY) return next();
     // Also allow if coming from internal network (docker)
@@ -63,8 +65,9 @@ app.set('sessionManager', sessionManager);
 app.set('prisma', prisma);
 
 // Routes
-app.use('/api/sessions', sessionsRouter);
-app.use('/api', messagesRouter);
+// Traefik strips /api/whatsapp-bot prefix, so routes are at root level
+app.use('/sessions', sessionsRouter);
+app.use('/', messagesRouter);
 
 // Health check
 app.get('/health', (req, res) => {
