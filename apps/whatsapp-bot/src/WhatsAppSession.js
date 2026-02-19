@@ -130,12 +130,7 @@ class WhatsAppSession extends EventEmitter {
             console.error(`❌ Error initializing client for ${this.mechanicId}:`, err.message);
             console.error(err.stack);
             this.isConnected = false;
-
-            // Write error to file for debugging
-            try {
-                const fs = await import('fs');
-                fs.writeFileSync('error.log', `Error: ${err.message}\nStack: ${err.stack}`);
-            } catch (e) { console.error('Failed to write error log', e); }
+            this.lastError = err.message;
 
         } finally {
             this.initializing = false; // siempre liberar el mutex
