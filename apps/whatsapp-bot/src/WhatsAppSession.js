@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { EventEmitter } from 'events';
 import pkg from 'whatsapp-web.js';
@@ -53,27 +54,64 @@ class WhatsAppSession extends EventEmitter {
         }
 
         this.initializing = true;
+        this.lastError = null;
         console.log(`🔧 Initializing WhatsApp client for mechanic ${this.mechanicId}...`);
 
+        // Verify Chromium binary exists
+        const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium';
+        console.log(`🔍 Chrome path: ${chromePath}`);
         try {
+            fs.accessSync(chromePath, fs.constants.X_OK);
+            console.log(`✅ Chrome binary exists and is executable`);
+        } catch (e) {
+            // Try alternative paths
+            const alternatives = ['/usr/bin/chromium-browser', '/usr/bin/google-chrome', '/usr/bin/chromium'];
+            let found = false;
+            for (const alt of alternatives) {
+                try {
+                    fs.accessSync(alt, fs.constants.X_OK);
+                    console.log(`✅ Found Chrome at: ${alt}`);
+                    process.env.PUPPETEER_EXECUTABLE_PATH = alt;
+                    found = true;
+                    break;
+                } catch (e2) { /* skip */ }
+            }
+            if (!found) {
+                this.lastError = `Chrome binary not found at ${chromePath} or alternatives`;
+                console.error(`❌ ${this.lastError}`);
+                this.initializing = false;
+                return;
+            }
+        }
+
+        const dataPath = sessionsPath();
+        console.log(`📂 Session data path: ${dataPath}`);
+
+        try {
+            console.log(`📱 Step 1: Creating Client instance...`);
             this.client = new Client({
                 authStrategy: new LocalAuth({
                     clientId: String(this.mechanicId),
-                    dataPath: sessionsPath(),
+                    dataPath: dataPath,
                 }),
 
                 puppeteer: {
                     headless: true,
-                    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+                    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || chromePath,
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
                         '--disable-dev-shm-usage',
                         '--disable-gpu',
                         '--disable-extensions',
+                        '--disable-software-rasterizer',
+                        '--no-first-run',
+                        '--no-zygote',
+                        '--single-process',
                     ],
                 },
             });
+            console.log(`✅ Step 1 done: Client created`);
 
             // Sanity check
             if (!this.client || typeof this.client.on !== 'function') {
@@ -118,13 +156,25 @@ class WhatsAppSession extends EventEmitter {
             // Auth failure
             this.client.on('auth_failure', (msg) => {
                 this.isConnected = false;
+                this.lastError = `Auth failure: ${msg}`;
                 console.error(`❌ Auth failure for mechanic ${this.mechanicId}:`, msg);
                 this.emit('disconnected', 'auth_failure');
             });
 
-            console.log(`🚀 Launching Puppeteer for mechanic ${this.mechanicId}...`);
+            console.log(`🚀 Step 2: Launching Puppeteer for mechanic ${this.mechanicId}...`);
+
+            // Add 60 second timeout for initialization
+            const initTimeout = setTimeout(() => {
+                if (this.initializing && !this.isConnected && !this.lastQr) {
+                    this.lastError = 'Initialization timed out after 60s (no QR, no connection)';
+                    console.error(`❌ ${this.lastError}`);
+                    this.initializing = false;
+                }
+            }, 60000);
+
             await this.client.initialize();
-            console.log(`✅ Client initialized for mechanic ${this.mechanicId}`);
+            clearTimeout(initTimeout);
+            console.log(`✅ Step 2 done: Client initialized for mechanic ${this.mechanicId}`);
 
         } catch (err) {
             console.error(`❌ Error initializing client for ${this.mechanicId}:`, err.message);
