@@ -14,7 +14,11 @@ const origError = console.error;
 const origWarn = console.warn;
 
 function captureLog(level, args) {
-    const msg = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+    const msg = args.map(a => {
+        if (typeof a === 'string') return a;
+        if (a instanceof Error) return `${a.name}: ${a.message}\n${a.stack}`;
+        try { return JSON.stringify(a); } catch { return String(a); }
+    }).join(' ');
     logBuffer.push({ t: new Date().toISOString(), l: level, m: msg });
     if (logBuffer.length > LOG_BUFFER_SIZE) logBuffer.shift();
 }

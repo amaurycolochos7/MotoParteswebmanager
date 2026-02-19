@@ -57,30 +57,33 @@ class WhatsAppSession extends EventEmitter {
         this.lastError = null;
         console.log(`🔧 Initializing WhatsApp client for mechanic ${this.mechanicId}...`);
 
-        // Verify Chromium binary exists
-        const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium';
-        console.log(`🔍 Chrome path: ${chromePath}`);
-        try {
-            fs.accessSync(chromePath, fs.constants.X_OK);
-            console.log(`✅ Chrome binary exists and is executable`);
-        } catch (e) {
-            // Try alternative paths
-            const alternatives = ['/usr/bin/chromium-browser', '/usr/bin/google-chrome', '/usr/bin/chromium'];
-            let found = false;
-            for (const alt of alternatives) {
-                try {
-                    fs.accessSync(alt, fs.constants.X_OK);
-                    console.log(`✅ Found Chrome at: ${alt}`);
-                    process.env.PUPPETEER_EXECUTABLE_PATH = alt;
-                    found = true;
-                    break;
-                } catch (e2) { /* skip */ }
+        // Detect Chrome binary
+        let chromePath = process.env.PUPPETEER_EXECUTABLE_PATH || null;
+
+        if (chromePath) {
+            console.log(`🔍 Using env Chrome path: ${chromePath}`);
+            try {
+                fs.accessSync(chromePath, fs.constants.X_OK);
+                console.log(`✅ Chrome binary exists and is executable`);
+            } catch (e) {
+                console.warn(`⚠️ Env Chrome path not found: ${chromePath}, letting Puppeteer use its default`);
+                chromePath = null;
             }
-            if (!found) {
-                this.lastError = `Chrome binary not found at ${chromePath} or alternatives`;
-                console.error(`❌ ${this.lastError}`);
-                this.initializing = false;
-                return;
+        }
+
+        if (!chromePath) {
+            // Check system paths as fallback
+            const systemPaths = ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome'];
+            for (const sp of systemPaths) {
+                try {
+                    fs.accessSync(sp, fs.constants.X_OK);
+                    console.log(`✅ Found system Chrome at: ${sp}`);
+                    chromePath = sp;
+                    break;
+                } catch { /* skip */ }
+            }
+            if (!chromePath) {
+                console.log(`📦 No system Chrome found, Puppeteer will use its bundled Chrome`);
             }
         }
 
@@ -97,7 +100,8 @@ class WhatsAppSession extends EventEmitter {
 
                 puppeteer: {
                     headless: true,
-                    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || chromePath,
+                    ...(chromePath ? { executablePath: chromePath } : {}),
+                    timeout: 90000, // 90 seconds to launch
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
@@ -105,9 +109,8 @@ class WhatsAppSession extends EventEmitter {
                         '--disable-gpu',
                         '--disable-extensions',
                         '--disable-software-rasterizer',
+                        '--disable-accelerated-2d-canvas',
                         '--no-first-run',
-                        '--no-zygote',
-                        '--single-process',
                     ],
                 },
             });
