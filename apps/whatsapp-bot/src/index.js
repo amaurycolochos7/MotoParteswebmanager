@@ -6,6 +6,23 @@ import SessionManager from './SessionManager.js';
 import sessionsRouter from './routes/sessions.js';
 import messagesRouter from './routes/messages.js';
 
+// ─── In-memory log buffer for diagnostics ──────────────────────
+const LOG_BUFFER_SIZE = 200;
+const logBuffer = [];
+const origLog = console.log;
+const origError = console.error;
+const origWarn = console.warn;
+
+function captureLog(level, args) {
+    const msg = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+    logBuffer.push({ t: new Date().toISOString(), l: level, m: msg });
+    if (logBuffer.length > LOG_BUFFER_SIZE) logBuffer.shift();
+}
+
+console.log = (...args) => { captureLog('LOG', args); origLog.apply(console, args); };
+console.error = (...args) => { captureLog('ERR', args); origError.apply(console, args); };
+console.warn = (...args) => { captureLog('WRN', args); origWarn.apply(console, args); };
+
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
@@ -50,8 +67,8 @@ app.use(express.json({ limit: '10mb' }));
 // API Key middleware
 const API_KEY = process.env.API_KEY || 'motopartes-whatsapp-key';
 app.use((req, res, next) => {
-    // Skip auth for health check
-    if (req.path === '/health') return next();
+    // Skip auth for health check and debug
+    if (req.path === '/health' || req.path === '/debug') return next();
     const key = req.headers['x-api-key'];
     if (key && key === API_KEY) return next();
     // Also allow if coming from internal network (docker)
@@ -77,6 +94,24 @@ app.get('/health', (req, res) => {
         service: 'motopartes-whatsapp-bot',
         activeSessions: sessions.filter(s => s.isConnected).length,
         totalSessions: sessions.length
+    });
+});
+
+// Debug endpoint - exposes captured logs
+app.get('/debug', (req, res) => {
+    const sessions = sessionManager.getAllSessions();
+    res.json({
+        uptime: process.uptime(),
+        memoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+        nodeVersion: process.version,
+        env: {
+            PUPPETEER_EXECUTABLE_PATH: process.env.PUPPETEER_EXECUTABLE_PATH || 'not set',
+            WWEBJS_DATA_PATH: process.env.WWEBJS_DATA_PATH || 'not set',
+            NODE_ENV: process.env.NODE_ENV || 'not set',
+            PORT: process.env.PORT || 'not set',
+        },
+        sessions,
+        logs: logBuffer.slice(-50),
     });
 });
 
