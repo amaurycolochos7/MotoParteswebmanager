@@ -5,6 +5,7 @@ class SessionManager {
         this.prisma = prisma;
         this.sessions = new Map();      // mechanicId → WhatsAppSession
         this._initPromises = new Map(); // mechanicId → Promise (lock por sesión)
+        this._lastErrors = new Map();   // mechanicId → last error message
     }
 
     /**
@@ -54,6 +55,9 @@ class SessionManager {
             }
         }
 
+        // Clear previous error
+        this._lastErrors.delete(mechanicId);
+
         const session = new WhatsAppSession(mechanicId, this.prisma);
         // CRITICAL: set en el Map ANTES de initialize() para que otros requests lo vean
         this.sessions.set(mechanicId, session);
@@ -81,7 +85,12 @@ class SessionManager {
         });
 
         // Initialize WhatsApp client
-        await session.initialize();
+        try {
+            await session.initialize();
+        } catch (err) {
+            console.error(`❌ Session init failed for ${mechanicId}:`, err.message);
+            this._lastErrors.set(mechanicId, err.message);
+        }
         return session;
     }
 
@@ -134,6 +143,7 @@ class SessionManager {
                 initializing: session.initializing,
                 qr: session.lastQr,
                 phoneNumber: session.phoneNumber,
+                lastError: this._lastErrors.get(mechanicId) || null,
             });
         }
         return result;
