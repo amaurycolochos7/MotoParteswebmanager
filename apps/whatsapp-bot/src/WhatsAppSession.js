@@ -248,8 +248,33 @@ class WhatsAppSession extends EventEmitter {
 
         // Format phone: ensure it has country code and @c.us
         const formatted = this._formatPhone(phone);
-        const result = await this.client.sendMessage(formatted, message);
-        return { success: true, messageId: result.id._serialized };
+        console.log(`📤 Sending message to ${formatted}...`);
+
+        try {
+            // Use getNumberId to resolve the WhatsApp ID properly (fixes "No LID" error)
+            const numberId = await this.client.getNumberId(formatted.replace('@c.us', ''));
+            if (numberId) {
+                console.log(`✅ Number resolved: ${numberId._serialized}`);
+                const result = await this.client.sendMessage(numberId._serialized, message);
+                return { success: true, messageId: result.id._serialized };
+            } else {
+                console.warn(`⚠️ Number ${formatted} is not registered on WhatsApp`);
+                throw new Error(`El número ${phone} no está registrado en WhatsApp`);
+            }
+        } catch (err) {
+            // If getNumberId fails, try direct send as fallback
+            if (err.message && err.message.includes('no está registrado')) {
+                throw err;
+            }
+            console.warn(`⚠️ getNumberId failed, trying direct send: ${err.message}`);
+            try {
+                const result = await this.client.sendMessage(formatted, message);
+                return { success: true, messageId: result.id._serialized };
+            } catch (directErr) {
+                console.error(`❌ Direct send also failed: ${directErr.message}`);
+                throw directErr;
+            }
+        }
     }
 
     async sendMedia(phone, message, mediaUrl) {

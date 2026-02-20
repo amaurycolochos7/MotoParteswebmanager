@@ -27,6 +27,8 @@ export default async function whatsappBotProxy(fastify) {
             const targetPath = request.url.replace(/^\/api\/whatsapp-bot/, '') || '/';
             const targetUrl = `${BOT_URL}${targetPath}`;
 
+            fastify.log.info(`[WA-Proxy] ${request.method} ${request.url} → ${targetUrl}`);
+
             try {
                 const fetchHeaders = {
                     'content-type': 'application/json',
@@ -43,18 +45,23 @@ export default async function whatsappBotProxy(fastify) {
                     fetchOptions.body = typeof request.body === 'string'
                         ? request.body
                         : JSON.stringify(request.body);
+                    fastify.log.info(`[WA-Proxy] Body: ${fetchOptions.body?.substring(0, 200)}`);
                 }
 
                 const response = await fetch(targetUrl, fetchOptions);
                 const contentType = response.headers.get('content-type') || 'application/json';
                 const data = await response.text();
 
+                if (!response.ok) {
+                    fastify.log.error(`[WA-Proxy] Bot returned ${response.status}: ${data.substring(0, 500)}`);
+                }
+
                 reply
                     .code(response.status)
                     .header('content-type', contentType)
                     .send(data);
             } catch (err) {
-                fastify.log.error(`WhatsApp Bot proxy error: ${err.message}`);
+                fastify.log.error(`[WA-Proxy] Fetch error: ${err.message}`);
                 reply.code(502).send(JSON.stringify({ error: 'WhatsApp Bot service unavailable', details: err.message }));
             }
         }
