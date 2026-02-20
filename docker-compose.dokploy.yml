@@ -29,7 +29,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-motopartes}
       JWT_SECRET: ${JWT_SECRET:-supersecretkey}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:5174,https://motopartes.com}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:5174,https://motopartes.com,https://motopartes.cloud,http://motopartes.cloud}
       PORT: 3000
     ports:
       - "3010:3000"
@@ -42,31 +42,28 @@ services:
   whatsapp-bot:
     image: motopartes-whatsapp-bot
     build:
-      context: ./apps/whatsapp-bot
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/whatsapp-bot/Dockerfile
     restart: always
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-motopartes}
       API_KEY: ${API_KEY:-motopartes-whatsapp-key}
       PORT: 3002
-      # Puppeteer config for Docker
-      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
     volumes:
-      - whatsapp_sessions:/app/.wwebjs_auth
+      # CRITICAL: Persist session data across deploys
+      # Mount the parent /app/data so wwebjs_auth folder persists
+      - whatsapp_data:/app/data
     depends_on:
       postgres:
         condition: service_healthy
-      api:
-        condition: service_started
     networks:
       - motopartes-network
-    # Bot is internal only, expose if debugging needed
     ports:
       - "3011:3002"
 
 volumes:
   postgres_data:
-  whatsapp_sessions:
+  whatsapp_data:
 
 networks:
   motopartes-network:
