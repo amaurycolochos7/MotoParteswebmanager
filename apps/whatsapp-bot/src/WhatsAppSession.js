@@ -90,6 +90,21 @@ class WhatsAppSession extends EventEmitter {
         const dataPath = sessionsPath();
         console.log(`📂 Session data path: ${dataPath}`);
 
+        this._qrCount = 0; // Track QR regeneration attempts
+
+        // Clean stale session data before creating new client
+        // This prevents corrupted session data from causing auth failures after container restarts
+        const sessionDir = path.join(dataPath, `session-${this.mechanicId}`);
+        if (fs.existsSync(sessionDir)) {
+            console.log(`🗑️ Cleaning stale session data before fresh init: ${sessionDir}`);
+            try {
+                fs.rmSync(sessionDir, { recursive: true, force: true });
+                console.log(`✅ Stale session data cleaned`);
+            } catch (cleanErr) {
+                console.warn(`⚠️ Could not clean stale session data:`, cleanErr.message);
+            }
+        }
+
         try {
             console.log(`📱 Step 1: Creating Client instance...`);
             this.client = new Client({
@@ -98,10 +113,27 @@ class WhatsAppSession extends EventEmitter {
                     dataPath: dataPath,
                 }),
 
+                // Disable version caching — let WhatsApp Web serve its current version directly.
+                // The patch-wwebjs.cjs disables the broken ocVersion Error override that
+                // prevents modern WA Web from loading. With the patch applied, 'none' cache
+                // type is the most reliable approach.
+                webVersionCache: {
+                    type: 'none',
+                },
+
+                // Give WhatsApp Web more time to load in Docker (default 30s is too short)
+                authTimeoutMs: 120000,
+                qrMaxRetries: 5, // Limit QR regeneration attempts
+                // Bypass CSP to allow script injection
+                bypassCSP: true,
+                // CRITICAL: Override the outdated Chrome/101 default user agent.
+                // WhatsApp Web refuses to serve its JS app to old Chrome versions (serves 1365-byte empty shell instead).
+                userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+
                 puppeteer: {
-                    headless: true,
+                    headless: 'new', // CRITICAL: 'new' mode is undetectable; old 'true' mode is blocked by WhatsApp
                     ...(chromePath ? { executablePath: chromePath } : {}),
-                    timeout: 90000, // 90 seconds to launch
+                    timeout: 120000, // 120 seconds to launch
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
@@ -121,12 +153,19 @@ class WhatsAppSession extends EventEmitter {
                 throw new Error('Client instance is broken (missing .on)');
             }
 
-            // QR Event
+            // QR Event - track regeneration count
             this.client.on('qr', (qr) => {
-                console.log(`📱 QR generated for mechanic ${this.mechanicId}`);
+                this._qrCount++;
+                console.log(`📱 QR generated for mechanic ${this.mechanicId} (attempt ${this._qrCount})`);
                 this.lastQr = qr;
                 this.isConnected = false;
                 this.emit('qr', qr);
+
+                // If too many QR regenerations, something is wrong
+                if (this._qrCount >= 10) {
+                    console.error(`❌ Too many QR regenerations (${this._qrCount}) for ${this.mechanicId} - possible version mismatch`);
+                    this.lastError = 'Demasiados intentos de QR. El código QR se está regenerando muy rápido. Intenta cerrar sesión y volver a conectar.';
+                }
             });
 
             // Authenticated
@@ -156,34 +195,46 @@ class WhatsAppSession extends EventEmitter {
                 this.emit('disconnected', reason);
             });
 
-            // Auth failure
-            this.client.on('auth_failure', (msg) => {
+            // Auth failure - log detailed info and clean up stale session data
+            this.client.on('auth_failure', async (msg) => {
                 this.isConnected = false;
-                this.lastError = `Auth failure: ${msg}`;
+                this.lastError = `Error de autenticación: ${msg}. Intenta cerrar sesión y vincular de nuevo.`;
                 console.error(`❌ Auth failure for mechanic ${this.mechanicId}:`, msg);
+                console.error(`   QR attempts before failure: ${this._qrCount}`);
+
+                // Clean up stale session data to allow fresh pairing
+                try {
+                    const sessionDir = path.join(dataPath, `session-${this.mechanicId}`);
+                    if (fs.existsSync(sessionDir)) {
+                        console.log(`🗑️ Cleaning stale session data: ${sessionDir}`);
+                        fs.rmSync(sessionDir, { recursive: true, force: true });
+                    }
+                } catch (cleanErr) {
+                    console.error(`⚠️ Could not clean session data:`, cleanErr.message);
+                }
+
                 this.emit('disconnected', 'auth_failure');
             });
 
             console.log(`🚀 Step 2: Launching Puppeteer for mechanic ${this.mechanicId}...`);
 
-            // Add 60 second timeout for initialization
-            const initTimeout = setTimeout(() => {
-                if (this.initializing && !this.isConnected && !this.lastQr) {
-                    this.lastError = 'Initialization timed out after 60s (no QR, no connection)';
-                    console.error(`❌ ${this.lastError}`);
-                    this.initializing = false;
-                }
-            }, 60000);
-
-            await this.client.initialize();
-            clearTimeout(initTimeout);
+            // Initialize with a 120-second timeout that actually cancels the hung call
+            await Promise.race([
+                this.client.initialize(),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('client.initialize() timed out after 120s')), 120000)
+                ),
+            ]);
             console.log(`✅ Step 2 done: Client initialized for mechanic ${this.mechanicId}`);
 
         } catch (err) {
-            console.error(`❌ Error initializing client for ${this.mechanicId}:`, err.message);
-            console.error(err.stack);
+            const errMsg = err instanceof Error ? err.message : String(err || 'Unknown error');
+            const errStack = err instanceof Error ? err.stack : new Error().stack;
+            console.error(`❌ Error initializing client for ${this.mechanicId}:`, errMsg);
+            console.error('Full error object:', JSON.stringify(err, Object.getOwnPropertyNames(err || {}), 2));
+            console.error(errStack);
             this.isConnected = false;
-            this.lastError = err.message;
+            this.lastError = errMsg;
 
         } finally {
             this.initializing = false; // siempre liberar el mutex
