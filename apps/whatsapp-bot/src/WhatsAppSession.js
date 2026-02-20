@@ -92,17 +92,14 @@ class WhatsAppSession extends EventEmitter {
 
         this._qrCount = 0; // Track QR regeneration attempts
 
-        // Clean stale session data before creating new client
-        // This prevents corrupted session data from causing auth failures after container restarts
+        // Session data is preserved for persistence across deploys.
+        // The Docker named volume (whatsapp_data) survives container rebuilds.
+        // Cleanup only happens on explicit auth_failure events (see below).
         const sessionDir = path.join(dataPath, `session-${this.mechanicId}`);
         if (fs.existsSync(sessionDir)) {
-            console.log(`🗑️ Cleaning stale session data before fresh init: ${sessionDir}`);
-            try {
-                fs.rmSync(sessionDir, { recursive: true, force: true });
-                console.log(`✅ Stale session data cleaned`);
-            } catch (cleanErr) {
-                console.warn(`⚠️ Could not clean stale session data:`, cleanErr.message);
-            }
+            console.log(`📂 Found existing session data at: ${sessionDir} — reusing for persistence`);
+        } else {
+            console.log(`📂 No existing session data — will need QR scan`);
         }
 
         try {
@@ -181,6 +178,9 @@ class WhatsAppSession extends EventEmitter {
                 this.lastQr = null;
                 const info = this.client.info;
                 this.phoneNumber = info?.wid?.user || null;
+                this.pushname = info?.pushname || null;
+                this.platform = info?.platform || 'Web';
+                console.log(`📱 Connected as: ${this.pushname} (${this.phoneNumber}) on ${this.platform}`);
                 this.emit('ready');
 
                 // Start heartbeat

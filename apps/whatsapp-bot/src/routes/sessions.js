@@ -22,6 +22,8 @@ router.get('/:mechanicId/status', (req, res) => {
         exists: true,
         isConnected: session.isConnected,
         phoneNumber: session.phoneNumber,
+        pushname: session.pushname || null,
+        platform: session.platform || 'Web',
         qr: session.lastQr ? true : false, // Don't send raw QR string
     });
 });
