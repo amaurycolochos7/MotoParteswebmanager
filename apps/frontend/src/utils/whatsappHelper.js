@@ -14,10 +14,7 @@ import { whatsappBotService } from '../lib/api';
  * @param {string} message - Mensaje a enviar
  * @returns {Promise<{success: boolean, automated: boolean, error?: string}>}
  */
-export const sendDirectMessage = async (mechanicId, phone, message) => {
-    if (!mechanicId) {
-        return { success: false, automated: false, error: 'No hay sesión de mecánico activa' };
-    }
+export const sendDirectMessage = async (mechanicId, phone, message, orderId = null) => {
     if (!phone) {
         return { success: false, automated: false, error: 'El cliente no tiene número de teléfono registrado' };
     }
@@ -26,28 +23,40 @@ export const sendDirectMessage = async (mechanicId, phone, message) => {
     }
 
     try {
-        // Verificar que el bot esté conectado antes de intentar enviar
-        const status = await whatsappBotService.getSessionStatus(mechanicId);
-
-        if (!status.isConnected) {
-            return {
-                success: false,
-                automated: false,
-                error: 'El bot de WhatsApp no está activo. Conéctalo desde la sección WhatsApp antes de enviar notificaciones.'
-            };
+        // Intento 1: enviar con la sesión del mecánico directamente
+        if (mechanicId) {
+            const status = await whatsappBotService.getSessionStatus(mechanicId);
+            if (status.isConnected) {
+                const result = await whatsappBotService.sendMessage(mechanicId, phone, message);
+                if (result.success) {
+                    return { success: true, automated: true };
+                }
+            }
         }
 
-        // Enviar via bot — totalmente automático
-        const result = await whatsappBotService.sendMessage(mechanicId, phone, message);
+        // Intento 2: si hay orderId, usar sendForOrder (busca la sesión correcta automáticamente)
+        if (orderId) {
+            const result = await whatsappBotService.sendForOrder(orderId, phone, message);
+            if (result.success) {
+                return { success: true, automated: true };
+            }
+        }
 
-        if (result.success) {
-            return { success: true, automated: true };
+        // Intento 3: buscar cualquier sesión activa del bot
+        const sessions = await whatsappBotService.getBotSessions();
+        const activeSessions = (Array.isArray(sessions) ? sessions : []).filter(s => s.isConnected);
+
+        if (activeSessions.length > 0) {
+            const result = await whatsappBotService.sendMessage(activeSessions[0].mechanicId, phone, message);
+            if (result.success) {
+                return { success: true, automated: true };
+            }
         }
 
         return {
             success: false,
             automated: false,
-            error: 'No se pudo enviar el mensaje. Verifica que el bot esté conectado.'
+            error: 'El bot de WhatsApp no está activo. Conéctalo desde la sección WhatsApp antes de enviar notificaciones.'
         };
     } catch (err) {
         console.error('[WhatsApp] Error al enviar mensaje directo:', err);
@@ -194,6 +203,188 @@ export const getDeliveryNotificationMessage = (clientName, motorcycle, orderNumb
         ``,
         `_Motopartes — Tu taller de confianza_ 🔧✨`,
     ].join('\n');
+};
+
+/**
+ * Mensaje genérico de cambio de estado — despacha al template correcto
+ * @param {string} statusName - Nombre del nuevo estado
+ * @param {object} data - { clientName, motorcycle, orderNumber, trackingLink, totalAmount, services }
+ */
+export const getStatusChangeMessage = (statusName, data) => {
+    const { clientName, motorcycle, orderNumber, trackingLink, totalAmount, services } = data;
+
+    switch (statusName) {
+        case 'Registrada':
+            return getOrderCreatedMessage(clientName, motorcycle, orderNumber, trackingLink);
+
+        case 'En Revisión':
+            return getInReviewMessage(clientName, motorcycle, orderNumber, trackingLink);
+
+        case 'En Reparación':
+            return getInRepairMessage(clientName, motorcycle, orderNumber, trackingLink);
+
+        case 'En Proceso':
+            return getInProgressMessage(clientName, motorcycle, orderNumber, trackingLink);
+
+        case 'Esperando Refacciones':
+            return getAwaitingPartsMessage(clientName, motorcycle, orderNumber, trackingLink);
+
+        case 'Lista para Entregar':
+            return getReadyForPickupMessage(clientName, motorcycle, orderNumber, totalAmount || 0);
+
+        case 'Entregada':
+            return getDeliveryNotificationMessage(clientName, motorcycle, orderNumber);
+
+        case 'Cancelada':
+            return getCancelledMessage(clientName, motorcycle, orderNumber);
+
+        default:
+            return getGenericStatusMessage(clientName, motorcycle, orderNumber, statusName, trackingLink);
+    }
+};
+
+/**
+ * Orden recién creada / registrada
+ */
+export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
+    return [
+        `Hola *${clientName}* 👋`,
+        ``,
+        `━━━━━━━━━━━━━━━━━━━━`,
+        `🏍️ *ORDEN ${orderNumber} — REGISTRADA*`,
+        `━━━━━━━━━━━━━━━━━━━━`,
+        ``,
+        `Tu motocicleta *${motorcycle}* fue recibida exitosamente en nuestro taller.`,
+        ``,
+        `Te estaremos informando por este medio cada novedad sobre tu servicio.`,
+        ``,
+        trackingLink ? `📱 *Sigue el proceso en tiempo real:*` : null,
+        trackingLink ? trackingLink : null,
+        trackingLink ? `` : null,
+        `_Gracias por confiar en *Motopartes*_ 🔧✨`,
+    ].filter(line => line !== null).join('\n');
+};
+
+/**
+ * Moto en revisión
+ */
+export const getInReviewMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
+    return [
+        `Hola *${clientName}* 👋`,
+        ``,
+        `━━━━━━━━━━━━━━━━━━━━`,
+        `🔍 *ORDEN ${orderNumber} — EN REVISIÓN*`,
+        `━━━━━━━━━━━━━━━━━━━━`,
+        ``,
+        `Tu motocicleta *${motorcycle}* se encuentra actualmente *en revisión* por nuestro equipo técnico.`,
+        ``,
+        `Estamos evaluando tu moto para determinar los trabajos necesarios. Te mantendremos informado.`,
+        ``,
+        trackingLink ? `📱 *Seguimiento:* ${trackingLink}` : null,
+        ``,
+        `_Motopartes — Tu taller de confianza_ 🔧`,
+    ].filter(line => line !== null).join('\n');
+};
+
+/**
+ * Moto en reparación
+ */
+export const getInRepairMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
+    return [
+        `Hola *${clientName}* 🔧`,
+        ``,
+        `━━━━━━━━━━━━━━━━━━━━`,
+        `🛠️ *ORDEN ${orderNumber} — EN REPARACIÓN*`,
+        `━━━━━━━━━━━━━━━━━━━━`,
+        ``,
+        `¡Buenas noticias! Tu motocicleta *${motorcycle}* ya se encuentra *en reparación*.`,
+        ``,
+        `Nuestro equipo está trabajando para dejarte tu moto en las mejores condiciones.`,
+        ``,
+        trackingLink ? `📱 *Seguimiento:* ${trackingLink}` : null,
+        ``,
+        `_Motopartes — Tu taller de confianza_ 🔧`,
+    ].filter(line => line !== null).join('\n');
+};
+
+/**
+ * Moto en proceso
+ */
+export const getInProgressMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
+    return [
+        `Hola *${clientName}* ⚙️`,
+        ``,
+        `━━━━━━━━━━━━━━━━━━━━`,
+        `⚙️ *ORDEN ${orderNumber} — EN PROCESO*`,
+        `━━━━━━━━━━━━━━━━━━━━`,
+        ``,
+        `Tu motocicleta *${motorcycle}* sigue *en proceso* de servicio.`,
+        ``,
+        `Estamos avanzando con los trabajos programados. Te avisaremos cuando haya novedades.`,
+        ``,
+        trackingLink ? `📱 *Seguimiento:* ${trackingLink}` : null,
+        ``,
+        `_Motopartes — Tu taller de confianza_ 🔧`,
+    ].filter(line => line !== null).join('\n');
+};
+
+/**
+ * Esperando refacciones
+ */
+export const getAwaitingPartsMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
+    return [
+        `Hola *${clientName}* 📦`,
+        ``,
+        `━━━━━━━━━━━━━━━━━━━━`,
+        `📦 *ORDEN ${orderNumber} — ESPERANDO REFACCIONES*`,
+        `━━━━━━━━━━━━━━━━━━━━`,
+        ``,
+        `Te informamos que para continuar con el servicio de tu motocicleta *${motorcycle}*, requerimos *refacciones* que ya fueron solicitadas.`,
+        ``,
+        `En cuanto las tengamos disponibles, continuaremos con la reparación de inmediato.`,
+        ``,
+        trackingLink ? `📱 *Seguimiento:* ${trackingLink}` : null,
+        ``,
+        `_Motopartes — Tu taller de confianza_ 🔧`,
+    ].filter(line => line !== null).join('\n');
+};
+
+/**
+ * Orden cancelada
+ */
+export const getCancelledMessage = (clientName, motorcycle, orderNumber) => {
+    return [
+        `Hola *${clientName}*`,
+        ``,
+        `━━━━━━━━━━━━━━━━━━━━`,
+        `❌ *ORDEN ${orderNumber} — CANCELADA*`,
+        `━━━━━━━━━━━━━━━━━━━━`,
+        ``,
+        `La orden de servicio de tu motocicleta *${motorcycle}* ha sido *cancelada*.`,
+        ``,
+        `Si tienes alguna duda o requieres más información, no dudes en contactarnos.`,
+        ``,
+        `_Motopartes — Tu taller de confianza_ 🔧`,
+    ].join('\n');
+};
+
+/**
+ * Estado genérico (para estados no mapeados)
+ */
+export const getGenericStatusMessage = (clientName, motorcycle, orderNumber, statusName, trackingLink) => {
+    return [
+        `Hola *${clientName}* 📢`,
+        ``,
+        `━━━━━━━━━━━━━━━━━━━━`,
+        `🔔 *ORDEN ${orderNumber} — ${statusName.toUpperCase()}*`,
+        `━━━━━━━━━━━━━━━━━━━━`,
+        ``,
+        `Tu motocicleta *${motorcycle}* ha cambiado a estado: *${statusName}*.`,
+        ``,
+        trackingLink ? `📱 *Seguimiento:* ${trackingLink}` : null,
+        ``,
+        `_Motopartes — Tu taller de confianza_ 🔧`,
+    ].filter(line => line !== null).join('\n');
 };
 
 /**

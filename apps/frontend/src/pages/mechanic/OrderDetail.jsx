@@ -26,8 +26,7 @@ import { useData } from '../../context/DataContext';
 import { ordersService, authService } from '../../lib/api';
 import {
     getDetailedOrderMessage,
-    getReadyForPickupMessage,
-    getDeliveryNotificationMessage,
+    getStatusChangeMessage,
     sendDirectMessage
 } from '../../utils/whatsappHelper';
 import Toast from '../../components/ui/Toast';
@@ -181,48 +180,33 @@ export default function OrderDetail() {
         setShowStatusModal(false);
         setStatusNote('');
 
-        // Enviar notificación automática de WhatsApp via bot
-        if (newStatusName === 'Lista para Entregar' && oldStatus !== 'Lista para Entregar' && client?.phone) {
+        // Enviar notificación automática de WhatsApp via bot para TODOS los estados
+        if (newStatusName !== oldStatus && client?.phone) {
             try {
                 const servicesTotal = order.services.reduce((sum, svc) => sum + (svc.price || 0), 0);
                 const totalAmount = order.total_amount || servicesTotal;
+                const baseUrl = window.location.origin;
+                const trackingLink = order.client_link ? `${baseUrl}${order.client_link}` : null;
 
-                const message = getReadyForPickupMessage(
-                    client.full_name,
-                    `${motorcycle.brand} ${motorcycle.model}`,
-                    order.order_number,
-                    totalAmount
-                );
+                const message = getStatusChangeMessage(newStatusName, {
+                    clientName: client.full_name,
+                    motorcycle: `${motorcycle.brand} ${motorcycle.model}`,
+                    orderNumber: order.order_number,
+                    trackingLink,
+                    totalAmount,
+                    services: order.services
+                });
 
-                console.log('📤 Enviando notificación "Lista para Entregar" via bot...');
-                const result = await sendDirectMessage(user.id, client.phone, message);
+                console.log(`📤 Enviando notificación "${newStatusName}" via bot...`);
+                const result = await sendDirectMessage(user.id, client.phone, message, order.id);
 
                 if (result.success && result.automated) {
-                    showToast('✅ Cliente notificado por WhatsApp: Moto lista para recoger', 'success');
+                    showToast(`✅ Cliente notificado por WhatsApp: ${newStatusName}`, 'success');
                 } else if (!result.success) {
-                    showToast(`⚠️ ${result.error}`, 'warning');
+                    console.warn('⚠️ WhatsApp no enviado:', result.error);
                 }
             } catch (error) {
                 console.error('Error enviando notificación:', error);
-            }
-        } else if (newStatusName === 'Entregada' && oldStatus !== 'Entregada' && client?.phone) {
-            try {
-                const message = getDeliveryNotificationMessage(
-                    client.full_name,
-                    `${motorcycle.brand} ${motorcycle.model}`,
-                    order.order_number
-                );
-
-                console.log('📤 Enviando confirmación de entrega via bot...');
-                const result = await sendDirectMessage(user.id, client.phone, message);
-
-                if (result.success && result.automated) {
-                    showToast('✅ Cliente notificado por WhatsApp: Orden entregada', 'success');
-                } else if (!result.success) {
-                    showToast(`⚠️ ${result.error}`, 'warning');
-                }
-            } catch (error) {
-                console.error('Error enviando confirmación:', error);
             }
         }
     };
@@ -359,7 +343,7 @@ export default function OrderDetail() {
 
             // Enviar directo via bot — automático, sin abrir ventana
             console.log('📤 Enviando detalle de orden via bot...');
-            const result = await sendDirectMessage(user.id, client.phone, message);
+            const result = await sendDirectMessage(user.id, client.phone, message, order.id);
 
             if (result.success && result.automated) {
                 showToast('✅ Mensaje enviado por WhatsApp automáticamente', 'success');

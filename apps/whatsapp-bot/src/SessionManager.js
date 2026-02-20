@@ -112,12 +112,17 @@ class SessionManager {
     /**
      * Destruye TODAS las sesiones activas.
      * Se usa en shutdown limpio (SIGINT/SIGTERM).
+     * @param {boolean} keepDbState - Si true, NO marcar como desconectado en DB (para que se restauren al reiniciar)
      */
-    async destroyAll() {
-        console.log(`🛑 Destroying all ${this.sessions.size} session(s)...`);
+    async destroyAll(keepDbState = false) {
+        console.log(`🛑 Destroying all ${this.sessions.size} session(s)... (keepDbState=${keepDbState})`);
         const promises = [];
         for (const [id, session] of this.sessions) {
             console.log(`  🗑️ Destroying session ${id}...`);
+            // Prevent 'disconnected' event from updating DB if we want to preserve state
+            if (keepDbState) {
+                session.removeAllListeners('disconnected');
+            }
             promises.push(
                 session.destroy().catch(err => {
                     console.error(`  ❌ Error destroying session ${id}:`, err.message);

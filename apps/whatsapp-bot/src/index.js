@@ -42,7 +42,7 @@ async function shutdown(code = 0) {
     isShuttingDown = true;
     console.log('\n🛑 Shutting down, destroying all WhatsApp sessions...');
     try {
-        await sessionManager.destroyAll();
+        await sessionManager.destroyAll(true);
     } catch (e) {
         console.error('Error during session cleanup:', e);
     }

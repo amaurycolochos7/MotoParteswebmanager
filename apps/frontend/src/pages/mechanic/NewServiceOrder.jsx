@@ -31,6 +31,7 @@ import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
 import { saveOrderPhotos } from '../../services/photoStorageService';
 import { orderRequestsService } from '../../lib/api';
+import { sendDirectMessage, getOrderCreatedMessage } from '../../utils/whatsappHelper';
 
 const STEPS = [
     { id: 1, title: 'Cliente', icon: User },
@@ -722,6 +723,29 @@ export default function NewServiceOrder() {
                     advanceAmount: formData.advanceAmount
                 };
                 saveOrderPhotos(order.id, photoData);
+            }
+
+            // === AUTO WHATSAPP: Notificar al cliente que la orden fue registrada ===
+            try {
+                const orderPhone = clientPhone;
+                if (orderPhone) {
+                    const motoInfo = `${motoBrand} ${motoModel}`;
+                    const baseUrl = window.location.origin;
+                    const trackingLink = order.client_link ? `${baseUrl}${order.client_link}` : null;
+                    const waMessage = getOrderCreatedMessage(clientName, motoInfo, order.order_number, trackingLink);
+
+                    console.log('📤 Enviando notificación de orden creada via WhatsApp...');
+                    const waResult = await sendDirectMessage(user.id, orderPhone, waMessage, order.id);
+
+                    if (waResult.success && waResult.automated) {
+                        toast.success('✅ Cliente notificado por WhatsApp');
+                    } else {
+                        console.warn('⚠️ WhatsApp no enviado:', waResult.error);
+                    }
+                }
+            } catch (waError) {
+                console.error('Error enviando WhatsApp de orden creada:', waError);
+                // No bloquear la navegación por fallo de WhatsApp
             }
 
             navigate(`/mechanic/order/${order.id}`);
