@@ -469,4 +469,109 @@ export default async function migrateMotosRoute(fastify) {
             return reply.status(500).send({ status: 'error', message: err.message, logs });
         }
     });
+
+    // DELETE — clear ALL non-terminal orders (Por Atender) to start fresh
+    // Keeps: profiles, clients, motorcycles, services, order_statuses
+    // Deletes: orders + order_services + order_parts + mechanic_earnings for non-terminal orders
+    fastify.delete('/clear-pending', async (request, reply) => {
+        const logs = [];
+        const log = (msg) => { console.log(msg); logs.push(msg); };
+
+        try {
+            // Find non-terminal statuses
+            const nonTerminalStatuses = await prisma.orderStatus.findMany({
+                where: { is_terminal: false }
+            });
+            const nonTerminalIds = nonTerminalStatuses.map(s => s.id);
+            log(`📋 Non-terminal statuses: ${nonTerminalStatuses.map(s => s.name).join(', ')}`);
+
+            // Find orders with non-terminal statuses
+            const pendingOrders = await prisma.order.findMany({
+                where: { status_id: { in: nonTerminalIds } },
+                select: { id: true, order_number: true }
+            });
+            const pendingIds = pendingOrders.map(o => o.id);
+            log(`📦 Found ${pendingOrders.length} pending orders to clear`);
+
+            if (pendingIds.length === 0) {
+                return { status: 'ok', message: 'No pending orders to clear', logs };
+            }
+
+            // Delete related records first (FK constraints)
+            const delServices = await prisma.orderService.deleteMany({ where: { order_id: { in: pendingIds } } });
+            log(`🗑️ Deleted ${delServices.count} order_services`);
+
+            const delParts = await prisma.orderPart.deleteMany({ where: { order_id: { in: pendingIds } } });
+            log(`🗑️ Deleted ${delParts.count} order_parts`);
+
+            const delEarnings = await prisma.mechanicEarning.deleteMany({ where: { order_id: { in: pendingIds } } });
+            log(`🗑️ Deleted ${delEarnings.count} mechanic_earnings`);
+
+            // Try to delete order_photos if table exists
+            try {
+                const delPhotos = await prisma.orderPhoto.deleteMany({ where: { order_id: { in: pendingIds } } });
+                log(`🗑️ Deleted ${delPhotos.count} order_photos`);
+            } catch { log('ℹ️ No order_photos table or no records'); }
+
+            // Try to delete order_history if table exists
+            try {
+                const delHistory = await prisma.orderHistory.deleteMany({ where: { order_id: { in: pendingIds } } });
+                log(`🗑️ Deleted ${delHistory.count} order_history`);
+            } catch { log('ℹ️ No order_history table or no records'); }
+
+            // Now delete the orders themselves
+            const delOrders = await prisma.order.deleteMany({ where: { id: { in: pendingIds } } });
+            log(`🗑️ Deleted ${delOrders.count} orders`);
+
+            // Final counts
+            const remaining = await prisma.order.count();
+            log(`📊 Remaining orders in DB: ${remaining}`);
+
+            return {
+                status: 'completed',
+                deletedOrders: delOrders.count,
+                deletedServices: delServices.count,
+                deletedParts: delParts.count,
+                remainingOrders: remaining,
+                logs
+            };
+        } catch (err) {
+            log(`❌ ERROR: ${err.message}`);
+            return reply.status(500).send({ status: 'error', message: err.message, logs });
+        }
+    });
+
+    // DELETE — clear ALL orders (complete reset, keeps reference data)
+    fastify.delete('/clear-all-orders', async (request, reply) => {
+        const logs = [];
+        const log = (msg) => { console.log(msg); logs.push(msg); };
+
+        try {
+            // Delete all related records first
+            const delServices = await prisma.orderService.deleteMany({});
+            log(`🗑️ Deleted ${delServices.count} order_services`);
+
+            const delParts = await prisma.orderPart.deleteMany({});
+            log(`🗑️ Deleted ${delParts.count} order_parts`);
+
+            const delEarnings = await prisma.mechanicEarning.deleteMany({});
+            log(`🗑️ Deleted ${delEarnings.count} mechanic_earnings`);
+
+            try { const d = await prisma.orderPhoto.deleteMany({}); log(`🗑️ Deleted ${d.count} order_photos`); } catch { log('ℹ️ No order_photos'); }
+            try { const d = await prisma.orderHistory.deleteMany({}); log(`🗑️ Deleted ${d.count} order_history`); } catch { log('ℹ️ No order_history'); }
+
+            const delOrders = await prisma.order.deleteMany({});
+            log(`🗑️ Deleted ${delOrders.count} orders`);
+
+            return {
+                status: 'completed',
+                message: 'All orders cleared. Ready to start fresh.',
+                deletedOrders: delOrders.count,
+                logs
+            };
+        } catch (err) {
+            log(`❌ ERROR: ${err.message}`);
+            return reply.status(500).send({ status: 'error', message: err.message, logs });
+        }
+    });
 }

@@ -57,11 +57,15 @@ process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 process.on('uncaughtException', async (err) => {
     console.error('💥 Uncaught Exception:', err);
-    await shutdown(1);
+    // Only shutdown on truly fatal errors, not Puppeteer protocol errors
+    if (err.message && (err.message.includes('EADDRINUSE') || err.message.includes('out of memory'))) {
+        await shutdown(1);
+    }
+    // Otherwise log and continue — the bot should be resilient
 });
-process.on('unhandledRejection', async (reason, p) => {
-    console.error('💥 Unhandled Rejection at:', p, 'reason:', reason);
-    await shutdown(1);
+process.on('unhandledRejection', (reason, p) => {
+    // DO NOT crash — Puppeteer/Chrome protocol errors are common and recoverable
+    console.error('⚠️ Unhandled Rejection (non-fatal):', reason);
 });
 
 // ─── Express Setup ─────────────────────────────────────────────

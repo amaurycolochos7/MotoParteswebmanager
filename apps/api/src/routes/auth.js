@@ -6,45 +6,55 @@ import { authenticate } from '../middleware/auth.js';
 export default async function authRoutes(fastify) {
     // POST /api/auth/login
     fastify.post('/login', async (request, reply) => {
-        const { email, password } = request.body;
+        try {
+            const { email, password } = request.body;
 
-        if (!email || !password) {
-            return reply.status(400).send({ error: 'Email y contraseña requeridos' });
-        }
+            console.log(`[LOGIN_DEBUG] Attempting login for: ${email}`); // Log attempt
 
-        const user = await prisma.profile.findUnique({ where: { email } });
+            if (!email || !password) {
+                return reply.status(400).send({ error: 'Email y contraseña requeridos' });
+            }
 
-        if (!user || !user.is_active) {
-            return reply.status(401).send({ error: 'Credenciales inválidas' });
-        }
+            const user = await prisma.profile.findUnique({ where: { email } });
 
-        // Check password - support both plain text (legacy) and bcrypt
-        let validPassword = false;
-        if (user.password_hash) {
-            if (user.password_hash.startsWith('$2')) {
-                validPassword = await bcrypt.compare(password, user.password_hash);
-            } else {
-                // Legacy plain text comparison
-                validPassword = user.password_hash === password;
-                // Upgrade to bcrypt if plain text matches
-                if (validPassword) {
-                    const hashed = await bcrypt.hash(password, 10);
-                    await prisma.profile.update({
-                        where: { id: user.id },
-                        data: { password_hash: hashed }
-                    });
+            if (!user || !user.is_active) {
+                console.log(`[LOGIN_DEBUG] User not found or inactive: ${email}`);
+                return reply.status(401).send({ error: 'Credenciales inválidas' });
+            }
+
+            // Check password - support both plain text (legacy) and bcrypt
+            let validPassword = false;
+            if (user.password_hash) {
+                if (user.password_hash.startsWith('$2')) {
+                    validPassword = await bcrypt.compare(password, user.password_hash);
+                } else {
+                    // Legacy plain text comparison
+                    validPassword = user.password_hash === password;
+                    // Upgrade to bcrypt if plain text matches
+                    if (validPassword) {
+                        const hashed = await bcrypt.hash(password, 10);
+                        await prisma.profile.update({
+                            where: { id: user.id },
+                            data: { password_hash: hashed }
+                        });
+                    }
                 }
             }
+
+            if (!validPassword) {
+                console.log(`[LOGIN_DEBUG] Invalid password for: ${email}`);
+                return reply.status(401).send({ error: 'Credenciales inválidas' });
+            }
+
+            const token = generateToken(user);
+            const { password_hash, ...userData } = user;
+
+            console.log(`[LOGIN_DEBUG] Login success for: ${email}`);
+            return { user: userData, token };
+        } catch (error) {
+            console.error('[LOGIN_CRITICAL_ERROR]', error);
+            return reply.status(500).send({ error: 'Error interno del servidor', details: error.message });
         }
-
-        if (!validPassword) {
-            return reply.status(401).send({ error: 'Credenciales inválidas' });
-        }
-
-        const token = generateToken(user);
-        const { password_hash, ...userData } = user;
-
-        return { user: userData, token };
     });
 
     // GET /api/auth/profile/:id
