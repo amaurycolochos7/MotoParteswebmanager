@@ -26,7 +26,9 @@ import { useData } from '../../context/DataContext';
 import { ordersService, authService } from '../../lib/api';
 import {
     getDetailedOrderMessage,
-    sendViaWhatsApp
+    getReadyForPickupMessage,
+    getDeliveryNotificationMessage,
+    sendDirectMessage
 } from '../../utils/whatsappHelper';
 import Toast from '../../components/ui/Toast';
 import NoChatWarning from '../../components/ui/NoChatWarning';
@@ -179,10 +181,8 @@ export default function OrderDetail() {
         setShowStatusModal(false);
         setStatusNote('');
 
-        // Send automatic WhatsApp notification based on status
-        // "Lista para Entregar" = Ready for pickup (still needs to pay/pickup)
-        // "Entregada" = Delivered (thank you message)
-        if (newStatus === 'Lista para Entregar' && oldStatus !== 'Lista para Entregar') {
+        // Enviar notificación automática de WhatsApp via bot
+        if (newStatusName === 'Lista para Entregar' && oldStatus !== 'Lista para Entregar' && client?.phone) {
             try {
                 const servicesTotal = order.services.reduce((sum, svc) => sum + (svc.price || 0), 0);
                 const totalAmount = order.total_amount || servicesTotal;
@@ -194,17 +194,18 @@ export default function OrderDetail() {
                     totalAmount
                 );
 
-                console.log('📤 Enviando notificación de "Lista para Entregar"...');
-                const result = await sendAutomatedMessage(client.phone, message);
+                console.log('📤 Enviando notificación "Lista para Entregar" via bot...');
+                const result = await sendDirectMessage(user.id, client.phone, message);
 
                 if (result.success && result.automated) {
-                    console.log('✅ Notificación enviada exitosamente');
-                    showToast('✅ Cliente notificado: Moto lista para ser recogida', 'success');
+                    showToast('✅ Cliente notificado por WhatsApp: Moto lista para recoger', 'success');
+                } else if (!result.success) {
+                    showToast(`⚠️ ${result.error}`, 'warning');
                 }
             } catch (error) {
                 console.error('Error enviando notificación:', error);
             }
-        } else if (newStatus === 'Entregada' && oldStatus !== 'Entregada') {
+        } else if (newStatusName === 'Entregada' && oldStatus !== 'Entregada' && client?.phone) {
             try {
                 const message = getDeliveryNotificationMessage(
                     client.full_name,
@@ -212,12 +213,13 @@ export default function OrderDetail() {
                     order.order_number
                 );
 
-                console.log('📤 Enviando confirmación de entrega...');
-                const result = await sendAutomatedMessage(client.phone, message);
+                console.log('📤 Enviando confirmación de entrega via bot...');
+                const result = await sendDirectMessage(user.id, client.phone, message);
 
                 if (result.success && result.automated) {
-                    console.log('✅ Confirmación de entrega enviada exitosamente');
-                    showToast('✅ Cliente notificado: Orden entregada. Gracias por su preferencia.', 'success');
+                    showToast('✅ Cliente notificado por WhatsApp: Orden entregada', 'success');
+                } else if (!result.success) {
+                    showToast(`⚠️ ${result.error}`, 'warning');
                 }
             } catch (error) {
                 console.error('Error enviando confirmación:', error);
@@ -227,16 +229,7 @@ export default function OrderDetail() {
 
     const handleQuickStatusAdvance = async () => {
         if (nextStatus) {
-            const oldStatus = statusName;
-            updateOrderStatus(order.id, nextStatus.id, '');
-
-            // Send automatic WhatsApp notification via manual link if desired
-            // For now, removing automated message as per user request to avoid errors
-            /* 
-            if (nextStatus.name === 'Lista para Entregar' && oldStatus !== 'Lista para Entregar') {
-                 ... logic removed ...
-            }
-            */
+            await handleStatusChange(nextStatus.name);
         }
     };
 
@@ -311,6 +304,8 @@ export default function OrderDetail() {
             return;
         }
 
+        setSendingWhatsApp(true);
+
         try {
             const servicesTotal = order.services.reduce((sum, svc) => sum + (svc.price || 0), 0);
             const totalAmount = order.total_amount || servicesTotal;
@@ -322,17 +317,11 @@ export default function OrderDetail() {
                 : null;
 
             // Determinar contacto del mecánico responsable
-            // Si el usuario actual es auxiliar y la orden tiene approved_by, mostrar el número del maestro
             let contactInfo = null;
-
-            // Verificar si el usuario actual requiere aprobación (es auxiliar)
             const isAuxiliary = user?.requires_approval === true;
 
             if (isAuxiliary && order.approved_by) {
-                // Es una orden de mecánico auxiliar - buscar datos del supervisor
                 let supervisorData = order.supervisor;
-
-                // Si no tenemos los datos del supervisor, intentar buscarlos
                 if (!supervisorData && order.approved_by) {
                     try {
                         supervisorData = await authService.getProfile(order.approved_by);
@@ -340,7 +329,6 @@ export default function OrderDetail() {
                         console.log('No se pudo obtener datos del supervisor:', e);
                     }
                 }
-
                 if (supervisorData && supervisorData.phone) {
                     contactInfo = {
                         mechanicName: supervisorData.full_name,
@@ -349,7 +337,6 @@ export default function OrderDetail() {
                     };
                 }
             }
-            // Si es maestro, no mostrar número (solo "cualquier duda quedamos atentos")
 
             // Crear mensaje detallado con servicios y total
             const message = getDetailedOrderMessage(
@@ -370,19 +357,26 @@ export default function OrderDetail() {
                 contactInfo
             );
 
-            // Abrir WhatsApp directamente
-            sendViaWhatsApp(client.phone, message);
+            // Enviar directo via bot — automático, sin abrir ventana
+            console.log('📤 Enviando detalle de orden via bot...');
+            const result = await sendDirectMessage(user.id, client.phone, message);
 
-            showToast('Abriendo WhatsApp con el detalle de la orden...', 'success');
+            if (result.success && result.automated) {
+                showToast('✅ Mensaje enviado por WhatsApp automáticamente', 'success');
 
-            // Actualizar timestamp de envío
-            updateOrder(order.id, {
-                link_sent_at: new Date().toISOString()
-            });
+                // Actualizar timestamp de envío
+                updateOrder(order.id, {
+                    link_sent_at: new Date().toISOString()
+                });
+            } else {
+                showToast(`⚠️ ${result.error}`, 'warning');
+            }
 
         } catch (error) {
-            console.error('Error al abrir WhatsApp:', error);
+            console.error('Error al enviar WhatsApp:', error);
             showToast(`Error: ${error.message}`, 'error');
+        } finally {
+            setSendingWhatsApp(false);
         }
     };
 

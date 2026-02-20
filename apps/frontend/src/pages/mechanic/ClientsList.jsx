@@ -11,10 +11,12 @@ import {
     Bike,
     Edit2,
     Trash2,
-    AlertCircle
+    AlertCircle,
+    MessageCircle
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import WhatsAppSendModal from '../../components/ui/WhatsAppSendModal';
 
 export default function ClientsList() {
     const { user, isAdmin, canCreateClients, canEditClients } = useAuth();
@@ -29,6 +31,7 @@ export default function ClientsList() {
         notes: ''
     });
     const [motorcycles, setMotorcyclesForm] = useState([]);
+    const [waModalClient, setWaModalClient] = useState(null); // client for WhatsApp modal
 
     // Filter clients
     const filteredClients = useMemo(() => {
@@ -288,6 +291,15 @@ export default function ClientsList() {
                                 </div>
                                 {canEditClients() && (
                                     <div className="client-actions">
+                                        {client.phone && (
+                                            <button
+                                                className="btn-icon-small btn-whatsapp"
+                                                onClick={() => setWaModalClient(client)}
+                                                title="Enviar WhatsApp"
+                                            >
+                                                <MessageCircle size={18} />
+                                            </button>
+                                        )}
                                         <button
                                             className="btn-icon-small btn-edit"
                                             onClick={() => openEditModal(client)}
@@ -722,6 +734,16 @@ export default function ClientsList() {
           color: white;
         }
 
+        .btn-whatsapp {
+          background: rgba(37, 211, 102, 0.12);
+          color: #25D366;
+        }
+
+        .btn-whatsapp:hover {
+          background: #25D366;
+          color: white;
+        }
+
         .client-details {
           display: flex;
           flex-direction: column;
@@ -894,6 +916,14 @@ export default function ClientsList() {
           font-size: 0.875rem;
         }
       `}</style>
+
+            {/* WhatsApp Send Modal */}
+            <WhatsAppSendModal
+                isOpen={!!waModalClient}
+                onClose={() => setWaModalClient(null)}
+                phone={waModalClient?.phone || ''}
+                clientName={waModalClient?.full_name || ''}
+            />
         </div>
     );
 }
