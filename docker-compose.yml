@@ -43,8 +43,9 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      # CRITICAL: Use external volume so it survives `docker compose down -v` across deploys
-      - whatsapp_sessions:/app/data
+      # CRITICAL: Host bind mount — survives ANY Docker operation (compose down -v, prune, etc.)
+      # Directory created on server at /opt/whatsapp-sessions
+      - /opt/whatsapp-sessions:/app/data
     environment:
       DATABASE_URL: postgresql://motopartes:${DB_PASSWORD:-MotoPartes2026!}@postgres:5432/motopartes
       API_KEY: ${WHATSAPP_API_KEY:-motopartes-whatsapp-key}
@@ -59,7 +60,3 @@ services:
 
 volumes:
   postgres-data:
-  whatsapp_sessions:
-    # External volume: NOT managed by compose, survives `docker compose down -v`
-    # Must be created once: docker volume create whatsapp_sessions
-    external: true
