@@ -470,10 +470,10 @@ export default async function migrateMotosRoute(fastify) {
         }
     });
 
-    // DELETE — clear ALL non-terminal orders (Por Atender) to start fresh
+    // POST — clear ALL non-terminal orders (Por Atender) to start fresh
     // Keeps: profiles, clients, motorcycles, services, order_statuses
     // Deletes: orders + order_services + order_parts + mechanic_earnings for non-terminal orders
-    fastify.delete('/clear-pending', async (request, reply) => {
+    fastify.post('/clear-pending', async (request, reply) => {
         const logs = [];
         const log = (msg) => { console.log(msg); logs.push(msg); };
 
@@ -541,8 +541,8 @@ export default async function migrateMotosRoute(fastify) {
         }
     });
 
-    // DELETE — clear ALL orders (complete reset, keeps reference data)
-    fastify.delete('/clear-all-orders', async (request, reply) => {
+    // POST — clear ALL orders (complete reset, keeps reference data)
+    fastify.post('/clear-all-orders', async (request, reply) => {
         const logs = [];
         const log = (msg) => { console.log(msg); logs.push(msg); };
 
