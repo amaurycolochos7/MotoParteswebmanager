@@ -98,6 +98,20 @@ class WhatsAppSession extends EventEmitter {
         const sessionDir = path.join(dataPath, `session-${this.mechanicId}`);
         if (fs.existsSync(sessionDir)) {
             console.log(`📂 Found existing session data at: ${sessionDir} — reusing for persistence`);
+            // Clean up stale Chromium lock files from previous container runs.
+            // These prevent Puppeteer from launching after container restarts.
+            const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+            for (const lockFile of lockFiles) {
+                const lockPath = path.join(sessionDir, lockFile);
+                if (fs.existsSync(lockPath)) {
+                    try {
+                        fs.unlinkSync(lockPath);
+                        console.log(`🔓 Removed stale Chrome lock: ${lockFile}`);
+                    } catch (e) {
+                        console.warn(`⚠️ Could not remove lock file ${lockFile}: ${e.message}`);
+                    }
+                }
+            }
         } else {
             console.log(`📂 No existing session data — will need QR scan`);
         }
