@@ -17,7 +17,9 @@ services:
       retries: 5
 
   api:
-    build: ./apps/api
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -34,37 +36,30 @@ services:
 
   whatsapp-bot:
     build:
-      context: ./apps/whatsapp-bot
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/whatsapp-bot/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
-      - whatsapp-sessions:/app/.wwebjs_auth
+      # CRITICAL: Use external volume so it survives `docker compose down -v` across deploys
+      - whatsapp_sessions:/app/data
     environment:
       DATABASE_URL: postgresql://motopartes:${DB_PASSWORD:-MotoPartes2026!}@postgres:5432/motopartes
       API_KEY: ${WHATSAPP_API_KEY:-motopartes-whatsapp-key}
       PORT: 3002
+    ports:
+      - "3002:3002"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3002/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 3
 
-  frontend:
-    build:
-      context: ./apps/frontend
-      args:
-        VITE_API_URL: ${VITE_API_URL:-/api}
-        VITE_WHATSAPP_BOT_URL: ${VITE_WHATSAPP_BOT_URL:-/api/whatsapp-bot}
-    restart: unless-stopped
-    depends_on:
-      - api
-      - whatsapp-bot
-    ports:
-      - "${FRONTEND_PORT:-80}:80"
-
 volumes:
   postgres-data:
-  whatsapp-sessions:
+  whatsapp_sessions:
+    # External volume: NOT managed by compose, survives `docker compose down -v`
+    # Must be created once: docker volume create whatsapp_sessions
+    external: true

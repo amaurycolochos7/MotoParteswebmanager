@@ -50,9 +50,8 @@ services:
       API_KEY: ${API_KEY:-motopartes-whatsapp-key}
       PORT: 3002
     volumes:
-      # CRITICAL: Persist session data across deploys
-      # Mount the parent /app/data so wwebjs_auth folder persists
-      - whatsapp_data:/app/data
+      # CRITICAL: Use external volume so it survives `docker compose down -v` across deploys
+      - whatsapp_sessions:/app/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,7 +62,10 @@ services:
 
 volumes:
   postgres_data:
-  whatsapp_data:
+  whatsapp_sessions:
+    # External volume: NOT managed by compose, survives `docker compose down -v`
+    # Must be created once: docker volume create whatsapp_sessions
+    external: true
 
 networks:
   motopartes-network:
