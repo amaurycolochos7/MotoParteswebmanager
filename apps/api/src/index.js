@@ -17,6 +17,8 @@ import paymentRequestsRoutes from './routes/payment-requests.js';
 import orderUpdatesRoutes from './routes/order-updates.js';
 import appointmentsRoutes from './routes/appointments.js';
 import whatsappRoutes from './routes/whatsapp.js';
+import whatsappBotProxy from './routes/whatsapp-bot-proxy.js';
+import migrateMotosRoute from './routes/migrate-motos.js';
 
 const fastify = Fastify({ logger: true });
 
@@ -57,6 +59,8 @@ await fastify.register(paymentRequestsRoutes, { prefix: '/api/payment-requests' 
 await fastify.register(orderUpdatesRoutes, { prefix: '/api/order-updates' });
 await fastify.register(appointmentsRoutes, { prefix: '/api/appointments' });
 await fastify.register(whatsappRoutes, { prefix: '/api/whatsapp' });
+await fastify.register(whatsappBotProxy, { prefix: '/api/whatsapp-bot' });
+await fastify.register(migrateMotosRoute, { prefix: '/api/admin/migrate-motos' });
 
 // Start
 const PORT = process.env.PORT || 3000;
