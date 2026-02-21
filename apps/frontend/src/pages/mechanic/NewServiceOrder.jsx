@@ -51,6 +51,8 @@ export default function NewServiceOrder() {
     const navigate = useNavigate();
     const { user, canCreateClients, hasPermission, requiresApproval } = useAuth();
     const {
+        clients,
+        orders,
         findClientByPhone,
         searchClients,
         addClient,
@@ -287,6 +289,7 @@ export default function NewServiceOrder() {
             }));
             setClientMotos(motos);
             setSearchPerformed(true);
+            setCurrentStep(2);
 
             // Reset and close modal
             setQuickClientData({ full_name: '', phone: '', email: '', notes: '' });
@@ -617,12 +620,17 @@ export default function NewServiceOrder() {
             // Build services array with labor/materials breakdown
             const orderServices = formData.selectedServices.map(svcId => {
                 const svc = services.find(s => s.id === svcId);
+                const labor = parseFloat(svc?.labor_cost) || 0;
+                const materials = parseFloat(svc?.materials_cost) || 0;
+                const base = parseFloat(svc?.base_price) || 0;
+                // If labor_cost is set, use it. Otherwise use base_price as labor (legacy services)
+                const effectiveLabor = labor > 0 ? labor : (materials > 0 ? 0 : base);
                 return {
                     service_id: svcId,
                     name: svc?.name,
-                    price: svc?.base_price || 0,
-                    labor_cost: svc?.labor_cost || svc?.base_price || 0, // Use labor_cost if available, else full price as labor
-                    materials_cost: svc?.materials_cost || 0
+                    price: effectiveLabor + materials || base,
+                    labor_cost: effectiveLabor,
+                    materials_cost: materials
                 };
             });
 
@@ -639,9 +647,9 @@ export default function NewServiceOrder() {
             }
 
             // Calculate total amount and breakdowns from services
-            const totalAmount = orderServices.reduce((sum, svc) => sum + (svc.price || 0), 0);
-            const laborTotal = orderServices.reduce((sum, svc) => sum + (svc.labor_cost || 0), 0);
-            const partsTotal = orderServices.reduce((sum, svc) => sum + (svc.materials_cost || 0), 0);
+            const totalAmount = orderServices.reduce((sum, svc) => sum + (parseFloat(svc.price) || 0), 0);
+            const laborTotal = orderServices.reduce((sum, svc) => sum + (parseFloat(svc.labor_cost) || 0), 0);
+            const partsTotal = orderServices.reduce((sum, svc) => sum + (parseFloat(svc.materials_cost) || 0), 0);
 
 
             // ============ AUXILIARY MECHANIC FLOW ============
@@ -898,185 +906,88 @@ export default function NewServiceOrder() {
                 }
             `}</style>
             {/* Header */}
-            <div className="new-order-header">
-                <button className="btn btn-ghost btn-icon" onClick={() => navigate(-1)}>
-                    <ArrowLeft size={24} />
+            <div className="no-header">
+                <button className="no-back-btn" onClick={() => navigate(-1)}>
+                    <ArrowLeft size={20} />
                 </button>
-                <h1>Nueva Orden de Servicio</h1>
-            </div>
-
-            {/* Progress Steps */}
-            <div className="wizard-steps">
-                {STEPS.map((step) => (
-                    <div
-                        key={step.id}
-                        className={`wizard-step ${currentStep === step.id ? 'active' : ''} ${currentStep > step.id ? 'completed' : ''}`}
-                    />
-                ))}
-            </div>
-
-            {/* Step Title */}
-            <div className="step-header">
-                <div className="step-number">{currentStep}</div>
-                <div>
-                    <h2 className="step-title">{STEPS[currentStep - 1].title}</h2>
-                    <p className="step-subtitle">
-                        {currentStep === 1 && 'Busca o registra al cliente'}
-                        {currentStep === 2 && 'Selecciona o registra la moto'}
-                        {currentStep === 3 && 'Servicios a realizar'}
-                        {currentStep === 4 && 'Documenta el estado de ingreso'}
-                        {currentStep === 5 && 'Información de pago'}
-                    </p>
+                <div className="no-header-text">
+                    <h1 className="no-title">Nueva Orden</h1>
+                    <span className="no-step-indicator">Paso {currentStep} de {STEPS.length}</span>
                 </div>
             </div>
+
+            {/* Progress Bar */}
+            <div className="no-progress">
+                <div className="no-progress-fill" style={{ width: `${(currentStep / STEPS.length) * 100}%` }} />
+            </div>
+
+            {/* Step Context */}
+            <p className="no-step-context">
+                {currentStep === 1 && 'Selecciona o crea un cliente'}
+                {currentStep === 2 && 'Selecciona o registra la moto'}
+                {currentStep === 3 && 'Servicios a realizar'}
+                {currentStep === 4 && 'Documenta el estado de ingreso'}
+                {currentStep === 5 && 'Información de pago'}
+            </p>
 
             {/* Step Content */}
             <div className="step-content">
                 {/* Step 1: Client */}
                 {currentStep === 1 && (
                     <div className="step-client">
-                        {/* Quick Add New Client Button */}
-                        {canCreateClients() && (
-                            <button
-                                className="btn btn-secondary btn-full btn-quick-client"
-                                onClick={() => {
-                                    setQuickClientData({ full_name: '', phone: '', email: '', notes: '' });
-                                    setQuickMotorcycles([]);
-                                    setShowQuickClientModal(true);
-                                }}
-                            >
-                                <UserPlus size={20} />
-                                Agregar Nuevo Cliente
-                            </button>
-                        )}
-
-                        <div className="search-divider">
-                            <span>o busca uno existente</span>
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Buscar Cliente (nombre o teléfono)</label>
-                            <div className="search-input-wrapper">
-                                <Search size={20} className="search-icon-left" />
-                                <input
-                                    type="text"
-                                    className="form-input search-with-icon"
-                                    placeholder="Escribe nombre o teléfono..."
-                                    value={formData.clientPhone}
-                                    onChange={(e) => {
-                                        const value = e.target.value;
+                        {/* Selected Client Card */}
+                        {formData.selectedClient && (
+                            <div className="cl-selected">
+                                <div className="cl-selected-avatar">
+                                    {formData.selectedClient.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                </div>
+                                <div className="cl-selected-info">
+                                    <strong>{formData.selectedClient.full_name}</strong>
+                                    <span>{formData.selectedClient.phone}</span>
+                                    {clientMotos.length > 0 && (
+                                        <span className="cl-selected-meta">
+                                            {clientMotos.length} moto{clientMotos.length > 1 ? 's' : ''} registrada{clientMotos.length > 1 ? 's' : ''}
+                                        </span>
+                                    )}
+                                </div>
+                                <button
+                                    className="cl-change-btn"
+                                    onClick={() => {
                                         setFormData(prev => ({
                                             ...prev,
-                                            clientPhone: value,
                                             selectedClient: null,
+                                            clientPhone: '',
                                             isNewClient: false,
                                         }));
+                                        setClientMotos([]);
                                         setSearchPerformed(false);
                                     }}
-                                />
-                            </div>
-
-                            {/* Search Results */}
-                            {formData.clientPhone.length >= 2 && !formData.selectedClient && !formData.isNewClient && (() => {
-                                const results = searchClients(formData.clientPhone);
-                                if (results.length > 0) {
-                                    return (
-                                        <div className="search-results">
-                                            {results.map(client => (
-                                                <button
-                                                    key={client.id}
-                                                    className="search-result-item"
-                                                    onClick={() => {
-                                                        setFormData(prev => ({
-                                                            ...prev,
-                                                            selectedClient: client,
-                                                            clientName: client.full_name,
-                                                            clientPhone: client.phone,
-                                                            clientEmail: client.email || '',
-                                                            clientNotes: client.notes || '',
-                                                            isNewClient: false,
-                                                        }));
-                                                        const motos = getClientMotorcycles(client.id);
-                                                        setClientMotos(motos);
-                                                        setSearchPerformed(true);
-                                                    }}
-                                                >
-                                                    <User size={18} />
-                                                    <div className="result-info">
-                                                        <strong>{client.full_name}</strong>
-                                                        <span>{client.phone}</span>
-                                                    </div>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    );
-                                }
-                                return null;
-                            })()}
-
-                            {/* No results - option to create new */}
-                            {formData.clientPhone.length >= 3 && !formData.selectedClient && !formData.isNewClient && searchClients(formData.clientPhone).length === 0 && canCreateClients() && (
-                                <button
-                                    className="btn btn-outline btn-new-client"
-                                    onClick={() => {
-                                        // Check if it's a phone number
-                                        const isPhone = /^\d{10}$/.test(formData.clientPhone.replace(/\D/g, ''));
-                                        setFormData(prev => ({
-                                            ...prev,
-                                            isNewClient: true,
-                                            clientName: isPhone ? '' : formData.clientPhone,
-                                            clientPhone: isPhone ? formData.clientPhone : '',
-                                        }));
-                                        setSearchPerformed(true);
-                                    }}
                                 >
-                                    <Plus size={18} />
-                                    Cliente no encontrado - Registrar nuevo
+                                    Cambiar
                                 </button>
-                            )}
-                        </div>
+                            </div>
+                        )}
 
-                        {searchPerformed && formData.selectedClient && (
-                            <div className="client-found card">
-                                <div className="client-found-header">
-                                    <Check size={20} className="text-primary" />
-                                    <span>Cliente seleccionado</span>
+                        {/* New Client Form */}
+                        {!formData.selectedClient && formData.isNewClient && (
+                            <div className="cl-newform">
+                                <div className="cl-newform-head">
+                                    <UserPlus size={16} />
+                                    <span>Nuevo Cliente</span>
                                     <button
                                         className="btn-clear"
                                         onClick={() => {
                                             setFormData(prev => ({
                                                 ...prev,
-                                                selectedClient: null,
-                                                clientPhone: '',
                                                 isNewClient: false,
+                                                clientPhone: '',
+                                                clientName: '',
                                             }));
-                                            setClientMotos([]);
                                             setSearchPerformed(false);
                                         }}
                                     >
                                         <X size={16} />
                                     </button>
-                                </div>
-                                <div className="client-info">
-                                    <strong>{formData.selectedClient.full_name}</strong>
-                                    <span>{formData.selectedClient.phone}</span>
-                                    {formData.selectedClient.notes && (
-                                        <span className="text-secondary">{formData.selectedClient.notes}</span>
-                                    )}
-                                </div>
-                                {clientMotos.length > 0 && (
-                                    <div className="client-motos-count">
-                                        {clientMotos.length} moto(s) registrada(s)
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {searchPerformed && formData.isNewClient && (
-                            <div className="new-client-form">
-                                <div className="new-client-badge">
-                                    <Plus size={16} />
-                                    Nuevo Cliente
                                 </div>
 
                                 <div className="form-group">
@@ -1137,6 +1048,165 @@ export default function NewServiceOrder() {
                                 </div>
                             </div>
                         )}
+
+                        {/* Search + Client List */}
+                        {!formData.selectedClient && !formData.isNewClient && (() => {
+                            const query = formData.clientPhone?.trim() || '';
+                            const filteredClients = query.length >= 2
+                                ? searchClients(query)
+                                : (clients || []).slice(0, 50);
+                            const showingAll = query.length < 2;
+                            // Compute order counts per client from the orders context
+                            const orderCountMap = {};
+                            if (typeof orders !== 'undefined' && Array.isArray(orders)) {
+                                orders.forEach(o => {
+                                    const cid = o.client_id || o.client?.id;
+                                    if (cid) orderCountMap[cid] = (orderCountMap[cid] || 0) + 1;
+                                });
+                            }
+
+                            return (
+                                <>
+                                    {/* Search Bar */}
+                                    <div className="cl-search">
+                                        <Search size={18} className="cl-search-icon" />
+                                        <input
+                                            type="text"
+                                            className="cl-search-input"
+                                            placeholder="Buscar cliente por nombre o teléfono"
+                                            value={formData.clientPhone}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    clientPhone: value,
+                                                    selectedClient: null,
+                                                    isNewClient: false,
+                                                }));
+                                                setSearchPerformed(false);
+                                            }}
+                                        />
+                                        {query.length > 0 && (
+                                            <button
+                                                className="cl-search-clear"
+                                                onClick={() => setFormData(prev => ({
+                                                    ...prev,
+                                                    clientPhone: '',
+                                                    selectedClient: null,
+                                                    isNewClient: false,
+                                                }))}
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Add New Client */}
+                                    {canCreateClients() && (
+                                        <button
+                                            className="cl-add-card"
+                                            onClick={() => {
+                                                setQuickClientData({ full_name: '', phone: '', email: '', notes: '' });
+                                                setQuickMotorcycles([]);
+                                                setShowQuickClientModal(true);
+                                            }}
+                                        >
+                                            <Plus size={18} />
+                                            <div className="cl-add-text">
+                                                <span>Nuevo Cliente</span>
+                                                <small>Registrar cliente nuevo</small>
+                                            </div>
+                                        </button>
+                                    )}
+
+                                    {/* Results count */}
+                                    <div className="cl-count">
+                                        {showingAll
+                                            ? `${filteredClients.length} cliente${filteredClients.length !== 1 ? 's' : ''}`
+                                            : `${filteredClients.length} resultado${filteredClients.length !== 1 ? 's' : ''}`
+                                        }
+                                    </div>
+
+                                    {/* Client Cards */}
+                                    {filteredClients.length > 0 ? (
+                                        <div className="cl-cards">
+                                            {filteredClients.map(client => {
+                                                const motoCount = client.motorcycles?.length || 0;
+                                                const orderCount = orderCountMap[client.id] || 0;
+                                                const initial = client.full_name?.charAt(0)?.toUpperCase() || '?';
+                                                const isFrequent = orderCount >= 3;
+                                                const isNew = orderCount === 0 && motoCount === 0;
+                                                return (
+                                                    <button
+                                                        key={client.id}
+                                                        className="cl-card"
+                                                        onClick={() => {
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                selectedClient: client,
+                                                                clientName: client.full_name,
+                                                                clientPhone: client.phone,
+                                                                clientEmail: client.email || '',
+                                                                clientNotes: client.notes || '',
+                                                                isNewClient: false,
+                                                            }));
+                                                            const motos = getClientMotorcycles(client.id);
+                                                            setClientMotos(motos);
+                                                            setSearchPerformed(true);
+                                                            setCurrentStep(2);
+                                                        }}
+                                                    >
+                                                        <div className="cl-card-avatar" data-initial={initial}>
+                                                            {initial}
+                                                        </div>
+                                                        <div className="cl-card-body">
+                                                            <div className="cl-card-top">
+                                                                <span className="cl-card-name">{client.full_name}</span>
+                                                                {isFrequent && <span className="cl-badge cl-badge-freq">Frecuente</span>}
+                                                                {isNew && <span className="cl-badge cl-badge-new">Nuevo</span>}
+                                                            </div>
+                                                            <span className="cl-card-phone">{client.phone}</span>
+                                                            <div className="cl-card-meta">
+                                                                {motoCount > 0 && (
+                                                                    <span>{motoCount} moto{motoCount > 1 ? 's' : ''}</span>
+                                                                )}
+                                                                {orderCount > 0 && (
+                                                                    <span>{orderCount} orden{orderCount > 1 ? 'es' : ''}</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <ArrowRight size={16} className="cl-card-arrow" />
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="cl-empty">
+                                            <Search size={28} />
+                                            <p>No se encontraron clientes</p>
+                                            {canCreateClients() && (
+                                                <button
+                                                    className="cl-empty-btn"
+                                                    onClick={() => {
+                                                        const isPhone = /^\d{10}$/.test(formData.clientPhone.replace(/\D/g, ''));
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            isNewClient: true,
+                                                            clientName: isPhone ? '' : formData.clientPhone,
+                                                            clientPhone: isPhone ? formData.clientPhone : '',
+                                                        }));
+                                                        setSearchPerformed(true);
+                                                    }}
+                                                >
+                                                    <Plus size={16} />
+                                                    Registrar nuevo
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </div>
                 )}
 
@@ -1151,7 +1221,10 @@ export default function NewServiceOrder() {
                                         <button
                                             key={moto.id}
                                             className={`moto-card ${formData.selectedMoto?.id === moto.id ? 'selected' : ''}`}
-                                            onClick={() => setFormData(prev => ({ ...prev, selectedMoto: moto, isNewMoto: false }))}
+                                            onClick={() => {
+                                                setFormData(prev => ({ ...prev, selectedMoto: moto, isNewMoto: false }));
+                                                setCurrentStep(3);
+                                            }}
                                         >
                                             <div className="moto-card-main">
                                                 <Bike size={24} />
@@ -1461,18 +1534,19 @@ export default function NewServiceOrder() {
                                 {(() => {
                                     const totalLabor = formData.selectedServices.reduce((sum, svcId) => {
                                         const svc = services.find(s => s.id === svcId);
-                                        return sum + (svc?.labor_cost || svc?.base_price || 0);
+                                        const labor = parseFloat(svc?.labor_cost) || 0;
+                                        const materials = parseFloat(svc?.materials_cost) || 0;
+                                        const base = parseFloat(svc?.base_price) || 0;
+                                        // If labor_cost is set, use it. Otherwise use base_price as labor (legacy services)
+                                        return sum + (labor > 0 ? labor : (materials > 0 ? 0 : base));
                                     }, 0) + (parseFloat(formData.customServiceLabor) || 0);
 
                                     const totalMaterials = formData.selectedServices.reduce((sum, svcId) => {
                                         const svc = services.find(s => s.id === svcId);
-                                        return sum + (svc?.materials_cost || 0);
+                                        return sum + (parseFloat(svc?.materials_cost) || 0);
                                     }, 0) + (parseFloat(formData.customServiceMaterials) || 0);
 
-                                    const grandTotal = formData.selectedServices.reduce((sum, svcId) => {
-                                        const svc = services.find(s => s.id === svcId);
-                                        return sum + (svc?.base_price || 0);
-                                    }, 0) + (parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0);
+                                    const grandTotal = totalLabor + totalMaterials;
 
                                     return (
                                         <div style={{
@@ -1977,29 +2051,14 @@ export default function NewServiceOrder() {
                 )}
             </div>
 
-            {/* Navigation Buttons */}
-            <div className="step-navigation">
-                {currentStep > 1 && (
-                    <button className="btn btn-outline" onClick={prevStep}>
-                        <ArrowLeft size={20} />
-                        Anterior
-                    </button>
-                )}
-
-                {currentStep < 5 ? (
+            {/* Submit Button - Solo en paso 5 */}
+            {currentStep === 5 && (
+                <div className="step-navigation">
                     <button
-                        className="btn btn-primary"
-                        onClick={nextStep}
-                        disabled={!canProceed()}
-                    >
-                        Siguiente
-                        <ArrowRight size={20} />
-                    </button>
-                ) : (
-                    <button
-                        className="btn btn-primary btn-lg"
+                        className="no-nav-cta"
                         onClick={handleSubmit}
                         disabled={loading || !canProceed()}
+                        style={{ flex: 1 }}
                     >
                         {loading ? (
                             <>
@@ -2022,132 +2081,540 @@ export default function NewServiceOrder() {
                             </>
                         )}
                     </button>
-                )}
-            </div>
+                </div>
+            )}
 
             <style>{`
         .new-order {
-          padding-bottom: 120px;
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-height: 0;
+          overflow: hidden;
+          background: #F3F4F6;
+          padding: 16px 16px 0 16px;
         }
 
-        .new-order-header {
+        /* ===== HEADER ===== */
+        .no-header {
           display: flex;
           align-items: center;
-          gap: var(--spacing-md);
-          margin-bottom: var(--spacing-lg);
+          gap: 12px;
+          margin-bottom: 12px;
+          flex-shrink: 0;
         }
 
-        .new-order-header h1 {
-          font-size: 1.25rem;
-          font-weight: 600;
-        }
-
-        .step-header {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-md);
-          margin-bottom: var(--spacing-xl);
-        }
-
-        .step-number {
-          width: 40px;
-          height: 40px;
-          background: var(--primary);
-          color: white;
-          border-radius: var(--radius-full);
+        .no-back-btn {
           display: flex;
           align-items: center;
           justify-content: center;
+          width: 36px;
+          height: 36px;
+          border: 1px solid #E5E7EB;
+          background: white;
+          border-radius: 10px;
+          cursor: pointer;
+          color: #374151;
+          transition: all 0.15s;
+          flex-shrink: 0;
+        }
+
+        .no-back-btn:hover {
+          background: #F9FAFB;
+          border-color: #D1D5DB;
+        }
+
+        .no-header-text {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .no-title {
+          font-size: 18px;
           font-weight: 700;
-          font-size: 1.125rem;
+          color: #111827;
+          margin: 0;
+          line-height: 1.2;
         }
 
-        .step-title {
-          font-size: 1.25rem;
-          font-weight: 600;
-          margin-bottom: 2px;
+        .no-step-indicator {
+          font-size: 12px;
+          font-weight: 500;
+          color: #9CA3AF;
+          letter-spacing: 0.02em;
         }
 
-        .step-subtitle {
-          color: var(--text-secondary);
-          font-size: 0.875rem;
+        /* ===== PROGRESS BAR ===== */
+        .no-progress {
+          height: 4px;
+          background: #E5E7EB;
+          border-radius: 2px;
+          margin-bottom: 16px;
+          overflow: hidden;
+        }
+
+        .no-progress-fill {
+          height: 100%;
+          background: #111827;
+          border-radius: 2px;
+          transition: width 0.3s ease;
+        }
+
+        /* ===== STEP CONTEXT ===== */
+        .no-progress {
+          flex-shrink: 0;
+        }
+
+        .no-step-context {
+          font-size: 14px;
+          color: #6B7280;
+          margin: 0 0 12px 0;
+          flex-shrink: 0;
         }
 
         .step-content {
-          margin-bottom: var(--spacing-xl);
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          overflow-y: auto;
+          margin-bottom: 0;
         }
 
-        /* Client Step */
-        .search-input-wrapper {
+        .step-client {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-height: 0;
+          overflow: hidden;
+        }
+
+        /* ===== CLIENT STEP (cl- namespace) ===== */
+
+        /* --- Search Bar --- */
+        .cl-search {
           position: relative;
           display: flex;
           align-items: center;
+          margin-bottom: 12px;
+          flex-shrink: 0;
         }
 
-        .search-icon-left {
+        .cl-search-icon {
           position: absolute;
-          left: var(--spacing-md);
-          color: var(--text-muted);
+          left: 16px;
+          color: #9CA3AF;
           pointer-events: none;
+          z-index: 1;
         }
 
-        .search-with-icon {
-          padding-left: 44px;
-        }
-
-        .search-results {
-          margin-top: var(--spacing-sm);
-          background: var(--bg-card);
-          border: 2px solid var(--border-color);
-          border-radius: var(--radius-md);
-          overflow: hidden;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-
-        .search-result-item {
+        .cl-search-input {
           width: 100%;
+          height: 56px;
+          padding: 0 48px 0 48px;
+          font-size: 15px;
+          font-family: inherit;
+          color: #111827;
+          background: white;
+          border: 1px solid #E5E7EB;
+          border-radius: 12px;
+          transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .cl-search-input:focus {
+          outline: none;
+          border-color: #111827;
+          box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
+        }
+
+        .cl-search-input::placeholder {
+          color: #9CA3AF;
+        }
+
+        .cl-search-clear {
+          position: absolute;
+          right: 12px;
           display: flex;
           align-items: center;
-          gap: var(--spacing-md);
-          padding: var(--spacing-md);
-          background: transparent;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
           border: none;
-          border-bottom: 1px solid var(--border-light);
+          background: #F3F4F6;
+          color: #6B7280;
+          border-radius: 8px;
           cursor: pointer;
-          text-align: left;
-          transition: all var(--transition-fast);
+          transition: all 0.15s;
         }
 
-        .search-result-item:last-child {
-          border-bottom: none;
+        .cl-search-clear:hover {
+          background: #E5E7EB;
+          color: #111827;
         }
 
-        .search-result-item:hover {
-          background: var(--bg-hover);
+        /* --- Add Client Card --- */
+        .cl-add-card {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          width: 100%;
+          padding: 12px 16px;
+          background: #F9FAFB;
+          border: 1px solid #E5E7EB;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.15s;
+          font-family: inherit;
+          margin-bottom: 16px;
+          color: #374151;
+          flex-shrink: 0;
         }
 
-        .search-result-item .result-info {
+        .cl-add-card:hover {
+          background: #F3F4F6;
+          border-color: #D1D5DB;
+        }
+
+        .cl-add-card svg {
+          flex-shrink: 0;
+          color: #6B7280;
+        }
+
+        .cl-add-text {
           display: flex;
           flex-direction: column;
-          gap: 2px;
+          text-align: left;
         }
 
-        .search-result-item .result-info strong {
-          font-size: 0.9375rem;
-          color: var(--text-primary);
+        .cl-add-text span {
+          font-size: 14px;
+          font-weight: 600;
+          color: #111827;
         }
 
-        .search-result-item .result-info span {
-          font-size: 0.8125rem;
-          color: var(--text-secondary);
+        .cl-add-text small {
+          font-size: 12px;
+          color: #9CA3AF;
         }
 
-        .btn-new-client {
+        /* --- Results Count --- */
+        .cl-count {
+          font-size: 12px;
+          font-weight: 500;
+          color: #9CA3AF;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          padding: 0 4px 8px;
+          flex-shrink: 0;
+        }
+
+        /* --- Client Cards Container --- */
+        .cl-cards {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          padding-right: 2px;
+          padding-bottom: 8px;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .cl-cards::-webkit-scrollbar {
+          width: 3px;
+        }
+
+        .cl-cards::-webkit-scrollbar-thumb {
+          background: #D1D5DB;
+          border-radius: 3px;
+        }
+
+        .cl-cards::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        /* --- Individual Client Card --- */
+        .cl-card {
+          display: flex;
+          align-items: center;
+          gap: 12px;
           width: 100%;
-          margin-top: var(--spacing-sm);
-          justify-content: center;
+          padding: 14px 16px;
+          background: white;
+          border: 1px solid #E5E7EB;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.15s;
+          font-family: inherit;
+          text-align: left;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
 
+        .cl-card:hover {
+          border-color: #D1D5DB;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+
+        .cl-card:active {
+          transform: scale(0.995);
+          background: #FAFAFA;
+        }
+
+        /* --- Card Avatar --- */
+        .cl-card-avatar {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          font-size: 14px;
+          font-weight: 700;
+          flex-shrink: 0;
+          color: white;
+          background: #6B7280;
+        }
+
+        .cl-card-avatar[data-initial="A"],
+        .cl-card-avatar[data-initial="B"] { background: #4F46E5; }
+        .cl-card-avatar[data-initial="C"],
+        .cl-card-avatar[data-initial="D"] { background: #0284C7; }
+        .cl-card-avatar[data-initial="E"],
+        .cl-card-avatar[data-initial="F"] { background: #0D9488; }
+        .cl-card-avatar[data-initial="G"],
+        .cl-card-avatar[data-initial="H"] { background: #16A34A; }
+        .cl-card-avatar[data-initial="I"],
+        .cl-card-avatar[data-initial="J"] { background: #D97706; }
+        .cl-card-avatar[data-initial="K"],
+        .cl-card-avatar[data-initial="L"] { background: #DC2626; }
+        .cl-card-avatar[data-initial="M"],
+        .cl-card-avatar[data-initial="N"] { background: #7C3AED; }
+        .cl-card-avatar[data-initial="O"],
+        .cl-card-avatar[data-initial="P"] { background: #DB2777; }
+        .cl-card-avatar[data-initial="Q"],
+        .cl-card-avatar[data-initial="R"] { background: #0891B2; }
+        .cl-card-avatar[data-initial="S"],
+        .cl-card-avatar[data-initial="T"] { background: #1D4ED8; }
+        .cl-card-avatar[data-initial="U"],
+        .cl-card-avatar[data-initial="V"] { background: #9333EA; }
+        .cl-card-avatar[data-initial="W"],
+        .cl-card-avatar[data-initial="X"],
+        .cl-card-avatar[data-initial="Y"],
+        .cl-card-avatar[data-initial="Z"] { background: #EA580C; }
+
+        /* --- Card Body --- */
+        .cl-card-body {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-width: 0;
+          gap: 1px;
+        }
+
+        .cl-card-top {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+
+        .cl-card-name {
+          font-size: 14px;
+          font-weight: 600;
+          color: #111827;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .cl-card-phone {
+          font-size: 12px;
+          color: #6B7280;
+          font-variant-numeric: tabular-nums;
+        }
+
+        .cl-card-meta {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 2px;
+        }
+
+        .cl-card-meta span {
+          font-size: 11px;
+          color: #9CA3AF;
+        }
+
+        .cl-card-arrow {
+          color: #D1D5DB;
+          flex-shrink: 0;
+          transition: transform 0.15s;
+        }
+
+        .cl-card:hover .cl-card-arrow {
+          color: #9CA3AF;
+          transform: translateX(2px);
+        }
+
+        /* --- Badges --- */
+        .cl-badge {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.03em;
+          padding: 2px 7px;
+          border-radius: 6px;
+          text-transform: uppercase;
+          flex-shrink: 0;
+        }
+
+        .cl-badge-freq {
+          background: #ECFDF5;
+          color: #059669;
+        }
+
+        .cl-badge-new {
+          background: #F3F4F6;
+          color: #9CA3AF;
+        }
+
+        /* --- Selected Client --- */
+        .cl-selected {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 16px;
+          background: white;
+          border: 2px solid #111827;
+          border-radius: 12px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+
+        .cl-selected-avatar {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 44px;
+          height: 44px;
+          border-radius: 10px;
+          background: #111827;
+          color: white;
+          font-size: 16px;
+          font-weight: 700;
+          flex-shrink: 0;
+        }
+
+        .cl-selected-info {
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .cl-selected-info strong {
+          font-size: 15px;
+          color: #111827;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .cl-selected-info > span {
+          font-size: 13px;
+          color: #6B7280;
+        }
+
+        .cl-selected-meta {
+          font-size: 12px;
+          color: #9CA3AF;
+        }
+
+        .cl-change-btn {
+          padding: 6px 14px;
+          border: 1px solid #E5E7EB;
+          background: #F9FAFB;
+          color: #374151;
+          font-size: 12px;
+          font-weight: 600;
+          font-family: inherit;
+          border-radius: 8px;
+          cursor: pointer;
+          white-space: nowrap;
+          flex-shrink: 0;
+          transition: all 0.15s;
+        }
+
+        .cl-change-btn:hover {
+          background: #F3F4F6;
+          border-color: #D1D5DB;
+          color: #111827;
+        }
+
+        /* --- New Client Form --- */
+        .cl-newform {
+          background: white;
+          border: 1px solid #E5E7EB;
+          border-radius: 12px;
+          padding: 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        .cl-newform-head {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 12px;
+          background: #F3F4F6;
+          border-radius: 8px;
+          margin-bottom: 16px;
+          color: #374151;
+          font-weight: 600;
+          font-size: 14px;
+        }
+
+        .cl-newform-head .btn-clear {
+          margin-left: auto;
+        }
+
+        /* --- Empty State --- */
+        .cl-empty {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+          padding: 40px 20px;
+          color: #9CA3AF;
+          text-align: center;
+        }
+
+        .cl-empty p {
+          font-size: 14px;
+          margin: 0;
+          color: #6B7280;
+        }
+
+        .cl-empty-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          border: none;
+          background: #111827;
+          color: white;
+          font-size: 13px;
+          font-weight: 600;
+          font-family: inherit;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .cl-empty-btn:hover {
+          background: #1F2937;
+        }
+
+        /* Legacy styles kept for other steps */
         .btn-clear {
           margin-left: auto;
           width: 28px;
@@ -2155,66 +2622,17 @@ export default function NewServiceOrder() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: var(--bg-tertiary);
+          background: #E5E7EB;
           border: none;
-          border-radius: var(--radius-full);
+          border-radius: 8px;
           cursor: pointer;
-          color: var(--text-muted);
-          transition: all var(--transition-fast);
+          color: #6B7280;
+          transition: all 0.15s;
         }
 
         .btn-clear:hover {
-          background: var(--danger);
+          background: #DC2626;
           color: white;
-        }
-
-        .search-btn {
-          flex-shrink: 0;
-        }
-
-        .client-found {
-          margin-top: var(--spacing-md);
-          border-color: var(--primary);
-        }
-
-        .client-found-header {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-sm);
-          margin-bottom: var(--spacing-sm);
-          font-weight: 500;
-          color: var(--primary);
-        }
-
-        .client-info {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-
-        .client-motos-count {
-          margin-top: var(--spacing-sm);
-          padding-top: var(--spacing-sm);
-          border-top: 1px solid var(--border-color);
-          font-size: 0.875rem;
-          color: var(--text-secondary);
-        }
-
-        .new-client-form {
-          margin-top: var(--spacing-lg);
-        }
-
-        .new-client-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: var(--spacing-xs);
-          background: var(--primary-light);
-          color: var(--primary);
-          padding: var(--spacing-xs) var(--spacing-sm);
-          border-radius: var(--radius-full);
-          font-size: 0.75rem;
-          font-weight: 600;
-          margin-bottom: var(--spacing-md);
         }
 
         .input-with-icon {
@@ -2227,10 +2645,10 @@ export default function NewServiceOrder() {
 
         .input-icon {
           position: absolute;
-          left: var(--spacing-md);
+          left: 16px;
           top: 50%;
           transform: translateY(-50%);
-          color: var(--text-muted);
+          color: #9CA3AF;
         }
 
         /* Moto Step */
@@ -2608,17 +3026,66 @@ export default function NewServiceOrder() {
 
         /* Navigation */
         .step-navigation {
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          right: 0;
+          flex-shrink: 0;
           display: flex;
-          gap: var(--spacing-md);
-          padding: var(--spacing-md);
-          background: var(--bg-card);
-          border-top: 1px solid var(--border-color);
+          gap: 10px;
+          padding: 12px 16px;
+          padding-bottom: max(12px, env(safe-area-inset-bottom));
+          background: white;
+          border-top: 1px solid #E5E7EB;
           z-index: 100;
-          box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+          box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+        }
+
+        .no-nav-back {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          flex: 1;
+          padding: 12px 16px;
+          border: 1px solid #E5E7EB;
+          background: white;
+          color: #374151;
+          font-size: 14px;
+          font-weight: 600;
+          font-family: inherit;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .no-nav-back:hover {
+          background: #F9FAFB;
+          border-color: #D1D5DB;
+        }
+
+        .no-nav-cta {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          flex: 2;
+          padding: 14px 20px;
+          border: none;
+          background: #111827;
+          color: white;
+          font-size: 15px;
+          font-weight: 600;
+          font-family: inherit;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.15s;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .no-nav-cta:hover {
+          background: #1F2937;
+        }
+
+        .no-nav-cta:disabled {
+          opacity: 0.35;
+          cursor: not-allowed;
         }
 
         .step-navigation .btn {
