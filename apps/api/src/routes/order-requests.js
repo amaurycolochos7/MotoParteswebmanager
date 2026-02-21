@@ -143,6 +143,7 @@ export default async function orderRequestsRoutes(fastify) {
             data: {
                 status: 'approved',
                 response_notes: request.body.notes || null,
+                created_order_id: request.body.created_order_id || null,
                 responded_at: new Date()
             }
         });

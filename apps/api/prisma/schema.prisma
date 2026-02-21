@@ -338,9 +338,10 @@ model OrderRequest {
   requested_to   String    @db.Uuid
   order_data     Json?
   status         String    @default("pending") // pending, approved, rejected
-  response_notes String?
-  responded_at   DateTime? @db.Timestamptz
-  created_at     DateTime  @default(now()) @db.Timestamptz
+  response_notes   String?
+  responded_at     DateTime? @db.Timestamptz
+  created_order_id String?   @db.Uuid
+  created_at       DateTime  @default(now()) @db.Timestamptz
 
   // Relations
   requester Profile @relation("RequestSender", fields: [requested_by], references: [id])

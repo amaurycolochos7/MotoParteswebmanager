@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { orderRequestsService, ordersService } from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
+import { sendDirectMessage, getOrderCreatedMessage } from '../../utils/whatsappHelper';
 import {
     ArrowLeft,
     Clock,
@@ -60,15 +61,32 @@ export default function MasterRequests() {
     const handleApprove = async (request) => {
         setProcessingId(request.id);
         try {
-            // Aprobar la solicitud
-            await orderRequestsService.approve(request.id, user.id, 'Aprobado');
-
-            // Crear la orden con los datos guardados
+            // 1. Create the order from the request data
             const orderData = request.order_data;
-            orderData.mechanic_id = request.requested_by; // Asignar al auxiliar
-            orderData.approved_by = user.id; // Guardar quién aprobó (el maestro)
+            orderData.mechanic_id = request.requested_by; // Assign to the auxiliar
+            orderData.approved_by = user.id; // Record who approved (the maestro)
 
             const newOrder = await ordersService.create(orderData);
+
+            // 2. Approve the request and save the created order ID
+            await orderRequestsService.approve(request.id, user.id, 'Aprobado', newOrder.id);
+
+            // 3. Send WhatsApp notification to the client (only after maestro approval)
+            try {
+                const clientPhone = orderData.client_phone;
+                if (clientPhone) {
+                    const motoInfo = `${orderData.moto_brand || ''} ${orderData.moto_model || ''}`.trim();
+                    const waMessage = getOrderCreatedMessage(orderData.client_name, motoInfo, newOrder.order_number);
+                    console.log('📤 Enviando WhatsApp al cliente tras aprobación del maestro...');
+                    const waResult = await sendDirectMessage(user.id, clientPhone, waMessage, newOrder.id);
+                    if (waResult.success && waResult.automated) {
+                        toast.success('✅ Cliente notificado por WhatsApp');
+                    }
+                }
+            } catch (waError) {
+                console.error('Error enviando WhatsApp tras aprobación:', waError);
+                // Don't block the flow if WhatsApp fails
+            }
 
             toast.success('Solicitud aprobada - Orden creada: ' + newOrder.order_number);
             loadRequests();

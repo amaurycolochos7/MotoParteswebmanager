@@ -612,11 +612,11 @@ export const orderRequestsService = {
         }
     },
 
-    async approve(requestId, masterId, notes = '') {
+    async approve(requestId, masterId, notes = '', createdOrderId = null) {
         try {
             const data = await apiFetch(`/order-requests/${requestId}/approve`, {
                 method: 'PUT',
-                body: JSON.stringify({ notes })
+                body: JSON.stringify({ notes, created_order_id: createdOrderId })
             });
             return { data, error: null };
         } catch (error) {
