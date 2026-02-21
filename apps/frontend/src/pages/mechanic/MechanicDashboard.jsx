@@ -1,14 +1,11 @@
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import {
-  ClipboardList,
   Plus,
-  DollarSign,
-  Clock,
-  CheckCircle,
-  Bike,
   ChevronRight,
-  Wrench
+  Bike,
+  TrendingUp,
+  ArrowRight
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
@@ -18,7 +15,6 @@ export default function MechanicDashboard() {
   const { user } = useAuth();
   const { orders, loading } = useData();
 
-  // Mis órdenes activas
   const myActiveOrders = useMemo(() => {
     if (!orders) return [];
     return orders.filter(o =>
@@ -26,580 +22,504 @@ export default function MechanicDashboard() {
     );
   }, [orders, user]);
 
-  // Estadísticas del mecánico - más útiles y claras
   const stats = useMemo(() => {
     if (!orders || !user) {
-      return { weekEarnings: 0, monthEarnings: 0, monthOrders: 0, pendingOrders: 0 };
+      return { weekEarnings: 0, prevWeekEarnings: 0, inProcess: 0, readyToDeliver: 0, finishedToday: 0 };
     }
 
     const now = new Date();
-    const commissionRate = (user.commission_percentage || 10) / 100;
 
-    // Inicio de la semana (lunes)
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
     weekStart.setHours(0, 0, 0, 0);
 
-    // Inicio del mes
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const prevWeekStart = new Date(weekStart);
+    prevWeekStart.setDate(prevWeekStart.getDate() - 7);
 
-    // Mis órdenes completadas (pagadas)
-    const myPaidOrders = orders.filter(o =>
-      o.mechanic_id === user.id && o.is_paid
-    );
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
 
-    // Ganancias de la semana
+    const myOrders = orders.filter(o => o.mechanic_id === user.id);
+    const myPaidOrders = myOrders.filter(o => o.is_paid);
+
     const weekOrders = myPaidOrders.filter(o =>
       new Date(o.paid_at || o.created_at) >= weekStart
     );
-    const weekLabor = weekOrders.reduce((sum, o) => sum + (parseFloat(o.labor_total) || 0), 0);
-    const weekEarnings = weekLabor * commissionRate;
+    const weekEarnings = weekOrders.reduce((sum, o) => sum + (parseFloat(o.labor_total) || 0), 0);
 
-    // Ganancias del mes
-    const monthOrdersPaid = myPaidOrders.filter(o =>
-      new Date(o.paid_at || o.created_at) >= monthStart
-    );
-    const monthLabor = monthOrdersPaid.reduce((sum, o) => sum + (parseFloat(o.labor_total) || 0), 0);
-    const monthEarnings = monthLabor * commissionRate;
+    const prevWeekOrders = myPaidOrders.filter(o => {
+      const d = new Date(o.paid_at || o.created_at);
+      return d >= prevWeekStart && d < weekStart;
+    });
+    const prevWeekEarnings = prevWeekOrders.reduce((sum, o) => sum + (parseFloat(o.labor_total) || 0), 0);
 
-    return {
-      weekEarnings,
-      monthEarnings,
-      monthOrders: monthOrdersPaid.length,
-      pendingOrders: myActiveOrders.length
-    };
+    const inProcess = myActiveOrders.filter(o => {
+      const statusName = (o.status?.name || '').toLowerCase();
+      return !statusName.includes('lista') && !statusName.includes('entregar');
+    }).length;
+
+    const readyToDeliver = myActiveOrders.filter(o => {
+      const statusName = (o.status?.name || '').toLowerCase();
+      return statusName.includes('lista') || statusName.includes('entregar');
+    }).length;
+
+    const finishedToday = myOrders.filter(o => {
+      if (!o.status?.is_terminal) return false;
+      const d = new Date(o.updated_at || o.created_at);
+      return d >= todayStart;
+    }).length;
+
+    return { weekEarnings, prevWeekEarnings, inProcess, readyToDeliver, finishedToday };
   }, [orders, user, myActiveOrders]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
       currency: 'MXN',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(amount || 0);
   };
 
-  const getTimeAgo = (date) => {
-    const seconds = Math.floor((Date.now() - new Date(date)) / 1000);
-    if (seconds < 60) return 'Hace un momento';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `Hace ${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `Hace ${hours}h`;
-    const days = Math.floor(hours / 24);
-    return `Hace ${days}d`;
+  const todayFormatted = useMemo(() => {
+    const now = new Date();
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+  }, []);
+
+  const weekGrowth = useMemo(() => {
+    if (stats.prevWeekEarnings === 0 && stats.weekEarnings === 0) return null;
+    if (stats.prevWeekEarnings === 0) return 100;
+    return Math.round(((stats.weekEarnings - stats.prevWeekEarnings) / stats.prevWeekEarnings) * 100);
+  }, [stats]);
+
+  const getStatusChip = (statusName) => {
+    const name = (statusName || '').toLowerCase();
+    if (name.includes('lista') || name.includes('entregar')) {
+      return { bg: '#DCFCE7', color: '#15803D', border: '#BBF7D0' };
+    }
+    if (name.includes('diagnóstico') || name.includes('diagnostico')) {
+      return { bg: '#FEF9C3', color: '#A16207', border: '#FDE68A' };
+    }
+    return { bg: '#F3F4F6', color: '#374151', border: '#E5E7EB' };
   };
 
   if (loading) {
     return (
-      <div className="mechanic-dashboard fade-in">
-        {/* Skeleton header */}
-        <div className="dashboard-header">
-          <div className="greeting">
-            <div className="skeleton skeleton-circle" style={{ width: 48, height: 48 }}></div>
-            <div style={{ flex: 1 }}>
-              <div className="skeleton skeleton-text" style={{ width: '60%', height: 24 }}></div>
-              <div className="skeleton skeleton-text-sm" style={{ width: '80%', marginTop: 8 }}></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Skeleton button */}
-        <div className="skeleton" style={{ height: 56, borderRadius: 12, marginBottom: 24 }}></div>
-
-        {/* Skeleton stats */}
-        <div className="stats-grid">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="skeleton" style={{ height: 100, borderRadius: 12 }}></div>
-          ))}
-        </div>
-
-        {/* Skeleton orders */}
-        <div className="skeleton skeleton-text" style={{ width: '50%', height: 20, marginBottom: 16 }}></div>
-        {[1, 2, 3].map(i => (
-          <div key={i} className="skeleton" style={{ height: 80, borderRadius: 12, marginBottom: 12 }}></div>
-        ))}
+      <div className="db">
+        <div style={{ height: 20, width: '30%', background: '#E5E7EB', borderRadius: 4, marginBottom: 4 }}></div>
+        <div style={{ height: 14, width: '25%', background: '#F3F4F6', borderRadius: 3, marginBottom: 20 }}></div>
+        <div style={{ height: 60, background: '#E5E7EB', borderRadius: 10, marginBottom: 28 }}></div>
+        <div style={{ height: 14, width: '35%', background: '#E5E7EB', borderRadius: 3, marginBottom: 12 }}></div>
+        {[1, 2].map(i => <div key={i} style={{ height: 72, background: '#F3F4F6', borderRadius: 10, marginBottom: 8 }}></div>)}
+        <div style={{ height: 80, background: '#F3F4F6', borderRadius: 10, marginTop: 20, marginBottom: 8 }}></div>
+        <div style={{ height: 80, background: '#F3F4F6', borderRadius: 10 }}></div>
       </div>
     );
   }
 
   return (
-    <div className="mechanic-dashboard fade-in">
-      {/* Header con saludo */}
-      <div className="dashboard-header">
-        <div className="greeting">
-          <span className="greeting-emoji">👋</span>
-          <div>
-            <h1 className="greeting-name">Hola, {user?.full_name?.split(' ')[0]}</h1>
-            <p className="greeting-subtitle">
-              {myActiveOrders.length > 0
-                ? `Tienes ${myActiveOrders.length} orden${myActiveOrders.length > 1 ? 'es' : ''} pendiente${myActiveOrders.length > 1 ? 's' : ''}`
-                : 'No tienes órdenes pendientes'}
-            </p>
-          </div>
-        </div>
+    <div className="db">
+      {/* ===== HEADER ===== */}
+      <div className="db-h">
+        <h1 className="db-name">{user?.full_name?.split(' ')[0]}</h1>
+        <span className="db-status">
+          {myActiveOrders.length > 0
+            ? `${myActiveOrders.length} orden${myActiveOrders.length > 1 ? 'es' : ''} activa${myActiveOrders.length > 1 ? 's' : ''}`
+            : 'Sin órdenes activas'}
+        </span>
+        <span className="db-date">{todayFormatted}</span>
       </div>
 
-      {/* Botón Nueva Orden destacado */}
-      <Link to="/mechanic/new-order" className="new-order-btn btn-new-order btn-shine">
-        <Plus size={24} />
-        <span>Nueva Orden de Servicio</span>
+      {/* ===== CTA ===== */}
+      <Link to="/mechanic/new-order" className="db-cta">
+        <Plus size={22} strokeWidth={2.5} />
+        Crear nueva orden
       </Link>
 
-      {/* KPIs en grid - Métricas claras */}
-      <div className="stats-grid">
-        <div className="stat-card stat-pending" onClick={() => navigate('/mechanic/orders')}>
-          <div className="stat-icon">
-            <Clock size={22} />
-          </div>
-          <div className="stat-value">{stats.pendingOrders}</div>
-          <div className="stat-label">Por Atender</div>
-        </div>
-
-        <div className="stat-card stat-month-orders" onClick={() => navigate('/mechanic/history?period=month')}>
-          <div className="stat-icon">
-            <CheckCircle size={22} />
-          </div>
-          <div className="stat-value">{stats.monthOrders}</div>
-          <div className="stat-label">Completadas<br />este mes</div>
-        </div>
-      </div>
-
-      {/* Resumen Semanal - Card destacada */}
-      <div className="weekly-summary" onClick={() => navigate('/mechanic/earnings?period=week')}>
-        <div className="weekly-header">
-          <DollarSign size={20} />
-          <span>Reporte Semanal</span>
-        </div>
-        <div className="weekly-amount">{formatCurrency(stats.weekEarnings)}</div>
-        <div className="weekly-label">Ganancias esta semana</div>
-      </div>
-
-      {/* Órdenes Activas */}
-      <div className="section">
-        <div className="section-header">
-          <h2 className="section-title">
-            <ClipboardList size={20} />
-            Mis Órdenes Activas
-          </h2>
+      {/* ===== ÓRDENES ACTIVAS (PROTAGONISTA) ===== */}
+      <div className="db-block">
+        <div className="db-block-head">
+          <h2 className="db-block-title">Órdenes activas</h2>
           {myActiveOrders.length > 0 && (
-            <Link to="/mechanic/orders" className="see-all">
-              Ver todas <ChevronRight size={16} />
+            <Link to="/mechanic/orders" className="db-link">
+              Todo <ChevronRight size={15} />
             </Link>
           )}
         </div>
 
         {myActiveOrders.length === 0 ? (
-          <div className="empty-orders empty-state-animated">
-            <div className="empty-icon">
-              <Wrench size={32} className="wrench-animated" />
-            </div>
-            <h3>¡Todo listo!</h3>
-            <p>No tienes órdenes activas en este momento</p>
-            <div className="motivational">
-              <span>💪 Crea una orden y comienza a ganar</span>
-            </div>
-            <Link to="/mechanic/new-order" className="btn btn-primary btn-gradient btn-shine" style={{ marginTop: '1rem' }}>
-              <Plus size={18} />
-              Crear Nueva Orden
+          <div className="db-empty">
+            <p>Sin órdenes activas</p>
+            <Link to="/mechanic/new-order" className="db-empty-btn">
+              <Plus size={15} /> Nueva orden
             </Link>
           </div>
         ) : (
-          <div className="orders-list">
-            {myActiveOrders.slice(0, 5).map(order => (
-              <div
-                key={order.id}
-                className="order-card"
-                onClick={() => navigate(`/mechanic/order/${order.id}`)}
-              >
-                <div className="order-main">
-                  <div className="order-number">#{order.order_number}</div>
-                  <div className="order-client">{order.client?.full_name}</div>
-                  <div className="order-moto">
-                    <Bike size={14} />
-                    {order.motorcycle?.brand} {order.motorcycle?.model}
+          <div className="db-list">
+            {myActiveOrders.slice(0, 5).map(order => {
+              const chip = getStatusChip(order.status?.name);
+              return (
+                <button
+                  key={order.id}
+                  className="db-ord"
+                  onClick={() => navigate(`/mechanic/order/${order.id}`)}
+                >
+                  <div className="db-ord-main">
+                    <div className="db-ord-client">{order.client?.full_name}</div>
+                    {order.motorcycle && (
+                      <div className="db-ord-moto">
+                        <Bike size={12} />
+                        {order.motorcycle?.brand} {order.motorcycle?.model}
+                      </div>
+                    )}
+                    <div className="db-ord-code">#{order.order_number}</div>
                   </div>
-                </div>
-                <div className="order-side">
                   <span
-                    className="order-status"
-                    style={{
-                      background: `${order.status?.color}20`,
-                      color: order.status?.color
-                    }}
+                    className="db-chip"
+                    style={{ background: chip.bg, color: chip.color, borderColor: chip.border }}
                   >
                     {order.status?.name}
                   </span>
-                  <div className="order-amount">{formatCurrency(order.total_amount)}</div>
-                  <div className="order-time">{getTimeAgo(order.created_at)}</div>
-                </div>
-                <ChevronRight size={20} className="order-arrow" />
-              </div>
-            ))}
+                  <ArrowRight size={15} className="db-arrow" />
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Accesos rápidos */}
-      <div className="quick-links">
-        <Link to="/mechanic/history" className="quick-link">
-          <CheckCircle size={20} />
-          Historial
-        </Link>
-        <Link to="/mechanic/earnings" className="quick-link">
-          <DollarSign size={20} />
-          Ganancias
-        </Link>
-        <Link to="/mechanic/clients" className="quick-link">
-          <ClipboardList size={20} />
-          Clientes
-        </Link>
+      {/* ===== RESUMEN RÁPIDO ===== */}
+      <div className="db-stats">
+        <div className="db-stat" onClick={() => navigate('/mechanic/orders')}>
+          <span className="db-stat-n">{stats.inProcess}</span>
+          <span className="db-stat-l">En proceso</span>
+        </div>
+        <div className="db-stat-div"></div>
+        <div className="db-stat" onClick={() => navigate('/mechanic/orders')}>
+          <span className="db-stat-n db-stat-n--g">{stats.readyToDeliver}</span>
+          <span className="db-stat-l">Listas</span>
+        </div>
+        <div className="db-stat-div"></div>
+        <div className="db-stat" onClick={() => navigate('/mechanic/history')}>
+          <span className="db-stat-n">{stats.finishedToday}</span>
+          <span className="db-stat-l">Finalizadas</span>
+        </div>
+      </div>
+
+      {/* ===== INGRESOS ===== */}
+      <div className="db-earn" onClick={() => navigate('/mechanic/earnings?period=week')}>
+        <div className="db-earn-top">
+          <span className="db-earn-label">Ingresos semana</span>
+          {weekGrowth !== null && (
+            <span className={`db-earn-badge ${weekGrowth >= 0 ? 'up' : 'down'}`}>
+              <TrendingUp size={12} />
+              {weekGrowth >= 0 ? '+' : ''}{weekGrowth}%
+            </span>
+          )}
+        </div>
+        <span className="db-earn-amount">{formatCurrency(stats.weekEarnings)}</span>
       </div>
 
       <style>{`
-        .mechanic-dashboard {
-          padding-bottom: 2rem;
+        .db {
+          background: #F4F5F7;
+          min-height: 100%;
+          padding: 20px 18px 40px;
         }
 
-        /* Header */
-        .dashboard-header {
-          margin-bottom: 1.5rem;
+        /* ===== HEADER ===== */
+        .db-h {
+          margin-bottom: 20px;
         }
 
-        .greeting {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .greeting-emoji {
-          font-size: 2.5rem;
-        }
-
-        .greeting-name {
-          font-size: 1.5rem;
-          font-weight: 700;
+        .db-name {
+          font-size: 24px;
+          font-weight: 800;
+          color: #0F172A;
           margin: 0;
-          color: var(--text-primary);
+          line-height: 1.1;
+          letter-spacing: -0.02em;
         }
 
-        .greeting-subtitle {
-          font-size: 0.9375rem;
-          color: var(--text-secondary);
-          margin: 0.25rem 0 0 0;
+        .db-status {
+          display: block;
+          font-size: 14px;
+          font-weight: 600;
+          color: #374151;
+          margin-top: 3px;
         }
 
-        /* Nueva Orden Button */
-        .new-order-btn {
+        .db-date {
+          display: block;
+          font-size: 11px;
+          color: #9CA3AF;
+          font-weight: 500;
+          margin-top: 2px;
+          letter-spacing: 0.02em;
+        }
+
+        /* ===== CTA ===== */
+        .db-cta {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 0.75rem;
+          gap: 10px;
           width: 100%;
-          padding: 1rem;
-          background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-          color: white;
-          border-radius: var(--radius-lg);
-          font-size: 1.125rem;
-          font-weight: 600;
+          height: 60px;
+          background: #111827;
+          color: #F9FAFB;
+          border: none;
+          border-radius: 10px;
+          font-size: 17px;
+          font-weight: 700;
+          font-family: inherit;
           text-decoration: none;
-          margin-bottom: 1.5rem;
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-          transition: all 0.2s;
-        }
-
-        .new-order-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
-        }
-
-        .new-order-btn:active {
-          transform: scale(0.98);
-        }
-
-        /* Stats Grid */
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 0.75rem;
-          margin-bottom: 1.5rem;
-        }
-
-        .stat-card {
-          background: var(--bg-card);
-          border-radius: var(--radius-lg);
-          padding: 1rem;
           cursor: pointer;
-          transition: all 0.2s;
-          border: 2px solid transparent;
+          transition: background 0.12s;
+          margin-bottom: 28px;
+          letter-spacing: -0.01em;
         }
 
-        .stat-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        .db-cta:hover { background: #000; }
+        .db-cta:active { transform: scale(0.995); }
+
+        /* ===== BLOCK ===== */
+        .db-block {
+          margin-bottom: 20px;
         }
 
-        .stat-card:active {
-          transform: scale(0.98);
-        }
-
-        .stat-icon {
-          width: 40px;
-          height: 40px;
-          border-radius: var(--radius-md);
+        .db-block-head {
           display: flex;
           align-items: center;
-          justify-content: center;
-          margin-bottom: 0.75rem;
-        }
-
-        .stat-pending .stat-icon {
-          background: #fef3c7;
-          color: #f59e0b;
-        }
-
-        .stat-month-orders .stat-icon {
-          background: #d1fae5;
-          color: #10b981;
-        }
-
-        .stat-week .stat-icon {
-          background: #dbeafe;
-          color: #3b82f6;
-        }
-
-        .stat-month .stat-icon {
-          background: #e0e7ff;
-          color: #6366f1;
-        }
-
-        .stat-value {
-          font-size: 1.5rem;
-          font-weight: 700;
-          color: var(--text-primary);
-          line-height: 1;
-        }
-
-        .stat-label {
-          font-size: 0.8125rem;
-          color: var(--text-secondary);
-          margin-top: 0.25rem;
-        }
-
-        /* Weekly Summary Card */
-        .weekly-summary {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-          border-radius: var(--radius-lg);
-          padding: 1.25rem;
-          margin-bottom: 1.5rem;
-          cursor: pointer;
-          transition: all 0.2s;
-          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
-        }
-
-        .weekly-summary:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
-        }
-
-        .weekly-summary:active {
-          transform: scale(0.98);
-        }
-
-        .weekly-header {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          color: rgba(255, 255, 255, 0.9);
-          font-size: 0.875rem;
-          font-weight: 600;
-          margin-bottom: 0.5rem;
-        }
-
-        .weekly-amount {
-          font-size: 2rem;
-          font-weight: 700;
-          color: white;
-          line-height: 1;
-        }
-
-        .weekly-label {
-          font-size: 0.8125rem;
-          color: rgba(255, 255, 255, 0.8);
-          margin-top: 0.25rem;
-        }
-
-        /* Section */
-        .section {
-          margin-bottom: 1.5rem;
-        }
-
-        .section-header {
-          display: flex;
           justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1rem;
+          margin-bottom: 10px;
         }
 
-        .section-title {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-size: 1.125rem;
-          font-weight: 600;
+        .db-block-title {
+          font-size: 13px;
+          font-weight: 700;
+          color: #0F172A;
           margin: 0;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
 
-        .see-all {
+        .db-link {
           display: flex;
           align-items: center;
-          gap: 0.25rem;
-          color: var(--primary);
-          font-size: 0.875rem;
+          gap: 1px;
+          font-size: 12px;
           font-weight: 600;
+          color: #9CA3AF;
           text-decoration: none;
         }
+        .db-link:hover { color: #374151; }
 
-        /* Empty State */
-        .empty-orders {
-          background: var(--bg-card);
-          border-radius: var(--radius-lg);
-          padding: 2rem;
+        /* ===== EMPTY ===== */
+        .db-empty {
+          background: white;
+          border: 1px solid #E5E7EB;
+          border-radius: 10px;
+          padding: 28px 16px;
           text-align: center;
         }
 
-        .empty-icon {
-          font-size: 3rem;
-          margin-bottom: 1rem;
+        .db-empty p {
+          font-size: 13px;
+          color: #9CA3AF;
+          margin: 0 0 10px;
         }
 
-        .empty-title {
-          font-size: 1.125rem;
-          font-weight: 600;
-          margin: 0 0 0.5rem 0;
+        .db-empty-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 8px 16px;
+          background: #111827;
+          color: white;
+          font-size: 12px;
+          font-weight: 700;
+          border-radius: 8px;
+          text-decoration: none;
         }
 
-        .empty-text {
-          color: var(--text-secondary);
-          font-size: 0.9375rem;
-          margin: 0 0 1rem 0;
-        }
-
-        /* Orders List */
-        .orders-list {
+        /* ===== ORDERS ===== */
+        .db-list {
           display: flex;
           flex-direction: column;
-          gap: 0.75rem;
+          gap: 6px;
         }
 
-        .order-card {
+        .db-ord {
           display: flex;
           align-items: center;
-          gap: 1rem;
-          background: var(--bg-card);
-          border-radius: var(--radius-lg);
-          padding: 1rem;
+          gap: 10px;
+          width: 100%;
+          padding: 12px 14px;
+          background: white;
+          border: 1px solid #E5E7EB;
+          border-radius: 10px;
           cursor: pointer;
-          transition: all 0.2s;
-          border: 1px solid var(--border-light);
+          font-family: inherit;
+          text-align: left;
+          transition: border-color 0.12s;
         }
 
-        .order-card:hover {
-          background: var(--bg-hover);
-          border-color: var(--primary-light);
+        .db-ord:hover {
+          border-color: #D1D5DB;
         }
 
-        .order-card:active {
-          transform: scale(0.99);
+        .db-ord:active {
+          background: #FAFAFA;
         }
 
-        .order-main {
+        .db-ord-main {
           flex: 1;
           min-width: 0;
         }
 
-        .order-number {
+        .db-ord-client {
+          font-size: 15px;
           font-weight: 700;
-          color: var(--primary);
-          font-size: 0.9375rem;
+          color: #0F172A;
+          line-height: 1.2;
         }
 
-        .order-client {
-          font-weight: 600;
-          font-size: 0.9375rem;
-          margin: 0.25rem 0;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .order-moto {
+        .db-ord-moto {
           display: flex;
           align-items: center;
-          gap: 0.25rem;
-          font-size: 0.8125rem;
-          color: var(--text-secondary);
+          gap: 4px;
+          font-size: 12px;
+          color: #9CA3AF;
+          margin-top: 1px;
         }
 
-        .order-side {
-          text-align: right;
+        .db-ord-code {
+          font-size: 11px;
+          color: #D1D5DB;
+          margin-top: 2px;
+          font-weight: 500;
         }
 
-        .order-status {
+        .db-chip {
           display: inline-block;
-          padding: 0.25rem 0.5rem;
-          border-radius: var(--radius-full);
-          font-size: 0.75rem;
-          font-weight: 600;
-          margin-bottom: 0.25rem;
-        }
-
-        .order-amount {
+          padding: 4px 10px;
+          border-radius: 6px;
+          font-size: 11px;
           font-weight: 700;
-          color: var(--success);
-          font-size: 0.9375rem;
+          white-space: nowrap;
+          border: 1px solid;
+          flex-shrink: 0;
+          letter-spacing: 0.01em;
         }
 
-        .order-time {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-        }
-
-        .order-arrow {
-          color: var(--text-muted);
+        .db-arrow {
+          color: #D1D5DB;
           flex-shrink: 0;
         }
 
-        /* Quick Links */
-        .quick-links {
+        /* ===== STATS ===== */
+        .db-stats {
           display: flex;
-          gap: 0.75rem;
+          align-items: center;
+          background: white;
+          border: 1px solid #E5E7EB;
+          border-radius: 10px;
+          padding: 14px 0;
+          margin-bottom: 10px;
         }
 
-        .quick-link {
+        .db-stat {
           flex: 1;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 0.5rem;
-          padding: 1rem 0.5rem;
-          background: var(--bg-card);
-          border-radius: var(--radius-lg);
-          text-decoration: none;
-          color: var(--text-secondary);
-          font-size: 0.8125rem;
+          gap: 2px;
+          cursor: pointer;
+        }
+
+        .db-stat-n {
+          font-size: 26px;
+          font-weight: 800;
+          color: #0F172A;
+          line-height: 1;
+        }
+
+        .db-stat-n--g { color: #15803D; }
+
+        .db-stat-l {
+          font-size: 10px;
+          color: #9CA3AF;
           font-weight: 600;
-          transition: all 0.2s;
-          border: 1px solid var(--border-light);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
         }
 
-        .quick-link:hover {
-          background: var(--bg-hover);
-          color: var(--primary);
+        .db-stat-div {
+          width: 1px;
+          height: 32px;
+          background: #E5E7EB;
+          flex-shrink: 0;
         }
 
-        .quick-link:active {
-          transform: scale(0.98);
+        /* ===== EARNINGS ===== */
+        .db-earn {
+          background: white;
+          border: 1px solid #E5E7EB;
+          border-radius: 10px;
+          padding: 16px 18px;
+          cursor: pointer;
+          transition: border-color 0.12s;
+        }
+
+        .db-earn:hover { border-color: #D1D5DB; }
+
+        .db-earn-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 4px;
+        }
+
+        .db-earn-label {
+          font-size: 11px;
+          font-weight: 700;
+          color: #9CA3AF;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+
+        .db-earn-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 2px 8px;
+          border-radius: 4px;
+        }
+
+        .db-earn-badge.up {
+          background: #DCFCE7;
+          color: #15803D;
+        }
+
+        .db-earn-badge.down {
+          background: #FEE2E2;
+          color: #DC2626;
+        }
+
+        .db-earn-badge.down svg {
+          transform: rotate(180deg);
+        }
+
+        .db-earn-amount {
+          font-size: 32px;
+          font-weight: 800;
+          color: #0F172A;
+          line-height: 1;
+          letter-spacing: -0.02em;
         }
       `}</style>
     </div>

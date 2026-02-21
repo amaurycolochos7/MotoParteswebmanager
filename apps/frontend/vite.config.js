@@ -2,10 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
-// Hybrid mode: Frontend local → Backend en VPS (Dokploy)
-// Usamos IP:puerto directo porque el dominio tiene stripPath que causa 404
-const VPS_API = process.env.VPS_API || 'http://187.77.11.79:3010'
-const VPS_BOT = process.env.VPS_BOT || 'http://187.77.11.79:3002'
+// Hybrid mode: Frontend local → Backend en producción (via dominio)
+// Los puertos directos del VPS están bloqueados por firewall,
+// usamos el dominio que pasa por Traefik/Dokploy
+const PROD_API = 'https://motopartes.cloud'
 
 export default defineConfig({
   plugins: [react()],
@@ -17,16 +17,15 @@ export default defineConfig({
     ],
     proxy: {
       '/api/whatsapp-bot': {
-        target: 'http://187.77.11.79:3001',
+        target: PROD_API,
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/whatsapp-bot/, '/api'),
+        secure: true,
       },
       '/api': {
-        target: VPS_API,
+        target: PROD_API,
         changeOrigin: true,
+        secure: true,
       }
     }
   }
 })
-
-

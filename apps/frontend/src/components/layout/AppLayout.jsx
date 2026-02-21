@@ -274,15 +274,13 @@ export default function AppLayout() {
 
                 /* Logo image styling */
                 .sidebar-logo .logo-image {
-                    height: 60px;
+                    height: 52px;
                     width: auto;
-                    filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.3));
-                    transition: filter 0.3s ease, transform 0.3s ease;
+                    transition: opacity 0.2s ease;
                 }
 
                 .sidebar-logo:hover .logo-image {
-                    filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.5));
-                    transform: scale(1.02);
+                    opacity: 0.85;
                 }
 
                 /* Role chips */
@@ -294,29 +292,31 @@ export default function AppLayout() {
                     display: inline-flex;
                     align-items: center;
                     gap: 4px;
-                    padding: 3px 10px;
-                    border-radius: 12px;
-                    font-size: 0.6875rem;
+                    padding: 2px 8px;
+                    border-radius: 4px;
+                    font-size: 0.625rem;
                     font-weight: 600;
-                    letter-spacing: 0.3px;
-                    background: rgba(148, 163, 184, 0.3);
-                    color: rgba(226, 232, 240, 0.9);
+                    letter-spacing: 0.04em;
+                    text-transform: uppercase;
+                    background: rgba(255, 255, 255, 0.06);
+                    color: #9CA3AF;
+                    border: 1px solid rgba(255, 255, 255, 0.08);
                 }
 
                 .role-chip.master {
-                    background: linear-gradient(135deg, rgba(234, 179, 8, 0.3) 0%, rgba(251, 191, 36, 0.4) 100%);
-                    color: #fbbf24;
-                    border: 1px solid rgba(234, 179, 8, 0.3);
+                    background: rgba(234, 179, 8, 0.12);
+                    color: #D97706;
+                    border-color: rgba(234, 179, 8, 0.2);
                 }
 
                 .role-chip.master svg {
-                    color: #fbbf24;
+                    color: #D97706;
                 }
 
                 .role-chip.auxiliary {
-                    background: linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(52, 211, 153, 0.4) 100%);
-                    color: #34d399;
-                    border: 1px solid rgba(16, 185, 129, 0.3);
+                    background: rgba(16, 185, 129, 0.12);
+                    color: #059669;
+                    border-color: rgba(16, 185, 129, 0.2);
                 }
             `}</style>
         </div>
