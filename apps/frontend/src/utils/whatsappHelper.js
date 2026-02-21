@@ -1,29 +1,29 @@
-import { whatsappBotService } from '../lib/api';
+﻿import { whatsappBotService } from '../lib/api';
 
 // ============================================================
-// CORE: Envío directo de mensajes via WhatsApp Bot
+// CORE: Envio directo de mensajes via WhatsApp Bot
 // ============================================================
 
 /**
- * Envía un mensaje de WhatsApp directamente desde el bot.
- * NO abre ventana ni requiere conversación previa.
- * Si el bot no está conectado, retorna error para que la UI lo muestre.
+ * Envia un mensaje de WhatsApp directamente desde el bot.
+ * NO abre ventana ni requiere conversacion previa.
+ * Si el bot no esta conectado, retorna error para que la UI lo muestre.
  *
- * @param {string} mechanicId - ID del mecánico (dueño de la sesión del bot)
- * @param {string} phone - Número de teléfono del destinatario
+ * @param {string} mechanicId - ID del mecanico (dueno de la sesion del bot)
+ * @param {string} phone - Numero de telefono del destinatario
  * @param {string} message - Mensaje a enviar
  * @returns {Promise<{success: boolean, automated: boolean, error?: string}>}
  */
 export const sendDirectMessage = async (mechanicId, phone, message, orderId = null) => {
     if (!phone) {
-        return { success: false, automated: false, error: 'El cliente no tiene número de teléfono registrado' };
+        return { success: false, automated: false, error: 'El cliente no tiene numero de telefono registrado' };
     }
     if (!message) {
-        return { success: false, automated: false, error: 'El mensaje está vacío' };
+        return { success: false, automated: false, error: 'El mensaje esta vacio' };
     }
 
     try {
-        // Intento 1: enviar con la sesión del mecánico directamente
+        // Intento 1: enviar con la sesion del mecanico directamente
         if (mechanicId) {
             const status = await whatsappBotService.getSessionStatus(mechanicId);
             if (status.isConnected) {
@@ -34,7 +34,7 @@ export const sendDirectMessage = async (mechanicId, phone, message, orderId = nu
             }
         }
 
-        // Intento 2: si hay orderId, usar sendForOrder (busca la sesión correcta automáticamente)
+        // Intento 2: si hay orderId, usar sendForOrder (busca la sesion correcta automaticamente)
         if (orderId) {
             const result = await whatsappBotService.sendForOrder(orderId, phone, message);
             if (result.success) {
@@ -42,7 +42,7 @@ export const sendDirectMessage = async (mechanicId, phone, message, orderId = nu
             }
         }
 
-        // Intento 3: buscar cualquier sesión activa del bot
+        // Intento 3: buscar cualquier sesion activa del bot
         const sessions = await whatsappBotService.getBotSessions();
         const activeSessions = (Array.isArray(sessions) ? sessions : []).filter(s => s.isConnected);
 
@@ -56,14 +56,14 @@ export const sendDirectMessage = async (mechanicId, phone, message, orderId = nu
         return {
             success: false,
             automated: false,
-            error: 'El bot de WhatsApp no está activo. Conéctalo desde la sección WhatsApp antes de enviar notificaciones.'
+            error: 'El bot de WhatsApp no esta activo. Conectalo desde la seccion WhatsApp antes de enviar notificaciones.'
         };
     } catch (err) {
         console.error('[WhatsApp] Error al enviar mensaje directo:', err);
         return {
             success: false,
             automated: false,
-            error: 'Error de conexión con el bot de WhatsApp.'
+            error: 'Error de conexion con el bot de WhatsApp.'
         };
     }
 };
@@ -75,7 +75,7 @@ export const sendDirectMessage = async (mechanicId, phone, message, orderId = nu
 
 /**
  * Genera un link de wa.me con mensaje pre-llenado (abrir en navegador)
- * SOLO usar como referencia o último recurso manual.
+ * SOLO usar como referencia o ultimo recurso manual.
  */
 export const generateWhatsAppLink = (phone, message) => {
     let cleanPhone = phone.replace(/\D/g, '');
@@ -95,7 +95,7 @@ export const generateWhatsAppLink = (phone, message) => {
 };
 
 /**
- * Abre WhatsApp Web con mensaje pre-llenado (método manual legacy)
+ * Abre WhatsApp Web con mensaje pre-llenado (metodo manual legacy)
  */
 export const sendViaWhatsApp = (phone, message) => {
     const link = generateWhatsAppLink(phone, message);
@@ -112,11 +112,10 @@ export const sendAutomatedMessage = async (phone, message) => {
 
 
 // ============================================================
-// PLANTILLAS DE MENSAJES — Diseño profesional y limpio
+// PLANTILLAS DE MENSAJES - Profesional y limpio
 // ============================================================
 
-const SEPARATOR = `───────────────────`;
-const FOOTER = `*Motopartes* · Servicio Profesional`;
+const FOOTER = `*Motopartes* - Servicio Profesional`;
 
 /**
  * Mensaje de bienvenida cuando se crea una orden (legacy)
@@ -125,13 +124,11 @@ export const getOrderLinkMessage = (clientName, motorcycle, link) => {
     return [
         `Estimado/a *${clientName}*,`,
         ``,
-        SEPARATOR,
         `*ORDEN DE SERVICIO REGISTRADA*`,
-        SEPARATOR,
         ``,
         `Su motocicleta *${motorcycle}* ha sido recibida en nuestro taller.`,
         ``,
-        link ? `Seguimiento en línea:` : null,
+        link ? `Seguimiento en linea:` : null,
         link ? link : null,
         link ? `` : null,
         `Le mantendremos informado sobre el avance de su servicio.`,
@@ -141,17 +138,15 @@ export const getOrderLinkMessage = (clientName, motorcycle, link) => {
 };
 
 /**
- * Notificación de actualización en el servicio
+ * Notificacion de actualizacion en el servicio
  */
 export const getUpdateNotificationMessage = (clientName, updateTitle, link) => {
     return [
         `Estimado/a *${clientName}*,`,
         ``,
-        SEPARATOR,
-        `*ACTUALIZACIÓN DE SERVICIO*`,
-        SEPARATOR,
+        `*ACTUALIZACION DE SERVICIO*`,
         ``,
-        `Se registró una novedad en su servicio:`,
+        `Se registro una novedad en su servicio:`,
         `_"${updateTitle}"_`,
         ``,
         link ? `Consulte los detalles:` : null,
@@ -168,16 +163,14 @@ export const getReadyForPickupMessage = (clientName, motorcycle, orderNumber, to
     return [
         `Estimado/a *${clientName}*,`,
         ``,
-        SEPARATOR,
-        `*${orderNumber} — LISTA PARA ENTREGAR*`,
-        SEPARATOR,
+        `*${orderNumber} - LISTA PARA ENTREGAR*`,
         ``,
         `Moto: *${motorcycle}*`,
         `Total: *$${totalAmount.toLocaleString('es-MX')}*`,
         ``,
-        `Horario de atención:`,
-        `Lun – Vie: 9:00 AM – 6:00 PM`,
-        `Sábados: 9:00 AM – 2:00 PM`,
+        `Horario de atencion:`,
+        `Lun - Vie: 9:00 AM - 6:00 PM`,
+        `Sabados: 9:00 AM - 2:00 PM`,
         ``,
         `Le esperamos para la entrega.`,
         ``,
@@ -186,26 +179,24 @@ export const getReadyForPickupMessage = (clientName, motorcycle, orderNumber, to
 };
 
 /**
- * Confirmación de entrega
+ * Confirmacion de entrega
  */
 export const getDeliveryNotificationMessage = (clientName, motorcycle, orderNumber) => {
     return [
         `Estimado/a *${clientName}*,`,
         ``,
-        SEPARATOR,
-        `*${orderNumber} — ENTREGADA*`,
-        SEPARATOR,
+        `*${orderNumber} - ENTREGADA*`,
         ``,
         `Su motocicleta *${motorcycle}* ha sido entregada satisfactoriamente.`,
         ``,
-        `Agradecemos su confianza. Estamos a sus órdenes para cualquier necesidad futura.`,
+        `Agradecemos su confianza. Estamos a sus ordenes para cualquier necesidad futura.`,
         ``,
         FOOTER,
     ].join('\n');
 };
 
 /**
- * Mensaje genérico de cambio de estado — despacha al template correcto
+ * Mensaje generico de cambio de estado - despacha al template correcto
  */
 export const getStatusChangeMessage = (statusName, data) => {
     const { clientName, motorcycle, orderNumber, trackingLink, totalAmount, services } = data;
@@ -214,10 +205,10 @@ export const getStatusChangeMessage = (statusName, data) => {
         case 'Registrada':
             return getOrderCreatedMessage(clientName, motorcycle, orderNumber, trackingLink);
 
-        case 'En Revisión':
+        case 'En Revision':
             return getInReviewMessage(clientName, motorcycle, orderNumber, trackingLink);
 
-        case 'En Reparación':
+        case 'En Reparacion':
             return getInRepairMessage(clientName, motorcycle, orderNumber, trackingLink);
 
         case 'En Proceso':
@@ -241,21 +232,19 @@ export const getStatusChangeMessage = (statusName, data) => {
 };
 
 /**
- * Orden recién creada / registrada
+ * Orden recien creada / registrada
  */
 export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
     return [
         `Estimado/a *${clientName}*,`,
         ``,
-        SEPARATOR,
-        `*${orderNumber} — REGISTRADA*`,
-        SEPARATOR,
+        `*${orderNumber} - REGISTRADA*`,
         ``,
         `Su motocicleta *${motorcycle}* ha sido recibida en nuestro taller.`,
         ``,
         `Le informaremos cada avance de su servicio por este medio.`,
         ``,
-        trackingLink ? `Seguimiento en línea:` : null,
+        trackingLink ? `Seguimiento en linea:` : null,
         trackingLink ? trackingLink : null,
         trackingLink ? `` : null,
         FOOTER,
@@ -263,17 +252,15 @@ export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trac
 };
 
 /**
- * Moto en revisión
+ * Moto en revision
  */
 export const getInReviewMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
     return [
         `Estimado/a *${clientName}*,`,
         ``,
-        SEPARATOR,
-        `*${orderNumber} — EN REVISIÓN*`,
-        SEPARATOR,
+        `*${orderNumber} - EN REVISION*`,
         ``,
-        `Su motocicleta *${motorcycle}* se encuentra en revisión por nuestro equipo técnico.`,
+        `Su motocicleta *${motorcycle}* se encuentra en revision por nuestro equipo tecnico.`,
         ``,
         `Estamos evaluando los trabajos necesarios. Le mantendremos informado.`,
         ``,
@@ -284,19 +271,17 @@ export const getInReviewMessage = (clientName, motorcycle, orderNumber, tracking
 };
 
 /**
- * Moto en reparación
+ * Moto en reparacion
  */
 export const getInRepairMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
     return [
         `Estimado/a *${clientName}*,`,
         ``,
-        SEPARATOR,
-        `*${orderNumber} — EN REPARACIÓN*`,
-        SEPARATOR,
+        `*${orderNumber} - EN REPARACION*`,
         ``,
-        `Su motocicleta *${motorcycle}* se encuentra en reparación.`,
+        `Su motocicleta *${motorcycle}* se encuentra en reparacion.`,
         ``,
-        `Nuestro equipo está trabajando para dejarla en óptimas condiciones.`,
+        `Nuestro equipo esta trabajando para dejarla en optimas condiciones.`,
         ``,
         trackingLink ? `Seguimiento: ${trackingLink}` : null,
         ``,
@@ -311,11 +296,9 @@ export const getInProgressMessage = (clientName, motorcycle, orderNumber, tracki
     return [
         `Estimado/a *${clientName}*,`,
         ``,
-        SEPARATOR,
-        `*${orderNumber} — EN PROCESO*`,
-        SEPARATOR,
+        `*${orderNumber} - EN PROCESO*`,
         ``,
-        `Su motocicleta *${motorcycle}* continúa en proceso de servicio.`,
+        `Su motocicleta *${motorcycle}* continua en proceso de servicio.`,
         ``,
         `Le notificaremos cuando haya novedades.`,
         ``,
@@ -332,13 +315,11 @@ export const getAwaitingPartsMessage = (clientName, motorcycle, orderNumber, tra
     return [
         `Estimado/a *${clientName}*,`,
         ``,
-        SEPARATOR,
-        `*${orderNumber} — ESPERANDO REFACCIONES*`,
-        SEPARATOR,
+        `*${orderNumber} - ESPERANDO REFACCIONES*`,
         ``,
         `Le informamos que el servicio de su motocicleta *${motorcycle}* requiere refacciones que ya fueron solicitadas.`,
         ``,
-        `En cuanto estén disponibles, continuaremos con la reparación.`,
+        `En cuanto esten disponibles, continuaremos con la reparacion.`,
         ``,
         trackingLink ? `Seguimiento: ${trackingLink}` : null,
         ``,
@@ -353,30 +334,26 @@ export const getCancelledMessage = (clientName, motorcycle, orderNumber) => {
     return [
         `Estimado/a *${clientName}*,`,
         ``,
-        SEPARATOR,
-        `*${orderNumber} — CANCELADA*`,
-        SEPARATOR,
+        `*${orderNumber} - CANCELADA*`,
         ``,
         `La orden de servicio de su motocicleta *${motorcycle}* ha sido cancelada.`,
         ``,
-        `Si tiene alguna duda, estamos a sus órdenes.`,
+        `Si tiene alguna duda, estamos a sus ordenes.`,
         ``,
         FOOTER,
     ].join('\n');
 };
 
 /**
- * Estado genérico (para estados no mapeados)
+ * Estado generico (para estados no mapeados)
  */
 export const getGenericStatusMessage = (clientName, motorcycle, orderNumber, statusName, trackingLink) => {
     return [
         `Estimado/a *${clientName}*,`,
         ``,
-        SEPARATOR,
-        `*${orderNumber} — ${statusName.toUpperCase()}*`,
-        SEPARATOR,
+        `*${orderNumber} - ${statusName.toUpperCase()}*`,
         ``,
-        `Su motocicleta *${motorcycle}* cambió a estado: *${statusName}*.`,
+        `Su motocicleta *${motorcycle}* cambio a estado: *${statusName}*.`,
         ``,
         trackingLink ? `Seguimiento: ${trackingLink}` : null,
         ``,
@@ -385,11 +362,11 @@ export const getGenericStatusMessage = (clientName, motorcycle, orderNumber, sta
 };
 
 /**
- * Cotización con desglose de servicios
+ * Cotizacion con desglose de servicios
  */
 export const getQuotationMessage = (clientName, motorcycle, quotationNumber, services, totalAmount, expiresAt) => {
     const servicesList = services
-        .map(s => `  • ${s.name} — *$${s.price.toLocaleString('es-MX')}*`)
+        .map(s => `  - ${s.name} - *$${s.price.toLocaleString('es-MX')}*`)
         .join('\n');
 
     const expirationDate = new Date(expiresAt).toLocaleDateString('es-MX', {
@@ -401,22 +378,18 @@ export const getQuotationMessage = (clientName, motorcycle, quotationNumber, ser
     return [
         `Estimado/a *${clientName}*,`,
         ``,
-        SEPARATOR,
-        `*COTIZACIÓN ${quotationNumber}*`,
-        SEPARATOR,
+        `*COTIZACION ${quotationNumber}*`,
         ``,
         `Moto: *${motorcycle}*`,
         ``,
         `Servicios cotizados:`,
         servicesList,
         ``,
-        SEPARATOR,
         `*TOTAL: $${totalAmount.toLocaleString('es-MX')}*`,
-        SEPARATOR,
         ``,
         `Vigencia: ${expirationDate}`,
         ``,
-        `Para proceder, confirme esta cotización.`,
+        `Para proceder, confirme esta cotizacion.`,
         ``,
         FOOTER,
     ].join('\n');
@@ -429,16 +402,14 @@ export const getServiceOrderMessage = (clientName, motorcycle, orderNumber, link
     return [
         `Estimado/a *${clientName}*,`,
         ``,
-        SEPARATOR,
         `*ORDEN DE SERVICIO ${orderNumber}*`,
-        SEPARATOR,
         ``,
         `Moto: *${motorcycle}*`,
         ``,
         pdfUrl ? `Descargue su orden en PDF:` : null,
         pdfUrl ? pdfUrl : null,
         pdfUrl ? `` : null,
-        link ? `Seguimiento en línea:` : null,
+        link ? `Seguimiento en linea:` : null,
         link ? link : null,
         link ? `` : null,
         `Le informaremos cada avance de su servicio.`,
@@ -462,9 +433,9 @@ export const getDetailedOrderMessage = (
     // Servicios
     let servicesList = '';
     if (services && services.length > 0) {
-        servicesList = services.map(s => `  • ${s.name}`).join('\n');
+        servicesList = services.map(s => `  - ${s.name}`).join('\n');
     } else {
-        servicesList = '  • Revisión General';
+        servicesList = '  - Revision General';
     }
 
     // Desglose mano de obra / refacciones
@@ -492,22 +463,20 @@ export const getDetailedOrderMessage = (
     }
 
     // Link de seguimiento
-    const linkSection = link ? `\nSeguimiento en línea:\n${link}` : '';
+    const linkSection = link ? `\nSeguimiento en linea:\n${link}` : '';
 
     // Contacto
-    let contactSection = 'Cualquier duda, estamos a sus órdenes por este medio.';
+    let contactSection = 'Cualquier duda, estamos a sus ordenes por este medio.';
     if (contactInfo && contactInfo.isSupervisor && contactInfo.mechanicPhone) {
         const name = contactInfo.mechanicName || 'nuestro equipo';
         const phone = formatPhoneForDisplay(contactInfo.mechanicPhone);
-        contactSection = `Contacto directo: *${name}* — ${phone}`;
+        contactSection = `Contacto directo: *${name}* - ${phone}`;
     }
 
     return [
         `Estimado/a *${clientName}*,`,
         ``,
-        SEPARATOR,
         `*ORDEN DE SERVICIO ${orderNumber}*`,
-        SEPARATOR,
         ``,
         `Moto: *${motorcycle}*`,
         ``,
@@ -515,9 +484,7 @@ export const getDetailedOrderMessage = (
         servicesList,
         totalsSection,
         ``,
-        SEPARATOR,
         `*TOTAL: $${(totalAmount || 0).toLocaleString('es-MX')}*`,
-        SEPARATOR,
         paymentSection,
         linkSection,
         ``,
@@ -533,7 +500,7 @@ export const getDetailedOrderMessage = (
 // ============================================================
 
 /**
- * Formatear número de teléfono para mostrar en mensajes
+ * Formatear numero de telefono para mostrar en mensajes
  */
 const formatPhoneForDisplay = (phone) => {
     if (!phone) return '';
@@ -555,7 +522,7 @@ const formatPhoneForDisplay = (phone) => {
 export { formatPhoneForDisplay };
 
 /**
- * Label legible para método de pago
+ * Label legible para metodo de pago
  */
 const getPaymentMethodLabel = (method) => {
     switch (method) {
