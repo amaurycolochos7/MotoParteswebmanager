@@ -133,6 +133,29 @@ class SessionManager {
     }
 
     /**
+     * Cierra sesión de WhatsApp de forma REAL:
+     * - Envía señal de logout a los servidores de WhatsApp (desvincula el dispositivo)
+     * - Borra auth local para que no se reconecte  
+     * - Destruye el cliente de Puppeteer
+     */
+    async logoutSession(mechanicId) {
+        const session = this.sessions.get(mechanicId);
+        if (!session) return false;
+
+        console.log(`🔓 logoutSession called for ${mechanicId}`);
+        await session.logout();
+        this.sessions.delete(mechanicId);
+
+        await this.updateDbSession(mechanicId, {
+            is_connected: false,
+            disconnected_at: new Date(),
+        });
+
+        console.log(`✅ logoutSession complete for ${mechanicId}`);
+        return true;
+    }
+
+    /**
      * Destruye TODAS las sesiones activas.
      * Se usa en shutdown limpio (SIGINT/SIGTERM).
      * @param {boolean} keepDbState - Si true, NO marcar como desconectado en DB (para que se restauren al reiniciar)

@@ -310,6 +310,46 @@ class WhatsAppSession extends EventEmitter {
     }
 
     /**
+     * Cierra sesión de WhatsApp de forma real: envía señal de logout
+     * al servidor de WA (desvincula el dispositivo) y luego destruye el cliente.
+     * Esto borra la autenticación local para que no se reconecte automáticamente.
+     */
+    async logout() {
+        this._stopHeartbeat();
+        try {
+            this.isConnected = false;
+            if (this.client) {
+                // client.logout() sends actual logout to WhatsApp servers
+                // and clears local auth data so session can't auto-restore
+                console.log(`🔓 Logging out WhatsApp session for ${this.mechanicId}...`);
+                await withTimeout(
+                    this.client.logout(),
+                    15000,
+                    `client.logout(${this.mechanicId})`
+                );
+                console.log(`✅ WhatsApp session logged out for ${this.mechanicId}`);
+            }
+        } catch (err) {
+            console.error(`Error logging out client ${this.mechanicId}:`, err.message);
+        } finally {
+            // After logout, destroy the browser instance
+            try {
+                if (this.client) {
+                    await withTimeout(
+                        this.client.destroy(),
+                        10000,
+                        `client.destroy(${this.mechanicId}) after logout`
+                    );
+                }
+            } catch (destroyErr) {
+                console.error(`Error destroying after logout ${this.mechanicId}:`, destroyErr.message);
+            }
+            this.client = null;
+            this.initializing = false;
+        }
+    }
+
+    /**
      * Destruye el cliente de forma segura con timeout.
      * Si client.destroy() se queda colgado (init parcial, Chrome zombie),
      * el timeout de 15s lo fuerza a continuar.

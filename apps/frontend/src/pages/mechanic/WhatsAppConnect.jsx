@@ -79,8 +79,18 @@ export default function WhatsAppConnect() {
 
     const handleRestartSession = async () => {
         setStatus('loading');
-        await whatsappBotService.logoutSession(user.id);
-        checkStatus();
+        setError(null);
+        try {
+            await whatsappBotService.logoutSession(user.id);
+            // After logout, set to 'logged_out' state — NOT 'disconnected' which would auto-start polling
+            setSessionData(null);
+            setQrCode(null);
+            setStatus('logged_out');
+        } catch (err) {
+            console.error('Error during WhatsApp logout:', err);
+            setError('Error al cerrar sesión de WhatsApp');
+            setStatus('error');
+        }
     };
 
     // Format phone number for display: 521234567890 → +52 1 234 567 890
@@ -214,6 +224,17 @@ export default function WhatsAppConnect() {
                         <p>Preparando tu sesión de WhatsApp. Esto puede tomar un momento...</p>
                         <button className="btn btn-outline mt-md" onClick={checkStatus}>
                             <RefreshCw size={16} /> Verificar estado
+                        </button>
+                    </div>
+                )}
+
+                {status === 'logged_out' && (
+                    <div className="wa-disconnected">
+                        <AlertCircle size={40} className="text-warning" />
+                        <h3>Sesión Cerrada</h3>
+                        <p>Has cerrado sesión de WhatsApp exitosamente.</p>
+                        <button className="btn btn-outline mt-md" onClick={() => { setStatus('disconnected'); checkStatus(); }}>
+                            <RefreshCw size={16} /> Reconectar
                         </button>
                     </div>
                 )}

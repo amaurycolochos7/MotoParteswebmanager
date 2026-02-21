@@ -63,8 +63,13 @@ router.post('/:mechanicId/start', async (req, res) => {
 // POST /api/sessions/:mechanicId/logout
 router.post('/:mechanicId/logout', async (req, res) => {
     const sessionManager = req.app.get('sessionManager');
-    const stopped = await sessionManager.stopSession(req.params.mechanicId);
-    res.json({ success: stopped });
+    try {
+        const loggedOut = await sessionManager.logoutSession(req.params.mechanicId);
+        res.json({ success: loggedOut });
+    } catch (err) {
+        console.error(`❌ Logout failed for ${req.params.mechanicId}:`, err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
 });
 
 export default router;
