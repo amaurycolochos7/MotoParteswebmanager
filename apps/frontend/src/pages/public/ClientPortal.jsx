@@ -37,15 +37,16 @@ export default function ClientPortal() {
   const loadOrder = async () => {
     try {
       setLoading(true);
-      const data = await ordersService.getByToken(token);
-      if (!data) {
+      const result = await ordersService.getByToken(token);
+      const orderData = result?.data || result;
+      if (!orderData || result?.error) {
         setError('Orden no encontrada');
       } else {
-        setOrder(data);
+        setOrder(orderData);
         // Load updates
         try {
-          const updatesData = await orderUpdatesService.getByOrder(data.id);
-          setUpdates(updatesData || []);
+          const updatesResult = await orderUpdatesService.getByOrder(orderData.id);
+          setUpdates(updatesResult?.data || updatesResult || []);
         } catch (e) {
           console.error('Error loading updates:', e);
         }

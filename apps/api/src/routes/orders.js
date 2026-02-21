@@ -38,6 +38,32 @@ const ORDER_INCLUDE = {
 };
 
 export default async function ordersRoutes(fastify) {
+    // ── PUBLIC ROUTE (no auth) ── must be registered BEFORE the auth hook
+    fastify.get('/public/:token', async (request, reply) => {
+        const order = await prisma.order.findUnique({
+            where: { public_token: request.params.token },
+            include: {
+                client: { select: { id: true, name: true } },
+                motorcycle: true,
+                mechanic: { select: { id: true, full_name: true, phone: true } },
+                status: true,
+                services: true,
+                parts: true,
+                photos: true,
+                updates: { orderBy: { created_at: 'desc' } }
+            }
+        });
+        if (!order) return reply.status(404).send({ error: 'Orden no encontrada' });
+
+        await prisma.order.update({
+            where: { id: order.id },
+            data: { client_last_seen_at: new Date() }
+        });
+
+        return order;
+    });
+
+    // ── ALL ROUTES BELOW REQUIRE AUTH ──
     fastify.addHook('preHandler', authenticate);
 
     // GET /api/orders
@@ -61,32 +87,7 @@ export default async function ordersRoutes(fastify) {
         return order;
     });
 
-    // GET /api/orders/token/:token (public - no auth needed for this one)
-    fastify.get('/public/:token', async (request, reply) => {
-        // Remove auth for public portal access
-        const order = await prisma.order.findUnique({
-            where: { public_token: request.params.token },
-            include: {
-                client: true,
-                motorcycle: true,
-                mechanic: { select: { id: true, full_name: true, phone: true } },
-                status: true,
-                services: true,
-                parts: true,
-                photos: true,
-                updates: { orderBy: { created_at: 'desc' } }
-            }
-        });
-        if (!order) return reply.status(404).send({ error: 'Orden no encontrada' });
-
-        // Update last seen
-        await prisma.order.update({
-            where: { id: order.id },
-            data: { client_last_seen_at: new Date() }
-        });
-
-        return order;
-    });
+    // (public/:token route is registered above, before auth hook)
 
     // GET /api/orders/client/:clientId
     fastify.get('/client/:clientId', async (request) => {

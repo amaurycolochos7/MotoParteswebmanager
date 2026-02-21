@@ -112,28 +112,31 @@ export const sendAutomatedMessage = async (phone, message) => {
 
 
 // ============================================================
-// PLANTILLAS DE MENSAJES — Diseño profesional con emojis y formato
+// PLANTILLAS DE MENSAJES — Diseño profesional y limpio
 // ============================================================
 
+const SEPARATOR = `───────────────────`;
+const FOOTER = `*Motopartes* · Servicio Profesional`;
+
 /**
- * Mensaje de bienvenida cuando se crea una orden
+ * Mensaje de bienvenida cuando se crea una orden (legacy)
  */
 export const getOrderLinkMessage = (clientName, motorcycle, link) => {
     return [
-        `Hola *${clientName}* 👋`,
+        `Estimado/a *${clientName}*,`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `🏍️ *ORDEN DE SERVICIO REGISTRADA*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*ORDEN DE SERVICIO REGISTRADA*`,
+        SEPARATOR,
         ``,
-        `Tu motocicleta *${motorcycle}* fue recibida exitosamente en nuestro taller.`,
+        `Su motocicleta *${motorcycle}* ha sido recibida en nuestro taller.`,
         ``,
-        link ? `📱 *Seguimiento en tiempo real:*` : null,
+        link ? `Seguimiento en línea:` : null,
         link ? link : null,
         link ? `` : null,
-        `Te avisaremos cada paso del proceso por este medio.`,
+        `Le mantendremos informado sobre el avance de su servicio.`,
         ``,
-        `_Gracias por confiar en *Motopartes*_ 🔧✨`,
+        FOOTER,
     ].filter(line => line !== null).join('\n');
 };
 
@@ -142,19 +145,19 @@ export const getOrderLinkMessage = (clientName, motorcycle, link) => {
  */
 export const getUpdateNotificationMessage = (clientName, updateTitle, link) => {
     return [
-        `Hola *${clientName}* 📢`,
+        `Estimado/a *${clientName}*,`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `🔔 *ACTUALIZACIÓN DE SERVICIO*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*ACTUALIZACIÓN DE SERVICIO*`,
+        SEPARATOR,
         ``,
-        `Hay una novedad en tu servicio:`,
-        `▸ _"${updateTitle}"_`,
+        `Se registró una novedad en su servicio:`,
+        `_"${updateTitle}"_`,
         ``,
-        link ? `👀 Revisa los detalles aquí:` : null,
+        link ? `Consulte los detalles:` : null,
         link ? link : null,
         link ? `` : null,
-        `_Motopartes — Tu taller de confianza_ 🔧`,
+        FOOTER,
     ].filter(line => line !== null).join('\n');
 };
 
@@ -163,24 +166,22 @@ export const getUpdateNotificationMessage = (clientName, updateTitle, link) => {
  */
 export const getReadyForPickupMessage = (clientName, motorcycle, orderNumber, totalAmount) => {
     return [
-        `¡Hola *${clientName}*! 🎉`,
+        `Estimado/a *${clientName}*,`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `✅ *¡TU MOTO ESTÁ LISTA!*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*${orderNumber} — LISTA PARA ENTREGAR*`,
+        SEPARATOR,
         ``,
-        `🏍️ *Moto:* ${motorcycle}`,
-        `📋 *Orden:* ${orderNumber}`,
+        `Moto: *${motorcycle}*`,
+        `Total: *$${totalAmount.toLocaleString('es-MX')}*`,
         ``,
-        `💰 *Total a pagar:* $${totalAmount.toLocaleString('es-MX')}`,
+        `Horario de atención:`,
+        `Lun – Vie: 9:00 AM – 6:00 PM`,
+        `Sábados: 9:00 AM – 2:00 PM`,
         ``,
-        `📍 *Horario de atención:*`,
-        `   Lun – Vie: 9:00 AM – 6:00 PM`,
-        `   Sábados: 9:00 AM – 2:00 PM`,
+        `Le esperamos para la entrega.`,
         ``,
-        `¡Te esperamos! 🏁`,
-        ``,
-        `_Motopartes — Tu taller de confianza_ 🔧✨`,
+        FOOTER,
     ].join('\n');
 };
 
@@ -189,26 +190,22 @@ export const getReadyForPickupMessage = (clientName, motorcycle, orderNumber, to
  */
 export const getDeliveryNotificationMessage = (clientName, motorcycle, orderNumber) => {
     return [
-        `¡Hola *${clientName}*! 🙏`,
+        `Estimado/a *${clientName}*,`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `✅ *ORDEN ${orderNumber} — ENTREGADA*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*${orderNumber} — ENTREGADA*`,
+        SEPARATOR,
         ``,
-        `🏍️ Tu *${motorcycle}* fue entregada exitosamente.`,
+        `Su motocicleta *${motorcycle}* ha sido entregada satisfactoriamente.`,
         ``,
-        `Fue un placer atenderte. Estamos para servirte cuando lo necesites.`,
+        `Agradecemos su confianza. Estamos a sus órdenes para cualquier necesidad futura.`,
         ``,
-        `⭐ _Tu satisfacción es nuestra mejor recomendación._`,
-        ``,
-        `_Motopartes — Tu taller de confianza_ 🔧✨`,
+        FOOTER,
     ].join('\n');
 };
 
 /**
  * Mensaje genérico de cambio de estado — despacha al template correcto
- * @param {string} statusName - Nombre del nuevo estado
- * @param {object} data - { clientName, motorcycle, orderNumber, trackingLink, totalAmount, services }
  */
 export const getStatusChangeMessage = (statusName, data) => {
     const { clientName, motorcycle, orderNumber, trackingLink, totalAmount, services } = data;
@@ -248,20 +245,20 @@ export const getStatusChangeMessage = (statusName, data) => {
  */
 export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
     return [
-        `Hola *${clientName}* 👋`,
+        `Estimado/a *${clientName}*,`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `🏍️ *ORDEN ${orderNumber} — REGISTRADA*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*${orderNumber} — REGISTRADA*`,
+        SEPARATOR,
         ``,
-        `Tu motocicleta *${motorcycle}* fue recibida exitosamente en nuestro taller.`,
+        `Su motocicleta *${motorcycle}* ha sido recibida en nuestro taller.`,
         ``,
-        `Te estaremos informando por este medio cada novedad sobre tu servicio.`,
+        `Le informaremos cada avance de su servicio por este medio.`,
         ``,
-        trackingLink ? `📱 *Sigue el proceso en tiempo real:*` : null,
+        trackingLink ? `Seguimiento en línea:` : null,
         trackingLink ? trackingLink : null,
         trackingLink ? `` : null,
-        `_Gracias por confiar en *Motopartes*_ 🔧✨`,
+        FOOTER,
     ].filter(line => line !== null).join('\n');
 };
 
@@ -270,19 +267,19 @@ export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trac
  */
 export const getInReviewMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
     return [
-        `Hola *${clientName}* 👋`,
+        `Estimado/a *${clientName}*,`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `🔍 *ORDEN ${orderNumber} — EN REVISIÓN*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*${orderNumber} — EN REVISIÓN*`,
+        SEPARATOR,
         ``,
-        `Tu motocicleta *${motorcycle}* se encuentra actualmente *en revisión* por nuestro equipo técnico.`,
+        `Su motocicleta *${motorcycle}* se encuentra en revisión por nuestro equipo técnico.`,
         ``,
-        `Estamos evaluando tu moto para determinar los trabajos necesarios. Te mantendremos informado.`,
+        `Estamos evaluando los trabajos necesarios. Le mantendremos informado.`,
         ``,
-        trackingLink ? `📱 *Seguimiento:* ${trackingLink}` : null,
+        trackingLink ? `Seguimiento: ${trackingLink}` : null,
         ``,
-        `_Motopartes — Tu taller de confianza_ 🔧`,
+        FOOTER,
     ].filter(line => line !== null).join('\n');
 };
 
@@ -291,19 +288,19 @@ export const getInReviewMessage = (clientName, motorcycle, orderNumber, tracking
  */
 export const getInRepairMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
     return [
-        `Hola *${clientName}* 🔧`,
+        `Estimado/a *${clientName}*,`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `🛠️ *ORDEN ${orderNumber} — EN REPARACIÓN*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*${orderNumber} — EN REPARACIÓN*`,
+        SEPARATOR,
         ``,
-        `¡Buenas noticias! Tu motocicleta *${motorcycle}* ya se encuentra *en reparación*.`,
+        `Su motocicleta *${motorcycle}* se encuentra en reparación.`,
         ``,
-        `Nuestro equipo está trabajando para dejarte tu moto en las mejores condiciones.`,
+        `Nuestro equipo está trabajando para dejarla en óptimas condiciones.`,
         ``,
-        trackingLink ? `📱 *Seguimiento:* ${trackingLink}` : null,
+        trackingLink ? `Seguimiento: ${trackingLink}` : null,
         ``,
-        `_Motopartes — Tu taller de confianza_ 🔧`,
+        FOOTER,
     ].filter(line => line !== null).join('\n');
 };
 
@@ -312,19 +309,19 @@ export const getInRepairMessage = (clientName, motorcycle, orderNumber, tracking
  */
 export const getInProgressMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
     return [
-        `Hola *${clientName}* ⚙️`,
+        `Estimado/a *${clientName}*,`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `⚙️ *ORDEN ${orderNumber} — EN PROCESO*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*${orderNumber} — EN PROCESO*`,
+        SEPARATOR,
         ``,
-        `Tu motocicleta *${motorcycle}* sigue *en proceso* de servicio.`,
+        `Su motocicleta *${motorcycle}* continúa en proceso de servicio.`,
         ``,
-        `Estamos avanzando con los trabajos programados. Te avisaremos cuando haya novedades.`,
+        `Le notificaremos cuando haya novedades.`,
         ``,
-        trackingLink ? `📱 *Seguimiento:* ${trackingLink}` : null,
+        trackingLink ? `Seguimiento: ${trackingLink}` : null,
         ``,
-        `_Motopartes — Tu taller de confianza_ 🔧`,
+        FOOTER,
     ].filter(line => line !== null).join('\n');
 };
 
@@ -333,19 +330,19 @@ export const getInProgressMessage = (clientName, motorcycle, orderNumber, tracki
  */
 export const getAwaitingPartsMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
     return [
-        `Hola *${clientName}* 📦`,
+        `Estimado/a *${clientName}*,`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `📦 *ORDEN ${orderNumber} — ESPERANDO REFACCIONES*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*${orderNumber} — ESPERANDO REFACCIONES*`,
+        SEPARATOR,
         ``,
-        `Te informamos que para continuar con el servicio de tu motocicleta *${motorcycle}*, requerimos *refacciones* que ya fueron solicitadas.`,
+        `Le informamos que el servicio de su motocicleta *${motorcycle}* requiere refacciones que ya fueron solicitadas.`,
         ``,
-        `En cuanto las tengamos disponibles, continuaremos con la reparación de inmediato.`,
+        `En cuanto estén disponibles, continuaremos con la reparación.`,
         ``,
-        trackingLink ? `📱 *Seguimiento:* ${trackingLink}` : null,
+        trackingLink ? `Seguimiento: ${trackingLink}` : null,
         ``,
-        `_Motopartes — Tu taller de confianza_ 🔧`,
+        FOOTER,
     ].filter(line => line !== null).join('\n');
 };
 
@@ -354,17 +351,17 @@ export const getAwaitingPartsMessage = (clientName, motorcycle, orderNumber, tra
  */
 export const getCancelledMessage = (clientName, motorcycle, orderNumber) => {
     return [
-        `Hola *${clientName}*`,
+        `Estimado/a *${clientName}*,`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `❌ *ORDEN ${orderNumber} — CANCELADA*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*${orderNumber} — CANCELADA*`,
+        SEPARATOR,
         ``,
-        `La orden de servicio de tu motocicleta *${motorcycle}* ha sido *cancelada*.`,
+        `La orden de servicio de su motocicleta *${motorcycle}* ha sido cancelada.`,
         ``,
-        `Si tienes alguna duda o requieres más información, no dudes en contactarnos.`,
+        `Si tiene alguna duda, estamos a sus órdenes.`,
         ``,
-        `_Motopartes — Tu taller de confianza_ 🔧`,
+        FOOTER,
     ].join('\n');
 };
 
@@ -373,17 +370,17 @@ export const getCancelledMessage = (clientName, motorcycle, orderNumber) => {
  */
 export const getGenericStatusMessage = (clientName, motorcycle, orderNumber, statusName, trackingLink) => {
     return [
-        `Hola *${clientName}* 📢`,
+        `Estimado/a *${clientName}*,`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `🔔 *ORDEN ${orderNumber} — ${statusName.toUpperCase()}*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*${orderNumber} — ${statusName.toUpperCase()}*`,
+        SEPARATOR,
         ``,
-        `Tu motocicleta *${motorcycle}* ha cambiado a estado: *${statusName}*.`,
+        `Su motocicleta *${motorcycle}* cambió a estado: *${statusName}*.`,
         ``,
-        trackingLink ? `📱 *Seguimiento:* ${trackingLink}` : null,
+        trackingLink ? `Seguimiento: ${trackingLink}` : null,
         ``,
-        `_Motopartes — Tu taller de confianza_ 🔧`,
+        FOOTER,
     ].filter(line => line !== null).join('\n');
 };
 
@@ -392,7 +389,7 @@ export const getGenericStatusMessage = (clientName, motorcycle, orderNumber, sta
  */
 export const getQuotationMessage = (clientName, motorcycle, quotationNumber, services, totalAmount, expiresAt) => {
     const servicesList = services
-        .map(s => `   ▸ ${s.name} — *$${s.price.toLocaleString('es-MX')}*`)
+        .map(s => `  • ${s.name} — *$${s.price.toLocaleString('es-MX')}*`)
         .join('\n');
 
     const expirationDate = new Date(expiresAt).toLocaleDateString('es-MX', {
@@ -402,26 +399,26 @@ export const getQuotationMessage = (clientName, motorcycle, quotationNumber, ser
     });
 
     return [
-        `Hola *${clientName}* 👋`,
+        `Estimado/a *${clientName}*,`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `📋 *COTIZACIÓN ${quotationNumber}*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*COTIZACIÓN ${quotationNumber}*`,
+        SEPARATOR,
         ``,
-        `🏍️ *Moto:* ${motorcycle}`,
+        `Moto: *${motorcycle}*`,
         ``,
-        `*Servicios cotizados:*`,
+        `Servicios cotizados:`,
         servicesList,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `💰 *TOTAL: $${totalAmount.toLocaleString('es-MX')}*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*TOTAL: $${totalAmount.toLocaleString('es-MX')}*`,
+        SEPARATOR,
         ``,
-        `⏰ *Válida hasta:* ${expirationDate}`,
+        `Vigencia: ${expirationDate}`,
         ``,
-        `Para proceder, confirma esta cotización. ¡Estamos listos para atender tu moto!`,
+        `Para proceder, confirme esta cotización.`,
         ``,
-        `_Motopartes — Tu taller de confianza_ 🔧✨`,
+        FOOTER,
     ].join('\n');
 };
 
@@ -430,23 +427,23 @@ export const getQuotationMessage = (clientName, motorcycle, quotationNumber, ser
  */
 export const getServiceOrderMessage = (clientName, motorcycle, orderNumber, link, pdfUrl) => {
     return [
-        `Hola *${clientName}* 👋`,
+        `Estimado/a *${clientName}*,`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `📋 *ORDEN DE SERVICIO ${orderNumber}*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*ORDEN DE SERVICIO ${orderNumber}*`,
+        SEPARATOR,
         ``,
-        `🏍️ *Moto:* ${motorcycle}`,
+        `Moto: *${motorcycle}*`,
         ``,
-        pdfUrl ? `📄 *Descarga tu orden en PDF:*` : null,
+        pdfUrl ? `Descargue su orden en PDF:` : null,
         pdfUrl ? pdfUrl : null,
         pdfUrl ? `` : null,
-        link ? `📱 *Seguimiento en tiempo real:*` : null,
+        link ? `Seguimiento en línea:` : null,
         link ? link : null,
         link ? `` : null,
-        `Te avisaremos cada paso del proceso.`,
+        `Le informaremos cada avance de su servicio.`,
         ``,
-        `_Gracias por confiar en *Motopartes*_ 🔧✨`,
+        FOOTER,
     ].filter(line => line !== null).join('\n');
 };
 
@@ -465,9 +462,9 @@ export const getDetailedOrderMessage = (
     // Servicios
     let servicesList = '';
     if (services && services.length > 0) {
-        servicesList = services.map(s => `   ▸ ${s.name}`).join('\n');
+        servicesList = services.map(s => `  • ${s.name}`).join('\n');
     } else {
-        servicesList = '   ▸ Revisión General';
+        servicesList = '  • Revisión General';
     }
 
     // Desglose mano de obra / refacciones
@@ -475,9 +472,9 @@ export const getDetailedOrderMessage = (
     if (orderTotals && (orderTotals.laborTotal > 0 || orderTotals.partsTotal > 0)) {
         totalsSection = [
             ``,
-            `*Desglose:*`,
-            `   🔧 Mano de obra: *$${(orderTotals.laborTotal || 0).toLocaleString('es-MX')}*`,
-            `   🔩 Refacciones: *$${(orderTotals.partsTotal || 0).toLocaleString('es-MX')}*`,
+            `Desglose:`,
+            `  Mano de obra: *$${(orderTotals.laborTotal || 0).toLocaleString('es-MX')}*`,
+            `  Refacciones: *$${(orderTotals.partsTotal || 0).toLocaleString('es-MX')}*`,
         ].join('\n');
     }
 
@@ -489,44 +486,44 @@ export const getDetailedOrderMessage = (
 
         paymentSection = [
             ``,
-            `💳 *Anticipo recibido:* $${paymentInfo.advancePayment.toLocaleString('es-MX')} (${methodLabel})`,
-            `📌 *Saldo pendiente:* $${Math.max(0, remaining).toLocaleString('es-MX')}`,
+            `Anticipo recibido: *$${paymentInfo.advancePayment.toLocaleString('es-MX')}* (${methodLabel})`,
+            `Saldo pendiente: *$${Math.max(0, remaining).toLocaleString('es-MX')}*`,
         ].join('\n');
     }
 
     // Link de seguimiento
-    const linkSection = link ? `\n📱 *Seguimiento en tiempo real:*\n${link}` : '';
+    const linkSection = link ? `\nSeguimiento en línea:\n${link}` : '';
 
     // Contacto
-    let contactSection = '¿Alguna duda? Quedamos atentos por este medio.';
+    let contactSection = 'Cualquier duda, estamos a sus órdenes por este medio.';
     if (contactInfo && contactInfo.isSupervisor && contactInfo.mechanicPhone) {
         const name = contactInfo.mechanicName || 'nuestro equipo';
         const phone = formatPhoneForDisplay(contactInfo.mechanicPhone);
-        contactSection = `¿Alguna duda? Comunícate con *${name}*:\n📞 ${phone}`;
+        contactSection = `Contacto directo: *${name}* — ${phone}`;
     }
 
     return [
-        `Hola *${clientName}* 👋`,
+        `Estimado/a *${clientName}*,`,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `📋 *ORDEN DE SERVICIO ${orderNumber}*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*ORDEN DE SERVICIO ${orderNumber}*`,
+        SEPARATOR,
         ``,
-        `🏍️ *Moto:* ${motorcycle}`,
+        `Moto: *${motorcycle}*`,
         ``,
-        `*Servicios:*`,
+        `Servicios:`,
         servicesList,
         totalsSection,
         ``,
-        `━━━━━━━━━━━━━━━━━━━━`,
-        `💰 *TOTAL: $${(totalAmount || 0).toLocaleString('es-MX')}*`,
-        `━━━━━━━━━━━━━━━━━━━━`,
+        SEPARATOR,
+        `*TOTAL: $${(totalAmount || 0).toLocaleString('es-MX')}*`,
+        SEPARATOR,
         paymentSection,
         linkSection,
         ``,
         contactSection,
         ``,
-        `_Gracias por confiar en *Motopartes*_ 🔧✨`,
+        FOOTER,
     ].filter(line => line !== undefined).join('\n');
 };
 

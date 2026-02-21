@@ -354,8 +354,17 @@ export const ordersService = {
     },
 
     async getByToken(token) {
+        // Use raw fetch — this is a PUBLIC endpoint, no auth required.
+        // apiFetch() would redirect to /login on 401 which breaks client tracking.
         try {
-            const data = await apiFetch(`/orders/public/${token}`);
+            const res = await fetch(`${API_URL}/orders/public/${token}`, {
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ error: 'Orden no encontrada' }));
+                throw new Error(err.error || `Error ${res.status}`);
+            }
+            const data = await res.json();
             return { data, error: null };
         } catch (error) {
             return { data: null, error };
