@@ -134,7 +134,7 @@ class WhatsAppSession extends EventEmitter {
 
                 // Give WhatsApp Web more time to load in Docker (default 30s is too short)
                 authTimeoutMs: 120000,
-                qrMaxRetries: 5, // Limit QR regeneration attempts
+                qrMaxRetries: 0, // 0 = unlimited retries, keep generating QR until scanned
                 // Bypass CSP to allow script injection
                 bypassCSP: true,
                 // CRITICAL: Override the outdated Chrome/101 default user agent.
@@ -207,6 +207,12 @@ class WhatsAppSession extends EventEmitter {
                 this.isConnected = false;
                 this._stopHeartbeat();
                 this.emit('disconnected', reason);
+
+                // Auto-restart if disconnected due to QR timeout
+                if (reason === 'Max qrcode retries reached') {
+                    console.log(`🔄 QR timeout for ${this.mechanicId}, emitting qr_timeout for auto-restart...`);
+                    this.emit('qr_timeout');
+                }
             });
 
             // Auth failure - log detailed info and clean up stale session data

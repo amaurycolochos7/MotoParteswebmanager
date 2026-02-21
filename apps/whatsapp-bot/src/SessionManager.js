@@ -21,6 +21,17 @@ class SessionManager {
                 console.log(`ℹ️ Session ${mechanicId} already connected, reusing.`);
                 return existing;
             }
+            // Session exists but is dead (not connected, not initializing) — restart it
+            if (!existing.isConnected && !existing.initializing) {
+                console.log(`♻️ Session ${mechanicId} is dead, will restart...`);
+                // Fall through to create a new session
+            } else if (existing.initializing) {
+                // Still initializing, wait for it
+                if (this._initPromises.has(mechanicId)) {
+                    console.log(`ℹ️ Session ${mechanicId} still initializing, waiting...`);
+                    return this._initPromises.get(mechanicId);
+                }
+            }
         }
 
         // Si ya hay un init en curso para este mechanicId, esperar ese mismo Promise
@@ -82,6 +93,18 @@ class SessionManager {
                 is_connected: false,
                 disconnected_at: new Date(),
             });
+        });
+
+        // Auto-restart when QR scan times out (user took too long)
+        session.on('qr_timeout', async () => {
+            console.log(`🔄 Auto-restarting session for ${mechanicId} after QR timeout (10s cooldown)...`);
+            // Small delay to let Chrome fully close
+            await new Promise(resolve => setTimeout(resolve, 10000));
+            try {
+                await this.startSession(mechanicId);
+            } catch (err) {
+                console.error(`❌ Auto-restart failed for ${mechanicId}:`, err.message);
+            }
         });
 
         // Initialize WhatsApp client
