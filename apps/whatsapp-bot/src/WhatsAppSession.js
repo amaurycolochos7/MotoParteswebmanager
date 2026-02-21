@@ -124,12 +124,13 @@ class WhatsAppSession extends EventEmitter {
                     dataPath: dataPath,
                 }),
 
-                // Disable version caching — let WhatsApp Web serve its current version directly.
-                // The patch-wwebjs.cjs disables the broken ocVersion Error override that
-                // prevents modern WA Web from loading. With the patch applied, 'none' cache
-                // type is the most reliable approach.
+                // Pin to a specific, known-working WhatsApp Web version from the
+                // wppconnect-team/wa-version repo. This prevents WhatsApp's server-side
+                // A/B testing from serving an incompatible version that breaks authentication.
+                // If QR pairing stops working in the future, update this version string.
                 webVersionCache: {
-                    type: 'none',
+                    type: 'remote',
+                    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1033759004-alpha.html',
                 },
 
                 // Give WhatsApp Web more time to load in Docker (default 30s is too short)
