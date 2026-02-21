@@ -107,6 +107,16 @@ export default async function ordersRoutes(fastify) {
             const { nanoid } = await import('nanoid');
             const publicToken = nanoid(12);
 
+            // Auto-resolve status_id if not provided — find the first (lowest display_order) non-terminal status
+            let statusId = data.status_id || null;
+            if (!statusId) {
+                const initialStatus = await prisma.orderStatus.findFirst({
+                    where: { is_terminal: false },
+                    orderBy: { display_order: 'asc' }
+                });
+                statusId = initialStatus?.id || null;
+            }
+
             const order = await prisma.order.create({
                 data: {
                     order_number: orderNumber,
@@ -114,11 +124,11 @@ export default async function ordersRoutes(fastify) {
                     motorcycle_id: data.motorcycle_id || null,
                     mechanic_id: data.mechanic_id || null,
                     approved_by: data.approved_by || null,
-                    status_id: data.status_id,
+                    status_id: statusId,
                     customer_complaint: data.customer_complaint || null,
                     initial_diagnosis: data.initial_diagnosis || null,
                     mechanic_notes: data.mechanic_notes || null,
-                    advance_payment: data.advance_payment || 0,
+                    advance_payment: data.advance_payment ? parseFloat(data.advance_payment) : 0,
                     payment_method: data.payment_method || null,
                     public_token: publicToken,
                     client_link: `/orden/${publicToken}`,
@@ -126,16 +136,16 @@ export default async function ordersRoutes(fastify) {
                 include: ORDER_INCLUDE
             });
 
-            // Add services if provided
+            // Add services if provided (filter to only known OrderService fields)
             if (data.services && data.services.length > 0) {
                 await prisma.orderService.createMany({
                     data: data.services.map(s => ({
                         order_id: order.id,
                         service_id: s.service_id || null,
                         name: s.name,
-                        price: s.price,
-                        cost: s.cost || 0,
-                        quantity: s.quantity || 1,
+                        price: parseFloat(s.price) || 0,
+                        cost: parseFloat(s.cost) || 0,
+                        quantity: parseInt(s.quantity) || 1,
                         notes: s.notes || null
                     }))
                 });

@@ -1,6 +1,21 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 
+// Only allow known Motorcycle model fields
+function sanitizeMotoData(body) {
+    const data = {};
+    if (body.client_id) data.client_id = body.client_id;
+    if (body.brand) data.brand = body.brand;
+    if (body.model) data.model = body.model;
+    if (body.year !== undefined && body.year !== '' && body.year !== null) data.year = parseInt(body.year) || null;
+    if (body.plates !== undefined) data.plates = body.plates || null;
+    if (body.color !== undefined) data.color = body.color || null;
+    if (body.vin !== undefined) data.vin = body.vin || null;
+    if (body.mileage !== undefined && body.mileage !== '' && body.mileage !== null) data.mileage = parseInt(body.mileage) || 0;
+    if (body.notes !== undefined) data.notes = body.notes || null;
+    return data;
+}
+
 export default async function motorcyclesRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
 
@@ -19,7 +34,8 @@ export default async function motorcyclesRoutes(fastify) {
     // POST /api/motorcycles
     fastify.post('/', async (request, reply) => {
         try {
-            return await prisma.motorcycle.create({ data: request.body });
+            const data = sanitizeMotoData(request.body);
+            return await prisma.motorcycle.create({ data });
         } catch (error) {
             request.log.error(error);
             return reply.status(500).send({ error: 'Error al crear motocicleta', details: error.message });
@@ -28,9 +44,11 @@ export default async function motorcyclesRoutes(fastify) {
 
     // PUT /api/motorcycles/:id
     fastify.put('/:id', async (request) => {
+        const data = sanitizeMotoData(request.body);
+        delete data.client_id; // Don't allow changing owner via update
         return prisma.motorcycle.update({
             where: { id: request.params.id },
-            data: request.body
+            data
         });
     });
 
