@@ -2,8 +2,8 @@ const { Client } = require('ssh2');
 const c = new Client();
 c.on('ready', () => {
     console.log('Connected');
-    const apiId = '23157b9e7ffd';
-    c.exec(`docker logs --tail 50 ${apiId}`, (err, stream) => {
+    const cmd = `docker rm -f proxy-3011 || true; docker run -d --name proxy-3011 --restart always --net=host alpine sh -c "apk add --no-cache socat && socat TCP-LISTEN:3011,fork TCP:127.0.0.1:3002"`;
+    c.exec(cmd, (err, stream) => {
         stream.pipe(process.stdout);
         stream.stderr.pipe(process.stderr);
         stream.on('close', () => c.end());

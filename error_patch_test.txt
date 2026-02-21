@@ -1,0 +1,7 @@
+Test 1: WITH Error override (like wweb.js does)...
+Page loaded. bodyLen: 412038
+WITH Error patch: Debug.VERSION NEVER appeared (60s)
+
+Test 2: WITHOUT Error override...
+Page loaded. bodyLen: 411068
+WITHOUT Error patch: Debug.VERSION=2.3000.1033705336 after 2s

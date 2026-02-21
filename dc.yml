@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: motopartes
+      POSTGRES_USER: motopartes
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-MotoPartes2026!}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U motopartes"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://motopartes:${DB_PASSWORD:-MotoPartes2026!}@postgres:5432/motopartes
+      JWT_SECRET: ${JWT_SECRET:-motopartes-jwt-secret-change-me}
+      PORT: 3000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  whatsapp-bot:
+    build:
+      context: .
+      dockerfile: apps/whatsapp-bot/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # CRITICAL: mount a named volume to /app/data so session data persists across deploys
+      - whatsapp-data:/app/data
+    environment:
+      DATABASE_URL: postgresql://motopartes:${DB_PASSWORD:-MotoPartes2026!}@postgres:5432/motopartes
+      API_KEY: ${WHATSAPP_API_KEY:-motopartes-whatsapp-key}
+      PORT: 3002
+    ports:
+      - "3002:3002"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3002/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres-data:
+  whatsapp-data:

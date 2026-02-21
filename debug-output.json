@@ -1,0 +1,123 @@
+{
+  "uptime": 343.322987442,
+  "memoryMB": 98,
+  "nodeVersion": "v20.20.0",
+  "env": {
+    "PUPPETEER_EXECUTABLE_PATH": "/usr/bin/chromium",
+    "WWEBJS_DATA_PATH": "/app/data/.wwebjs_auth",
+    "NODE_ENV": "production",
+    "PORT": "3002"
+  },
+  "sessions": [
+    {
+      "mechanicId": "0dc9ae6e-9d14-4d28-8651-1baf72ea2558",
+      "isConnected": false,
+      "initializing": false,
+      "qr": null,
+      "phoneNumber": null,
+      "lastError": null
+    }
+  ],
+  "logs": [
+    {
+      "t": "2026-02-19T09:03:53.898Z",
+      "l": "LOG",
+      "m": "📱 WhatsApp Bot running on port 3002"
+    },
+    {
+      "t": "2026-02-19T09:03:54.668Z",
+      "l": "LOG",
+      "m": "🔧 Initializing WhatsApp client for mechanic 0dc9ae6e-9d14-4d28-8651-1baf72ea2558..."
+    },
+    {
+      "t": "2026-02-19T09:03:54.668Z",
+      "l": "LOG",
+      "m": "🔍 Chrome path: /usr/bin/chromium"
+    },
+    {
+      "t": "2026-02-19T09:03:54.669Z",
+      "l": "LOG",
+      "m": "✅ Chrome binary exists and is executable"
+    },
+    {
+      "t": "2026-02-19T09:03:54.669Z",
+      "l": "LOG",
+      "m": "📂 Session data path: /app/data/.wwebjs_auth"
+    },
+    {
+      "t": "2026-02-19T09:03:54.669Z",
+      "l": "LOG",
+      "m": "📱 Step 1: Creating Client instance..."
+    },
+    {
+      "t": "2026-02-19T09:03:54.669Z",
+      "l": "LOG",
+      "m": "✅ Step 1 done: Client created"
+    },
+    {
+      "t": "2026-02-19T09:03:54.669Z",
+      "l": "LOG",
+      "m": "🚀 Step 2: Launching Puppeteer for mechanic 0dc9ae6e-9d14-4d28-8651-1baf72ea2558..."
+    },
+    {
+      "t": "2026-02-19T09:04:26.051Z",
+      "l": "ERR",
+      "m": "❌ Error initializing client for 0dc9ae6e-9d14-4d28-8651-1baf72ea2558: "
+    },
+    {
+      "t": "2026-02-19T09:04:26.052Z",
+      "l": "ERR",
+      "m": ""
+    },
+    {
+      "t": "2026-02-19T09:06:51.367Z",
+      "l": "LOG",
+      "m": "♻️ Destroying stale session for 0dc9ae6e-9d14-4d28-8651-1baf72ea2558 before recreating..."
+    },
+    {
+      "t": "2026-02-19T09:06:56.458Z",
+      "l": "LOG",
+      "m": "🔧 Initializing WhatsApp client for mechanic 0dc9ae6e-9d14-4d28-8651-1baf72ea2558..."
+    },
+    {
+      "t": "2026-02-19T09:06:56.458Z",
+      "l": "LOG",
+      "m": "🔍 Chrome path: /usr/bin/chromium"
+    },
+    {
+      "t": "2026-02-19T09:06:56.458Z",
+      "l": "LOG",
+      "m": "✅ Chrome binary exists and is executable"
+    },
+    {
+      "t": "2026-02-19T09:06:56.458Z",
+      "l": "LOG",
+      "m": "📂 Session data path: /app/data/.wwebjs_auth"
+    },
+    {
+      "t": "2026-02-19T09:06:56.459Z",
+      "l": "LOG",
+      "m": "📱 Step 1: Creating Client instance..."
+    },
+    {
+      "t": "2026-02-19T09:06:56.459Z",
+      "l": "LOG",
+      "m": "✅ Step 1 done: Client created"
+    },
+    {
+      "t": "2026-02-19T09:06:56.459Z",
+      "l": "LOG",
+      "m": "🚀 Step 2: Launching Puppeteer for mechanic 0dc9ae6e-9d14-4d28-8651-1baf72ea2558..."
+    },
+    {
+      "t": "2026-02-19T09:07:27.619Z",
+      "l": "ERR",
+      "m": "❌ Error initializing client for 0dc9ae6e-9d14-4d28-8651-1baf72ea2558: "
+    },
+    {
+      "t": "2026-02-19T09:07:27.620Z",
+      "l": "ERR",
+      "m": ""
+    }
+  ]
+}

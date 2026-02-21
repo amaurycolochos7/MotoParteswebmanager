@@ -1,0 +1,16 @@
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "motopartes", schema "public" at "postgres:5432"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[G✔ Generated Prisma Client (v6.19.2) to ./node_modules/@prisma/client in 327ms
+
+{"level":30,"time":1771541313871,"pid":1,"hostname":"8ee5797605d3","msg":"Server listening at http://127.0.0.1:3000"}
+🚀 MotoPartes API running on port 3000
+{"level":30,"time":1771541313871,"pid":1,"hostname":"8ee5797605d3","msg":"Server listening at http://172.20.0.4:3000"}
+{"level":30,"time":1771541325917,"pid":1,"hostname":"8ee5797605d3","reqId":"req-1","req":{"method":"GET","url":"/api/health","host":"localhost:3000","remoteAddress":"127.0.0.1","remotePort":40596},"msg":"incoming request"}
+{"level":30,"time":1771541325927,"pid":1,"hostname":"8ee5797605d3","reqId":"req-1","res":{"statusCode":200},"responseTime":8.380115032196045,"msg":"request completed"}
+{"level":30,"time":1771541341188,"pid":1,"hostname":"8ee5797605d3","reqId":"req-2","req":{"method":"GET","url":"/api/health","host":"localhost:3000","remoteAddress":"127.0.0.1","remotePort":57568},"msg":"incoming request"}
+{"level":30,"time":1771541341188,"pid":1,"hostname":"8ee5797605d3","reqId":"req-2","res":{"statusCode":200},"responseTime":0.3999370336532593,"msg":"request completed"}

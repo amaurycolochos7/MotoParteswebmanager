@@ -1,7 +1,7 @@
 // OrderPhotosDownload - Componente para mostrar fotos guardadas y descargar resumen
 import { useState, useEffect } from 'react';
 import { Download, Camera, Loader2, ImageIcon, Trash2 } from 'lucide-react';
-import { getOrderPhotos, deleteOrderPhotos } from '../../services/photoStorageService';
+import { getOrderPhotos, deleteOrderPhotos, migrateFromLocalStorage } from '../../services/photoStorageService';
 
 export default function OrderPhotosDownload({ orderId, order, showAsButton = false }) {
     const [photos, setPhotos] = useState(null);
@@ -9,10 +9,14 @@ export default function OrderPhotosDownload({ orderId, order, showAsButton = fal
     const [expanded, setExpanded] = useState(false);
 
     useEffect(() => {
-        if (orderId) {
-            const savedPhotos = getOrderPhotos(orderId);
-            setPhotos(savedPhotos);
-        }
+        const loadPhotos = async () => {
+            await migrateFromLocalStorage();
+            if (orderId) {
+                const savedPhotos = await getOrderPhotos(orderId);
+                setPhotos(savedPhotos);
+            }
+        };
+        loadPhotos();
     }, [orderId]);
 
     // If no photos, still show button but disabled when showAsButton is true
@@ -31,7 +35,7 @@ export default function OrderPhotosDownload({ orderId, order, showAsButton = fal
 
         try {
             // Fetch photos fresh at download time to ensure we have latest data
-            const freshPhotos = getOrderPhotos(orderId);
+            const freshPhotos = await getOrderPhotos(orderId);
             console.log('📥 Fotos para descarga:', freshPhotos ? 'Encontradas' : 'No hay fotos guardadas');
 
             const tempContainer = document.createElement('div');
@@ -220,9 +224,9 @@ export default function OrderPhotosDownload({ orderId, order, showAsButton = fal
         }
     };
 
-    const handleDeletePhotos = () => {
+    const handleDeletePhotos = async () => {
         if (confirm('¿Eliminar las fotos guardadas? Esta acción no se puede deshacer.')) {
-            deleteOrderPhotos(orderId);
+            await deleteOrderPhotos(orderId);
             setPhotos(null);
         }
     };

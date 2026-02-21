@@ -128,7 +128,6 @@ export const getOrderLinkMessage = (clientName, motorcycle, link) => {
         ``,
         `Su motocicleta *${motorcycle}* ha sido recibida en nuestro taller.`,
         ``,
-        link ? `Seguimiento en linea:` : null,
         link ? link : null,
         link ? `` : null,
         `Le mantendremos informado sobre el avance de su servicio.`,
@@ -149,7 +148,6 @@ export const getUpdateNotificationMessage = (clientName, updateTitle, link) => {
         `Se registro una novedad en su servicio:`,
         `_"${updateTitle}"_`,
         ``,
-        link ? `Consulte los detalles:` : null,
         link ? link : null,
         link ? `` : null,
         FOOTER,
@@ -244,7 +242,6 @@ export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trac
         ``,
         `Le informaremos cada avance de su servicio por este medio.`,
         ``,
-        trackingLink ? `Seguimiento en linea:` : null,
         trackingLink ? trackingLink : null,
         trackingLink ? `` : null,
         FOOTER,
@@ -406,10 +403,8 @@ export const getServiceOrderMessage = (clientName, motorcycle, orderNumber, link
         ``,
         `Moto: *${motorcycle}*`,
         ``,
-        pdfUrl ? `Descargue su orden en PDF:` : null,
         pdfUrl ? pdfUrl : null,
         pdfUrl ? `` : null,
-        link ? `Seguimiento en linea:` : null,
         link ? link : null,
         link ? `` : null,
         `Le informaremos cada avance de su servicio.`,
@@ -463,7 +458,7 @@ export const getDetailedOrderMessage = (
     }
 
     // Link de seguimiento
-    const linkSection = link ? `\nSeguimiento en linea:\n${link}` : '';
+    const linkSection = link ? `\n${link}` : '';
 
     // Contacto
     let contactSection = 'Cualquier duda, estamos a sus ordenes por este medio.';

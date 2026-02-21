@@ -722,7 +722,7 @@ export default function NewServiceOrder() {
                     hasAdvance: formData.hasAdvance,
                     advanceAmount: formData.advanceAmount
                 };
-                saveOrderPhotos(order.id, photoData);
+                await saveOrderPhotos(order.id, photoData);
             }
 
             // === AUTO WHATSAPP: Notificar al cliente que la orden fue registrada ===

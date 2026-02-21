@@ -2,10 +2,9 @@ const { Client } = require('ssh2');
 const c = new Client();
 c.on('ready', () => {
     console.log('Connected');
-    const apiId = '23157b9e7ffd';
-    c.exec(`docker logs --tail 50 ${apiId}`, (err, stream) => {
+    // List strictly running containers with Ports info
+    c.exec('docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Ports}}"', (err, stream) => {
         stream.pipe(process.stdout);
-        stream.stderr.pipe(process.stderr);
         stream.on('close', () => c.end());
     });
 });

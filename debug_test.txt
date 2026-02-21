@@ -1,0 +1,70 @@
+Launching browser...
+Navigating to WhatsApp Web...
+Page loaded. URL: https://web.whatsapp.com/
+Title: 
+[0s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[2s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[4s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[6s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[8s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[10s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[12s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[14s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[16s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[18s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[20s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[22s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[24s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[26s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[28s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[30s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[32s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[34s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[36s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[38s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[40s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[42s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[44s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[46s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[48s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[50s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[52s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[54s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[56s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[58s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[60s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[62s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[64s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[66s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[68s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[70s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[72s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[74s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[76s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[78s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[80s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[82s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[84s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[86s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[88s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[90s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[92s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[94s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[96s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[98s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[100s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[102s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[104s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[106s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[108s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[110s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[112s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[114s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[116s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+[118s] Debug.VERSION=undefined, Store=undefined, require=function, readyState=complete, bodyLen=1365
+Page HTML length: 15872
+Has canvas: false
+Has app wrapper: true
+Has landing: true
+Console errors: none
+Done

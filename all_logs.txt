@@ -1,0 +1,50 @@
+  "message": "Failed to launch the browser process:  Code: 21\n\nstderr:\n[28:28:0219/215536.885089:ERROR:chrome/browser/process_singleton_posix.cc:363] The profile appears to be in use by another Chromium process (22) on another computer (a0d4bc482244). Chromium has locked the profile so that it doesn't get corrupted. If you are sure no other processes are using this profile, you can unlock the profile and relaunch Chromium.\n[28:28:0219/215536.886010:ERROR:chrome/browser/ui/views/message_box_dialog.cc:199] Unable to show message box: Chromium - The profile appears to be in use by another Chromium process (22) on another computer (a0d4bc482244). Chromium has locked the profile so that it doesn't get corrupted. If you are sure no other processes are using this profile, you can unlock the profile and relaunch Chromium.\n\nTROUBLESHOOTING: https://pptr.dev/troubleshooting\n"
+}
+Error: Failed to launch the browser process:  Code: 21
+
+stderr:
+[28:28:0219/215536.885089:ERROR:chrome/browser/process_singleton_posix.cc:363] The profile appears to be in use by another Chromium process (22) on another computer (a0d4bc482244). Chromium has locked the profile so that it doesn't get corrupted. If you are sure no other processes are using this profile, you can unlock the profile and relaunch Chromium.
+[28:28:0219/215536.886010:ERROR:chrome/browser/ui/views/message_box_dialog.cc:199] Unable to show message box: Chromium - The profile appears to be in use by another Chromium process (22) on another computer (a0d4bc482244). Chromium has locked the profile so that it doesn't get corrupted. If you are sure no other processes are using this profile, you can unlock the profile and relaunch Chromium.
+
+TROUBLESHOOTING: https://pptr.dev/troubleshooting
+
+    at ChildProcess.onClose (/app/node_modules/@puppeteer/browsers/lib/cjs/launch.js:350:24)
+    at ChildProcess.emit (node:events:536:35)
+    at ChildProcess._handle.onexit (node:internal/child_process:293:12)
+
+🛑 Shutting down, destroying all WhatsApp sessions...
+🛑 Destroying all 1 session(s)...
+  🗑️ Destroying session 0dc9ae6e-9d14-4d28-8651-1baf72ea2558...
+✅ All sessions destroyed.
+👋 Bye.
+📱 WhatsApp Bot running on port 3002
+🔧 Initializing WhatsApp client for mechanic 0dc9ae6e-9d14-4d28-8651-1baf72ea2558...
+🔍 Using env Chrome path: /usr/bin/chromium
+✅ Chrome binary exists and is executable
+📂 Session data path: /app/data/wwebjs_auth
+📱 Step 1: Creating Client instance...
+✅ Step 1 done: Client created
+🚀 Step 2: Launching Puppeteer for mechanic 0dc9ae6e-9d14-4d28-8651-1baf72ea2558...
+❌ Error initializing client for 0dc9ae6e-9d14-4d28-8651-1baf72ea2558: Failed to launch the browser process:  Code: 21
+
+stderr:
+[22:22:0219/215910.456603:ERROR:chrome/browser/process_singleton_posix.cc:363] The profile appears to be in use by another Chromium process (22) on another computer (a0d4bc482244). Chromium has locked the profile so that it doesn't get corrupted. If you are sure no other processes are using this profile, you can unlock the profile and relaunch Chromium.
+[22:22:0219/215910.457714:ERROR:chrome/browser/ui/views/message_box_dialog.cc:199] Unable to show message box: Chromium - The profile appears to be in use by another Chromium process (22) on another computer (a0d4bc482244). Chromium has locked the profile so that it doesn't get corrupted. If you are sure no other processes are using this profile, you can unlock the profile and relaunch Chromium.
+
+TROUBLESHOOTING: https://pptr.dev/troubleshooting
+
+Full error object: {
+  "stack": "Error: Failed to launch the browser process:  Code: 21\n\nstderr:\n[22:22:0219/215910.456603:ERROR:chrome/browser/process_singleton_posix.cc:363] The profile appears to be in use by another Chromium process (22) on another computer (a0d4bc482244). Chromium has locked the profile so that it doesn't get corrupted. If you are sure no other processes are using this profile, you can unlock the profile and relaunch Chromium.\n[22:22:0219/215910.457714:ERROR:chrome/browser/ui/views/message_box_dialog.cc:199] Unable to show message box: Chromium - The profile appears to be in use by another Chromium process (22) on another computer (a0d4bc482244). Chromium has locked the profile so that it doesn't get corrupted. If you are sure no other processes are using this profile, you can unlock the profile and relaunch Chromium.\n\nTROUBLESHOOTING: https://pptr.dev/troubleshooting\n\n    at ChildProcess.onClose (/app/node_modules/@puppeteer/browsers/lib/cjs/launch.js:350:24)\n    at ChildProcess.emit (node:events:536:35)\n    at ChildProcess._handle.onexit (node:internal/child_process:293:12)",
+  "message": "Failed to launch the browser process:  Code: 21\n\nstderr:\n[22:22:0219/215910.456603:ERROR:chrome/browser/process_singleton_posix.cc:363] The profile appears to be in use by another Chromium process (22) on another computer (a0d4bc482244). Chromium has locked the profile so that it doesn't get corrupted. If you are sure no other processes are using this profile, you can unlock the profile and relaunch Chromium.\n[22:22:0219/215910.457714:ERROR:chrome/browser/ui/views/message_box_dialog.cc:199] Unable to show message box: Chromium - The profile appears to be in use by another Chromium process (22) on another computer (a0d4bc482244). Chromium has locked the profile so that it doesn't get corrupted. If you are sure no other processes are using this profile, you can unlock the profile and relaunch Chromium.\n\nTROUBLESHOOTING: https://pptr.dev/troubleshooting\n"
+}
+Error: Failed to launch the browser process:  Code: 21
+
+stderr:
+[22:22:0219/215910.456603:ERROR:chrome/browser/process_singleton_posix.cc:363] The profile appears to be in use by another Chromium process (22) on another computer (a0d4bc482244). Chromium has locked the profile so that it doesn't get corrupted. If you are sure no other processes are using this profile, you can unlock the profile and relaunch Chromium.
+[22:22:0219/215910.457714:ERROR:chrome/browser/ui/views/message_box_dialog.cc:199] Unable to show message box: Chromium - The profile appears to be in use by another Chromium process (22) on another computer (a0d4bc482244). Chromium has locked the profile so that it doesn't get corrupted. If you are sure no other processes are using this profile, you can unlock the profile and relaunch Chromium.
+
+TROUBLESHOOTING: https://pptr.dev/troubleshooting
+
+    at ChildProcess.onClose (/app/node_modules/@puppeteer/browsers/lib/cjs/launch.js:350:24)
+    at ChildProcess.emit (node:events:536:35)
+    at ChildProcess._handle.onexit (node:internal/child_process:293:12)

@@ -2,11 +2,12 @@ const { Client } = require('ssh2');
 const c = new Client();
 c.on('ready', () => {
     console.log('Connected');
-    const apiId = '23157b9e7ffd';
-    c.exec(`docker logs --tail 50 ${apiId}`, (err, stream) => {
+    c.exec('netstat -tulpn | grep 3002', (err, stream) => {
         stream.pipe(process.stdout);
-        stream.stderr.pipe(process.stderr);
-        stream.on('close', () => c.end());
+        stream.on('close', () => {
+            // also check ipv4 forwarding?
+            c.end();
+        });
     });
 });
 c.connect({ host: '187.77.11.79', port: 22, username: 'root', password: 'Jomoponse-1+' });
