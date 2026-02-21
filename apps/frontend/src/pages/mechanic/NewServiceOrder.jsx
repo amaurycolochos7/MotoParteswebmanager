@@ -731,7 +731,9 @@ export default function NewServiceOrder() {
                 if (orderPhone) {
                     const motoInfo = `${motoBrand} ${motoModel}`;
                     const baseUrl = window.location.origin;
-                    const trackingLink = order.client_link ? `${baseUrl}${order.client_link}` : null;
+                    // SUSPENDIDO: enlaces de seguimiento deshabilitados temporalmente
+                    // const trackingLink = order.client_link ? `${baseUrl}${order.client_link}` : null;
+                    const trackingLink = null;
                     const waMessage = getOrderCreatedMessage(clientName, motoInfo, order.order_number, trackingLink);
 
                     console.log('📤 Enviando notificación de orden creada via WhatsApp...');

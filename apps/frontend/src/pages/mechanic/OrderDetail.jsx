@@ -186,7 +186,9 @@ export default function OrderDetail() {
                 const servicesTotal = order.services.reduce((sum, svc) => sum + (svc.price || 0), 0);
                 const totalAmount = order.total_amount || servicesTotal;
                 const baseUrl = window.location.origin;
-                const trackingLink = order.client_link ? `${baseUrl}${order.client_link}` : null;
+                // SUSPENDIDO: enlaces de seguimiento deshabilitados temporalmente
+                // const trackingLink = order.client_link ? `${baseUrl}${order.client_link}` : null;
+                const trackingLink = null;
 
                 const message = getStatusChangeMessage(newStatusName, {
                     clientName: client.full_name,
@@ -296,9 +298,11 @@ export default function OrderDetail() {
 
             // Generar URL completa para el link de seguimiento
             const baseUrl = window.location.origin;
-            const trackingLink = order.client_link
-                ? `${baseUrl}${order.client_link}`
-                : null;
+            // SUSPENDIDO: enlaces de seguimiento deshabilitados temporalmente
+            // const trackingLink = order.client_link
+            //     ? `${baseUrl}${order.client_link}`
+            //     : null;
+            const trackingLink = null;
 
             // Determinar contacto del mecánico responsable
             let contactInfo = null;
