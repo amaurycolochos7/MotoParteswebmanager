@@ -1449,22 +1449,33 @@ export default function NewServiceOrder() {
                         )}
 
                         <div className="services-list">
-                            {services.filter(s => s.is_active).map(service => (
-                                <label key={service.id} className="service-item">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.selectedServices.includes(service.id)}
-                                        onChange={() => toggleService(service.id)}
-                                    />
-                                    <div className="service-item-content">
-                                        <span className="service-name">{service.name}</span>
-                                        <span className="service-price">{formatMXN(service.base_price)}</span>
-                                    </div>
-                                    <div className="checkbox-indicator">
-                                        {formData.selectedServices.includes(service.id) && <Check size={16} />}
-                                    </div>
-                                </label>
-                            ))}
+                            {services.filter(s => s.is_active).map(service => {
+                                const labor = parseFloat(service.labor_cost) || 0;
+                                const materials = parseFloat(service.materials_cost) || 0;
+                                const total = labor + materials || parseFloat(service.base_price) || 0;
+                                return (
+                                    <label key={service.id} className="service-item">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.selectedServices.includes(service.id)}
+                                            onChange={() => toggleService(service.id)}
+                                        />
+                                        <div className="service-item-content">
+                                            <span className="service-name">{service.name}</span>
+                                            <span className="service-price">{formatMXN(total)}</span>
+                                            {(labor > 0 || materials > 0) && (
+                                                <div style={{ width: '100%', display: 'flex', gap: '12px', fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>
+                                                    {labor > 0 && <span>🔧 Obra: {formatMXN(labor)}</span>}
+                                                    {materials > 0 && <span>📦 Refacc: {formatMXN(materials)}</span>}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="checkbox-indicator">
+                                            {formData.selectedServices.includes(service.id) && <Check size={16} />}
+                                        </div>
+                                    </label>
+                                );
+                            })}
                         </div>
 
                         <div className="divider" />
