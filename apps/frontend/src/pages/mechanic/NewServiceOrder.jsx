@@ -742,13 +742,22 @@ export default function NewServiceOrder() {
                     // SUSPENDIDO: enlaces de seguimiento deshabilitados temporalmente
                     // const trackingLink = order.client_link ? `${baseUrl}${order.client_link}` : null;
                     const trackingLink = null;
-                    const waMessage = getOrderCreatedMessage(clientName, motoInfo, order.order_number, trackingLink);
+                    const advanceAmt = formData.hasAdvance ? (parseFloat(formData.advanceAmount) || 0) : 0;
+                    const waMessage = getOrderCreatedMessage(clientName, motoInfo, order.order_number, trackingLink, {
+                        services: orderServices,
+                        laborTotal,
+                        partsTotal,
+                        totalAmount,
+                        advancePayment: advanceAmt,
+                        paymentMethod: formData.paymentMethod,
+                        isPaid: advanceAmt >= totalAmount && totalAmount > 0,
+                    });
 
                     console.log('📤 Enviando notificación de orden creada via WhatsApp...');
                     const waResult = await sendDirectMessage(user.id, orderPhone, waMessage, order.id);
 
                     if (waResult.success && waResult.automated) {
-                        toast.success('✅ Cliente notificado por WhatsApp');
+                        toast.success('Cliente notificado por WhatsApp');
                     } else {
                         console.warn('⚠️ WhatsApp no enviado:', waResult.error);
                     }
@@ -1461,12 +1470,14 @@ export default function NewServiceOrder() {
                                             onChange={() => toggleService(service.id)}
                                         />
                                         <div className="service-item-content">
-                                            <span className="service-name">{service.name}</span>
-                                            <span className="service-price">{formatMXN(total)}</span>
+                                            <div className="service-item-header">
+                                                <span className="service-name">{service.name}</span>
+                                                <span className="service-price">{formatMXN(total)}</span>
+                                            </div>
                                             {(labor > 0 || materials > 0) && (
-                                                <div style={{ width: '100%', display: 'flex', gap: '12px', fontSize: '0.75rem', color: '#6b7280', marginTop: '2px' }}>
-                                                    {labor > 0 && <span>🔧 Obra: {formatMXN(labor)}</span>}
-                                                    {materials > 0 && <span>📦 Refacc: {formatMXN(materials)}</span>}
+                                                <div className="service-item-breakdown">
+                                                    {labor > 0 && <span>Obra: {formatMXN(labor)}</span>}
+                                                    {materials > 0 && <span>Refacc: {formatMXN(materials)}</span>}
                                                 </div>
                                             )}
                                         </div>
@@ -1521,7 +1532,7 @@ export default function NewServiceOrder() {
                             )}
                         </div>
 
-                        <div className="form-group">
+                        <div className="form-group" style={{ marginTop: '0.75rem' }}>
                             <label className="form-label">
                                 <FileText size={16} />
                                 ¿Qué siente la moto? (Descripción de la falla)
@@ -1537,9 +1548,9 @@ export default function NewServiceOrder() {
 
                         {/* Services Summary */}
                         {formData.selectedServices.length > 0 && (
-                            <div className="services-summary mt-lg">
+                            <div className="services-summary mt-lg" style={{ marginBottom: '2rem' }}>
                                 <h3 className="summary-title">
-                                    <span>💰</span> Resumen de Cotización
+                                    <DollarSign size={20} /> Resumen de Cotización
                                 </h3>
 
                                 {(() => {
@@ -1622,7 +1633,7 @@ export default function NewServiceOrder() {
                                 {/* Kilometraje */}
                                 <div className="form-group">
                                     <label className="form-label">
-                                        🛣️ Kilometraje de Ingreso
+                                        Kilometraje de Ingreso
                                     </label>
                                     <div className="input-with-suffix">
                                         <input
@@ -1639,7 +1650,7 @@ export default function NewServiceOrder() {
                                 {/* Nivel de Combustible */}
                                 <div className="form-group">
                                     <label className="form-label">
-                                        ⛽ Nivel de Combustible
+                                        Nivel de Combustible
                                     </label>
                                     <div className="fuel-gauge-container">
                                         <div className="fuel-gauge">
@@ -1685,10 +1696,10 @@ export default function NewServiceOrder() {
                         {/* Required Photos Grid */}
                         <div className="required-photos-grid">
                             {[
-                                { key: 'front', label: 'Frontal', icon: '📸' },
-                                { key: 'back', label: 'Trasera', icon: '📸' },
-                                { key: 'leftSide', label: 'Lateral Izq.', icon: '📸' },
-                                { key: 'rightSide', label: 'Lateral Der.', icon: '📸' },
+                                { key: 'front', label: 'Frontal' },
+                                { key: 'back', label: 'Trasera' },
+                                { key: 'leftSide', label: 'Lateral Izq.' },
+                                { key: 'rightSide', label: 'Lateral Der.' },
                             ].map(photo => (
                                 <div key={photo.key} className="photo-capture-card">
                                     <input
@@ -1957,18 +1968,19 @@ export default function NewServiceOrder() {
                             {(() => {
                                 const totalLabor = formData.selectedServices.reduce((sum, svcId) => {
                                     const svc = services.find(s => s.id === svcId);
-                                    return sum + (svc?.labor_cost || svc?.base_price || 0);
+                                    const labor = parseFloat(svc?.labor_cost) || 0;
+                                    const materials = parseFloat(svc?.materials_cost) || 0;
+                                    const base = parseFloat(svc?.base_price) || 0;
+                                    // If labor_cost is set, use it. Otherwise use base_price as labor (legacy services)
+                                    return sum + (labor > 0 ? labor : (materials > 0 ? 0 : base));
                                 }, 0) + (parseFloat(formData.customServiceLabor) || 0);
 
                                 const totalMaterials = formData.selectedServices.reduce((sum, svcId) => {
                                     const svc = services.find(s => s.id === svcId);
-                                    return sum + (svc?.materials_cost || 0);
+                                    return sum + (parseFloat(svc?.materials_cost) || 0);
                                 }, 0) + (parseFloat(formData.customServiceMaterials) || 0);
 
-                                const grandTotal = formData.selectedServices.reduce((sum, svcId) => {
-                                    const svc = services.find(s => s.id === svcId);
-                                    return sum + (svc?.base_price || 0);
-                                }, 0) + (parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0);
+                                const grandTotal = totalLabor + totalMaterials;
 
                                 return (
                                     <>
@@ -2001,12 +2013,20 @@ export default function NewServiceOrder() {
                                 <div className="summary-row summary-total highlight">
                                     <span>Restante:</span>
                                     <strong className="text-danger">
-                                        {formatMXN(
-                                            (formData.selectedServices.reduce((sum, svcId) => {
+                                        {(() => {
+                                            const totalLabor = formData.selectedServices.reduce((sum, svcId) => {
                                                 const svc = services.find(s => s.id === svcId);
-                                                return sum + (svc?.base_price || 0);
-                                            }, 0) + (parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0)) - (parseFloat(formData.advanceAmount) || 0)
-                                        )}
+                                                const labor = parseFloat(svc?.labor_cost) || 0;
+                                                const materials = parseFloat(svc?.materials_cost) || 0;
+                                                const base = parseFloat(svc?.base_price) || 0;
+                                                return sum + (labor > 0 ? labor : (materials > 0 ? 0 : base));
+                                            }, 0) + (parseFloat(formData.customServiceLabor) || 0);
+                                            const totalMaterials = formData.selectedServices.reduce((sum, svcId) => {
+                                                const svc = services.find(s => s.id === svcId);
+                                                return sum + (parseFloat(svc?.materials_cost) || 0);
+                                            }, 0) + (parseFloat(formData.customServiceMaterials) || 0);
+                                            return formatMXN((totalLabor + totalMaterials) - (parseFloat(formData.advanceAmount) || 0));
+                                        })()}
                                     </strong>
                                 </div>
                             )}
@@ -2014,7 +2034,7 @@ export default function NewServiceOrder() {
                             {/* Entry Photos Preview */}
                             {(formData.entryPhotos.front || formData.entryPhotos.back || formData.entryPhotos.leftSide || formData.entryPhotos.rightSide) && (
                                 <div className="summary-photos-section">
-                                    <h4 className="photos-section-title">📸 Fotos de Ingreso</h4>
+                                    <h4 className="photos-section-title">Fotos de Ingreso</h4>
                                     <div className="summary-photos-grid">
                                         {formData.entryPhotos.front && <img src={formData.entryPhotos.front} alt="Frontal" />}
                                         {formData.entryPhotos.back && <img src={formData.entryPhotos.back} alt="Trasera" />}
@@ -2053,7 +2073,7 @@ export default function NewServiceOrder() {
                                 ) : (
                                     <>
                                         <Download size={18} />
-                                        📥 Descargar Resumen con Fotos
+                                        Descargar Resumen con Fotos
                                     </>
                                 )}
                             </button>
@@ -2061,6 +2081,30 @@ export default function NewServiceOrder() {
                     </div>
                 )}
             </div>
+
+            {/* Navigation Buttons - Steps 1-4 */}
+            {currentStep < 5 && (
+                <div className="step-navigation">
+                    {currentStep > 1 && (
+                        <button
+                            className="no-nav-back"
+                            onClick={prevStep}
+                        >
+                            <ArrowLeft size={18} />
+                            Atrás
+                        </button>
+                    )}
+                    <button
+                        className="no-nav-cta"
+                        onClick={nextStep}
+                        disabled={!canProceed()}
+                        style={{ flex: currentStep === 1 ? 1 : 2 }}
+                    >
+                        Continuar
+                        <ArrowRight size={18} />
+                    </button>
+                </div>
+            )}
 
             {/* Submit Button - Solo en paso 5 */}
             {currentStep === 5 && (
@@ -2190,6 +2234,7 @@ export default function NewServiceOrder() {
           min-height: 0;
           overflow-y: auto;
           margin-bottom: 0;
+          padding-bottom: 24px;
         }
 
         .step-client {
@@ -2721,14 +2766,14 @@ export default function NewServiceOrder() {
         .services-list {
           display: flex;
           flex-direction: column;
-          gap: var(--spacing-sm);
+          gap: 10px;
         }
 
         .service-item {
           display: flex;
-          align-items: center;
-          gap: var(--spacing-md);
-          padding: var(--spacing-md);
+          align-items: flex-start;
+          gap: 14px;
+          padding: 14px 16px;
           background: var(--bg-card);
           border: 2px solid var(--border-color);
           border-radius: var(--radius-md);
@@ -2752,17 +2797,36 @@ export default function NewServiceOrder() {
         .service-item-content {
           flex: 1;
           display: flex;
+          flex-direction: column;
+          gap: 4px;
+          min-width: 0;
+        }
+
+        .service-item-header {
+          display: flex;
           justify-content: space-between;
           align-items: center;
+          gap: 8px;
         }
 
         .service-name {
-          font-weight: 500;
+          font-weight: 600;
+          font-size: 0.9375rem;
+          color: #1f2937;
         }
 
         .service-price {
           color: var(--primary);
-          font-weight: 600;
+          font-weight: 700;
+          font-size: 0.9375rem;
+          white-space: nowrap;
+        }
+
+        .service-item-breakdown {
+          display: flex;
+          gap: 16px;
+          font-size: 0.75rem;
+          color: #6b7280;
         }
 
         .checkbox-indicator {
@@ -2949,7 +3013,7 @@ export default function NewServiceOrder() {
           background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
           border: 1px solid var(--border-color);
           border-radius: var(--radius-xl);
-          overflow: hidden;
+          overflow: visible;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
         }
 

@@ -76,11 +76,24 @@ export default function MasterRequests() {
                 const clientPhone = orderData.client_phone;
                 if (clientPhone) {
                     const motoInfo = `${orderData.moto_brand || ''} ${orderData.moto_model || ''}`.trim();
-                    const waMessage = getOrderCreatedMessage(orderData.client_name, motoInfo, newOrder.order_number);
-                    console.log('📤 Enviando WhatsApp al cliente tras aprobación del maestro...');
+                    const orderSvcs = orderData.services || [];
+                    const oLaborTotal = orderSvcs.reduce((sum, s) => sum + (parseFloat(s.labor_cost) || 0), 0);
+                    const oPartsTotal = orderSvcs.reduce((sum, s) => sum + (parseFloat(s.materials_cost) || 0), 0);
+                    const oTotalAmount = orderSvcs.reduce((sum, s) => sum + (parseFloat(s.price) || 0), 0);
+                    const oAdvance = parseFloat(orderData.advance_payment) || 0;
+                    const waMessage = getOrderCreatedMessage(orderData.client_name, motoInfo, newOrder.order_number, null, {
+                        services: orderSvcs,
+                        laborTotal: oLaborTotal,
+                        partsTotal: oPartsTotal,
+                        totalAmount: oTotalAmount,
+                        advancePayment: oAdvance,
+                        paymentMethod: orderData.payment_method,
+                        isPaid: oAdvance >= oTotalAmount && oTotalAmount > 0,
+                    });
+                    console.log('Enviando WhatsApp al cliente tras aprobacion del maestro...');
                     const waResult = await sendDirectMessage(user.id, clientPhone, waMessage, newOrder.id);
                     if (waResult.success && waResult.automated) {
-                        toast.success('✅ Cliente notificado por WhatsApp');
+                        toast.success('Cliente notificado por WhatsApp');
                     }
                 }
             } catch (waError) {

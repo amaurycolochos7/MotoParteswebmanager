@@ -1,13 +1,13 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 
-// Helper: generate order number
+// Helper: generate order number (MP-YY-NN format)
 async function generateOrderNumber() {
-    const year = new Date().getFullYear().toString();
+    const shortYear = String(new Date().getFullYear()).slice(-2);
     const count = await prisma.order.count({
-        where: { order_number: { startsWith: `OS-${year}-` } }
+        where: { order_number: { startsWith: `MP-${shortYear}-` } }
     });
-    return `OS-${year}-${String(count + 1).padStart(4, '0')}`;
+    return `MP-${shortYear}-${String(count + 1).padStart(2, '0')}`;
 }
 
 // Helper: recalculate order totals

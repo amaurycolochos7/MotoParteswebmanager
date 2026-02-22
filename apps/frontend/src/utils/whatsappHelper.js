@@ -115,14 +115,14 @@ export const sendAutomatedMessage = async (phone, message) => {
 // PLANTILLAS DE MENSAJES - Profesional y limpio
 // ============================================================
 
-const FOOTER = `*Motopartes* - Servicio Profesional`;
+const FOOTER = `*Motopartes* - V.Carranza`;
 
 /**
  * Mensaje de bienvenida cuando se crea una orden (legacy)
  */
 export const getOrderLinkMessage = (clientName, motorcycle, link) => {
     return [
-        `Estimado/a *${clientName}*,`,
+        `*${clientName}*,`,
         ``,
         `*ORDEN DE SERVICIO REGISTRADA*`,
         ``,
@@ -141,7 +141,7 @@ export const getOrderLinkMessage = (clientName, motorcycle, link) => {
  */
 export const getUpdateNotificationMessage = (clientName, updateTitle, link) => {
     return [
-        `Estimado/a *${clientName}*,`,
+        `*${clientName}*,`,
         ``,
         `*ACTUALIZACION DE SERVICIO*`,
         ``,
@@ -159,7 +159,7 @@ export const getUpdateNotificationMessage = (clientName, updateTitle, link) => {
  */
 export const getReadyForPickupMessage = (clientName, motorcycle, orderNumber, totalAmount) => {
     return [
-        `Estimado/a *${clientName}*,`,
+        `*${clientName}*,`,
         ``,
         `*${orderNumber} - LISTA PARA ENTREGAR*`,
         ``,
@@ -181,7 +181,7 @@ export const getReadyForPickupMessage = (clientName, motorcycle, orderNumber, to
  */
 export const getDeliveryNotificationMessage = (clientName, motorcycle, orderNumber) => {
     return [
-        `Estimado/a *${clientName}*,`,
+        `*${clientName}*,`,
         ``,
         `*${orderNumber} - ENTREGADA*`,
         ``,
@@ -201,7 +201,15 @@ export const getStatusChangeMessage = (statusName, data) => {
 
     switch (statusName) {
         case 'Registrada':
-            return getOrderCreatedMessage(clientName, motorcycle, orderNumber, trackingLink);
+            return getOrderCreatedMessage(clientName, motorcycle, orderNumber, trackingLink, {
+                services: services || [],
+                laborTotal: data.laborTotal || 0,
+                partsTotal: data.partsTotal || 0,
+                totalAmount: totalAmount || 0,
+                advancePayment: data.advancePayment || 0,
+                paymentMethod: data.paymentMethod || null,
+                isPaid: data.isPaid || false,
+            });
 
         case 'En Revision':
             return getInReviewMessage(clientName, motorcycle, orderNumber, trackingLink);
@@ -230,22 +238,72 @@ export const getStatusChangeMessage = (statusName, data) => {
 };
 
 /**
- * Orden recien creada / registrada
+ * Orden recien creada / registrada — con desglose de servicios y pagos
  */
-export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
-    return [
-        `Estimado/a *${clientName}*,`,
+export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trackingLink, orderDetails = null) => {
+    const lines = [
+        `*${clientName}*,`,
         ``,
         `*${orderNumber} - REGISTRADA*`,
         ``,
         `Su motocicleta *${motorcycle}* ha sido recibida en nuestro taller.`,
-        ``,
-        `Le informaremos cada avance de su servicio por este medio.`,
-        ``,
-        trackingLink ? trackingLink : null,
-        trackingLink ? `` : null,
-        FOOTER,
-    ].filter(line => line !== null).join('\n');
+    ];
+
+    // Add service details if provided
+    if (orderDetails) {
+        const { services, laborTotal, partsTotal, totalAmount, advancePayment, paymentMethod, isPaid } = orderDetails;
+
+        // List of services
+        if (services && services.length > 0) {
+            lines.push(``);
+            lines.push(`*Servicios:*`);
+            services.forEach(s => {
+                lines.push(`  • ${s.name}`);
+            });
+        }
+
+        // Totals breakdown
+        if (laborTotal > 0 || partsTotal > 0) {
+            lines.push(``);
+            if (laborTotal > 0) lines.push(`Mano de obra: *$${laborTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+            if (partsTotal > 0) lines.push(`Refacciones: *$${partsTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+        }
+
+        // Grand total
+        if (totalAmount > 0) {
+            lines.push(``);
+            lines.push(`*TOTAL: $${totalAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+        }
+
+        // Advance payment
+        if (advancePayment > 0) {
+            const methodLabel = getPaymentMethodLabel(paymentMethod);
+            const remaining = totalAmount - advancePayment;
+            lines.push(``);
+            lines.push(`Anticipo: *$${advancePayment.toLocaleString('es-MX', { minimumFractionDigits: 2 })}* (${methodLabel})`);
+            if (remaining > 0) {
+                lines.push(`Saldo pendiente: *$${remaining.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+            } else {
+                lines.push(`✓ *Orden pagada en su totalidad*`);
+            }
+        } else if (isPaid) {
+            lines.push(``);
+            lines.push(`✓ *Orden pagada en su totalidad*`);
+        }
+    }
+
+    lines.push(``);
+    lines.push(`Le informaremos cada avance de su servicio por este medio.`);
+
+    if (trackingLink) {
+        lines.push(``);
+        lines.push(trackingLink);
+    }
+
+    lines.push(``);
+    lines.push(FOOTER);
+
+    return lines.join('\n');
 };
 
 /**
@@ -253,7 +311,7 @@ export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trac
  */
 export const getInReviewMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
     return [
-        `Estimado/a *${clientName}*,`,
+        `*${clientName}*,`,
         ``,
         `*${orderNumber} - EN REVISION*`,
         ``,
@@ -272,7 +330,7 @@ export const getInReviewMessage = (clientName, motorcycle, orderNumber, tracking
  */
 export const getInRepairMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
     return [
-        `Estimado/a *${clientName}*,`,
+        `*${clientName}*,`,
         ``,
         `*${orderNumber} - EN REPARACION*`,
         ``,
@@ -291,7 +349,7 @@ export const getInRepairMessage = (clientName, motorcycle, orderNumber, tracking
  */
 export const getInProgressMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
     return [
-        `Estimado/a *${clientName}*,`,
+        `*${clientName}*,`,
         ``,
         `*${orderNumber} - EN PROCESO*`,
         ``,
@@ -310,7 +368,7 @@ export const getInProgressMessage = (clientName, motorcycle, orderNumber, tracki
  */
 export const getAwaitingPartsMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
     return [
-        `Estimado/a *${clientName}*,`,
+        `*${clientName}*,`,
         ``,
         `*${orderNumber} - ESPERANDO REFACCIONES*`,
         ``,
@@ -329,7 +387,7 @@ export const getAwaitingPartsMessage = (clientName, motorcycle, orderNumber, tra
  */
 export const getCancelledMessage = (clientName, motorcycle, orderNumber) => {
     return [
-        `Estimado/a *${clientName}*,`,
+        `*${clientName}*,`,
         ``,
         `*${orderNumber} - CANCELADA*`,
         ``,
@@ -346,7 +404,7 @@ export const getCancelledMessage = (clientName, motorcycle, orderNumber) => {
  */
 export const getGenericStatusMessage = (clientName, motorcycle, orderNumber, statusName, trackingLink) => {
     return [
-        `Estimado/a *${clientName}*,`,
+        `*${clientName}*,`,
         ``,
         `*${orderNumber} - ${statusName.toUpperCase()}*`,
         ``,
@@ -373,7 +431,7 @@ export const getQuotationMessage = (clientName, motorcycle, quotationNumber, ser
     });
 
     return [
-        `Estimado/a *${clientName}*,`,
+        `*${clientName}*,`,
         ``,
         `*COTIZACION ${quotationNumber}*`,
         ``,
@@ -397,7 +455,7 @@ export const getQuotationMessage = (clientName, motorcycle, quotationNumber, ser
  */
 export const getServiceOrderMessage = (clientName, motorcycle, orderNumber, link, pdfUrl) => {
     return [
-        `Estimado/a *${clientName}*,`,
+        `*${clientName}*,`,
         ``,
         `*ORDEN DE SERVICIO ${orderNumber}*`,
         ``,
@@ -469,7 +527,7 @@ export const getDetailedOrderMessage = (
     }
 
     return [
-        `Estimado/a *${clientName}*,`,
+        `*${clientName}*,`,
         ``,
         `*ORDEN DE SERVICIO ${orderNumber}*`,
         ``,

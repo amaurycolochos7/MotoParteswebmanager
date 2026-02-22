@@ -796,7 +796,7 @@ export const ordersService = {
         const totalAmount = services.reduce((sum, s) => sum + (parseFloat(s.price) || 0), 0);
 
         if (DEMO_MODE || !supabase) {
-            orderNumber = `OS-${currentYear}-${String(DEMO_ORDERS.length + 1).padStart(4, '0')}`;
+            orderNumber = `MP-${String(currentYear).slice(-2)}-${String(DEMO_ORDERS.length + 1).padStart(2, '0')}`;
             const client = DEMO_CLIENTS.find(c => c.id === orderData.client_id);
             const moto = client?.motorcycles?.find(m => m.id === orderData.motorcycle_id);
             const status = DEMO_STATUSES[0];
@@ -835,7 +835,7 @@ export const ordersService = {
         const { data: lastOrders } = await supabase
             .from('orders')
             .select('order_number')
-            .ilike('order_number', `OS-${currentYear}-%`)
+            .ilike('order_number', `MP-${String(currentYear).slice(-2)}-%`)
             .order('created_at', { ascending: false })
             .limit(1);
 
@@ -847,7 +847,7 @@ export const ordersService = {
                 sequence = parseInt(parts[2]) + 1;
             }
         }
-        orderNumber = `OS-${currentYear}-${String(sequence).padStart(4, '0')}`;
+        orderNumber = `MP-${String(currentYear).slice(-2)}-${String(sequence).padStart(2, '0')}`;
 
         // 1. Insert Order
         const { data: order, error } = await supabase
