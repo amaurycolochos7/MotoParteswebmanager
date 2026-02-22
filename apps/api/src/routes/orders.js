@@ -309,7 +309,7 @@ export default async function ordersRoutes(fastify) {
         });
 
         // DELETE /api/orders/:id
-        app.delete('/:id', async (request) => {
+        app.delete('/:id', async (request, reply) => {
             const { id } = request.params;
 
             try {
@@ -336,7 +336,7 @@ export default async function ordersRoutes(fastify) {
                 return { success: true };
             } catch (err) {
                 request.log.error('Error deleting order:', err);
-                throw { statusCode: 400, message: err.message || 'Error al eliminar la orden' };
+                return reply.status(400).send({ error: err.message || 'Error al eliminar la orden' });
             }
         });
     });
