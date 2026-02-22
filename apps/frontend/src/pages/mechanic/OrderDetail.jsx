@@ -19,7 +19,11 @@ import {
     Plus,
     Trash2,
     AlertTriangle,
-    Download
+    Download,
+    FileText,
+    Save,
+    Loader2,
+    MessageCircle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -28,8 +32,11 @@ import {
     getDetailedOrderMessage,
     getStatusChangeMessage,
     getNewServiceAddedMessage,
-    sendDirectMessage
+    getServiceOrderMessage,
+    sendDirectMessage,
+    sendMessageWithPDF
 } from '../../utils/whatsappHelper';
+import { generateOrderPDFBlob, downloadOrderPDF } from '../../utils/pdfGenerator';
 import Toast from '../../components/ui/Toast';
 import NoChatWarning from '../../components/ui/NoChatWarning';
 import OrderPhotosDownload from '../../components/ui/OrderPhotosDownload';
@@ -82,6 +89,13 @@ export default function OrderDetail() {
         price: '',
         requiresAuth: true,
     });
+
+    // ===== COSTS PANEL STATE =====
+    const [editingCosts, setEditingCosts] = useState(false);
+    const [costsLaborTotal, setCostsLaborTotal] = useState('');
+    const [costsParts, setCostsParts] = useState([]);
+    const [savingCosts, setSavingCosts] = useState(false);
+    const [sendingPDF, setSendingPDF] = useState(false);
 
     const showToast = (message, type = 'success') => {
         setToast({ message, type });
@@ -481,6 +495,120 @@ export default function OrderDetail() {
         }
     };
 
+    // ===== COSTS PANEL HANDLERS =====
+    const handleStartEditCosts = () => {
+        setCostsLaborTotal(order.labor_total ? String(parseFloat(order.labor_total)) : '');
+        const existingParts = (order.parts || []).map(p => ({
+            id: p.id,
+            name: p.name,
+            price: String(parseFloat(p.price)),
+            quantity: p.quantity || 1,
+        }));
+        setCostsParts(existingParts.length > 0 ? existingParts : [{ id: `new-${Date.now()}`, name: '', price: '', quantity: 1 }]);
+        setEditingCosts(true);
+    };
+
+    const handleAddPartRow = () => {
+        setCostsParts(prev => [...prev, { id: `new-${Date.now()}`, name: '', price: '', quantity: 1 }]);
+    };
+
+    const handleUpdatePart = (index, field, value) => {
+        setCostsParts(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
+    };
+
+    const handleRemovePart = (index) => {
+        setCostsParts(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleSaveCosts = async () => {
+        setSavingCosts(true);
+        try {
+            const validParts = costsParts.filter(p => p.name.trim() && parseFloat(p.price) > 0);
+            const result = await ordersService.updateCosts(order.id, {
+                labor_total: parseFloat(costsLaborTotal) || 0,
+                parts: validParts.map(p => ({
+                    name: p.name.trim(),
+                    price: parseFloat(p.price) || 0,
+                    quantity: parseInt(p.quantity) || 1,
+                })),
+            });
+
+            if (result.error) throw result.error;
+            showToast('✅ Costos guardados correctamente', 'success');
+            setEditingCosts(false);
+            window.location.reload();
+        } catch (error) {
+            console.error('Error saving costs:', error);
+            showToast('Error al guardar costos: ' + (error.message || error), 'error');
+        } finally {
+            setSavingCosts(false);
+        }
+    };
+
+    // ===== PDF + WHATSAPP HANDLER =====
+    const handleSendPDF = async () => {
+        if (!client?.phone) {
+            showToast('Este cliente no tiene número de teléfono', 'error');
+            return;
+        }
+        setSendingPDF(true);
+        try {
+            // Generate PDF blob
+            const pdfBlob = generateOrderPDFBlob(order, client, motorcycle);
+            const filename = `orden-${order.order_number}-${Date.now()}.pdf`;
+
+            // Upload PDF to storage
+            const uploadResult = await sendMessageWithPDF(client.phone, '', pdfBlob, filename);
+
+            if (!uploadResult.success) {
+                throw new Error(uploadResult.error || 'Error al subir PDF');
+            }
+
+            // Build WhatsApp message with PDF link
+            const motoInfo = motorcycle ? `${motorcycle.brand} ${motorcycle.model}` : 'N/A';
+            const laborAmt = parseFloat(order.labor_total) || 0;
+            const partsAmt = parseFloat(order.parts_total) || 0;
+            const totalAmt = parseFloat(order.total_amount) || 0;
+
+            let msgLines = [
+                `*${client.full_name}*,`,
+                ``,
+                `📄 *RESUMEN DE SERVICIO - ${order.order_number}*`,
+                ``,
+                `Moto: *${motoInfo}*`,
+            ];
+
+            if (totalAmt > 0) {
+                msgLines.push(``);
+                if (laborAmt > 0) msgLines.push(`Mano de obra: *$${laborAmt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+                if (partsAmt > 0) msgLines.push(`Refacciones: *$${partsAmt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+                msgLines.push(`*TOTAL: $${totalAmt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+            }
+
+            msgLines.push(``);
+            msgLines.push(`📎 Resumen en PDF:`);
+            msgLines.push(uploadResult.pdfUrl);
+            msgLines.push(``);
+            msgLines.push(`Gracias por su preferencia.`);
+            msgLines.push(`— *MotoPartes Club*`);
+
+            const message = msgLines.join('\n');
+
+            // Send WhatsApp message
+            const waResult = await sendDirectMessage(user.id, client.phone, message, order.id);
+
+            if (waResult.success && waResult.automated) {
+                showToast('✅ PDF enviado por WhatsApp al cliente', 'success');
+            } else {
+                showToast('PDF subido. WhatsApp no enviado: ' + (waResult.error || 'sesión no activa'), 'warning');
+            }
+        } catch (error) {
+            console.error('Error sending PDF:', error);
+            showToast('Error al enviar PDF: ' + error.message, 'error');
+        } finally {
+            setSendingPDF(false);
+        }
+    };
 
 
     return (
@@ -858,7 +986,156 @@ export default function OrderDetail() {
                 </div>
             </div>
 
-            {/* History Section */}
+            {/* ===== DATOS DEL COBRO - Inline Costs Panel ===== */}
+            <div className="costs-panel">
+                <div className="costs-panel-header">
+                    <div className="costs-panel-title">
+                        <DollarSign size={20} />
+                        <span>Datos del Cobro</span>
+                    </div>
+                    {!editingCosts ? (
+                        <button className="costs-edit-btn" onClick={handleStartEditCosts}>
+                            <Edit2 size={16} />
+                            {(parseFloat(order.labor_total) > 0 || (order.parts || []).length > 0) ? 'Editar' : 'Agregar Costos'}
+                        </button>
+                    ) : (
+                        <button className="costs-cancel-btn" onClick={() => setEditingCosts(false)}>
+                            <X size={16} /> Cancelar
+                        </button>
+                    )}
+                </div>
+
+                {editingCosts ? (
+                    <div className="costs-edit-form">
+                        {/* Labor Total */}
+                        <div className="costs-field">
+                            <label className="costs-label">Mano de Obra Total</label>
+                            <div className="costs-input-wrap">
+                                <span className="costs-currency">$</span>
+                                <input
+                                    type="number"
+                                    className="costs-input"
+                                    placeholder="0.00"
+                                    value={costsLaborTotal}
+                                    onChange={e => setCostsLaborTotal(e.target.value)}
+                                    min="0"
+                                    step="0.01"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Parts List */}
+                        <div className="costs-parts-section">
+                            <div className="costs-parts-header">
+                                <label className="costs-label">Refacciones</label>
+                                <button className="costs-add-part-btn" onClick={handleAddPartRow}>
+                                    <Plus size={14} /> Agregar
+                                </button>
+                            </div>
+                            {costsParts.map((part, idx) => (
+                                <div key={part.id || idx} className="costs-part-row">
+                                    <input
+                                        type="text"
+                                        className="costs-part-name"
+                                        placeholder="Nombre (ej: Balatas)"
+                                        value={part.name}
+                                        onChange={e => handleUpdatePart(idx, 'name', e.target.value)}
+                                    />
+                                    <div className="costs-input-wrap small">
+                                        <span className="costs-currency">$</span>
+                                        <input
+                                            type="number"
+                                            className="costs-input"
+                                            placeholder="0.00"
+                                            value={part.price}
+                                            onChange={e => handleUpdatePart(idx, 'price', e.target.value)}
+                                            min="0"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                    <button className="costs-remove-btn" onClick={() => handleRemovePart(idx)}>
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Calculated Total */}
+                        <div className="costs-calculated-total">
+                            <span>Total estimado:</span>
+                            <span className="costs-total-amount">
+                                ${((parseFloat(costsLaborTotal) || 0) + costsParts.reduce((sum, p) => sum + ((parseFloat(p.price) || 0) * (parseInt(p.quantity) || 1)), 0)).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                            </span>
+                        </div>
+
+                        {/* Save Button */}
+                        <button
+                            className="costs-save-btn"
+                            onClick={handleSaveCosts}
+                            disabled={savingCosts}
+                        >
+                            {savingCosts ? <Loader2 size={18} className="spinner" /> : <Save size={18} />}
+                            {savingCosts ? 'Guardando...' : 'Guardar Costos'}
+                        </button>
+                    </div>
+                ) : (
+                    <div className="costs-display">
+                        {parseFloat(order.labor_total) > 0 || (order.parts || []).length > 0 ? (
+                            <>
+                                <div className="costs-display-row">
+                                    <span className="costs-display-label">Mano de Obra</span>
+                                    <span className="costs-display-value">${(parseFloat(order.labor_total) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                                </div>
+                                {(order.parts || []).length > 0 && (
+                                    <div className="costs-parts-list">
+                                        <span className="costs-display-label" style={{ marginBottom: '8px', display: 'block' }}>Refacciones:</span>
+                                        {order.parts.map((p, idx) => (
+                                            <div key={p.id || idx} className="costs-display-part">
+                                                <span>{p.name}</span>
+                                                <span>${(parseFloat(p.price) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="costs-display-row total">
+                                    <span>Total</span>
+                                    <span>${(parseFloat(order.total_amount) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="costs-empty">
+                                <DollarSign size={24} style={{ opacity: 0.3 }} />
+                                <p>No se han registrado costos aún</p>
+                                <span>Presiona "Agregar Costos" para registrar mano de obra y refacciones</span>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* ===== SEND PDF VIA WHATSAPP BUTTON ===== */}
+            <div className="pdf-actions-card">
+                <button
+                    className="btn-send-pdf"
+                    onClick={handleSendPDF}
+                    disabled={sendingPDF}
+                >
+                    {sendingPDF ? (
+                        <Loader2 size={20} className="spinner" />
+                    ) : (
+                        <FileText size={20} />
+                    )}
+                    {sendingPDF ? 'Enviando PDF...' : 'Enviar Resumen PDF por WhatsApp'}
+                </button>
+                <button
+                    className="btn-download-pdf"
+                    onClick={() => downloadOrderPDF(order, client, motorcycle)}
+                >
+                    <Download size={18} />
+                    Descargar PDF
+                </button>
+            </div>
+
             <div className="detail-section">
                 <button className="section-header-btn" onClick={() => toggleSection('history')}>
                     <div className="section-title">
@@ -1926,6 +2203,257 @@ export default function OrderDetail() {
           font-weight: 800;
           color: var(--text-primary);
         }
+
+        /* ===== COSTS PANEL ===== */
+        .costs-panel {
+          background: var(--card-bg);
+          border: 1px solid var(--border-color);
+          border-radius: 16px;
+          overflow: hidden;
+          margin-bottom: 16px;
+        }
+        .costs-panel-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 16px 20px;
+          border-bottom: 1px solid var(--border-color);
+          background: linear-gradient(135deg, rgba(16, 185, 129, 0.06), rgba(59, 130, 246, 0.04));
+        }
+        .costs-panel-title {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-weight: 700;
+          font-size: 1rem;
+          color: var(--text-primary);
+        }
+        .costs-panel-title svg { color: #10b981; }
+        .costs-edit-btn, .costs-cancel-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 14px;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          border: 1px solid var(--border-color);
+          background: transparent;
+          color: var(--primary);
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .costs-edit-btn:hover { background: rgba(59, 130, 246, 0.08); border-color: var(--primary); }
+        .costs-cancel-btn { color: var(--text-muted); }
+        .costs-cancel-btn:hover { background: rgba(239, 68, 68, 0.08); color: #ef4444; border-color: #ef4444; }
+
+        .costs-edit-form { padding: 20px; }
+        .costs-field { margin-bottom: 16px; }
+        .costs-label {
+          display: block;
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: var(--text-secondary);
+          margin-bottom: 6px;
+        }
+        .costs-input-wrap {
+          display: flex;
+          align-items: center;
+          background: var(--bg-color);
+          border: 1px solid var(--border-color);
+          border-radius: 10px;
+          overflow: hidden;
+          transition: border-color 0.15s;
+        }
+        .costs-input-wrap:focus-within { border-color: var(--primary); }
+        .costs-input-wrap.small { flex: 0 0 130px; }
+        .costs-currency {
+          padding: 0 12px;
+          font-weight: 700;
+          color: var(--text-muted);
+          font-size: 0.95rem;
+        }
+        .costs-input {
+          flex: 1;
+          border: none;
+          background: transparent;
+          padding: 10px 12px 10px 0;
+          font-size: 1rem;
+          color: var(--text-primary);
+          outline: none;
+          font-family: inherit;
+        }
+        .costs-parts-section { margin-bottom: 16px; }
+        .costs-parts-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 10px;
+        }
+        .costs-add-part-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 12px;
+          border-radius: 6px;
+          font-size: 0.82rem;
+          font-weight: 600;
+          border: 1px dashed var(--primary);
+          background: transparent;
+          color: var(--primary);
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+        .costs-add-part-btn:hover { background: rgba(59, 130, 246, 0.08); }
+        .costs-part-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+        .costs-part-name {
+          flex: 1;
+          padding: 10px 12px;
+          border: 1px solid var(--border-color);
+          border-radius: 10px;
+          background: var(--bg-color);
+          color: var(--text-primary);
+          font-size: 0.9rem;
+          outline: none;
+          font-family: inherit;
+          transition: border-color 0.15s;
+        }
+        .costs-part-name:focus { border-color: var(--primary); }
+        .costs-remove-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          border: 1px solid var(--border-color);
+          background: transparent;
+          color: var(--text-muted);
+          cursor: pointer;
+          transition: all 0.15s;
+          flex-shrink: 0;
+        }
+        .costs-remove-btn:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: #ef4444; }
+        .costs-calculated-total {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 12px 16px;
+          background: rgba(16, 185, 129, 0.06);
+          border-radius: 10px;
+          margin-bottom: 16px;
+          font-weight: 600;
+          color: var(--text-secondary);
+        }
+        .costs-total-amount { color: #10b981; font-size: 1.1rem; font-weight: 800; }
+        .costs-save-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          width: 100%;
+          padding: 12px;
+          border-radius: 12px;
+          border: none;
+          background: linear-gradient(135deg, #10b981, #059669);
+          color: white;
+          font-weight: 700;
+          font-size: 0.95rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .costs-save-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+        .costs-save-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .costs-save-btn .spinner { animation: spin 1s linear infinite; }
+
+        .costs-display { padding: 20px; }
+        .costs-display-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 0;
+          font-size: 0.95rem;
+          color: var(--text-primary);
+        }
+        .costs-display-row.total {
+          margin-top: 12px;
+          padding-top: 12px;
+          border-top: 2px solid var(--border-color);
+          font-weight: 800;
+          font-size: 1.1rem;
+          color: #10b981;
+        }
+        .costs-display-label { color: var(--text-secondary); font-weight: 500; }
+        .costs-display-value { font-weight: 700; }
+        .costs-parts-list {
+          padding: 12px;
+          background: rgba(0,0,0,0.02);
+          border-radius: 10px;
+          margin: 8px 0;
+        }
+        .costs-display-part {
+          display: flex;
+          justify-content: space-between;
+          padding: 4px 0;
+          font-size: 0.88rem;
+          color: var(--text-secondary);
+        }
+        .costs-empty {
+          text-align: center;
+          padding: 24px 16px;
+          color: var(--text-muted);
+        }
+        .costs-empty p { margin: 8px 0 4px; font-weight: 600; font-size: 0.95rem; }
+        .costs-empty span { font-size: 0.82rem; }
+
+        /* ===== PDF ACTIONS ===== */
+        .pdf-actions-card {
+          display: flex;
+          gap: 10px;
+          margin-bottom: 16px;
+        }
+        .btn-send-pdf {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 14px;
+          border-radius: 14px;
+          border: none;
+          background: linear-gradient(135deg, #25d366, #128c7e);
+          color: white;
+          font-weight: 700;
+          font-size: 0.92rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .btn-send-pdf:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3); }
+        .btn-send-pdf:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-send-pdf .spinner { animation: spin 1s linear infinite; }
+        .btn-download-pdf {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 14px 18px;
+          border-radius: 14px;
+          border: 1px solid var(--border-color);
+          background: var(--card-bg);
+          color: var(--text-secondary);
+          font-weight: 600;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .btn-download-pdf:hover { border-color: var(--primary); color: var(--primary); }
+
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
 
             {/* Order Photos Download Section */}

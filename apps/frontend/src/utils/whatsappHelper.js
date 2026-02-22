@@ -209,6 +209,7 @@ export const getStatusChangeMessage = (statusName, data) => {
                 advancePayment: data.advancePayment || 0,
                 paymentMethod: data.paymentMethod || null,
                 isPaid: data.isPaid || false,
+                customerComplaint: data.customerComplaint || null,
             });
 
         case 'En Revision':
@@ -251,7 +252,14 @@ export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trac
 
     // Add service details if provided
     if (orderDetails) {
-        const { services, laborTotal, partsTotal, totalAmount, advancePayment, paymentMethod, isPaid } = orderDetails;
+        const { services, laborTotal, partsTotal, totalAmount, advancePayment, paymentMethod, isPaid, customerComplaint } = orderDetails;
+
+        // Show fault description if available
+        if (customerComplaint && customerComplaint.trim()) {
+            lines.push(``);
+            lines.push(`*Motivo de ingreso:*`);
+            lines.push(`${customerComplaint.trim()}`);
+        }
 
         // List of services
         if (services && services.length > 0) {
@@ -262,33 +270,42 @@ export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trac
             });
         }
 
-        // Totals breakdown
-        if (laborTotal > 0 || partsTotal > 0) {
-            lines.push(``);
-            if (laborTotal > 0) lines.push(`Mano de obra: *$${laborTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
-            if (partsTotal > 0) lines.push(`Refacciones: *$${partsTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
-        }
+        // Check if order has no costs defined
+        const hasCosts = totalAmount > 0 || laborTotal > 0 || partsTotal > 0;
 
-        // Grand total
-        if (totalAmount > 0) {
-            lines.push(``);
-            lines.push(`*TOTAL: $${totalAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
-        }
+        if (hasCosts) {
+            // Totals breakdown
+            if (laborTotal > 0 || partsTotal > 0) {
+                lines.push(``);
+                if (laborTotal > 0) lines.push(`Mano de obra: *$${laborTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+                if (partsTotal > 0) lines.push(`Refacciones: *$${partsTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+            }
 
-        // Advance payment
-        if (advancePayment > 0) {
-            const methodLabel = getPaymentMethodLabel(paymentMethod);
-            const remaining = totalAmount - advancePayment;
-            lines.push(``);
-            lines.push(`Anticipo: *$${advancePayment.toLocaleString('es-MX', { minimumFractionDigits: 2 })}* (${methodLabel})`);
-            if (remaining > 0) {
-                lines.push(`Saldo pendiente: *$${remaining.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
-            } else {
+            // Grand total
+            if (totalAmount > 0) {
+                lines.push(``);
+                lines.push(`*TOTAL: $${totalAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+            }
+
+            // Advance payment
+            if (advancePayment > 0) {
+                const methodLabel = getPaymentMethodLabel(paymentMethod);
+                const remaining = totalAmount - advancePayment;
+                lines.push(``);
+                lines.push(`Anticipo: *$${advancePayment.toLocaleString('es-MX', { minimumFractionDigits: 2 })}* (${methodLabel})`);
+                if (remaining > 0) {
+                    lines.push(`Saldo pendiente: *$${remaining.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+                } else {
+                    lines.push(`✓ *Orden pagada en su totalidad*`);
+                }
+            } else if (isPaid) {
+                lines.push(``);
                 lines.push(`✓ *Orden pagada en su totalidad*`);
             }
-        } else if (isPaid) {
+        } else {
+            // No costs defined yet — inform client costs will be sent later
             lines.push(``);
-            lines.push(`✓ *Orden pagada en su totalidad*`);
+            lines.push(`Se le enviará el resumen del costo total (mano de obra y refacciones) conforme se revise y avance el servicio.`);
         }
     }
 

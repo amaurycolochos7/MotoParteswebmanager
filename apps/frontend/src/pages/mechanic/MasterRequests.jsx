@@ -89,6 +89,7 @@ export default function MasterRequests() {
                         advancePayment: oAdvance,
                         paymentMethod: orderData.payment_method,
                         isPaid: oAdvance >= oTotalAmount && oTotalAmount > 0,
+                        customerComplaint: orderData.customer_complaint,
                     });
                     console.log('Enviando WhatsApp al cliente tras aprobacion del maestro...');
                     const waResult = await sendDirectMessage(user.id, clientPhone, waMessage, newOrder.id);

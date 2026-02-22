@@ -751,6 +751,7 @@ export default function NewServiceOrder() {
                         advancePayment: advanceAmt,
                         paymentMethod: formData.paymentMethod,
                         isPaid: advanceAmt >= totalAmount && totalAmount > 0,
+                        customerComplaint: formData.customerComplaint,
                     });
 
                     console.log('📤 Enviando notificación de orden creada via WhatsApp...');

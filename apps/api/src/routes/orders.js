@@ -371,6 +371,76 @@ export default async function ordersRoutes(fastify) {
                 });
             }
         });
+
+        // ============ UPDATE ORDER COSTS (labor + parts) ============
+        fastify.put('/:id/costs', { preHandler: [authenticate] }, async (request, reply) => {
+            const { id } = request.params;
+            const { labor_total, parts } = request.body;
+
+            try {
+                const result = await prisma.$transaction(async (tx) => {
+                    // 1. Disable triggers to avoid conflicts
+                    await tx.$executeRawUnsafe(
+                        `ALTER TABLE order_parts DISABLE TRIGGER update_order_totals_on_parts`
+                    );
+
+                    // 2. Delete existing parts for this order
+                    await tx.orderPart.deleteMany({ where: { order_id: id } });
+
+                    // 3. Create new parts
+                    const partsData = (parts || []).map(p => ({
+                        order_id: id,
+                        name: p.name,
+                        cost: parseFloat(p.price) || 0,
+                        price: parseFloat(p.price) || 0,
+                        quantity: parseInt(p.quantity) || 1,
+                        notes: p.notes || null,
+                    }));
+
+                    if (partsData.length > 0) {
+                        await tx.orderPart.createMany({ data: partsData });
+                    }
+
+                    // 4. Calculate totals
+                    const partsTotal = partsData.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+                    const laborAmount = parseFloat(labor_total) || 0;
+                    const totalAmount = laborAmount + partsTotal;
+
+                    // 5. Update order totals
+                    const updated = await tx.order.update({
+                        where: { id },
+                        data: {
+                            labor_total: laborAmount,
+                            parts_total: partsTotal,
+                            total_amount: totalAmount,
+                        },
+                        include: ORDER_INCLUDE,
+                    });
+
+                    // 6. Re-enable triggers
+                    await tx.$executeRawUnsafe(
+                        `ALTER TABLE order_parts ENABLE TRIGGER update_order_totals_on_parts`
+                    );
+
+                    return updated;
+                });
+
+                return result;
+            } catch (err) {
+                request.log.error('Error updating order costs:', err);
+
+                // Try to re-enable triggers
+                try {
+                    await prisma.$executeRawUnsafe(
+                        `ALTER TABLE order_parts ENABLE TRIGGER update_order_totals_on_parts`
+                    );
+                } catch (_) { /* ignore */ }
+
+                return reply.status(400).send({
+                    error: err.message || 'Error al actualizar costos'
+                });
+            }
+        });
     });
 }
 

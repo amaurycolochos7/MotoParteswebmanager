@@ -444,6 +444,18 @@ export const ordersService = {
         } catch (error) {
             return { error };
         }
+    },
+
+    async updateCosts(orderId, costsData) {
+        try {
+            const data = await apiFetch(`/orders/${orderId}/costs`, {
+                method: 'PUT',
+                body: JSON.stringify(costsData)
+            });
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     }
 };
 
