@@ -11,12 +11,25 @@ async function generateOrderNumber() {
 }
 
 // Helper: recalculate order totals
+// price = total per service (labor + materials), cost = materials portion
+// labor = price - cost
 async function recalcOrderTotals(orderId) {
     const services = await prisma.orderService.findMany({ where: { order_id: orderId } });
     const parts = await prisma.orderPart.findMany({ where: { order_id: orderId } });
 
-    const laborTotal = services.reduce((sum, s) => sum + Number(s.price) * s.quantity, 0);
-    const partsTotal = parts.reduce((sum, p) => sum + Number(p.price) * p.quantity, 0);
+    // Services: labor = price - cost (materials), materials = cost
+    const svcLaborTotal = services.reduce((sum, s) => {
+        const price = Number(s.price) * s.quantity;
+        const matCost = Number(s.cost) * s.quantity;
+        return sum + (price - matCost);
+    }, 0);
+    const svcPartsTotal = services.reduce((sum, s) => sum + Number(s.cost) * s.quantity, 0);
+
+    // Order parts (refacciones sueltas)
+    const orderPartsTotal = parts.reduce((sum, p) => sum + Number(p.price) * p.quantity, 0);
+
+    const laborTotal = svcLaborTotal;
+    const partsTotal = svcPartsTotal + orderPartsTotal;
 
     await prisma.order.update({
         where: { id: orderId },
@@ -245,20 +258,30 @@ export default async function ordersRoutes(fastify) {
             const { id } = request.params;
             const data = request.body;
 
-            const service = await prisma.orderService.create({
+            // price = total (labor + parts), cost = materials/parts portion
+            const laborCost = parseFloat(data.laborCost) || 0;
+            const partsCost = parseFloat(data.partsCost) || 0;
+            const totalPrice = parseFloat(data.price) || (laborCost + partsCost);
+
+            await prisma.orderService.create({
                 data: {
                     order_id: id,
                     service_id: data.service_id || null,
                     name: data.name,
-                    price: data.price,
-                    cost: data.cost || 0,
+                    price: totalPrice,
+                    cost: partsCost,
                     quantity: data.quantity || 1,
                     notes: data.notes || null
                 }
             });
 
             await recalcOrderTotals(id);
-            return service;
+
+            // Return full updated order so frontend has fresh data
+            return prisma.order.findUnique({
+                where: { id },
+                include: ORDER_INCLUDE
+            });
         });
 
         // DELETE /api/orders/:id/services/:serviceId

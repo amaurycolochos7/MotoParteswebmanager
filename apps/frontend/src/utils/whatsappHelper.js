@@ -473,6 +473,59 @@ export const getServiceOrderMessage = (clientName, motorcycle, orderNumber, link
 
 
 // ============================================================
+// MENSAJE DE SERVICIO ADICIONAL AGREGADO
+// ============================================================
+
+/**
+ * Mensaje automatico cuando se agrega un servicio adicional a una orden existente.
+ * Incluye desglose del nuevo servicio y resumen actualizado de la orden.
+ */
+export const getNewServiceAddedMessage = (
+    clientName, motorcycle, orderNumber,
+    newService, updatedOrder
+) => {
+    const laborCost = parseFloat(newService.laborCost) || 0;
+    const partsCost = parseFloat(newService.partsCost) || 0;
+    const serviceTotal = laborCost + partsCost;
+
+    const totalAmount = parseFloat(updatedOrder.total_amount) || 0;
+    const advancePayment = parseFloat(updatedOrder.advance_payment) || 0;
+    const remaining = Math.max(0, totalAmount - advancePayment);
+
+    const lines = [
+        `*${clientName}*,`,
+        ``,
+        `*${orderNumber} - SERVICIO ADICIONAL*`,
+        ``,
+        `Se ha agregado un servicio a su orden:`,
+        ``,
+        `🔧 *${newService.name}*`,
+    ];
+
+    if (laborCost > 0) lines.push(`  Mano de obra: *$${laborCost.toLocaleString('es-MX')}*`);
+    if (partsCost > 0) lines.push(`  Refacciones: *$${partsCost.toLocaleString('es-MX')}*`);
+    lines.push(`  Subtotal servicio: *$${serviceTotal.toLocaleString('es-MX')}*`);
+
+    lines.push(``);
+    lines.push(`📋 *Resumen actualizado:*`);
+    lines.push(`  Total de la Orden: *$${totalAmount.toLocaleString('es-MX')}*`);
+
+    if (advancePayment > 0) {
+        lines.push(`  Anticipo recibido: *$${advancePayment.toLocaleString('es-MX')}*`);
+    }
+
+    lines.push(`  *Saldo pendiente: $${remaining.toLocaleString('es-MX')}*`);
+
+    lines.push(``);
+    lines.push(`Cualquier duda, estamos a sus ordenes.`);
+    lines.push(``);
+    lines.push(FOOTER);
+
+    return lines.join('\n');
+};
+
+
+// ============================================================
 // MENSAJE DETALLADO DE ORDEN (con desglose completo)
 // ============================================================
 

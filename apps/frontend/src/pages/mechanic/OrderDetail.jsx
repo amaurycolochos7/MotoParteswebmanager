@@ -27,6 +27,7 @@ import { ordersService, authService } from '../../lib/api';
 import {
     getDetailedOrderMessage,
     getStatusChangeMessage,
+    getNewServiceAddedMessage,
     sendDirectMessage
 } from '../../utils/whatsappHelper';
 import Toast from '../../components/ui/Toast';
@@ -264,15 +265,43 @@ export default function OrderDetail() {
         }
 
         try {
-            await ordersService.addService(order.id, {
+            const result = await ordersService.addService(order.id, {
                 name: addServiceForm.name,
                 laborCost,
                 partsCost,
                 price: laborCost + partsCost
             });
 
+            // The API now returns the full updated order
+            const updatedOrder = result.data || result;
+
             showToast('✅ Servicio agregado correctamente', 'success');
             setShowAddServiceModal(false);
+
+            // Send WhatsApp notification with new service details
+            if (client?.phone) {
+                try {
+                    const message = getNewServiceAddedMessage(
+                        client.full_name,
+                        `${motorcycle.brand} ${motorcycle.model}`,
+                        order.order_number,
+                        { name: addServiceForm.name, laborCost, partsCost },
+                        updatedOrder
+                    );
+
+                    console.log('📤 Enviando notificación de servicio adicional via bot...');
+                    const waResult = await sendDirectMessage(user.id, client.phone, message, order.id);
+
+                    if (waResult.success && waResult.automated) {
+                        showToast('📱 Cliente notificado por WhatsApp', 'success');
+                    } else if (!waResult.success) {
+                        console.warn('⚠️ WhatsApp no enviado:', waResult.error);
+                    }
+                } catch (waError) {
+                    console.error('Error enviando WhatsApp:', waError);
+                }
+            }
+
             setAddServiceForm({ name: '', laborCost: '', partsCost: '' });
 
             // Reload order to show new service
