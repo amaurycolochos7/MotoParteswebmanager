@@ -289,16 +289,32 @@ export default async function ordersRoutes(fastify) {
         app.delete('/:id', async (request) => {
             const { id } = request.params;
 
-            // Cascade delete
-            await prisma.mechanicEarning.deleteMany({ where: { order_id: id } });
-            await prisma.orderService.deleteMany({ where: { order_id: id } });
-            await prisma.orderUpdate.deleteMany({ where: { order_id: id } });
-            await prisma.orderPhoto.deleteMany({ where: { order_id: id } });
-            await prisma.orderPart.deleteMany({ where: { order_id: id } });
-            await prisma.orderHistory.deleteMany({ where: { order_id: id } });
-            await prisma.order.delete({ where: { id } });
+            try {
+                // Use transaction for atomic cascade delete
+                await prisma.$transaction(async (tx) => {
+                    // Nullify references in order_requests
+                    await tx.orderRequest.updateMany({
+                        where: { created_order_id: id },
+                        data: { created_order_id: null }
+                    });
 
-            return { success: true };
+                    // Cascade delete child records
+                    await tx.mechanicEarning.deleteMany({ where: { order_id: id } });
+                    await tx.orderService.deleteMany({ where: { order_id: id } });
+                    await tx.orderUpdate.deleteMany({ where: { order_id: id } });
+                    await tx.orderPhoto.deleteMany({ where: { order_id: id } });
+                    await tx.orderPart.deleteMany({ where: { order_id: id } });
+                    await tx.orderHistory.deleteMany({ where: { order_id: id } });
+
+                    // Delete the order itself
+                    await tx.order.delete({ where: { id } });
+                });
+
+                return { success: true };
+            } catch (err) {
+                request.log.error('Error deleting order:', err);
+                throw { statusCode: 400, message: err.message || 'Error al eliminar la orden' };
+            }
         });
     });
 }
