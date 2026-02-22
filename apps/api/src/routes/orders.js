@@ -313,30 +313,62 @@ export default async function ordersRoutes(fastify) {
             const { id } = request.params;
 
             try {
-                // Use transaction for atomic cascade delete
                 await prisma.$transaction(async (tx) => {
-                    // Nullify references in order_requests
+                    // 1. Disable the DB trigger that conflicts with cascade deletes
+                    //    The trigger tries to UPDATE orders when order_services are deleted,
+                    //    which conflicts within the deletion transaction
+                    await tx.$executeRawUnsafe(
+                        `ALTER TABLE order_services DISABLE TRIGGER update_order_totals_on_service`
+                    );
+                    await tx.$executeRawUnsafe(
+                        `ALTER TABLE order_parts DISABLE TRIGGER update_order_totals_on_parts`
+                    );
+
+                    // 2. Nullify references in order_requests
                     await tx.orderRequest.updateMany({
                         where: { created_order_id: id },
                         data: { created_order_id: null }
                     });
 
-                    // Cascade delete child records
+                    // 3. Delete mechanic_earnings (no ON DELETE CASCADE in some setups)
                     await tx.mechanicEarning.deleteMany({ where: { order_id: id } });
+
+                    // 4. Delete child records first, then the order
                     await tx.orderService.deleteMany({ where: { order_id: id } });
                     await tx.orderUpdate.deleteMany({ where: { order_id: id } });
                     await tx.orderPhoto.deleteMany({ where: { order_id: id } });
                     await tx.orderPart.deleteMany({ where: { order_id: id } });
                     await tx.orderHistory.deleteMany({ where: { order_id: id } });
 
-                    // Delete the order itself
+                    // 5. Delete the order itself
                     await tx.order.delete({ where: { id } });
+
+                    // 6. Re-enable triggers
+                    await tx.$executeRawUnsafe(
+                        `ALTER TABLE order_services ENABLE TRIGGER update_order_totals_on_service`
+                    );
+                    await tx.$executeRawUnsafe(
+                        `ALTER TABLE order_parts ENABLE TRIGGER update_order_totals_on_parts`
+                    );
                 });
 
                 return { success: true };
             } catch (err) {
                 request.log.error('Error deleting order:', err);
-                return reply.status(400).send({ error: err.message || 'Error al eliminar la orden' });
+
+                // Try to re-enable triggers if they were disabled
+                try {
+                    await prisma.$executeRawUnsafe(
+                        `ALTER TABLE order_services ENABLE TRIGGER update_order_totals_on_service`
+                    );
+                    await prisma.$executeRawUnsafe(
+                        `ALTER TABLE order_parts ENABLE TRIGGER update_order_totals_on_parts`
+                    );
+                } catch (_) { /* ignore */ }
+
+                return reply.status(400).send({
+                    error: err.message || 'Error al eliminar la orden'
+                });
             }
         });
     });
