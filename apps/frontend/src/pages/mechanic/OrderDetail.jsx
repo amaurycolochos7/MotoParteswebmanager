@@ -96,6 +96,7 @@ export default function OrderDetail() {
     const [costsParts, setCostsParts] = useState([]);
     const [savingCosts, setSavingCosts] = useState(false);
     const [sendingPDF, setSendingPDF] = useState(false);
+    const [showSendChoice, setShowSendChoice] = useState(false);
 
     const showToast = (message, type = 'success') => {
         setToast({ message, type });
@@ -583,7 +584,7 @@ export default function OrderDetail() {
         setSendingPDF(true);
         try {
             // Generate PDF blob
-            const pdfBlob = generateOrderPDFBlob(order, client, motorcycle);
+            const pdfBlob = await generateOrderPDFBlob(order, client, motorcycle);
             const filename = `orden-${order.order_number}-${Date.now()}.pdf`;
 
             // Upload PDF to storage
@@ -639,6 +640,97 @@ export default function OrderDetail() {
         }
     };
 
+    // Send summary as WhatsApp text message (no PDF)
+    const handleSendText = async () => {
+        if (!client?.phone) {
+            showToast('Este cliente no tiene número de teléfono', 'error');
+            return;
+        }
+        setSendingPDF(true);
+        setShowSendChoice(false);
+        try {
+            const motoInfo = motorcycle ? `${motorcycle.brand} ${motorcycle.model}` : 'N/A';
+            const laborAmt = parseFloat(order.labor_total) || 0;
+            const partsAmt = parseFloat(order.parts_total) || 0;
+            const totalAmt = parseFloat(order.total_amount) || 0;
+
+            let msgLines = [
+                `*${client.full_name}*,`,
+                ``,
+                `📋 *RESUMEN DE SERVICIO - ${order.order_number}*`,
+                ``,
+                `🏍️ Moto: *${motoInfo}*`,
+            ];
+
+            // Add services list
+            if (order.services?.length > 0) {
+                msgLines.push(``);
+                msgLines.push(`🔧 *Servicios realizados:*`);
+                order.services.forEach(s => {
+                    const price = parseFloat(s.price) || 0;
+                    msgLines.push(`  • ${s.name}${price > 0 ? ` - $${price.toLocaleString('es-MX')}` : ''}`);
+                });
+            }
+
+            // Add labor breakdown from mechanic_notes
+            if (order.mechanic_notes) {
+                msgLines.push(``);
+                msgLines.push(`🔧 *Mano de Obra:*`);
+                if (order.mechanic_notes.includes('|')) {
+                    order.mechanic_notes.split(' | ').forEach(item => {
+                        msgLines.push(`  • ${item}`);
+                    });
+                } else {
+                    msgLines.push(`  • ${order.mechanic_notes}: $${laborAmt.toLocaleString('es-MX')}`);
+                }
+            }
+
+            // Add parts
+            if ((order.parts || []).length > 0) {
+                msgLines.push(``);
+                msgLines.push(`🔩 *Refacciones:*`);
+                order.parts.forEach(p => {
+                    msgLines.push(`  • ${p.name} - $${(parseFloat(p.price) || 0).toLocaleString('es-MX')}`);
+                });
+            }
+
+            if (totalAmt > 0) {
+                msgLines.push(``);
+                msgLines.push(`━━━━━━━━━━━━━━`);
+                if (laborAmt > 0) msgLines.push(`Mano de obra: *$${laborAmt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+                if (partsAmt > 0) msgLines.push(`Refacciones: *$${partsAmt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+                msgLines.push(`*💰 TOTAL: $${totalAmt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+            }
+
+            if (order.advance_payment > 0) {
+                msgLines.push(`Anticipo: -$${parseFloat(order.advance_payment).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`);
+            }
+
+            msgLines.push(``);
+            msgLines.push(`Gracias por su preferencia. 🙏`);
+            msgLines.push(`— *MotoPartes Club*`);
+
+            const message = msgLines.join('\n');
+
+            const waResult = await sendDirectMessage(user.id, client.phone, message, order.id);
+
+            if (waResult.success && waResult.automated) {
+                showToast('✅ Resumen enviado por WhatsApp', 'success');
+            } else {
+                // Fallback: open WhatsApp web
+                const encodedMsg = encodeURIComponent(message);
+                const cleanedPhone = client.phone.replace(/\D/g, '');
+                const phone = cleanedPhone.startsWith('52') ? cleanedPhone : `52${cleanedPhone}`;
+                window.open(`https://wa.me/${phone}?text=${encodedMsg}`, '_blank');
+                showToast('📱 Abriendo WhatsApp...', 'info');
+            }
+        } catch (error) {
+            console.error('Error sending text:', error);
+            showToast('Error al enviar resumen: ' + error.message, 'error');
+        } finally {
+            setSendingPDF(false);
+        }
+    };
 
     return (
         <div className="order-detail">
@@ -838,10 +930,25 @@ export default function OrderDetail() {
             {/* ── ACCIONES ── */}
             <div className="od-actions">
                 {/* PDF y WhatsApp */}
-                <button className="od-action-btn primary" onClick={handleSendPDF} disabled={sendingPDF}>
-                    {sendingPDF ? <Loader2 size={20} className="spinner" /> : <FileText size={20} />}
-                    {sendingPDF ? 'Enviando...' : 'Enviar Resumen al Cliente'}
-                </button>
+                {!showSendChoice ? (
+                    <button className="od-action-btn primary" onClick={() => setShowSendChoice(true)} disabled={sendingPDF}>
+                        {sendingPDF ? <Loader2 size={20} className="spinner" /> : <FileText size={20} />}
+                        {sendingPDF ? 'Enviando...' : 'Enviar Resumen al Cliente'}
+                    </button>
+                ) : (
+                    <div className="od-send-choice">
+                        <p className="od-send-choice-title">¿Cómo enviar el resumen?</p>
+                        <button className="od-action-btn primary" onClick={() => { setShowSendChoice(false); handleSendPDF(); }} disabled={sendingPDF}>
+                            <FileText size={18} /> Enviar PDF por WhatsApp
+                        </button>
+                        <button className="od-action-btn success" onClick={handleSendText} disabled={sendingPDF}>
+                            <MessageCircle size={18} /> Enviar como Texto por WhatsApp
+                        </button>
+                        <button className="od-action-btn outline" style={{ fontSize: '0.85rem', padding: '10px' }} onClick={() => setShowSendChoice(false)}>
+                            Cancelar
+                        </button>
+                    </div>
+                )}
                 <button className="od-action-btn outline" onClick={() => downloadOrderPDF(order, client, motorcycle)}>
                     <Download size={18} /> Descargar PDF
                 </button>
@@ -1591,6 +1698,22 @@ export default function OrderDetail() {
           flex-direction: column;
           gap: 10px;
           margin: var(--spacing-lg) 0;
+        }
+        .od-send-choice {
+          background: rgba(59, 130, 246, 0.08);
+          border: 1px solid rgba(59, 130, 246, 0.2);
+          border-radius: var(--radius-lg);
+          padding: 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .od-send-choice-title {
+          text-align: center;
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          margin: 0 0 4px 0;
         }
         .od-action-btn {
           display: flex;
