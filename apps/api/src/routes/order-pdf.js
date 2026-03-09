@@ -246,16 +246,24 @@ export default async function orderPdfRoutes(fastify) {
             const mechanicId = order.approved_by || order.mechanic_id;
 
             // Send via WhatsApp bot
-            const botResponse = await fetch(`${BOT_URL}/api/send-document`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-api-key': BOT_KEY },
-                body: JSON.stringify({ mechanicId, phone: client.phone, message: caption, base64: pdfBase64, filename, mimetype: 'application/pdf' }),
-            });
+            let botResult;
+            try {
+                const botResponse = await fetch(`${BOT_URL}/api/send-document`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-api-key': BOT_KEY },
+                    body: JSON.stringify({ mechanicId, phone: client.phone, message: caption, base64: pdfBase64, filename, mimetype: 'application/pdf' }),
+                });
 
-            const botResult = await botResponse.json();
+                botResult = await botResponse.json();
 
-            if (!botResponse.ok) {
-                return reply.send({ success: false, fallback: true, error: botResult.error || 'WhatsApp no disponible' });
+                if (!botResponse.ok) {
+                    fastify.log.warn(`WhatsApp bot returned ${botResponse.status}: ${JSON.stringify(botResult)}`);
+                    return reply.send({ success: false, fallback: true, error: botResult.error || 'WhatsApp no disponible' });
+                }
+            } catch (botError) {
+                // Bot is unreachable (fetch failed, network error, etc.)
+                fastify.log.warn(`WhatsApp bot unreachable: ${botError.message}`);
+                return reply.send({ success: false, fallback: true, error: 'Bot de WhatsApp no disponible. Verifique que esté conectado.' });
             }
 
             return reply.send({ success: true, automated: true, messageId: botResult.messageId });
