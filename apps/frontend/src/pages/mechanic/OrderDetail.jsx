@@ -92,7 +92,7 @@ export default function OrderDetail() {
 
     // ===== COSTS PANEL STATE =====
     const [editingCosts, setEditingCosts] = useState(false);
-    const [costsLaborTotal, setCostsLaborTotal] = useState('');
+    const [costsLabor, setCostsLabor] = useState([]);
     const [costsParts, setCostsParts] = useState([]);
     const [savingCosts, setSavingCosts] = useState(false);
     const [sendingPDF, setSendingPDF] = useState(false);
@@ -497,7 +497,17 @@ export default function OrderDetail() {
 
     // ===== COSTS PANEL HANDLERS =====
     const handleStartEditCosts = () => {
-        setCostsLaborTotal(order.labor_total ? String(parseFloat(order.labor_total)) : '');
+        // Build labor items from order services or fallback to a single item with labor_total
+        const existingLabor = (order.services || []).filter(s => (parseFloat(s.price) - parseFloat(s.cost || 0)) > 0).map(s => ({
+            id: s.id,
+            name: s.name,
+            price: String(parseFloat(s.price) - parseFloat(s.cost || 0)),
+        }));
+        if (existingLabor.length === 0 && parseFloat(order.labor_total) > 0) {
+            existingLabor.push({ id: `labor-${Date.now()}`, name: 'Mano de obra general', price: String(parseFloat(order.labor_total)) });
+        }
+        setCostsLabor(existingLabor.length > 0 ? existingLabor : [{ id: `labor-${Date.now()}`, name: '', price: '' }]);
+
         const existingParts = (order.parts || []).map(p => ({
             id: p.id,
             name: p.name,
@@ -508,14 +518,22 @@ export default function OrderDetail() {
         setEditingCosts(true);
     };
 
+    const handleAddLaborRow = () => {
+        setCostsLabor(prev => [...prev, { id: `labor-${Date.now()}`, name: '', price: '' }]);
+    };
+    const handleUpdateLabor = (index, field, value) => {
+        setCostsLabor(prev => prev.map((l, i) => i === index ? { ...l, [field]: value } : l));
+    };
+    const handleRemoveLabor = (index) => {
+        setCostsLabor(prev => prev.filter((_, i) => i !== index));
+    };
+
     const handleAddPartRow = () => {
         setCostsParts(prev => [...prev, { id: `new-${Date.now()}`, name: '', price: '', quantity: 1 }]);
     };
-
     const handleUpdatePart = (index, field, value) => {
         setCostsParts(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
     };
-
     const handleRemovePart = (index) => {
         setCostsParts(prev => prev.filter((_, i) => i !== index));
     };
@@ -524,14 +542,25 @@ export default function OrderDetail() {
         setSavingCosts(true);
         try {
             const validParts = costsParts.filter(p => p.name.trim() && parseFloat(p.price) > 0);
+            const validLabor = costsLabor.filter(l => parseFloat(l.price) > 0);
+            const laborTotal = validLabor.reduce((sum, l) => sum + (parseFloat(l.price) || 0), 0);
+
+            // Save labor description in mechanic_notes for reference
+            const laborDescription = validLabor.filter(l => l.name.trim()).map(l => `${l.name}: $${parseFloat(l.price).toLocaleString('es-MX')}`).join(' | ');
+
             const result = await ordersService.updateCosts(order.id, {
-                labor_total: parseFloat(costsLaborTotal) || 0,
+                labor_total: laborTotal,
                 parts: validParts.map(p => ({
                     name: p.name.trim(),
                     price: parseFloat(p.price) || 0,
                     quantity: parseInt(p.quantity) || 1,
                 })),
             });
+
+            // Also save labor breakdown as mechanic_notes
+            if (laborDescription) {
+                await updateOrder(order.id, { mechanic_notes: laborDescription });
+            }
 
             if (result.error) throw result.error;
             showToast('✅ Costos guardados correctamente', 'success');
@@ -613,12 +642,12 @@ export default function OrderDetail() {
 
     return (
         <div className="order-detail">
-            {/* Header */}
+            {/* Header compacto */}
             <div className="order-detail-header">
                 <button className="btn btn-ghost btn-icon" onClick={() => navigate(-1)}>
                     <ArrowLeft size={24} />
                 </button>
-                <div>
+                <div style={{ flex: 1 }}>
                     <h1 className="order-number">{order.order_number}</h1>
                     <span className="order-date">
                         {new Date(order.created_at).toLocaleDateString('es-MX', {
@@ -641,7 +670,7 @@ export default function OrderDetail() {
                 </span>
             </div>
 
-            {/* Cancellation Request Alert (Admin/Authorized View) */}
+            {/* Cancellation Request Alert */}
             {order.cancellation_requested_at && (canDeleteOrders() || user.role === 'admin') && (
                 <div className="alert-box mb-lg" style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: '8px', padding: '16px' }}>
                     <div className="flex items-start gap-md">
@@ -649,78 +678,14 @@ export default function OrderDetail() {
                         <div style={{ flex: 1 }}>
                             <h3 className="text-danger font-bold mb-xs">Solicitud de Cancelación pendiente</h3>
                             <p className="mb-sm"><strong>Motivo:</strong> {order.cancellation_reason}</p>
-                            <p className="text-sm text-secondary mb-md">Solicitado el {new Date(order.cancellation_requested_at).toLocaleString('es-MX')}</p>
-
                             <div className="flex gap-sm">
-                                <button className="btn btn-danger btn-sm" onClick={handleApproveCancellation}>
-                                    Aprobar y Eliminar
-                                </button>
-                                <button className="btn btn-outline btn-sm" onClick={handleRejectCancellation} style={{ background: 'white' }}>
-                                    Rechazar
-                                </button>
+                                <button className="btn btn-danger btn-sm" onClick={handleApproveCancellation}>Aprobar y Eliminar</button>
+                                <button className="btn btn-outline btn-sm" onClick={handleRejectCancellation} style={{ background: 'white' }}>Rechazar</button>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
-
-            {/* Quick Actions */}
-            <div className="quick-actions">
-                {/* Botón Finalizar Orden - Solo cuando está lista y pagada */}
-                {statusName !== 'Entregada' && (order.is_paid || statusName === 'Lista para Entregar') && (
-                    <button
-                        className="btn btn-finish btn-full"
-                        onClick={() => handleStatusChange('Entregada')}
-                    >
-                        <CheckCircle size={22} />
-                        Finalizar Orden
-                    </button>
-                )}
-
-                <button
-                    className="btn btn-primary btn-full"
-                    onClick={handleSendClientLink}
-                    disabled={sendingWhatsApp || !client?.phone}
-                >
-                    {sendingWhatsApp ? (
-                        <>
-                            <div className="spinner-small" />
-                            Enviando...
-                        </>
-                    ) : (
-                        <>
-                            <Send size={20} />
-                            Enviar por WhatsApp
-                        </>
-                    )}
-                </button>
-
-                {nextStatus && statusName !== 'Entregada' && statusName !== 'Lista para Entregar' && (
-                    <button className="btn btn-secondary btn-full" onClick={handleQuickStatusAdvance}>
-                        <Check size={20} />
-                        Avanzar a: {nextStatus.name}
-                    </button>
-                )}
-                {statusName === 'Lista para Entregar' && !order.is_paid && (
-                    <button className="btn btn-accent btn-full" onClick={() => setShowPaymentModal(true)}>
-                        <CheckCircle size={20} />
-                        Finalizar y Cobrar
-                    </button>
-                )}
-                <button className="btn btn-outline" onClick={() => setShowStatusModal(true)}>
-                    <Edit2 size={18} />
-                    Cambiar Estado
-                </button>
-
-                <button
-                    className="btn btn-outline"
-                    onClick={handleBeginCancellation}
-                    style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
-                >
-                    <Trash2 size={18} />
-                    Cancelar Orden
-                </button>
-            </div>
 
             {/* Client & Motorcycle Info */}
             <div className="info-cards">
@@ -749,418 +714,180 @@ export default function OrderDetail() {
                 </div>
             </div>
 
-            {/* Services Section */}
-            <div className="detail-section">
-                <button className="section-header-btn" onClick={() => toggleSection('services')}>
-                    <div className="section-title">
-                        <Wrench size={20} />
-                        <span>Servicios</span>
-                        <span className="badge badge-primary">{(order.services?.length || 0) + (order.mechanic_notes ? 1 : 0)}</span>
-                    </div>
-                    {expandedSections.services ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </button>
-
-                {expandedSections.services && (
-                    <div className="section-content">
-                        {/* Show mechanic notes if exists */}
-                        {order.mechanic_notes && (
-                            <div className="service-item-detail custom-service">
-                                <div className="service-info">
-                                    <span className="service-name">{order.mechanic_notes}</span>
-                                    <span className="service-breakdown">
-                                        <span className="breakdown-item custom">Trabajo realizado</span>
-                                    </span>
-                                </div>
-                                <span className="text-primary">${order.total_amount?.toLocaleString('es-MX') || '0'}</span>
-                            </div>
-                        )}
-
-
-                        {order.services?.map((service, idx) => {
-                            // Calculate values - fallback to price as labor if no breakdown exists
-                            const laborCost = parseFloat(service.labor_cost) || 0;
-                            const materialsCost = parseFloat(service.materials_cost) || 0;
-                            const price = parseFloat(service.price) || 0;
-                            const hasBreakdown = laborCost > 0 || materialsCost > 0;
-
-                            return (
-                                <div
-                                    key={idx}
-                                    className="service-item-detail"
-                                    style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'flex-start',
-                                        gap: 'var(--spacing-md)',
-                                        padding: 'var(--spacing-sm) 0',
-                                        borderBottom: '1px solid rgba(0,0,0,0.05)'
-                                    }}
-                                >
-                                    <div className="service-info" style={{ flex: 1, minWidth: 0 }}>
-                                        <span className="service-name" style={{
-                                            wordWrap: 'break-word',
-                                            wordBreak: 'break-word',
-                                            display: 'block'
-                                        }}>
-                                            {service.name}
-                                        </span>
-                                    </div>
-                                    {price > 0 && (
-                                        <span
-                                            className="text-primary"
-                                            style={{
-                                                fontWeight: 'bold',
-                                                whiteSpace: 'nowrap',
-                                                flexShrink: 0
-                                            }}
-                                        >
-                                            ${price.toLocaleString('es-MX')}
-                                        </span>
-                                    )}
-                                </div>
-                            );
-                        })}
-
-                        {/* Empty state when no services found */}
-                        {(!order.services || order.services.length === 0) && !order.mechanic_notes && (
-                            <div className="empty-services" style={{ padding: 'var(--spacing-md)', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                <p style={{ margin: 0 }}>Servicios no registrados individualmente</p>
-                            </div>
-                        )}
-
-                        {/* Add Service Button - Discreet */}
-                        <button
-                            className="btn-add-service"
-                            onClick={() => setShowAddServiceModal(true)}
-                            style={{
-                                marginTop: 'var(--spacing-sm)',
-                                padding: '8px 12px',
-                                fontSize: '0.85rem',
-                                background: 'transparent',
-                                border: '1px dashed var(--border-color)',
-                                borderRadius: 'var(--radius-md)',
-                                color: 'var(--text-muted)',
-                                cursor: 'pointer',
-                                width: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px',
-                                transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.target.style.borderColor = 'var(--primary)';
-                                e.target.style.color = 'var(--primary)';
-                                e.target.style.background = 'rgba(59, 130, 246, 0.05)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.target.style.borderColor = 'var(--border-color)';
-                                e.target.style.color = 'var(--text-muted)';
-                                e.target.style.background = 'transparent';
-                            }}
-                        >
-                            <Plus size={16} />
-                            Agregar Servicio
-                        </button>
-
-                        {order.customer_complaint && (
-                            <div className="complaint-box">
-                                <span className="complaint-label">Descripción de falla:</span>
-                                <p>{order.customer_complaint}</p>
-                            </div>
-                        )}
-
-                        {/* Internal Financial Breakdown */}
-                        <div className="internal-breakdown">
-                            <div className="breakdown-header">
-                                <DollarSign size={16} />
-                                <span>Total Estimado</span>
-                            </div>
-                            {(() => {
-                                // Always calculate from services first (most accurate source)
-                                let laborTotal = 0;
-                                let partsTotal = 0;
-
-                                if (order.services?.length > 0) {
-                                    order.services.forEach(svc => {
-                                        const svcLabor = parseFloat(svc.labor_cost) || 0;
-                                        const svcMaterials = parseFloat(svc.materials_cost) || 0;
-                                        const svcPrice = parseFloat(svc.price) || 0;
-
-                                        // If service has breakdown, use it
-                                        if (svcLabor > 0 || svcMaterials > 0) {
-                                            laborTotal += svcLabor;
-                                            partsTotal += svcMaterials;
-                                        } else {
-                                            // No breakdown, price is treated as labor
-                                            laborTotal += svcPrice;
-                                        }
-                                    });
-                                }
-
-                                // Fallback to order totals if no services calculated
-                                if (laborTotal === 0 && partsTotal === 0) {
-                                    laborTotal = parseFloat(order.labor_total) || 0;
-                                    partsTotal = parseFloat(order.parts_total) || 0;
-                                }
-
-                                return (
-                                    <div className="breakdown-items">
-                                        <div className="breakdown-row">
-                                            <span className="breakdown-label">Mano de Obra:</span>
-                                            <span className="breakdown-value labor">
-                                                ${laborTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                                            </span>
-                                        </div>
-                                        <div className="breakdown-row">
-                                            <span className="breakdown-label">Refacciones:</span>
-                                            <span className="breakdown-value parts">
-                                                ${partsTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                                            </span>
-                                        </div>
-                                        <div className="breakdown-row total">
-                                            <span className="breakdown-label">Total:</span>
-                                            <span className="breakdown-value">
-                                                ${(order.total_amount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                                            </span>
-                                        </div>
-                                    </div>
-                                );
-                            })()}
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Payment Summary - Premium Design */}
-            <div className="payment-card">
-                <div className="payment-card-header">
-                    <DollarSign size={20} />
-                    <span>Resumen de Pago</span>
+            {/* Falla reportada (si existe) */}
+            {order.customer_complaint && (
+                <div className="od-complaint" style={{ marginBottom: 'var(--spacing-md)' }}>
+                    <span className="od-complaint-label">Falla reportada:</span>
+                    <p>{order.customer_complaint}</p>
                 </div>
+            )}
 
-                <div className="payment-card-body">
-                    <div className="payment-item">
-                        <span className="payment-label">Anticipo recibido</span>
-                        <span className={`payment-value ${order.advance_payment > 0 ? 'has-value' : ''}`}>
-                            ${(order.advance_payment || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                    </div>
-
-                    <div className="payment-divider" />
-
-                    <div className="payment-item total">
-                        <span className="payment-label">Total de la Orden</span>
-                        <span className="payment-value highlight">
-                            ${(order.total_amount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                    </div>
-
-                    <div className="payment-divider" />
-
-                    <div className="payment-item balance">
-                        <span className="payment-label">
-                            {order.is_paid ? 'Saldo Pagado' : 'Por Cobrar'}
-                        </span>
-                        <span className={`payment-value ${!order.is_paid && (order.total_amount - (order.advance_payment || 0)) > 0 ? 'pending' : 'paid'}`}>
-                            ${Math.max(0, (order.total_amount || 0) - (order.advance_payment || 0)).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                    </div>
-                </div>
-
-                <div className="payment-card-footer">
-                    {order.is_paid ? (
-                        <div className="payment-badge paid">
-                            <Check size={16} />
-                            PAGADO COMPLETO
-                        </div>
-                    ) : (
-                        <button
-                            className="btn btn-payment btn-full"
-                            onClick={() => setShowPaymentModal(true)}
-                        >
-                            <DollarSign size={20} />
-                            Registrar Pago Completo
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            {/* ===== DATOS DEL COBRO - Inline Costs Panel ===== */}
-            <div className="costs-panel">
-                <div className="costs-panel-header">
-                    <div className="costs-panel-title">
-                        <DollarSign size={20} />
-                        <span>Datos del Cobro</span>
-                    </div>
+            {/* ── COSTOS ── */}
+            <div className="od-section">
+                <div className="od-section-header">
+                    <DollarSign size={18} />
+                    <span>Costos</span>
                     {!editingCosts ? (
-                        <button className="costs-edit-btn" onClick={handleStartEditCosts}>
-                            <Edit2 size={16} />
-                            {(parseFloat(order.labor_total) > 0 || (order.parts || []).length > 0) ? 'Editar' : 'Agregar Costos'}
+                        <button className="od-edit-btn" onClick={handleStartEditCosts}>
+                            <Edit2 size={14} />
+                            {(parseFloat(order.labor_total) > 0 || (order.parts || []).length > 0) ? 'Editar' : 'Agregar'}
                         </button>
                     ) : (
-                        <button className="costs-cancel-btn" onClick={() => setEditingCosts(false)}>
-                            <X size={16} /> Cancelar
+                        <button className="od-edit-btn cancel" onClick={() => setEditingCosts(false)}>
+                            <X size={14} /> Cancelar
                         </button>
                     )}
                 </div>
-
-                {editingCosts ? (
-                    <div className="costs-edit-form">
-                        {/* Labor Total */}
-                        <div className="costs-field">
-                            <label className="costs-label">Mano de Obra Total</label>
-                            <div className="costs-input-wrap">
-                                <span className="costs-currency">$</span>
-                                <input
-                                    type="number"
-                                    className="costs-input"
-                                    placeholder="0.00"
-                                    value={costsLaborTotal}
-                                    onChange={e => setCostsLaborTotal(e.target.value)}
-                                    min="0"
-                                    step="0.01"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Parts List */}
-                        <div className="costs-parts-section">
-                            <div className="costs-parts-header">
-                                <label className="costs-label">Refacciones</label>
-                                <button className="costs-add-part-btn" onClick={handleAddPartRow}>
-                                    <Plus size={14} /> Agregar
-                                </button>
-                            </div>
-                            {costsParts.map((part, idx) => (
-                                <div key={part.id || idx} className="costs-part-row">
-                                    <input
-                                        type="text"
-                                        className="costs-part-name"
-                                        placeholder="Nombre (ej: Balatas)"
-                                        value={part.name}
-                                        onChange={e => handleUpdatePart(idx, 'name', e.target.value)}
-                                    />
-                                    <div className="costs-input-wrap small">
-                                        <span className="costs-currency">$</span>
-                                        <input
-                                            type="number"
-                                            className="costs-input"
-                                            placeholder="0.00"
-                                            value={part.price}
-                                            onChange={e => handleUpdatePart(idx, 'price', e.target.value)}
-                                            min="0"
-                                            step="0.01"
-                                        />
+                <div className="od-section-body">
+                    {editingCosts ? (
+                        <div className="od-costs-form">
+                            {/* Mano de Obra - itemizada */}
+                            <div className="od-costs-parts">
+                                <div className="od-costs-parts-hdr">
+                                    <label>🔧 Mano de Obra</label>
+                                    <button onClick={handleAddLaborRow}><Plus size={14} /> Agregar</button>
+                                </div>
+                                {costsLabor.map((item, idx) => (
+                                    <div key={item.id || idx} className="od-part-row">
+                                        <input type="text" placeholder="Ej: Cambio de bujes" value={item.name} onChange={e => handleUpdateLabor(idx, 'name', e.target.value)} />
+                                        <div className="od-input-wrap small">
+                                            <span>$</span>
+                                            <input type="number" placeholder="0" value={item.price} onChange={e => handleUpdateLabor(idx, 'price', e.target.value)} min="0" />
+                                        </div>
+                                        <button className="od-rm-btn" onClick={() => handleRemoveLabor(idx)}><X size={16} /></button>
                                     </div>
-                                    <button className="costs-remove-btn" onClick={() => handleRemovePart(idx)}>
-                                        <X size={16} />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Calculated Total */}
-                        <div className="costs-calculated-total">
-                            <span>Total estimado:</span>
-                            <span className="costs-total-amount">
-                                ${((parseFloat(costsLaborTotal) || 0) + costsParts.reduce((sum, p) => sum + ((parseFloat(p.price) || 0) * (parseInt(p.quantity) || 1)), 0)).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                            </span>
-                        </div>
-
-                        {/* Save Button */}
-                        <button
-                            className="costs-save-btn"
-                            onClick={handleSaveCosts}
-                            disabled={savingCosts}
-                        >
-                            {savingCosts ? <Loader2 size={18} className="spinner" /> : <Save size={18} />}
-                            {savingCosts ? 'Guardando...' : 'Guardar Costos'}
-                        </button>
-                    </div>
-                ) : (
-                    <div className="costs-display">
-                        {parseFloat(order.labor_total) > 0 || (order.parts || []).length > 0 ? (
-                            <>
-                                <div className="costs-display-row">
-                                    <span className="costs-display-label">Mano de Obra</span>
-                                    <span className="costs-display-value">${(parseFloat(order.labor_total) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-                                </div>
-                                {(order.parts || []).length > 0 && (
-                                    <div className="costs-parts-list">
-                                        <span className="costs-display-label" style={{ marginBottom: '8px', display: 'block' }}>Refacciones:</span>
-                                        {order.parts.map((p, idx) => (
-                                            <div key={p.id || idx} className="costs-display-part">
-                                                <span>{p.name}</span>
-                                                <span>${(parseFloat(p.price) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                                <div className="costs-display-row total">
-                                    <span>Total</span>
-                                    <span>${(parseFloat(order.total_amount) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="costs-empty">
-                                <DollarSign size={24} style={{ opacity: 0.3 }} />
-                                <p>No se han registrado costos aún</p>
-                                <span>Presiona "Agregar Costos" para registrar mano de obra y refacciones</span>
+                                ))}
                             </div>
-                        )}
-                    </div>
-                )}
-            </div>
 
-            {/* ===== SEND PDF VIA WHATSAPP BUTTON ===== */}
-            <div className="pdf-actions-card">
-                <button
-                    className="btn-send-pdf"
-                    onClick={handleSendPDF}
-                    disabled={sendingPDF}
-                >
-                    {sendingPDF ? (
-                        <Loader2 size={20} className="spinner" />
+                            {/* Refacciones */}
+                            <div className="od-costs-parts">
+                                <div className="od-costs-parts-hdr">
+                                    <label>🔩 Refacciones</label>
+                                    <button onClick={handleAddPartRow}><Plus size={14} /> Agregar</button>
+                                </div>
+                                {costsParts.map((part, idx) => (
+                                    <div key={part.id || idx} className="od-part-row">
+                                        <input type="text" placeholder="Ej: Filtro de aceite" value={part.name} onChange={e => handleUpdatePart(idx, 'name', e.target.value)} />
+                                        <div className="od-input-wrap small">
+                                            <span>$</span>
+                                            <input type="number" placeholder="0" value={part.price} onChange={e => handleUpdatePart(idx, 'price', e.target.value)} min="0" />
+                                        </div>
+                                        <button className="od-rm-btn" onClick={() => handleRemovePart(idx)}><X size={16} /></button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="od-costs-total">
+                                <span>Total estimado:</span>
+                                <strong>${(costsLabor.reduce((s, l) => s + (parseFloat(l.price) || 0), 0) + costsParts.reduce((s, p) => s + ((parseFloat(p.price) || 0) * (parseInt(p.quantity) || 1)), 0)).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>
+                            </div>
+                            <button className="od-save-btn" onClick={handleSaveCosts} disabled={savingCosts}>
+                                {savingCosts ? <Loader2 size={18} className="spinner" /> : <Save size={18} />}
+                                {savingCosts ? 'Guardando...' : 'Guardar Costos'}
+                            </button>
+                        </div>
                     ) : (
-                        <FileText size={20} />
+                        <>
+                            {parseFloat(order.labor_total) > 0 || (order.parts || []).length > 0 || order.mechanic_notes ? (
+                                <>
+                                    {/* Show itemized labor if mechanic_notes has breakdown */}
+                                    {order.mechanic_notes && order.mechanic_notes.includes('|') ? (
+                                        order.mechanic_notes.split(' | ').map((item, idx) => (
+                                            <div key={`labor-${idx}`} className="od-cost-row">
+                                                <span>🔧 {item.split(':')[0]}</span>
+                                                <span className="od-cost-val">{item.split(':')[1]?.trim()}</span>
+                                            </div>
+                                        ))
+                                    ) : parseFloat(order.labor_total) > 0 ? (
+                                        <div className="od-cost-row">
+                                            <span>🔧 {order.mechanic_notes || 'Mano de Obra'}</span>
+                                            <span className="od-cost-val">${(parseFloat(order.labor_total) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                                        </div>
+                                    ) : null}
+                                    {(order.parts || []).map((p, idx) => (
+                                        <div key={p.id || idx} className="od-cost-row part">
+                                            <span>{p.name}</span>
+                                            <span>${(parseFloat(p.price) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                                        </div>
+                                    ))}
+                                    <div className="od-cost-row total">
+                                        <span>TOTAL</span>
+                                        <span>${(parseFloat(order.total_amount) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                    {order.advance_payment > 0 && (
+                                        <div className="od-cost-row advance">
+                                            <span>Anticipo</span>
+                                            <span>-${(parseFloat(order.advance_payment) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <p className="od-empty-text">No se han registrado costos aún</p>
+                            )}
+                            {order.is_paid && (
+                                <div className="od-paid-badge"><Check size={16} /> PAGADO</div>
+                            )}
+                        </>
                     )}
-                    {sendingPDF ? 'Enviando PDF...' : 'Enviar Resumen PDF por WhatsApp'}
+                </div>
+            </div>
+
+            {/* ── FOTOS DE INGRESO ── */}
+            <OrderPhotosDownload order={order} />
+
+            {/* ── ACCIONES ── */}
+            <div className="od-actions">
+                {/* PDF y WhatsApp */}
+                <button className="od-action-btn primary" onClick={handleSendPDF} disabled={sendingPDF}>
+                    {sendingPDF ? <Loader2 size={20} className="spinner" /> : <FileText size={20} />}
+                    {sendingPDF ? 'Enviando...' : 'Enviar Resumen al Cliente'}
                 </button>
-                <button
-                    className="btn-download-pdf"
-                    onClick={() => downloadOrderPDF(order, client, motorcycle)}
-                >
-                    <Download size={18} />
-                    Descargar PDF
+                <button className="od-action-btn outline" onClick={() => downloadOrderPDF(order, client, motorcycle)}>
+                    <Download size={18} /> Descargar PDF
+                </button>
+
+                {/* Pago */}
+                {!order.is_paid && (
+                    <button className="od-action-btn success" onClick={() => setShowPaymentModal(true)}>
+                        <DollarSign size={18} /> Registrar Pago Completo
+                    </button>
+                )}
+
+                {/* Estado */}
+                <button className="od-action-btn secondary" onClick={() => setShowStatusModal(true)}>
+                    <Edit2 size={18} /> Cambiar Estado
+                </button>
+
+                {/* Finalizar */}
+                {statusName !== 'Entregada' && (order.is_paid || statusName === 'Lista para Entregar') && (
+                    <button className="od-action-btn finish" onClick={() => handleStatusChange('Entregada')}>
+                        <CheckCircle size={20} /> Finalizar Orden
+                    </button>
+                )}
+
+                {/* Cancelar - discreto */}
+                <button className="od-action-btn danger-outline" onClick={handleBeginCancellation}>
+                    <Trash2 size={16} /> Cancelar Orden
                 </button>
             </div>
 
-            <div className="detail-section">
-                <button className="section-header-btn" onClick={() => toggleSection('history')}>
-                    <div className="section-title">
-                        <Clock size={20} />
+            {/* ── HISTORIAL ── */}
+            {order.history?.length > 0 && (
+                <div className="od-section" style={{ marginTop: 'var(--spacing-md)' }}>
+                    <div className="od-section-header">
+                        <Clock size={18} />
                         <span>Historial</span>
                     </div>
-                    {expandedSections.history ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </button>
-
-                {expandedSections.history && (
-                    <div className="section-content">
+                    <div className="od-section-body">
                         <div className="timeline">
-                            {order.history?.map((entry, idx) => (
+                            {order.history.map((entry, idx) => (
                                 <div key={idx} className="timeline-item">
                                     <div className="timeline-dot" />
                                     <div className="timeline-content">
                                         <div className="timeline-header">
                                             <strong>{entry.new_status}</strong>
                                             <span className="timeline-time">
-                                                {new Date(entry.changed_at).toLocaleString('es-MX', {
-                                                    day: 'numeric',
-                                                    month: 'short',
-                                                    hour: '2-digit',
-                                                    minute: '2-digit',
-                                                })}
+                                                {new Date(entry.created_at).toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         </div>
                                         {entry.notes && <p className="timeline-note">{entry.notes}</p>}
@@ -1169,8 +896,8 @@ export default function OrderDetail() {
                             ))}
                         </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
 
             {/* Status Change Modal */}
             {
@@ -1635,6 +1362,283 @@ export default function OrderDetail() {
 
 
             <style>{`
+        /* ── NEW FLAT LAYOUT ── */
+        .od-section {
+          background: var(--bg-card);
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-lg);
+          margin-bottom: var(--spacing-md);
+          overflow: hidden;
+        }
+        .od-section-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 16px;
+          font-weight: 600;
+          font-size: 0.95rem;
+          border-bottom: 1px solid var(--border-color);
+          color: var(--text-primary);
+        }
+        .od-section-header .badge { margin-left: 4px; font-size: 0.75rem; }
+        .od-section-body {
+          padding: 12px 16px;
+        }
+        .od-service-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 0;
+          border-bottom: 1px solid rgba(0,0,0,0.04);
+        }
+        .od-service-row:last-of-type { border-bottom: none; }
+        .od-service-name {
+          flex: 1;
+          word-break: break-word;
+          font-size: 0.9rem;
+        }
+        .od-service-price {
+          font-weight: 700;
+          color: var(--primary);
+          white-space: nowrap;
+          margin-left: 12px;
+        }
+        .od-empty-text {
+          color: var(--text-muted);
+          font-style: italic;
+          font-size: 0.875rem;
+          padding: 8px 0;
+          margin: 0;
+        }
+        .od-complaint {
+          margin-top: 8px;
+          padding: 10px 12px;
+          background: rgba(245,158,11,0.08);
+          border-radius: var(--radius-md);
+          font-size: 0.875rem;
+        }
+        .od-complaint-label { font-weight: 600; color: var(--text-secondary); }
+        .od-complaint p { margin: 4px 0 0; }
+        .od-add-btn {
+          margin-top: 8px;
+          padding: 10px;
+          font-size: 0.85rem;
+          background: transparent;
+          border: 1px dashed var(--border-color);
+          border-radius: var(--radius-md);
+          color: var(--text-muted);
+          cursor: pointer;
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          transition: all 0.2s;
+        }
+        .od-add-btn:hover {
+          border-color: var(--primary);
+          color: var(--primary);
+          background: rgba(59,130,246,0.05);
+        }
+        .od-edit-btn {
+          margin-left: auto;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 10px;
+          font-size: 0.8rem;
+          border-radius: var(--radius-sm);
+          border: 1px solid var(--border-color);
+          background: transparent;
+          color: var(--primary);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .od-edit-btn:hover { background: rgba(59,130,246,0.08); }
+        .od-edit-btn.cancel { color: var(--text-muted); }
+
+        /* Costs form */
+        .od-costs-form { display: flex; flex-direction: column; gap: 12px; }
+        .od-costs-field label { display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; }
+        .od-input-wrap {
+          display: flex;
+          align-items: center;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-md);
+          overflow: hidden;
+        }
+        .od-input-wrap span {
+          padding: 0 8px;
+          color: var(--text-muted);
+          font-weight: 600;
+        }
+        .od-input-wrap input {
+          flex: 1;
+          border: none;
+          background: transparent;
+          padding: 10px 8px;
+          font-size: 1rem;
+          outline: none;
+          color: var(--text-primary);
+        }
+        .od-input-wrap.small { max-width: 120px; }
+        .od-input-wrap.small input { padding: 8px 6px; font-size: 0.9rem; }
+        .od-costs-parts { margin-top: 4px; }
+        .od-costs-parts-hdr {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+        .od-costs-parts-hdr label { font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; }
+        .od-costs-parts-hdr button {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 0.8rem;
+          color: var(--primary);
+          background: none;
+          border: none;
+          cursor: pointer;
+        }
+        .od-part-row {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+        .od-part-row input[type="text"] {
+          flex: 1;
+          padding: 8px 10px;
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-md);
+          font-size: 0.875rem;
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+        }
+        .od-rm-btn {
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          cursor: pointer;
+          padding: 4px;
+        }
+        .od-rm-btn:hover { color: var(--danger); }
+        .od-costs-total {
+          display: flex;
+          justify-content: space-between;
+          padding: 10px 0;
+          border-top: 1px solid var(--border-color);
+          font-size: 0.95rem;
+        }
+        .od-costs-total strong { color: var(--primary); font-size: 1.1rem; }
+        .od-save-btn {
+          width: 100%;
+          padding: 12px;
+          background: var(--primary);
+          color: white;
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.95rem;
+          font-weight: 600;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          transition: opacity 0.2s;
+        }
+        .od-save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Costs display */
+        .od-cost-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 6px 0;
+          font-size: 0.9rem;
+          color: var(--text-secondary);
+        }
+        .od-cost-row.part { padding-left: 12px; font-size: 0.85rem; }
+        .od-cost-val { font-weight: 600; color: var(--text-primary); }
+        .od-cost-row.total {
+          border-top: 2px solid var(--border-color);
+          margin-top: 6px;
+          padding-top: 8px;
+          font-weight: 700;
+          font-size: 1.05rem;
+          color: var(--text-primary);
+        }
+        .od-cost-row.total span:last-child { color: var(--primary); font-size: 1.15rem; }
+        .od-cost-row.advance { color: var(--success); font-size: 0.85rem; }
+        .od-paid-badge {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          margin-top: 10px;
+          padding: 8px;
+          background: rgba(16,185,129,0.1);
+          color: var(--success);
+          border-radius: var(--radius-md);
+          font-weight: 700;
+          font-size: 0.85rem;
+        }
+
+        /* Actions section */
+        .od-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin: var(--spacing-lg) 0;
+        }
+        .od-action-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 14px 16px;
+          border-radius: var(--radius-lg);
+          font-size: 0.95rem;
+          font-weight: 600;
+          cursor: pointer;
+          border: none;
+          transition: all 0.2s;
+        }
+        .od-action-btn.primary {
+          background: linear-gradient(135deg, #3b82f6, #2563eb);
+          color: white;
+        }
+        .od-action-btn.primary:disabled { opacity: 0.6; }
+        .od-action-btn.outline {
+          background: transparent;
+          border: 1px solid var(--border-color);
+          color: var(--text-primary);
+        }
+        .od-action-btn.outline:hover { background: var(--bg-secondary); }
+        .od-action-btn.success {
+          background: linear-gradient(135deg, #10b981, #059669);
+          color: white;
+        }
+        .od-action-btn.secondary {
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-color);
+          color: var(--text-primary);
+        }
+        .od-action-btn.finish {
+          background: linear-gradient(135deg, #10b981, #047857);
+          color: white;
+        }
+        .od-action-btn.danger-outline {
+          background: transparent;
+          border: 1px solid rgba(239,68,68,0.3);
+          color: var(--danger, #ef4444);
+          font-size: 0.85rem;
+          padding: 10px;
+        }
+        .od-action-btn.danger-outline:hover { background: rgba(239,68,68,0.05); }
+
+        /* ── EXISTING STYLES (kept) ── */
         .order-detail {
           padding-bottom: 100px;
         }

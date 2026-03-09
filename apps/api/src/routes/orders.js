@@ -314,15 +314,6 @@ export default async function ordersRoutes(fastify) {
 
             try {
                 await prisma.$transaction(async (tx) => {
-                    // 1. Disable the DB trigger that conflicts with cascade deletes
-                    //    The trigger tries to UPDATE orders when order_services are deleted,
-                    //    which conflicts within the deletion transaction
-                    await tx.$executeRawUnsafe(
-                        `ALTER TABLE order_services DISABLE TRIGGER update_order_totals_on_service`
-                    );
-                    await tx.$executeRawUnsafe(
-                        `ALTER TABLE order_parts DISABLE TRIGGER update_order_totals_on_parts`
-                    );
 
                     // 2. Nullify references in order_requests
                     await tx.orderRequest.updateMany({
@@ -343,28 +334,11 @@ export default async function ordersRoutes(fastify) {
                     // 5. Delete the order itself
                     await tx.order.delete({ where: { id } });
 
-                    // 6. Re-enable triggers
-                    await tx.$executeRawUnsafe(
-                        `ALTER TABLE order_services ENABLE TRIGGER update_order_totals_on_service`
-                    );
-                    await tx.$executeRawUnsafe(
-                        `ALTER TABLE order_parts ENABLE TRIGGER update_order_totals_on_parts`
-                    );
                 });
 
                 return { success: true };
             } catch (err) {
                 request.log.error('Error deleting order:', err);
-
-                // Try to re-enable triggers if they were disabled
-                try {
-                    await prisma.$executeRawUnsafe(
-                        `ALTER TABLE order_services ENABLE TRIGGER update_order_totals_on_service`
-                    );
-                    await prisma.$executeRawUnsafe(
-                        `ALTER TABLE order_parts ENABLE TRIGGER update_order_totals_on_parts`
-                    );
-                } catch (_) { /* ignore */ }
 
                 return reply.status(400).send({
                     error: err.message || 'Error al eliminar la orden'
@@ -379,12 +353,11 @@ export default async function ordersRoutes(fastify) {
 
             try {
                 const result = await prisma.$transaction(async (tx) => {
-                    // 1. Disable triggers to avoid conflicts
-                    await tx.$executeRawUnsafe(
-                        `ALTER TABLE order_parts DISABLE TRIGGER update_order_totals_on_parts`
-                    );
+                    // Drop stale triggers that might exist on the DB tables
+                    await tx.$executeRawUnsafe(`DROP TRIGGER IF EXISTS update_order_totals_on_parts ON order_parts`);
+                    await tx.$executeRawUnsafe(`DROP TRIGGER IF EXISTS update_order_totals_on_service ON order_services`);
 
-                    // 2. Delete existing parts for this order
+                    // 1. Delete existing parts for this order
                     await tx.orderPart.deleteMany({ where: { order_id: id } });
 
                     // 3. Create new parts
@@ -417,24 +390,12 @@ export default async function ordersRoutes(fastify) {
                         include: ORDER_INCLUDE,
                     });
 
-                    // 6. Re-enable triggers
-                    await tx.$executeRawUnsafe(
-                        `ALTER TABLE order_parts ENABLE TRIGGER update_order_totals_on_parts`
-                    );
-
                     return updated;
                 });
 
                 return result;
             } catch (err) {
                 request.log.error('Error updating order costs:', err);
-
-                // Try to re-enable triggers
-                try {
-                    await prisma.$executeRawUnsafe(
-                        `ALTER TABLE order_parts ENABLE TRIGGER update_order_totals_on_parts`
-                    );
-                } catch (_) { /* ignore */ }
 
                 return reply.status(400).send({
                     error: err.message || 'Error al actualizar costos'
