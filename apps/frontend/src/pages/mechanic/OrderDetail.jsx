@@ -592,21 +592,13 @@ export default function OrderDetail() {
             if (result.success && result.automated) {
                 showToast('PDF enviado por WhatsApp al cliente', 'success');
             } else if (result.fallback) {
-                // Bot not available, download PDF locally as fallback
-                await downloadOrderPDF(order, client, motorcycle);
-                showToast('WhatsApp no disponible. PDF descargado.', 'warning');
+                showToast('WhatsApp no disponible. Conecte el bot primero.', 'warning');
             } else {
-                throw new Error(result.error || 'Error al enviar PDF');
+                showToast(result.error || 'Error al enviar PDF', 'error');
             }
         } catch (error) {
             console.error('Error sending PDF:', error);
-            // Fallback: download locally
-            try {
-                await downloadOrderPDF(order, client, motorcycle);
-                showToast('Error de conexion. PDF descargado localmente.', 'warning');
-            } catch (dlErr) {
-                showToast('Error: ' + error.message, 'error');
-            }
+            showToast('Error de conexion con el servidor', 'error');
         } finally {
             setSendingPDF(false);
         }
