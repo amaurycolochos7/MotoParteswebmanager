@@ -26,7 +26,12 @@ const fastify = Fastify({ logger: true });
 // Plugins
 await fastify.register(cors, {
   origin: (origin, cb) => {
-    const allowedOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : [];
+    const envOrigins = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : [];
+    const allowedOrigins = [
+      'https://motopartes.cloud',
+      'http://motopartes.cloud',
+      ...envOrigins
+    ];
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return cb(null, true);
     if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost') || origin.includes('127.0.0.1')) {
