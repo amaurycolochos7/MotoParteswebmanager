@@ -122,7 +122,7 @@ function generatePDF(order, client, motorcycle) {
             });
 
             // Parts
-            (order.order_parts || []).forEach(p => {
+            (order.parts || []).forEach(p => {
                 const price = parseFloat(p.unit_price || p.price) || 0;
                 const qty = parseInt(p.quantity) || 1;
                 tableRows.push({ type: 'Refaccion', desc: p.part_name || p.name, cost: `$${(price * qty).toLocaleString('es-MX')}` });
@@ -221,9 +221,9 @@ export default async function orderPdfRoutes(fastify) {
         const { id } = request.params;
 
         try {
-            const order = await prisma.service_order.findUnique({
+            const order = await prisma.order.findUnique({
                 where: { id },
-                include: { status: true, services: true, order_parts: true, mechanic: true },
+                include: { status: true, services: true, parts: true, mechanic: true },
             });
 
             if (!order) return reply.code(404).send({ error: 'Orden no encontrada' });
@@ -270,9 +270,9 @@ export default async function orderPdfRoutes(fastify) {
         const { id } = request.params;
 
         try {
-            const order = await prisma.service_order.findUnique({
+            const order = await prisma.order.findUnique({
                 where: { id },
-                include: { status: true, services: true, order_parts: true },
+                include: { status: true, services: true, parts: true },
             });
             if (!order) return reply.code(404).send({ error: 'Orden no encontrada' });
 
