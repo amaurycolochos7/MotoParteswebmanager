@@ -309,6 +309,33 @@ class WhatsAppSession extends EventEmitter {
         return { success: true, messageId: result.id._serialized };
     }
 
+    async sendDocument(phone, message, base64Data, filename, mimetype) {
+        if (!this.isConnected || !this.client) {
+            throw new Error(`Session ${this.mechanicId} not connected`);
+        }
+
+        const media = new MessageMedia(
+            mimetype || 'application/pdf',
+            base64Data,
+            filename || 'document.pdf'
+        );
+        const formatted = this._formatPhone(phone);
+        console.log(`Sending document "${filename}" to ${formatted}...`);
+
+        try {
+            const numberId = await this.client.getNumberId(formatted.replace('@c.us', ''));
+            const chatId = numberId ? numberId._serialized : formatted;
+            const result = await this.client.sendMessage(chatId, media, {
+                caption: message || '',
+                sendMediaAsDocument: true,
+            });
+            return { success: true, messageId: result.id._serialized };
+        } catch (err) {
+            console.error(`Failed to send document: ${err.message}`);
+            throw err;
+        }
+    }
+
     /**
      * Cierra sesión de WhatsApp de forma real: envía señal de logout
      * al servidor de WA (desvincula el dispositivo) y luego destruye el cliente.

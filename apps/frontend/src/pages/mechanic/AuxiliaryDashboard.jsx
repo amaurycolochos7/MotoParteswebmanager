@@ -46,13 +46,14 @@ export default function AuxiliaryDashboard() {
     const loadAuxiliaryData = async () => {
         try {
             setLoading(true);
-            const [data, history] = await Promise.all([
+            const [auxResult, historyResult] = await Promise.all([
                 // Use getAuxiliariesWithStats to get auxiliaries from order_requests
                 orderRequestsService.getAuxiliariesWithStats(user?.id),
                 paymentRequestsService.getHistoryForMaster(user?.id)
             ]);
-            setAuxiliaryData(data || []);
-            setPaymentHistory(history || []);
+            // Ambos servicios regresan { data, error }, extraemos .data
+            setAuxiliaryData(Array.isArray(auxResult?.data) ? auxResult.data : []);
+            setPaymentHistory(Array.isArray(historyResult?.data) ? historyResult.data : []);
         } catch (error) {
             console.error('Error loading auxiliary data:', error);
             toast.error('Error al cargar datos de auxiliares');

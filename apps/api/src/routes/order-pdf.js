@@ -1,72 +1,49 @@
-import jsPDF from 'jspdf';
+import prisma from '../lib/prisma.js';
+import { authenticate } from '../middleware/auth.js';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Pre-load logo as base64 for embedding in PDF
-let logoBase64 = null;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-async function loadLogo() {
-    if (logoBase64) return logoBase64;
-    try {
-        const response = await fetch('/logo-motopartes.png');
-        const blob = await response.blob();
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                logoBase64 = reader.result;
-                resolve(logoBase64);
-            };
-            reader.readAsDataURL(blob);
-        });
-    } catch (e) {
-        console.warn('Could not load logo for PDF:', e);
-        return null;
-    }
-}
+const BOT_URL = process.env.WHATSAPP_BOT_INTERNAL_URL || 'http://whatsapp-bot:3002';
+const BOT_KEY = process.env.WHATSAPP_API_KEY || 'motopartes-whatsapp-key';
 
 /**
- * Genera un PDF profesional con los detalles de la orden de servicio
+ * Generates a professional PDF for an order (server-side)
  */
-export async function generateOrderPDF(order, client, motorcycle) {
+function generatePDF(order, client, motorcycle) {
     const doc = new jsPDF({ compress: true, unit: 'mm', format: 'a4' });
 
-    // Brand colors
     const BLACK = [25, 25, 25];
     const RED = [220, 38, 38];
     const GRAY = [100, 116, 139];
-    const LIGHT_GRAY = [241, 245, 249];
+    const LIGHT_GRAY = [248, 250, 252];
     const WHITE = [255, 255, 255];
-
     const pageW = 210;
     const marginL = 18;
     const marginR = 18;
     const contentW = pageW - marginL - marginR;
 
-    // ─── HEADER ───
+    // Header
     doc.setFillColor(...BLACK);
     doc.rect(0, 0, pageW, 42, 'F');
-
-    // Red accent line
     doc.setFillColor(...RED);
     doc.rect(0, 42, pageW, 2, 'F');
 
-    // Logo
-    const logo = await loadLogo();
-    if (logo) {
-        doc.addImage(logo, 'PNG', marginL, 5, 32, 32);
-    }
-
-    // Title text
     doc.setTextColor(...WHITE);
     doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text('MOTOPARTES CLUB', logo ? 56 : marginL, 20);
-
+    doc.text('MOTOPARTES CLUB', marginL, 20);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(180, 180, 180);
-    doc.text('Reparaciones y Modificaciones', logo ? 56 : marginL, 28);
+    doc.text('Reparaciones y Modificaciones', marginL, 28);
 
-    // Order number + date in header right side
+    // Order number + date
     doc.setTextColor(...WHITE);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -81,7 +58,7 @@ export async function generateOrderPDF(order, client, motorcycle) {
     doc.text(orderDate, pageW - marginR, 24, { align: 'right' });
 
     // Status badge
-    const statusName = typeof order.status === 'string' ? order.status : order.status?.name || 'Pendiente';
+    const statusName = order.status?.name || 'Pendiente';
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     const statusW = doc.getTextWidth(statusName.toUpperCase()) + 8;
@@ -90,77 +67,65 @@ export async function generateOrderPDF(order, client, motorcycle) {
     doc.setTextColor(...WHITE);
     doc.text(statusName.toUpperCase(), pageW - marginR - statusW / 2, 33, { align: 'center' });
 
-    // ─── CLIENT & MOTORCYCLE INFO ───
+    // Client & Motorcycle info
     let y = 52;
-
-    // Info box background
     doc.setFillColor(...LIGHT_GRAY);
     doc.roundedRect(marginL, y, contentW, 28, 2, 2, 'F');
 
-    // Client column
     doc.setTextColor(...RED);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     doc.text('CLIENTE', marginL + 6, y + 7);
-
     doc.setTextColor(...BLACK);
     doc.setFontSize(10);
     doc.text(client?.full_name || 'Sin nombre', marginL + 6, y + 14);
-
     doc.setTextColor(...GRAY);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.text(`Tel: ${client?.phone || 'N/A'}`, marginL + 6, y + 20);
 
-    // Motorcycle column
     const midX = marginL + contentW / 2 + 5;
     doc.setTextColor(...RED);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     doc.text('MOTOCICLETA', midX, y + 7);
-
     doc.setTextColor(...BLACK);
     doc.setFontSize(10);
     doc.text(`${motorcycle?.brand || ''} ${motorcycle?.model || ''}`.trim() || 'N/A', midX, y + 14);
-
     doc.setTextColor(...GRAY);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.text(`${motorcycle?.year || ''} | Placas: ${motorcycle?.plates || 'N/A'}`, midX, y + 20);
 
-    // Vertical divider
     doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.3);
     doc.line(marginL + contentW / 2, y + 4, marginL + contentW / 2, y + 24);
 
     y += 35;
 
-    // ─── CUSTOMER COMPLAINT ───
+    // Customer complaint
     if (order.customer_complaint) {
         doc.setTextColor(...RED);
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
         doc.text('FALLA REPORTADA', marginL, y);
         y += 5;
-
         doc.setTextColor(...BLACK);
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        const complaintLines = doc.splitTextToSize(order.customer_complaint, contentW);
-        doc.text(complaintLines, marginL, y);
-        y += complaintLines.length * 4.5 + 4;
+        const lines = doc.splitTextToSize(order.customer_complaint, contentW);
+        doc.text(lines, marginL, y);
+        y += lines.length * 4.5 + 4;
     }
 
-    // ─── SERVICES TABLE ───
-    const services = order.services || [];
+    // Build table data
     const laborTotal = parseFloat(order.labor_total) || 0;
     const partsTotal = parseFloat(order.parts_total) || 0;
     const totalAmount = parseFloat(order.total_amount) || 0;
 
-    // Build combined table data
     const tableRows = [];
 
-    // Add labor items from mechanic_notes
+    // Labor items
     if (order.mechanic_notes && order.mechanic_notes.includes('|')) {
         order.mechanic_notes.split(' | ').forEach(item => {
             const parts = item.split(': $');
@@ -174,18 +139,17 @@ export async function generateOrderPDF(order, client, motorcycle) {
         tableRows.push(['Mano de Obra', order.mechanic_notes || 'Servicio general', `$${laborTotal.toLocaleString('es-MX')}`]);
     }
 
-    // Add services
-    services.forEach(s => {
+    // Services
+    (order.services || []).forEach(s => {
         const price = parseFloat(s.price) || 0;
         tableRows.push(['Servicio', s.name, price > 0 ? `$${price.toLocaleString('es-MX')}` : '-']);
     });
 
-    // Add parts
-    const orderParts = order.parts || [];
-    orderParts.forEach(p => {
-        const price = parseFloat(p.price || p.cost) || 0;
+    // Parts
+    (order.order_parts || []).forEach(p => {
+        const price = parseFloat(p.unit_price || p.price) || 0;
         const qty = parseInt(p.quantity) || 1;
-        tableRows.push(['Refaccion', p.name, `$${(price * qty).toLocaleString('es-MX')}`]);
+        tableRows.push(['Refaccion', p.part_name || p.name, `$${(price * qty).toLocaleString('es-MX')}`]);
     });
 
     if (tableRows.length > 0) {
@@ -214,9 +178,7 @@ export async function generateOrderPDF(order, client, motorcycle) {
                 lineColor: [230, 230, 230],
                 lineWidth: 0.3,
             },
-            alternateRowStyles: {
-                fillColor: [248, 250, 252],
-            },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
             columnStyles: {
                 0: { cellWidth: 28, fontStyle: 'bold', textColor: GRAY, fontSize: 7.5 },
                 1: { cellWidth: 'auto' },
@@ -226,79 +188,16 @@ export async function generateOrderPDF(order, client, motorcycle) {
         });
 
         y = doc.lastAutoTable.finalY + 6;
-    } else {
-        doc.setTextColor(...GRAY);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'italic');
-        doc.text('Sin servicios registrados', marginL, y);
-        y += 8;
     }
 
-    // ─── TOTALS BOX ───
+    // Totals
     const totalsBoxX = pageW - marginR - 80;
     const totalsBoxW = 80;
-    let totalsY = y;
-
-    doc.setFillColor(...LIGHT_GRAY);
-    doc.roundedRect(totalsBoxX, totalsY, totalsBoxW, laborTotal > 0 && partsTotal > 0 ? 38 : 26, 2, 2, 'F');
-
-    doc.setFontSize(8.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...GRAY);
-
-    let totalLineY = totalsY + 8;
+    let totalLineY = y + 8;
 
     if (laborTotal > 0) {
-        doc.text('Mano de obra:', totalsBoxX + 5, totalLineY);
-        doc.setTextColor(...BLACK);
-        doc.text(`$${laborTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, totalsBoxX + totalsBoxW - 5, totalLineY, { align: 'right' });
-        totalLineY += 6;
-        doc.setTextColor(...GRAY);
-    }
-
-    if (partsTotal > 0) {
-        doc.text('Refacciones:', totalsBoxX + 5, totalLineY);
-        doc.setTextColor(...BLACK);
-        doc.text(`$${partsTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, totalsBoxX + totalsBoxW - 5, totalLineY, { align: 'right' });
-        totalLineY += 6;
-    }
-
-    if (order.advance_payment > 0) {
-        doc.setTextColor(...GRAY);
-        doc.text('Anticipo:', totalsBoxX + 5, totalLineY);
-        doc.setTextColor(16, 185, 129);
-        doc.text(`-$${parseFloat(order.advance_payment).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, totalsBoxX + totalsBoxW - 5, totalLineY, { align: 'right' });
-        totalLineY += 6;
-    }
-
-    // Total line separator
-    doc.setDrawColor(...RED);
-    doc.setLineWidth(0.5);
-    doc.line(totalsBoxX + 5, totalLineY - 2, totalsBoxX + totalsBoxW - 5, totalLineY - 2);
-
-    // TOTAL
-    totalLineY += 3;
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...BLACK);
-    doc.text('TOTAL:', totalsBoxX + 5, totalLineY);
-    doc.setTextColor(...RED);
-    doc.setFontSize(13);
-    doc.text(`$${totalAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, totalsBoxX + totalsBoxW - 5, totalLineY, { align: 'right' });
-
-    // Adjust totals box height
-    const boxHeight = totalLineY - totalsY + 5;
-    doc.setFillColor(...LIGHT_GRAY);
-    // Redraw with correct height
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(totalsBoxX, totalsY, totalsBoxW, boxHeight, 2, 2, 'F');
-
-    // Redraw totals content on top of the box
-    totalLineY = totalsY + 8;
-    doc.setFontSize(8.5);
-    doc.setFont('helvetica', 'normal');
-
-    if (laborTotal > 0) {
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica', 'normal');
         doc.setTextColor(...GRAY);
         doc.text('Mano de obra:', totalsBoxX + 5, totalLineY);
         doc.setTextColor(...BLACK);
@@ -314,7 +213,7 @@ export async function generateOrderPDF(order, client, motorcycle) {
         totalLineY += 6;
     }
 
-    if (order.advance_payment > 0) {
+    if (parseFloat(order.advance_payment) > 0) {
         doc.setTextColor(...GRAY);
         doc.text('Anticipo:', totalsBoxX + 5, totalLineY);
         doc.setTextColor(16, 185, 129);
@@ -335,36 +234,145 @@ export async function generateOrderPDF(order, client, motorcycle) {
     doc.setFontSize(13);
     doc.text(`$${totalAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, totalsBoxX + totalsBoxW - 5, totalLineY, { align: 'right' });
 
-    y = Math.max(y, totalLineY) + 15;
-
-    // ─── FOOTER ───
+    // Footer
+    const footerY = Math.max(totalLineY + 20, y + 40);
     doc.setDrawColor(230, 230, 230);
     doc.setLineWidth(0.3);
-    doc.line(marginL, y, pageW - marginR, y);
-    y += 6;
-
+    doc.line(marginL, footerY, pageW - marginR, footerY);
     doc.setFontSize(8);
     doc.setTextColor(...GRAY);
     doc.setFont('helvetica', 'normal');
-    doc.text('MotoPartes Club  |  Reparaciones y Modificaciones', pageW / 2, y, { align: 'center' });
-    doc.text('Gracias por su preferencia', pageW / 2, y + 5, { align: 'center' });
+    doc.text('MotoPartes Club  |  Reparaciones y Modificaciones', pageW / 2, footerY + 6, { align: 'center' });
+    doc.text('Gracias por su preferencia', pageW / 2, footerY + 11, { align: 'center' });
 
     return doc;
 }
 
-/**
- * Descarga automaticamente el PDF de la orden
- */
-export async function downloadOrderPDF(order, client, motorcycle) {
-    const doc = await generateOrderPDF(order, client, motorcycle);
-    const filename = `${order.order_number}_${(client?.full_name || 'cliente').replace(/\s+/g, '_')}.pdf`;
-    doc.save(filename);
-}
+export default async function orderPdfRoutes(fastify) {
+    fastify.addHook('preHandler', authenticate);
 
-/**
- * Genera PDF de la orden como Blob para enviar por WhatsApp
- */
-export async function generateOrderPDFBlob(order, client, motorcycle) {
-    const doc = await generateOrderPDF(order, client, motorcycle);
-    return doc.output('blob');
+    // POST /api/order-pdf/:id/send
+    // Generates a PDF server-side and sends it via WhatsApp to the client
+    fastify.post('/:id/send', async (request, reply) => {
+        const { id } = request.params;
+
+        try {
+            // Fetch order with all related data
+            const order = await prisma.service_order.findUnique({
+                where: { id },
+                include: {
+                    status: true,
+                    services: true,
+                    order_parts: true,
+                    mechanic: true,
+                },
+            });
+
+            if (!order) {
+                return reply.code(404).send({ error: 'Orden no encontrada' });
+            }
+
+            // Get client and motorcycle
+            const client = await prisma.client.findUnique({ where: { id: order.client_id } });
+            const motorcycle = await prisma.motorcycle.findUnique({ where: { id: order.motorcycle_id } });
+
+            if (!client?.phone) {
+                return reply.code(400).send({ error: 'El cliente no tiene numero de telefono' });
+            }
+
+            // Generate PDF
+            const doc = generatePDF(order, client, motorcycle);
+            const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+            const pdfBase64 = pdfBuffer.toString('base64');
+            const filename = `${order.order_number}_resumen.pdf`;
+
+            // Build WhatsApp caption
+            const motoInfo = motorcycle ? `${motorcycle.brand} ${motorcycle.model}` : 'N/A';
+            const totalAmt = parseFloat(order.total_amount) || 0;
+            const caption = `*RESUMEN DE SERVICIO*\n${order.order_number}\nMoto: ${motoInfo}\nTotal: $${totalAmt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}\n\n-- MotoPartes Club`;
+
+            // Find which mechanic session to use
+            const mechanicId = order.approved_by || order.mechanic_id;
+
+            // Send via WhatsApp bot
+            const botResponse = await fetch(`${BOT_URL}/api/send-document`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': BOT_KEY,
+                },
+                body: JSON.stringify({
+                    mechanicId,
+                    phone: client.phone,
+                    message: caption,
+                    base64: pdfBase64,
+                    filename,
+                    mimetype: 'application/pdf',
+                }),
+            });
+
+            const botResult = await botResponse.json();
+
+            if (!botResponse.ok) {
+                // If bot is unavailable, still return the PDF base64 for fallback
+                return reply.code(200).send({
+                    success: false,
+                    fallback: true,
+                    pdfBase64,
+                    filename,
+                    error: botResult.error || 'WhatsApp no disponible',
+                });
+            }
+
+            return reply.send({
+                success: true,
+                automated: true,
+                messageId: botResult.messageId,
+            });
+
+        } catch (error) {
+            fastify.log.error('Error in send-pdf:', error);
+            return reply.code(500).send({
+                error: 'Error al generar/enviar PDF',
+                details: error.message,
+            });
+        }
+    });
+
+    // GET /api/order-pdf/:id/download
+    // Returns the PDF as a downloadable file
+    fastify.get('/:id/download', async (request, reply) => {
+        const { id } = request.params;
+
+        try {
+            const order = await prisma.service_order.findUnique({
+                where: { id },
+                include: {
+                    status: true,
+                    services: true,
+                    order_parts: true,
+                },
+            });
+
+            if (!order) {
+                return reply.code(404).send({ error: 'Orden no encontrada' });
+            }
+
+            const client = await prisma.client.findUnique({ where: { id: order.client_id } });
+            const motorcycle = await prisma.motorcycle.findUnique({ where: { id: order.motorcycle_id } });
+
+            const doc = generatePDF(order, client, motorcycle);
+            const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+            const filename = `${order.order_number}_resumen.pdf`;
+
+            reply
+                .header('Content-Type', 'application/pdf')
+                .header('Content-Disposition', `attachment; filename="${filename}"`)
+                .send(pdfBuffer);
+
+        } catch (error) {
+            fastify.log.error('Error generating PDF:', error);
+            return reply.code(500).send({ error: 'Error al generar PDF', details: error.message });
+        }
+    });
 }

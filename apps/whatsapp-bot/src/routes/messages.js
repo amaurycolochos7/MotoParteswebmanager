@@ -63,6 +63,36 @@ router.post('/send-media', async (req, res) => {
     }
 });
 
+// POST /api/send-document
+// Body: { mechanicId, phone, message, base64, filename, mimetype }
+router.post('/send-document', async (req, res) => {
+    const sessionManager = req.app.get('sessionManager');
+    const { mechanicId, phone, message, base64, filename, mimetype } = req.body;
+
+    if (!phone || !base64) {
+        return res.status(400).json({ error: 'phone y base64 son requeridos' });
+    }
+
+    let session = null;
+    if (mechanicId) {
+        session = sessionManager.getSession(mechanicId);
+    }
+
+    if (!session || !session.isConnected) {
+        return res.status(503).json({
+            error: 'Sesion de WhatsApp no disponible',
+            fallback: true
+        });
+    }
+
+    try {
+        const result = await session.sendDocument(phone, message || '', base64, filename || 'document.pdf', mimetype || 'application/pdf');
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ error: err.message, fallback: true });
+    }
+});
+
 // POST /api/send-for-order
 // Automatic: finds the correct session for an order (master or approved_by)
 // Body: { orderId, phone, message }

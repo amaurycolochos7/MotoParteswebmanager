@@ -574,67 +574,39 @@ export default function OrderDetail() {
             setSavingCosts(false);
         }
     };
-
-    // ===== PDF + WHATSAPP HANDLER =====
+    // ===== PDF + WHATSAPP HANDLER (SERVER-SIDE) =====
     const handleSendPDF = async () => {
         if (!client?.phone) {
-            showToast('Este cliente no tiene número de teléfono', 'error');
+            showToast('Este cliente no tiene numero de telefono', 'error');
             return;
         }
         setSendingPDF(true);
         try {
-            // Generate PDF blob
-            const pdfBlob = await generateOrderPDFBlob(order, client, motorcycle);
-            const filename = `orden-${order.order_number}-${Date.now()}.pdf`;
+            const token = localStorage.getItem('motopartes_token');
+            const res = await fetch(`/api/order-pdf/${order.id}/send`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            const result = await res.json();
 
-            // Upload PDF to storage
-            const uploadResult = await sendMessageWithPDF(client.phone, '', pdfBlob, filename);
-
-            if (!uploadResult.success) {
-                throw new Error(uploadResult.error || 'Error al subir PDF');
-            }
-
-            // Build WhatsApp message with PDF link
-            const motoInfo = motorcycle ? `${motorcycle.brand} ${motorcycle.model}` : 'N/A';
-            const laborAmt = parseFloat(order.labor_total) || 0;
-            const partsAmt = parseFloat(order.parts_total) || 0;
-            const totalAmt = parseFloat(order.total_amount) || 0;
-
-            let msgLines = [
-                `*${client.full_name}*,`,
-                ``,
-                `📄 *RESUMEN DE SERVICIO - ${order.order_number}*`,
-                ``,
-                `Moto: *${motoInfo}*`,
-            ];
-
-            if (totalAmt > 0) {
-                msgLines.push(``);
-                if (laborAmt > 0) msgLines.push(`Mano de obra: *$${laborAmt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
-                if (partsAmt > 0) msgLines.push(`Refacciones: *$${partsAmt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
-                msgLines.push(`*TOTAL: $${totalAmt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
-            }
-
-            msgLines.push(``);
-            msgLines.push(`📎 Resumen en PDF:`);
-            msgLines.push(uploadResult.pdfUrl);
-            msgLines.push(``);
-            msgLines.push(`Gracias por su preferencia.`);
-            msgLines.push(`— *MotoPartes Club*`);
-
-            const message = msgLines.join('\n');
-
-            // Send WhatsApp message
-            const waResult = await sendDirectMessage(user.id, client.phone, message, order.id);
-
-            if (waResult.success && waResult.automated) {
-                showToast('✅ PDF enviado por WhatsApp al cliente', 'success');
+            if (result.success && result.automated) {
+                showToast('PDF enviado por WhatsApp al cliente', 'success');
+            } else if (result.fallback) {
+                // Bot not available, download PDF locally as fallback
+                await downloadOrderPDF(order, client, motorcycle);
+                showToast('WhatsApp no disponible. PDF descargado.', 'warning');
             } else {
-                showToast('PDF subido. WhatsApp no enviado: ' + (waResult.error || 'sesión no activa'), 'warning');
+                throw new Error(result.error || 'Error al enviar PDF');
             }
         } catch (error) {
             console.error('Error sending PDF:', error);
-            showToast('Error al enviar PDF: ' + error.message, 'error');
+            // Fallback: download locally
+            try {
+                await downloadOrderPDF(order, client, motorcycle);
+                showToast('Error de conexion. PDF descargado localmente.', 'warning');
+            } catch (dlErr) {
+                showToast('Error: ' + error.message, 'error');
+            }
         } finally {
             setSendingPDF(false);
         }
@@ -929,52 +901,56 @@ export default function OrderDetail() {
 
             {/* ── ACCIONES ── */}
             <div className="od-actions">
-                {/* PDF y WhatsApp */}
+                {/* Fila principal: enviar + descargar */}
                 {!showSendChoice ? (
-                    <button className="od-action-btn primary" onClick={() => setShowSendChoice(true)} disabled={sendingPDF}>
-                        {sendingPDF ? <Loader2 size={20} className="spinner" /> : <FileText size={20} />}
-                        {sendingPDF ? 'Enviando...' : 'Enviar Resumen al Cliente'}
-                    </button>
-                ) : (
-                    <div className="od-send-choice">
-                        <p className="od-send-choice-title">¿Cómo enviar el resumen?</p>
-                        <button className="od-action-btn primary" onClick={() => { setShowSendChoice(false); handleSendPDF(); }} disabled={sendingPDF}>
-                            <FileText size={18} /> Enviar PDF por WhatsApp
+                    <div className="od-actions-row">
+                        <button className="od-action-btn primary" onClick={() => setShowSendChoice(true)} disabled={sendingPDF}>
+                            {sendingPDF ? <Loader2 size={18} className="spinner" /> : <FileText size={18} />}
+                            {sendingPDF ? 'Enviando...' : 'Enviar Resumen'}
                         </button>
-                        <button className="od-action-btn success" onClick={handleSendText} disabled={sendingPDF}>
-                            <MessageCircle size={18} /> Enviar como Texto por WhatsApp
-                        </button>
-                        <button className="od-action-btn outline" style={{ fontSize: '0.85rem', padding: '10px' }} onClick={() => setShowSendChoice(false)}>
-                            Cancelar
+                        <button className="od-action-btn outline" onClick={async () => await downloadOrderPDF(order, client, motorcycle)}>
+                            <Download size={18} /> Descargar PDF
                         </button>
                     </div>
+                ) : (
+                    <div className="od-send-choice">
+                        <div className="od-send-choice-header">
+                            <span>Enviar resumen como:</span>
+                            <button className="od-send-choice-close" onClick={() => setShowSendChoice(false)}>&times;</button>
+                        </div>
+                        <div className="od-actions-row">
+                            <button className="od-action-btn primary" onClick={() => { setShowSendChoice(false); handleSendPDF(); }} disabled={sendingPDF}>
+                                <FileText size={16} /> PDF
+                            </button>
+                            <button className="od-action-btn wa-text" onClick={handleSendText} disabled={sendingPDF}>
+                                <MessageCircle size={16} /> Texto
+                            </button>
+                        </div>
+                    </div>
                 )}
-                <button className="od-action-btn outline" onClick={() => downloadOrderPDF(order, client, motorcycle)}>
-                    <Download size={18} /> Descargar PDF
-                </button>
 
-                {/* Pago */}
-                {!order.is_paid && (
-                    <button className="od-action-btn success" onClick={() => setShowPaymentModal(true)}>
-                        <DollarSign size={18} /> Registrar Pago Completo
+                {/* Fila secundaria */}
+                <div className="od-actions-row">
+                    <button className="od-action-btn secondary" onClick={() => setShowStatusModal(true)}>
+                        <Edit2 size={16} /> Estado
                     </button>
-                )}
-
-                {/* Estado */}
-                <button className="od-action-btn secondary" onClick={() => setShowStatusModal(true)}>
-                    <Edit2 size={18} /> Cambiar Estado
-                </button>
+                    {!order.is_paid && (
+                        <button className="od-action-btn success" onClick={() => setShowPaymentModal(true)}>
+                            <DollarSign size={16} /> Registrar Pago
+                        </button>
+                    )}
+                </div>
 
                 {/* Finalizar */}
                 {statusName !== 'Entregada' && (order.is_paid || statusName === 'Lista para Entregar') && (
                     <button className="od-action-btn finish" onClick={() => handleStatusChange('Entregada')}>
-                        <CheckCircle size={20} /> Finalizar Orden
+                        <CheckCircle size={18} /> Finalizar Orden
                     </button>
                 )}
 
-                {/* Cancelar - discreto */}
-                <button className="od-action-btn danger-outline" onClick={handleBeginCancellation}>
-                    <Trash2 size={16} /> Cancelar Orden
+                {/* Cancelar */}
+                <button className="od-cancel-link" onClick={handleBeginCancellation}>
+                    <Trash2 size={14} /> Cancelar Orden
                 </button>
             </div>
 
@@ -1699,40 +1675,65 @@ export default function OrderDetail() {
           gap: 10px;
           margin: var(--spacing-lg) 0;
         }
+        .od-actions-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+        .od-actions-row > :only-child {
+          grid-column: 1 / -1;
+        }
         .od-send-choice {
-          background: rgba(59, 130, 246, 0.08);
-          border: 1px solid rgba(59, 130, 246, 0.2);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-color);
           border-radius: var(--radius-lg);
-          padding: 14px;
+          padding: 12px;
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 10px;
         }
-        .od-send-choice-title {
-          text-align: center;
-          font-size: 0.9rem;
+        .od-send-choice-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-size: 0.85rem;
           font-weight: 600;
-          color: var(--text-primary);
-          margin: 0 0 4px 0;
+          color: var(--text-secondary);
+        }
+        .od-send-choice-close {
+          background: none;
+          border: none;
+          color: var(--text-secondary);
+          font-size: 1.3rem;
+          cursor: pointer;
+          padding: 0 4px;
+          line-height: 1;
         }
         .od-action-btn {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 8px;
-          padding: 14px 16px;
+          gap: 6px;
+          padding: 12px 14px;
           border-radius: var(--radius-lg);
-          font-size: 0.95rem;
+          font-size: 0.88rem;
           font-weight: 600;
           cursor: pointer;
           border: none;
           transition: all 0.2s;
+          white-space: nowrap;
         }
         .od-action-btn.primary {
           background: linear-gradient(135deg, #3b82f6, #2563eb);
           color: white;
         }
+        .od-action-btn.primary:hover { filter: brightness(1.1); }
         .od-action-btn.primary:disabled { opacity: 0.6; }
+        .od-action-btn.wa-text {
+          background: linear-gradient(135deg, #25d366, #128c7e);
+          color: white;
+        }
+        .od-action-btn.wa-text:hover { filter: brightness(1.1); }
         .od-action-btn.outline {
           background: transparent;
           border: 1px solid var(--border-color);
@@ -1743,23 +1744,34 @@ export default function OrderDetail() {
           background: linear-gradient(135deg, #10b981, #059669);
           color: white;
         }
+        .od-action-btn.success:hover { filter: brightness(1.1); }
         .od-action-btn.secondary {
           background: var(--bg-secondary);
           border: 1px solid var(--border-color);
           color: var(--text-primary);
         }
+        .od-action-btn.secondary:hover { background: var(--bg-tertiary, rgba(255,255,255,0.08)); }
         .od-action-btn.finish {
           background: linear-gradient(135deg, #10b981, #047857);
           color: white;
         }
-        .od-action-btn.danger-outline {
-          background: transparent;
-          border: 1px solid rgba(239,68,68,0.3);
-          color: var(--danger, #ef4444);
-          font-size: 0.85rem;
-          padding: 10px;
+        .od-action-btn.finish:hover { filter: brightness(1.1); }
+        .od-cancel-link {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          background: none;
+          border: none;
+          color: var(--text-tertiary, #999);
+          font-size: 0.8rem;
+          cursor: pointer;
+          padding: 8px;
+          transition: color 0.2s;
         }
-        .od-action-btn.danger-outline:hover { background: rgba(239,68,68,0.05); }
+        .od-cancel-link:hover {
+          color: var(--danger, #ef4444);
+        }
 
         /* ── EXISTING STYLES (kept) ── */
         .order-detail {
