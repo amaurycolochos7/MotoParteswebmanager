@@ -247,23 +247,27 @@ export default async function orderPdfRoutes(fastify) {
 
             // Send via WhatsApp bot
             let botResult;
+            fastify.log.info(`[PDF-SEND] Sending to bot at ${BOT_URL}/api/send-document for mechanicId=${mechanicId}, phone=${client.phone}`);
             try {
                 const botResponse = await fetch(`${BOT_URL}/api/send-document`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'x-api-key': BOT_KEY },
                     body: JSON.stringify({ mechanicId, phone: client.phone, message: caption, base64: pdfBase64, filename, mimetype: 'application/pdf' }),
+                    signal: AbortSignal.timeout(30000),
                 });
 
-                botResult = await botResponse.json();
+                const botText = await botResponse.text();
+                fastify.log.info(`[PDF-SEND] Bot response: ${botResponse.status} ${botText.substring(0, 200)}`);
+
+                try { botResult = JSON.parse(botText); } catch { botResult = { error: botText }; }
 
                 if (!botResponse.ok) {
-                    fastify.log.warn(`WhatsApp bot returned ${botResponse.status}: ${JSON.stringify(botResult)}`);
-                    return reply.send({ success: false, fallback: true, error: botResult.error || 'WhatsApp no disponible' });
+                    return reply.send({ success: false, fallback: true, error: botResult.error || 'WhatsApp no disponible', botStatus: botResponse.status });
                 }
             } catch (botError) {
-                // Bot is unreachable (fetch failed, network error, etc.)
-                fastify.log.warn(`WhatsApp bot unreachable: ${botError.message}`);
-                return reply.send({ success: false, fallback: true, error: 'Bot de WhatsApp no disponible. Verifique que esté conectado.' });
+                // Bot is unreachable (fetch failed, network error, timeout etc.)
+                fastify.log.error(`[PDF-SEND] Bot fetch error: ${botError.message} | BOT_URL=${BOT_URL}`);
+                return reply.send({ success: false, fallback: true, error: `WhatsApp bot error: ${botError.message}` });
             }
 
             return reply.send({ success: true, automated: true, messageId: botResult.messageId });
