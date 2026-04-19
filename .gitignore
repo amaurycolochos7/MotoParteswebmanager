@@ -57,3 +57,30 @@ whatsapp-backend/.wwebjs_cache/
 .next
 .nuxt
 .output
+
+# ========================================
+# Phase 2 cleanup — added 2026-04-19
+# ========================================
+# Legacy embedded copy of the repo (pre-Dokploy migration); not a submodule,
+# just a leftover directory that caused a broken gitlink.
+motopartes-manager/
+_legacy_motopartes_embed/
+
+# WhatsApp bot session data (Chromium profile — device-bound, large binary)
+apps/whatsapp-bot/.wwebjs_auth/
+apps/whatsapp-bot/.wwebjs_cache/
+
+# Loose diagnostic artifacts that should never be checked in
+server_status.txt
+*.log
+bot_logs*.txt
+remote_*.txt
+vps_*.txt
+debug_*.txt
+debug_output.json
+all_logs.txt
+api_logs.txt
+tail_logs.txt
+trace_test.txt
+dokploy_*.json
+migration_*.json

@@ -1,3 +1,17 @@
+# Local development stack for motopartes-manager.
+#
+# This compose file is for LOCAL dev only. Production runs on Dokploy as three
+# independent applications (frontend, api, bot) mapped to obfuscated service
+# names (see the "Deployment map" note in .claude memory).
+#
+# Quick start:
+#   cp apps/api/.env.example          apps/api/.env
+#   cp apps/whatsapp-bot/.env.example apps/whatsapp-bot/.env
+#   cp apps/frontend/.env.example     apps/frontend/.env
+#   docker compose up --build
+# Then: http://localhost:5173 (frontend), http://localhost:3000/api/health,
+#       http://localhost:3002/health
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -26,8 +40,13 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://motopartes:${DB_PASSWORD:-MotoPartes2026!}@postgres:5432/motopartes
-      JWT_SECRET: ${JWT_SECRET:-motopartes-jwt-secret-change-me}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-only-change-me}
+      WHATSAPP_API_KEY: ${WHATSAPP_API_KEY:-local-dev-bot-key}
+      WHATSAPP_BOT_INTERNAL_URL: http://whatsapp-bot:3002
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
       PORT: 3000
+    ports:
+      - "3000:3000"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
       interval: 15s
@@ -43,12 +62,13 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      # CRITICAL: Host bind mount — survives ANY Docker operation (compose down -v, prune, etc.)
-      # Directory created on server at /opt/whatsapp-sessions
-      - /opt/whatsapp-sessions:/app/data
+      # Named volume in dev so the Chromium session survives rebuilds but
+      # doesn't leak into the host. In production the bot uses a host bind
+      # mount (/opt/whatsapp-sessions:/app/data) for the same purpose.
+      - whatsapp-session:/app/data
     environment:
       DATABASE_URL: postgresql://motopartes:${DB_PASSWORD:-MotoPartes2026!}@postgres:5432/motopartes
-      API_KEY: ${WHATSAPP_API_KEY:-motopartes-whatsapp-key}
+      WHATSAPP_API_KEY: ${WHATSAPP_API_KEY:-local-dev-bot-key}
       PORT: 3002
     ports:
       - "3002:3002"
@@ -58,5 +78,21 @@ services:
       timeout: 5s
       retries: 3
 
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        VITE_API_URL: /api
+        VITE_WHATSAPP_BOT_URL: /api/whatsapp-bot
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      # nginx inside the container listens on 3000; map to 5173 so it doesn't
+      # clash with the API's 3000 when both are running locally.
+      - "5173:3000"
+
 volumes:
   postgres-data:
+  whatsapp-session:
