@@ -17,16 +17,23 @@ if (!stripeKey) {
     console.error('STRIPE_SECRET_KEY env var is required.');
     process.exit(1);
 }
-const stripe = new Stripe(stripeKey, { apiVersion: '2025-06-30.clover' });
+const stripe = new Stripe(stripeKey);
 
 const PLAN_CODES_TO_SYNC = ['starter', 'pro', 'business']; // free + flagship skip Stripe
 
+// `products.search` requires the search-API feature flag on the Stripe
+// account; on fresh test accounts it can 400. `products.list` + filter in
+// memory is universally available and fast enough for a handful of plans.
 async function findProduct(planCode) {
-    const list = await stripe.products.search({
-        query: `metadata['plan_code']:'${planCode}' AND metadata['app']:'motopartes'`,
-        limit: 1,
-    });
-    return list.data[0] || null;
+    let starting_after;
+    while (true) {
+        const page = await stripe.products.list({ limit: 100, starting_after });
+        for (const p of page.data) {
+            if (p.metadata?.plan_code === planCode && p.metadata?.app === 'motopartes') return p;
+        }
+        if (!page.has_more) return null;
+        starting_after = page.data[page.data.length - 1].id;
+    }
 }
 
 async function upsertProduct(plan) {

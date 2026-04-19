@@ -14,7 +14,9 @@ export function getStripe() {
         throw new Error('STRIPE_SECRET_KEY env var is required for billing operations');
     }
     _stripe = new Stripe(key, {
-        apiVersion: '2025-06-30.clover',
+        // Pin to the Stripe account's default API version (don't override) so
+        // we stay forward-compatible across the SDK bumping its embedded
+        // typings while the account stays on whatever Stripe upgraded it to.
         appInfo: { name: 'motopartes-api', version: '1.0.0' },
     });
     return _stripe;
