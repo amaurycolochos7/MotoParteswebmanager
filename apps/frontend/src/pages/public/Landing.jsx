@@ -545,6 +545,13 @@ const styles = `
    Mobile-first, variables fluidas con clamp(), composición pro.
    ============================================================ */
 
+/* Overflow guard a nivel raíz — garantiza que NADA cause scroll horizontal
+   en el documento, sin importar lo que hagan los descendientes. */
+html, body {
+    overflow-x: clip;
+    margin: 0;
+    padding: 0;
+}
 .mp-landing {
     --c-bg: #ffffff;
     --c-ink: #0f172a;
@@ -562,7 +569,10 @@ const styles = `
     font-feature-settings: 'ss01', 'cv11';
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
-    overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+    position: relative;
 }
 .mp-landing * { box-sizing: border-box; }
 
@@ -658,9 +668,14 @@ const styles = `
     cursor: pointer;
 }
 
-@media (max-width: 860px) {
+/* Pliega el nav a hamburguesa desde 1024px — así no hay chance de que los
+   links + CTAs se atropellen horizontalmente en viewports medianos. */
+@media (max-width: 1024px) {
     .mp-nav-links, .mp-nav-ctas { display: none; }
     .mp-burger { display: inline-flex; }
+}
+@media (max-width: 860px) {
+    .mp-nav-inner { padding: 12px 16px; }
 }
 
 /* DRAWER */
