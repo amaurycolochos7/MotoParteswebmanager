@@ -50,8 +50,10 @@ export default async function ticketsRoutes(fastify) {
         return reply.send({ items: tickets });
     });
 
-    // POST /api/tickets — crear nuevo ticket
-    fastify.post('/', async (request, reply) => {
+    // POST /api/tickets — crear nuevo ticket (max 10/h por IP)
+    fastify.post('/', {
+        config: { rateLimit: { max: 10, timeWindow: '1 hour' } },
+    }, async (request, reply) => {
         const { subject, category, body_md, priority = 'normal' } = request.body || {};
 
         if (!subject?.trim()) return reply.status(400).send({ error: 'Asunto requerido.' });
@@ -138,8 +140,10 @@ export default async function ticketsRoutes(fastify) {
         return reply.send({ ticket });
     });
 
-    // POST /api/tickets/:id/reply — cliente responde
-    fastify.post('/:id/reply', async (request, reply) => {
+    // POST /api/tickets/:id/reply — cliente responde (max 30/h por IP)
+    fastify.post('/:id/reply', {
+        config: { rateLimit: { max: 30, timeWindow: '1 hour' } },
+    }, async (request, reply) => {
         const { body_md } = request.body || {};
         if (!body_md?.trim()) return reply.status(400).send({ error: 'Mensaje requerido.' });
 

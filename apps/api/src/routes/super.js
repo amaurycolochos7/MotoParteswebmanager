@@ -561,6 +561,18 @@ export default async function superRoutes(fastify) {
         return reply.send({ ticket });
     });
 
+    // Sanitización server-side del body_md del super-admin — mismo nivel que
+    // el sanitizer del cliente en tickets.js. Aunque sea super-admin, el contenido
+    // se renderiza al cliente final (taller) y tenemos que evitar XSS reflected.
+    const sanitizeBodyMd = (raw) => {
+        if (typeof raw !== 'string') return '';
+        return raw
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+            .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+            .replace(/\son\w+\s*=\s*['"][^'"]*['"]/gi, '') // on* handlers
+            .slice(0, 20000);
+    };
+
     fastify.post('/tickets/:id/reply', async (request, reply) => {
         const { body_md, is_internal = false } = request.body || {};
         if (!body_md?.trim()) return reply.status(400).send({ error: 'Mensaje requerido.' });
@@ -577,7 +589,7 @@ export default async function superRoutes(fastify) {
                         ticket_id: ticket.id,
                         author_id: request.user.id,
                         author_type: is_internal ? 'admin' : 'admin',
-                        body_md: body_md.trim().slice(0, 20000),
+                        body_md: sanitizeBodyMd(body_md.trim()),
                         is_internal,
                     },
                 });

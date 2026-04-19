@@ -121,7 +121,9 @@ export default async function authRoutes(fastify) {
     // personal workspace, an owner-role membership, and a trial subscription.
     // Unlike the Phase 1 placeholder, the user is ACTIVATED immediately —
     // multi-tenant isolation guarantees they can't see anyone else's data.
-    fastify.post('/register', async (request, reply) => {
+    fastify.post('/register', {
+        config: { rateLimit: { max: 5, timeWindow: '10 minutes' } },
+    }, async (request, reply) => {
         try {
             const { email, password, full_name, workshop_name, phone, business_type, referral_slug } = request.body || {};
 
@@ -376,8 +378,10 @@ export default async function authRoutes(fastify) {
         return reply.send({ success: true, message: 'Contraseña actualizada.' });
     });
 
-    // POST /api/auth/login
-    fastify.post('/login', async (request, reply) => {
+    // POST /api/auth/login — rate limit agresivo contra fuerza bruta
+    fastify.post('/login', {
+        config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    }, async (request, reply) => {
         try {
             const { email, password } = request.body;
 

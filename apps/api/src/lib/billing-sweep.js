@@ -118,13 +118,66 @@ export async function pruneOldEvents() {
     return { deleted: count };
 }
 
+// Fase 7 — Revierte a Free los workspaces con plan manual vencido.
+// Se aplica a subscripciones con `source='manual'` y `manual_expires_at <= now`.
+// Los workspaces flagship NO se tocan (no tienen expiry).
+export async function expireManualPlans() {
+    const now = new Date();
+    const free = await getFreePlan();
+    if (!free) return { downgraded: 0 };
+
+    const expired = await unscoped(() =>
+        prisma.subscription.findMany({
+            where: {
+                source: 'manual',
+                manual_expires_at: { lte: now, not: null },
+            },
+            include: { workspace: true },
+        })
+    );
+
+    let downgraded = 0;
+    for (const sub of expired) {
+        if (sub.workspace?.is_flagship) continue;
+        await unscoped(() =>
+            prisma.$transaction(async (tx) => {
+                await tx.subscription.update({
+                    where: { id: sub.id },
+                    data: {
+                        plan_id: free.id,
+                        status: 'free',
+                        source: 'stripe', // vuelve al carril normal
+                        manual_assigned_by: null,
+                        manual_expires_at: null,
+                        manual_note: null,
+                    },
+                });
+                await tx.workspace.update({
+                    where: { id: sub.workspace_id },
+                    data: { plan_id: free.id, subscription_status: 'free' },
+                });
+                await tx.auditLog.create({
+                    data: {
+                        workspace_id: sub.workspace_id,
+                        event: 'billing.manual_plan_expired',
+                        payload: { was_note: sub.manual_note, was_expires_at: sub.manual_expires_at },
+                    },
+                });
+            })
+        );
+        downgraded += 1;
+    }
+    return { downgraded };
+}
+
 export async function runBillingSweep() {
     const start = Date.now();
     const trials = await expireTrials();
     const dunning = await enforceDunning();
+    const manual = await expireManualPlans();
     const pruned = await pruneOldEvents();
     const durationMs = Date.now() - start;
-    const result = { trials, dunning, pruned, durationMs };
+    const result = { trials, dunning, manual, pruned, durationMs };
     console.log(`[billing-sweep] ${JSON.stringify(result)}`);
     return result;
 }

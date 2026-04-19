@@ -3,6 +3,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import rawBody from 'fastify-raw-body';
+import rateLimit from '@fastify/rate-limit';
 
 import authRoutes from './routes/auth.js';
 import clientsRoutes from './routes/clients.js';
@@ -43,8 +44,14 @@ await fastify.register(cors, {
       'http://motopartes.cloud',
       ...envOrigins
     ];
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return cb(null, true);
+    // Sin origin: permitimos solo si viene sin cookies/auth (e.g. curl a /health).
+    // Rechazamos same-server navegador/mobile-apps spoofeando porque pueden usar
+    // cookies del dominio. En la práctica los clientes legítimos siempre envían
+    // Origin. Si necesitas permitir native apps, configurar CORS_ALLOW_NO_ORIGIN=true.
+    if (!origin) {
+      if (process.env.CORS_ALLOW_NO_ORIGIN === 'true') return cb(null, true);
+      return cb(null, false); // reject silencioso (sin error loggeado)
+    }
     if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost') || origin.includes('127.0.0.1')) {
       cb(null, true);
       return;
@@ -65,6 +72,20 @@ await fastify.register(rawBody, {
   global: false,
   encoding: 'utf8',
   runFirst: true,
+});
+
+// Rate limiter global — protege contra fuerza bruta y spam.
+// Límites específicos en endpoints sensibles (login/register/tickets)
+// se aplican via config.rateLimit en cada ruta.
+await fastify.register(rateLimit, {
+  global: false, // opt-in por ruta
+  max: 120,      // default si se activa
+  timeWindow: '1 minute',
+  errorResponseBuilder: (req, ctx) => ({
+    statusCode: 429,
+    error: 'Too Many Requests',
+    message: `Demasiados intentos. Intenta de nuevo en ${Math.ceil(ctx.ttl / 1000)}s.`,
+  }),
 });
 
 // Install the per-request AsyncLocalStorage workspace store at the earliest

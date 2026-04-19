@@ -25,11 +25,20 @@ export async function getPlanFeatures(workspaceId) {
     );
     if (!ws) throw new Error(`Workspace ${workspaceId} not found`);
     const planFeatures = ws.plan?.features || {};
+    // Un plan con source='manual' (cortesía/partner/grandfathered) se
+    // comporta como sin límites mientras esté vigente. El sweep mensual
+    // es quien lo revierte a Free si manual_expires_at pasa.
+    const now = Date.now();
+    const isManualActive =
+        ws.subscription?.source === 'manual' &&
+        (!ws.subscription.manual_expires_at ||
+         new Date(ws.subscription.manual_expires_at).getTime() > now);
     return {
         workspace: ws,
         plan: ws.plan,
         features: planFeatures,
         isFlagship: ws.is_flagship === true,
+        isManualActive,
         status: ws.subscription_status,
     };
 }
@@ -83,8 +92,9 @@ export class PlanLimitError extends Error {
 }
 
 export async function assertWithinLimit(workspaceId, column) {
-    const { features, isFlagship } = await getPlanFeatures(workspaceId);
-    if (isFlagship) return; // perpetual cortesía
+    const { features, isFlagship, isManualActive } = await getPlanFeatures(workspaceId);
+    if (isFlagship) return;       // perpetual cortesía
+    if (isManualActive) return;   // cortesía manual vigente del super-admin
 
     const feature = COLUMN_TO_FEATURE[column];
     const limit = feature ? features[feature] : null;

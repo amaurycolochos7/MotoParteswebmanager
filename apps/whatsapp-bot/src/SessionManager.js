@@ -113,6 +113,15 @@ class SessionManager {
         } catch (err) {
             console.error(`❌ Session init failed for ${mechanicId}:`, err.message);
             this._lastErrors.set(mechanicId, err.message);
+            // CRITICAL: rollback. Si initialize falla, evitamos dejar una sesión
+            // a medio-inicializar en el Map. Limpiamos TODOS los listeners
+            // (antes solo 'disconnected') + destruimos el client + removemos
+            // del Map. El próximo startSession vuelve a construir todo limpio.
+            try {
+                session.removeAllListeners();
+                await session.destroy().catch(() => {});
+            } catch { /* noop */ }
+            this.sessions.delete(mechanicId);
         }
         return session;
     }

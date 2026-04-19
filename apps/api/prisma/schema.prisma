@@ -872,7 +872,7 @@ model SupportTicket {
   messages    TicketMessage[]
   attachments TicketAttachment[]
 
-  @@unique([ticket_number])
+  @@unique([workspace_id, ticket_number])          // cada taller tiene su propia numeración #1, #2, ...
   @@index([workspace_id, status])
   @@index([status, priority, last_message_at])
   @@index([assigned_to, status])
