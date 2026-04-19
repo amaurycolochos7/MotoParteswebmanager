@@ -18,6 +18,9 @@ import AdminAutomations from './pages/admin/AdminAutomations';
 import AdminTemplates from './pages/admin/AdminTemplates';
 import AdminTasks from './pages/admin/AdminTasks';
 import AdminBotHealth from './pages/admin/AdminBotHealth';
+import AdminReferrals from './pages/admin/AdminReferrals';
+import AdminShopQR from './pages/admin/AdminShopQR';
+import AdminIntegrations from './pages/admin/AdminIntegrations';
 
 // Admin Pages
 import {
@@ -53,6 +56,10 @@ import {
 // Public Pages
 import ClientPortal from './pages/public/ClientPortal';
 import Landing from './pages/public/Landing';
+import Blog from './pages/public/Blog';
+import BlogPost from './pages/public/BlogPost';
+import Cases from './pages/public/Cases';
+import CaseStudy from './pages/public/CaseStudy';
 
 import './index.css';
 
@@ -166,6 +173,9 @@ function AppRoutes() {
         <Route path="templates" element={<AdminTemplates />} />
         <Route path="tasks" element={<AdminTasks />} />
         <Route path="bot-health" element={<AdminBotHealth />} />
+        <Route path="referrals" element={<AdminReferrals />} />
+        <Route path="shop-qr" element={<AdminShopQR />} />
+        <Route path="integrations" element={<AdminIntegrations />} />
       </Route>
 
       {/* Rutas de Mecánico */}
@@ -196,6 +206,12 @@ function AppRoutes() {
 
       {/* Portal público para clientes (sin auth) */}
       <Route path="/orden/:token" element={<ClientPortal />} />
+
+      {/* Blog y casos (públicos) */}
+      <Route path="/blog" element={<Blog />} />
+      <Route path="/blog/:slug" element={<BlogPost />} />
+      <Route path="/casos" element={<Cases />} />
+      <Route path="/casos/:slug" element={<CaseStudy />} />
 
       {/* Home: si ya está logueado va al dashboard; si no, muestra la landing pública */}
       <Route

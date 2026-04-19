@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
     ArrowRight,
     MessageCircle,
@@ -13,8 +15,36 @@ import {
     LogIn,
     UserPlus,
     Bike,
+    Wrench,
 } from 'lucide-react';
 import { PUBLIC_PLANS, FEATURE_BLOCKS } from '../../lib/plans';
+import { captureReferralFromUrl, getStoredReferral } from '../../lib/referral';
+
+// JSON-LD para que Google entienda que es una SoftwareApplication B2B
+// de gestión de talleres. Se inyecta en <head> via un <script> inline
+// y se actualiza en cada render de la landing.
+const SCHEMA_ORG = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'MotoPartes',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    description:
+        'Plataforma para talleres de motocicletas: órdenes de servicio, clientes, refacciones, comisiones y envío de cotizaciones por WhatsApp.',
+    url: 'https://motopartes.cloud/',
+    inLanguage: 'es-MX',
+    offers: [
+        { '@type': 'Offer', name: 'Free',    price: '0',    priceCurrency: 'MXN' },
+        { '@type': 'Offer', name: 'Starter', price: '299',  priceCurrency: 'MXN' },
+        { '@type': 'Offer', name: 'Pro',     price: '599',  priceCurrency: 'MXN' },
+        { '@type': 'Offer', name: 'Business', price: '1499', priceCurrency: 'MXN' },
+    ],
+    aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: '5.0',
+        reviewCount: '1',
+    },
+};
 
 const FEATURE_ICONS = {
     'Órdenes de servicio': <FileText size={28} />,
@@ -30,8 +60,30 @@ function money(n) {
 }
 
 export default function Landing() {
+    const { t, i18n } = useTranslation();
+    const [refSlug, setRefSlug] = useState(null);
+
+    useEffect(() => {
+        // Captura ?ref=<slug> (prioridad) o recupera uno ya guardado.
+        const fresh = captureReferralFromUrl();
+        setRefSlug(fresh || getStoredReferral());
+    }, []);
+
+    const switchLang = () => {
+        const next = i18n.language?.startsWith('en') ? 'es' : 'en';
+        i18n.changeLanguage(next);
+    };
+
     return (
         <div className="landing">
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(SCHEMA_ORG) }} />
+
+            {refSlug && (
+                <div className="ref-banner">
+                    <Bike size={16} /> Llegaste por recomendación de <strong>{refSlug}</strong> — al registrarte, el referente recibe una comisión.
+                </div>
+            )}
+
             <header className="lnav">
                 <div className="lnav-inner">
                     <Link to="/" className="lnav-brand">
@@ -43,17 +95,21 @@ export default function Landing() {
                     </Link>
 
                     <nav className="lnav-links">
-                        <a href="#features">Características</a>
-                        <a href="#pricing">Precios</a>
-                        <a href="#testimonial">Testimonio</a>
+                        <a href="#features">{t('landing.nav.features')}</a>
+                        <a href="#pricing">{t('landing.nav.pricing')}</a>
+                        <Link to="/blog">{t('landing.nav.blog')}</Link>
+                        <Link to="/casos">{t('landing.nav.cases')}</Link>
                     </nav>
 
                     <div className="lnav-ctas">
+                        <button onClick={switchLang} className="lnav-lang" title="Change language">
+                            {i18n.language?.startsWith('en') ? 'ES' : 'EN'}
+                        </button>
                         <Link to="/login" className="btn-ghost">
-                            <LogIn size={16} /> Entrar
+                            <LogIn size={16} /> {t('common.login')}
                         </Link>
                         <Link to="/signup" className="btn-primary">
-                            <UserPlus size={16} /> Crear cuenta
+                            <UserPlus size={16} /> {t('common.signup')}
                         </Link>
                     </div>
                 </div>
@@ -69,25 +125,24 @@ export default function Landing() {
 
                 <div className="hero-content">
                     <div className="hero-pill">
-                        <Bike size={14} /> Hecho para talleres de motos
+                        <Bike size={14} /> {t('landing.hero.pill')}
                     </div>
                     <h1 className="hero-title">
-                        Gestiona tu taller de motos
+                        {t('landing.hero.title_1')}
                         <br />
-                        <span className="hero-title-accent">desde WhatsApp.</span>
+                        <span className="hero-title-accent">{t('landing.hero.title_2')}</span>
                     </h1>
                     <p className="hero-sub">
-                        Órdenes de servicio, clientes, refacciones, comisiones y cotizaciones
-                        enviadas en segundos al WhatsApp de tu cliente — sin libretas, sin Excel.
+                        {t('landing.hero.sub')}
                     </p>
                     <div className="hero-cta">
                         <Link to="/signup" className="btn-primary btn-lg">
-                            Crear cuenta gratis <ArrowRight size={18} />
+                            {t('common.signup_free')} <ArrowRight size={18} />
                         </Link>
-                        <a href="#pricing" className="btn-ghost btn-lg">Ver precios</a>
+                        <a href="#pricing" className="btn-ghost btn-lg">{t('landing.hero.cta_pricing')}</a>
                     </div>
                     <p className="hero-foot">
-                        Sin tarjeta de crédito • Activación por correo • Hecho en México
+                        {t('landing.hero.foot')}
                     </p>
                 </div>
             </section>
@@ -96,11 +151,10 @@ export default function Landing() {
             <section id="features" className="section">
                 <div className="section-inner">
                     <h2 className="section-title">
-                        Todo lo que tu taller necesita, en un solo lugar
+                        {t('landing.features.title')}
                     </h2>
                     <p className="section-sub">
-                        MotoPartes centraliza la operación diaria de un taller mecánico de motos —
-                        desde que recibes la moto hasta que cobras y envías el PDF al cliente.
+                        {t('landing.features.sub')}
                     </p>
 
                     <div className="features-grid">
@@ -118,9 +172,9 @@ export default function Landing() {
             {/* Pricing */}
             <section id="pricing" className="section section-alt">
                 <div className="section-inner">
-                    <h2 className="section-title">Precios simples por taller</h2>
+                    <h2 className="section-title">{t('landing.pricing.title')}</h2>
                     <p className="section-sub">
-                        Empieza gratis. Sube de plan cuando tu taller crezca. Cancela cuando quieras.
+                        {t('landing.pricing.sub')}
                     </p>
 
                     <div className="pricing-grid">
@@ -162,8 +216,7 @@ export default function Landing() {
                     </div>
 
                     <p className="pricing-note">
-                        Todos los planes pagados incluyen 14 días de prueba gratuita con todas las
-                        características del plan Pro. Precios en pesos mexicanos (IVA no incluido).
+                        {t('landing.pricing.note')}
                     </p>
                 </div>
             </section>
@@ -194,13 +247,54 @@ export default function Landing() {
                 </div>
             </section>
 
+            {/* Nacido en un taller real */}
+            <section id="origen" className="section section-alt">
+                <div className="section-inner origin-wrap">
+                    <div className="origin-copy">
+                        <div className="origin-pill">
+                            <Wrench size={14} /> {t('landing.origin.pill')}
+                        </div>
+                        <h2 className="section-title origin-title">
+                            {t('landing.origin.title')}
+                        </h2>
+                        <p className="origin-sub">
+                            {t('landing.origin.sub')}
+                        </p>
+                        <div className="origin-stats">
+                            <div className="origin-stat">
+                                <strong>60+</strong>
+                                <span>{t('landing.origin.metric_orders')}</span>
+                            </div>
+                            <div className="origin-stat">
+                                <strong>0</strong>
+                                <span>{t('landing.origin.metric_lost')}</span>
+                            </div>
+                            <div className="origin-stat">
+                                <strong>100%</strong>
+                                <span>{t('landing.origin.metric_tracked')}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="origin-card">
+                        <div className="origin-logo">
+                            <Bike size={44} />
+                        </div>
+                        <h3>{t('landing.origin.shop_name')}</h3>
+                        <p>{t('landing.origin.shop_desc')}</p>
+                        <div className="origin-quote">
+                            {t('landing.origin.quote')}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             {/* CTA final */}
             <section className="section cta-section">
                 <div className="section-inner cta-inner">
-                    <h2>Lleva tu taller al siguiente nivel</h2>
-                    <p>Crea tu cuenta hoy — te avisamos por correo cuando tu taller quede activado.</p>
+                    <h2>{t('landing.cta_final.title')}</h2>
+                    <p>{t('landing.cta_final.sub')}</p>
                     <Link to="/signup" className="btn-primary btn-lg">
-                        Crear cuenta gratis <ArrowRight size={18} />
+                        {t('common.signup_free')} <ArrowRight size={18} />
                     </Link>
                 </div>
             </section>
@@ -220,23 +314,25 @@ export default function Landing() {
 
                     <div className="lfooter-cols">
                         <div>
-                            <h4>Producto</h4>
-                            <a href="#features">Características</a>
-                            <a href="#pricing">Precios</a>
-                            <Link to="/signup">Crear cuenta</Link>
+                            <h4>{t('landing.footer.product')}</h4>
+                            <a href="#features">{t('landing.nav.features')}</a>
+                            <a href="#pricing">{t('landing.nav.pricing')}</a>
+                            <Link to="/signup">{t('common.signup')}</Link>
                         </div>
                         <div>
-                            <h4>Cuenta</h4>
-                            <Link to="/login">Iniciar sesión</Link>
+                            <h4>{t('landing.footer.resources')}</h4>
+                            <Link to="/blog">{t('landing.nav.blog')}</Link>
+                            <Link to="/casos">{t('landing.nav.cases')}</Link>
                         </div>
                         <div>
-                            <h4>Contacto</h4>
-                            <a href="mailto:hola@motopartes.cloud">hola@motopartes.cloud</a>
+                            <h4>{t('landing.footer.account')}</h4>
+                            <Link to="/login">{t('common.login')}</Link>
+                            <a href="mailto:hola@motopartes.cloud">{t('common.contact')}</a>
                         </div>
                     </div>
                 </div>
                 <div className="lfooter-copy">
-                    © 2026 MotoPartes • Todos los derechos reservados
+                    {t('landing.footer.copy')}
                 </div>
             </footer>
 
@@ -253,6 +349,105 @@ const landingStyles = `
     font-family: inherit;
 }
 
+/* Banner de referral */
+.ref-banner {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #78350f;
+    padding: 10px 20px;
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-bottom: 1px solid #fcd34d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.ref-banner strong { color: #92400e; font-weight: 700; }
+
+/* Origin section */
+.origin-wrap {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 50px;
+    align-items: center;
+}
+@media (max-width: 860px) { .origin-wrap { grid-template-columns: 1fr; gap: 30px; } }
+.origin-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+.origin-title { text-align: left !important; margin: 0 0 16px !important; }
+.origin-sub {
+    font-size: 1rem;
+    color: #475569;
+    line-height: 1.65;
+    margin: 0 0 28px;
+}
+.origin-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+@media (max-width: 520px) { .origin-stats { grid-template-columns: 1fr 1fr; } }
+.origin-stat {
+    background: white;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+}
+.origin-stat strong {
+    display: block;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #ef4444;
+    margin-bottom: 4px;
+}
+.origin-stat span {
+    font-size: 0.8rem;
+    color: #64748b;
+    line-height: 1.3;
+}
+.origin-card {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: white;
+    border-radius: 20px;
+    padding: 36px 28px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(15,23,42,0.25);
+}
+.origin-logo {
+    width: 86px;
+    height: 86px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 18px;
+    color: white;
+}
+.origin-card h3 { margin: 0 0 4px; font-size: 1.2rem; font-weight: 800; }
+.origin-card p { margin: 0 0 20px; color: #cbd5e1; font-size: 0.9rem; }
+.origin-quote {
+    font-style: italic;
+    font-size: 0.95rem;
+    color: #e2e8f0;
+    border-top: 1px solid #334155;
+    padding-top: 16px;
+    line-height: 1.55;
+}
+
 /* Nav */
 .lnav { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid #e2e8f0; }
 .lnav-inner { max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
@@ -265,6 +460,8 @@ const landingStyles = `
 .lnav-links a { color: #475569; text-decoration: none; font-weight: 500; font-size: 0.92rem; }
 .lnav-links a:hover { color: #ef4444; }
 .lnav-ctas { display: flex; gap: 10px; align-items: center; }
+.lnav-lang { background: #f1f5f9; color: #475569; border: none; padding: 6px 10px; border-radius: 8px; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s ease; }
+.lnav-lang:hover { background: #e2e8f0; color: #0f172a; }
 @media (max-width: 780px) { .lnav-links { display: none; } }
 @media (max-width: 540px) { .lnav-ctas .btn-ghost { display: none; } }
 

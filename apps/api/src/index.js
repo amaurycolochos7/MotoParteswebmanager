@@ -26,6 +26,8 @@ import billingRoutes from './routes/billing.js';
 import automationsRoutes from './routes/automations.js';
 import templatesRoutes from './routes/templates.js';
 import tasksRoutes from './routes/tasks.js';
+import referralsRoutes from './routes/referrals.js';
+import integrationsRoutes from './routes/integrations.js';
 import { installWorkspaceStore } from './middleware/workspace.js';
 
 const fastify = Fastify({ logger: true });
@@ -98,6 +100,8 @@ await fastify.register(billingRoutes, { prefix: '/api/billing' });
 await fastify.register(automationsRoutes, { prefix: '/api/automations' });
 await fastify.register(templatesRoutes, { prefix: '/api/templates' });
 await fastify.register(tasksRoutes, { prefix: '/api/tasks' });
+await fastify.register(referralsRoutes, { prefix: '/api/referrals' });
+await fastify.register(integrationsRoutes, { prefix: '/api/integrations' });
 
 // Periodic billing sweep — every hour on the hour, plus once at startup.
 import { runBillingSweep } from './lib/billing-sweep.js';
@@ -116,6 +120,14 @@ setInterval(() => {
 setInterval(() => {
     runTemporalSweep().catch((e) => console.error('[automations] temporal error:', e.message));
 }, 5 * 60 * 1000);
+
+// Referral payout sweep — corre 1× por día. Internamente solo genera
+// payouts si es día 1 del mes. Barato, idempotente por @@unique.
+import { runReferralPayoutSweep } from './lib/referral-sweep.js';
+runReferralPayoutSweep().catch((e) => console.error('[referral-sweep] boot run failed:', e.message));
+setInterval(() => {
+    runReferralPayoutSweep().catch((e) => console.error('[referral-sweep] failed:', e.message));
+}, 24 * 60 * 60 * 1000);
 
 // Start
 const PORT = process.env.PORT || 3000;

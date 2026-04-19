@@ -1,0 +1,59 @@
+{
+  "common": {
+    "login": "Log in",
+    "signup": "Sign up",
+    "signup_free": "Sign up for free",
+    "logout": "Log out",
+    "contact": "Contact",
+    "save": "Save",
+    "cancel": "Cancel",
+    "back": "Back",
+    "loading": "Loading…"
+  },
+  "landing": {
+    "nav": {
+      "features": "Features",
+      "pricing": "Pricing",
+      "blog": "Blog",
+      "cases": "Case studies"
+    },
+    "hero": {
+      "pill": "Built for motorcycle shops",
+      "title_1": "Run your motorcycle shop",
+      "title_2": "right from WhatsApp.",
+      "sub": "Service orders, customers, parts, commissions, and quotes sent to your customer's WhatsApp in seconds — no notebooks, no spreadsheets.",
+      "cta_pricing": "See pricing",
+      "foot": "No credit card • Email activation • Made in Mexico"
+    },
+    "features": {
+      "title": "Everything your shop needs, in one place",
+      "sub": "MotoPartes centralizes a motorcycle shop's daily operations — from the moment you receive the bike to the moment you send the PDF receipt."
+    },
+    "pricing": {
+      "title": "Simple pricing per shop",
+      "sub": "Start for free. Upgrade as your shop grows. Cancel whenever you want.",
+      "note": "All paid plans include a 14-day free trial with every Pro feature. Prices in MXN (VAT not included)."
+    },
+    "origin": {
+      "pill": "Born in a real shop",
+      "title": "The platform MotoPartes uses every day — now available for your shop.",
+      "sub": "MotoPartes wasn't designed in a cubicle. It started in a shop that got tired of tracking orders on paper and built the solution you can use today.",
+      "metric_orders": "orders per month already handled without paper",
+      "metric_lost": "bikes lost since they migrated",
+      "metric_tracked": "of payments tracked in the system",
+      "shop_name": "MotoPartes Shop",
+      "shop_desc": "Motorcycle repairs and modifications",
+      "quote": "\"If we ditched the notebook for good, your shop can too.\""
+    },
+    "cta_final": {
+      "title": "Take your shop to the next level",
+      "sub": "Create your account today — we'll email you when your shop is activated."
+    },
+    "footer": {
+      "product": "Product",
+      "resources": "Resources",
+      "account": "Account",
+      "copy": "© 2026 MotoPartes • All rights reserved"
+    }
+  }
+}

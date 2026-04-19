@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /mechanic/
+Disallow: /onboarding
+Disallow: /orden/
+
+Sitemap: https://motopartes.cloud/sitemap.xml

@@ -47,6 +47,12 @@ model Workspace {
   is_active          Boolean   @default(true)
   is_flagship        Boolean   @default(false)             // motoblaker's original taller — exempt from any plan limit check
   onboarding_completed Boolean @default(false)
+  // Fase 6.2 — Programa de afiliados
+  referral_slug      String?   @unique                     // slug usado en motopartes.cloud/?ref=<slug>
+  is_partner         Boolean   @default(false)             // 30% vitalicio si true; 20% por 12 meses si false
+  referred_by_workspace_id String? @db.Uuid
+  // Fase 6.4 — Google Calendar (one-way sync)
+  google_calendar_tokens Json?                             // { access_token, refresh_token, expiry_date, calendar_id }
   created_by         String?   @db.Uuid
   created_at         DateTime  @default(now()) @db.Timestamptz
   updated_at         DateTime  @default(now()) @updatedAt @db.Timestamptz
@@ -58,6 +64,11 @@ model Workspace {
   subscription       Subscription?
   usage_counters     UsageCounter[]
   audit_logs         AuditLog[]
+
+  // Referrals (Fase 6.2)
+  referrals_given    Referral[] @relation("ReferrerWorkspace")
+  referral_received  Referral?  @relation("ReferredWorkspace")
+  referral_payouts   ReferralPayout[]
 
   // Every data table has a back-reference so cascade-deletes work if a
   // workspace is nuked. ON DELETE behavior is set at the table end.
@@ -200,6 +211,56 @@ model AuditLog {
   @@index([workspace_id, created_at])
   @@index([event, created_at])
   @@map("audit_logs")
+}
+
+// =============================================
+// REFERRAL PROGRAM (Fase 6.2)
+// =============================================
+// Standard afiliado: 20% del MRR durante 12 meses.
+// Partner (solo motoblaker al inicio, flag is_partner): 30% vitalicio.
+// Un workspace solo puede ser referido por UNO. Un referente puede traer N.
+model Referral {
+  id                      String   @id @default(uuid()) @db.Uuid
+  referrer_workspace_id   String   @db.Uuid
+  referred_workspace_id   String   @unique @db.Uuid       // un taller solo puede ser referido por 1
+  referral_slug           String                           // snapshot del slug al momento de la atribución
+  commission_rate         Decimal  @default(0.200) @db.Decimal(4,3)
+  is_lifetime             Boolean  @default(false)         // true = partner vitalicio
+  starts_at               DateTime @default(now()) @db.Timestamptz
+  ends_at                 DateTime? @db.Timestamptz         // null si is_lifetime; +12 meses si !lifetime
+  status                  String   @default("active")      // active | expired | canceled
+  created_at              DateTime @default(now()) @db.Timestamptz
+  updated_at              DateTime @default(now()) @updatedAt @db.Timestamptz
+
+  referrer Workspace @relation("ReferrerWorkspace", fields: [referrer_workspace_id], references: [id], onDelete: Cascade)
+  referred Workspace @relation("ReferredWorkspace", fields: [referred_workspace_id], references: [id], onDelete: Cascade)
+
+  @@index([referrer_workspace_id, status])
+  @@index([ends_at])
+  @@map("referrals")
+}
+
+// Una fila por mes y referente. Acumula MRR y comisión.
+model ReferralPayout {
+  id                    String    @id @default(uuid()) @db.Uuid
+  referrer_workspace_id String    @db.Uuid
+  period                String                              // 'yyyy-mm'
+  referred_count        Int       @default(0)               // talleres activos ese mes
+  mrr_referred_cents    Int       @default(0)               // MRR bruto de referidos (MXN cents)
+  commission_cents      Int       @default(0)               // total a pagar (MXN cents)
+  status                String    @default("pending")       // pending | paid | skipped
+  paid_at               DateTime? @db.Timestamptz
+  paid_via              String?                             // 'spei' | 'stripe' | 'other'
+  notes                 String?
+  breakdown             Json      @default("[]")            // [{referred_ws_id, rate, mrr_cents, commission_cents}]
+  created_at            DateTime  @default(now()) @db.Timestamptz
+  updated_at            DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  referrer Workspace @relation(fields: [referrer_workspace_id], references: [id], onDelete: Cascade)
+
+  @@unique([referrer_workspace_id, period])
+  @@index([status, period])
+  @@map("referral_payouts")
 }
 
 // Raw Stripe webhook events, kept for 90 days for debugging/replay. Every
@@ -647,6 +708,7 @@ model Appointment {
   notes                String?
   status               String   @default("scheduled")
   reminder_sent        Boolean  @default(false)
+  google_event_id      String?                                 // Fase 6.4 — id del evento en Google Calendar, si sincronizado
   created_by           String?  @db.Uuid
   created_at           DateTime @default(now()) @db.Timestamptz
 

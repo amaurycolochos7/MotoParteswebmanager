@@ -76,7 +76,7 @@ export const authService = {
         };
     },
 
-    async register({ email, password, fullName, workshopName, phone, businessType }) {
+    async register({ email, password, fullName, workshopName, phone, businessType, referralSlug }) {
         const result = await apiFetch('/auth/register', {
             method: 'POST',
             body: JSON.stringify({
@@ -86,6 +86,7 @@ export const authService = {
                 workshop_name: workshopName,
                 phone,
                 business_type: businessType || 'motorcycle',
+                referral_slug: referralSlug || null,
             })
         });
         // In Phase 3 the register endpoint auto-logs-in: it returns
@@ -1016,4 +1017,25 @@ export const taskService = {
     complete(id) { return apiFetch(`/tasks/${id}/complete`, { method: 'PUT', body: JSON.stringify({}) }); },
     reopen(id) { return apiFetch(`/tasks/${id}/reopen`, { method: 'PUT', body: JSON.stringify({}) }); },
     remove(id) { return apiFetch(`/tasks/${id}`, { method: 'DELETE' }); },
+};
+
+export const referralsService = {
+    getMine() { return apiFetch('/referrals/me'); },
+    regenerateSlug(slug) {
+        return apiFetch('/referrals/regenerate-slug', {
+            method: 'POST',
+            body: JSON.stringify({ slug }),
+        });
+    },
+};
+
+export const integrationsService = {
+    getStatus() { return apiFetch('/integrations/status'); },
+    googleAuthUrl() { return apiFetch('/integrations/google/auth-url'); },
+    googleDisconnect() {
+        return apiFetch('/integrations/google/disconnect', {
+            method: 'POST',
+            body: JSON.stringify({}),
+        });
+    },
 };

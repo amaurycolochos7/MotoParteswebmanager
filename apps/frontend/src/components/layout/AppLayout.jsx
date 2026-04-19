@@ -18,7 +18,16 @@ import {
     Menu,
     Bike,
     Crown,
-    Send
+    Send,
+    CreditCard,
+    Gift,
+    Zap,
+    FileText,
+    Activity,
+    CheckSquare,
+    Store,
+    QrCode,
+    Plug,
 } from 'lucide-react';
 import ConnectionStatus from '../ui/ConnectionStatus';
 
@@ -46,6 +55,17 @@ export default function AppLayout() {
 
         { section: 'Herramientas' },
         { to: '/admin/analytics', icon: BarChart3, label: 'Reportes' },
+        { to: '/admin/automations', icon: Zap, label: 'Automatizaciones' },
+        { to: '/admin/templates', icon: FileText, label: 'Plantillas' },
+        { to: '/admin/tasks', icon: CheckSquare, label: 'Tareas' },
+
+        { section: 'Cuenta' },
+        { to: '/admin/workspace', icon: Store, label: 'Mi taller' },
+        { to: '/admin/billing', icon: CreditCard, label: 'Suscripción' },
+        { to: '/admin/referrals', icon: Gift, label: 'Referidos' },
+        { to: '/admin/shop-qr', icon: QrCode, label: 'QR del taller' },
+        { to: '/admin/integrations', icon: Plug, label: 'Integraciones' },
+        { to: '/admin/bot-health', icon: Activity, label: 'Estado bot' },
     ];
 
     // Navegación para Mecánico - construida dinámicamente basada en permisos

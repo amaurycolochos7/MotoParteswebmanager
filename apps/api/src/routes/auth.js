@@ -123,7 +123,7 @@ export default async function authRoutes(fastify) {
     // multi-tenant isolation guarantees they can't see anyone else's data.
     fastify.post('/register', async (request, reply) => {
         try {
-            const { email, password, full_name, workshop_name, phone, business_type } = request.body || {};
+            const { email, password, full_name, workshop_name, phone, business_type, referral_slug } = request.body || {};
 
             if (!email || !password || !full_name || !workshop_name) {
                 return reply.status(400).send({ error: 'Correo, contraseña, nombre y nombre del taller son obligatorios.' });
@@ -148,6 +148,38 @@ export default async function authRoutes(fastify) {
             const password_hash = await bcrypt.hash(password, 10);
             const baseSlug = slugify(trimmedWorkshop);
             const slug = await pickUniqueSlug(baseSlug);
+
+            // Fase 6.2 — resolver referral_slug (prioridad) o legacy slug del workspace.
+            // Crea una fila Referral en la misma transacción si hay referente válido.
+            // Nunca bloqueamos el registro si el slug es inválido o inexistente.
+            let resolvedReferrer = null; // { id, is_partner, name }
+            let sanitizedReferralSlug = null;
+            if (referral_slug && typeof referral_slug === 'string') {
+                const normalized = referral_slug.trim().toLowerCase();
+                if (/^[a-z0-9][a-z0-9-]{1,39}$/.test(normalized)) {
+                    sanitizedReferralSlug = normalized;
+                    // Buscar por referral_slug primero; si no, por slug de workspace.
+                    resolvedReferrer = await unscoped(() =>
+                        prisma.workspace.findFirst({
+                            where: {
+                                OR: [
+                                    { referral_slug: normalized },
+                                    { slug: normalized },
+                                ],
+                            },
+                            select: { id: true, is_partner: true, name: true },
+                        })
+                    );
+                    if (resolvedReferrer) {
+                        console.log(`[REGISTER] Referral attribution: slug=${normalized} → workspace_id=${resolvedReferrer.id} partner=${resolvedReferrer.is_partner}`);
+                    } else {
+                        console.log(`[REGISTER] Referral slug "${normalized}" no existe — guardo solo el slug.`);
+                    }
+                }
+            }
+            const referralRate = resolvedReferrer?.is_partner ? 0.300 : 0.200;
+            const referralLifetime = !!resolvedReferrer?.is_partner;
+            const TWELVE_MONTHS_MS = 365 * 24 * 60 * 60 * 1000;
 
             // During the 7-day trial, the workspace runs on the Pro plan so
             // all Pro features (unlimited orders, 3 WA sessions, branding) are
@@ -198,9 +230,37 @@ export default async function authRoutes(fastify) {
                                 secondary_color: '#1e293b',
                                 tagline: '',
                             },
+                            settings: sanitizedReferralSlug
+                                ? {
+                                      referral_source: {
+                                          slug: sanitizedReferralSlug,
+                                          referrer_workspace_id: resolvedReferrer?.id || null,
+                                          captured_at: new Date().toISOString(),
+                                      },
+                                  }
+                                : {},
+                            // Cada nuevo workspace obtiene su propio referral_slug
+                            // = slug (para que pueda referir a otros desde el día 1).
+                            referral_slug: slug,
+                            referred_by_workspace_id: resolvedReferrer?.id || null,
                             created_by: newUser.id,
                         },
                     });
+
+                    // Si hay referente válido, crear la fila Referral.
+                    if (resolvedReferrer) {
+                        await tx.referral.create({
+                            data: {
+                                referrer_workspace_id: resolvedReferrer.id,
+                                referred_workspace_id: workspace.id,
+                                referral_slug: sanitizedReferralSlug,
+                                commission_rate: referralRate,
+                                is_lifetime: referralLifetime,
+                                ends_at: referralLifetime ? null : new Date(Date.now() + TWELVE_MONTHS_MS),
+                                status: 'active',
+                            },
+                        });
+                    }
 
                     await tx.membership.create({
                         data: {
@@ -239,7 +299,15 @@ export default async function authRoutes(fastify) {
                             workspace_id: workspace.id,
                             profile_id: newUser.id,
                             event: 'workspace.created',
-                            payload: { via: 'self-signup', slug, workshop_name: trimmedWorkshop },
+                            payload: {
+                                via: 'self-signup',
+                                slug,
+                                workshop_name: trimmedWorkshop,
+                                referral_slug: sanitizedReferralSlug,
+                                referrer_workspace_id: resolvedReferrer?.id || null,
+                                referral_rate: resolvedReferrer ? referralRate : null,
+                                referral_lifetime: resolvedReferrer ? referralLifetime : null,
+                            },
                         },
                     });
 

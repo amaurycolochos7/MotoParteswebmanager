@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, User, Phone, Wrench, UserPlus, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, Phone, Wrench, UserPlus, AlertCircle, Gift } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { captureReferralFromUrl, getStoredReferral, clearStoredReferral } from '../../lib/referral';
 
 export default function Signup() {
     const navigate = useNavigate();
@@ -20,6 +21,13 @@ export default function Signup() {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [refSlug, setRefSlug] = useState(null);
+
+    useEffect(() => {
+        // Si llegó con ?ref=... lo capturamos; si no, recuperamos el stored.
+        const fresh = captureReferralFromUrl();
+        setRefSlug(fresh || getStoredReferral());
+    }, []);
 
     const update = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
@@ -49,8 +57,12 @@ export default function Signup() {
                 workshopName: form.workshopName.trim(),
                 phone: form.phone.trim() || null,
                 businessType: 'motorcycle',
+                referralSlug: refSlug || null,
             });
             toast.success(res?.message || '¡Bienvenido a MotoPartes!');
+            // El referral ya fue atribuido en el backend (si era válido) —
+            // limpiamos el localStorage para que no se atribuya 2 veces.
+            clearStoredReferral();
             // Auto-login path: register returns { user, memberships, token }.
             // Go to onboarding wizard so the owner finishes setup.
             navigate('/onboarding', { replace: true });
@@ -81,6 +93,13 @@ export default function Signup() {
                         </h1>
                         <p className="signup-subtitle">Crea la cuenta de tu taller</p>
                     </div>
+
+                    {refSlug && (
+                        <div className="signup-ref-badge">
+                            <Gift size={18} />
+                            <span>Registro referido por <strong>{refSlug}</strong></span>
+                        </div>
+                    )}
 
                     <form onSubmit={handleSubmit} className="signup-form">
                         {error && (
@@ -274,5 +293,18 @@ const signupStyles = `
 .signup-links a { color: #ef4444; font-weight: 600; text-decoration: none; }
 .signup-links a:hover { text-decoration: underline; }
 .signup-footer { text-align: center; margin-top: 20px; color: #64748b; font-size: 0.8rem; }
+.signup-ref-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #78350f;
+    border: 1px solid #fcd34d;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    margin-bottom: 18px;
+}
+.signup-ref-badge strong { color: #92400e; }
 @media (max-width: 480px) { .signup-card { padding: 32px 22px; border-radius: 20px; } .signup-title { font-size: 1.5rem; } }
 `;

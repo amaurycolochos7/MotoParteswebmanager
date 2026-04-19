@@ -1,0 +1,59 @@
+{
+  "common": {
+    "login": "Entrar",
+    "signup": "Crear cuenta",
+    "signup_free": "Crear cuenta gratis",
+    "logout": "Cerrar sesión",
+    "contact": "Contacto",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "back": "Volver",
+    "loading": "Cargando…"
+  },
+  "landing": {
+    "nav": {
+      "features": "Características",
+      "pricing": "Precios",
+      "blog": "Blog",
+      "cases": "Casos"
+    },
+    "hero": {
+      "pill": "Hecho para talleres de motos",
+      "title_1": "Gestiona tu taller de motos",
+      "title_2": "desde WhatsApp.",
+      "sub": "Órdenes de servicio, clientes, refacciones, comisiones y cotizaciones enviadas en segundos al WhatsApp de tu cliente — sin libretas, sin Excel.",
+      "cta_pricing": "Ver precios",
+      "foot": "Sin tarjeta de crédito • Activación por correo • Hecho en México"
+    },
+    "features": {
+      "title": "Todo lo que tu taller necesita, en un solo lugar",
+      "sub": "MotoPartes centraliza la operación diaria de un taller mecánico de motos — desde que recibes la moto hasta que cobras y envías el PDF al cliente."
+    },
+    "pricing": {
+      "title": "Precios simples por taller",
+      "sub": "Empieza gratis. Sube de plan cuando tu taller crezca. Cancela cuando quieras.",
+      "note": "Todos los planes pagados incluyen 14 días de prueba gratuita con todas las características del plan Pro. Precios en pesos mexicanos (IVA no incluido)."
+    },
+    "origin": {
+      "pill": "Nacido en un taller real",
+      "title": "La plataforma que MotoPartes usa a diario — ahora disponible para tu taller.",
+      "sub": "MotoPartes no se diseñó en un cubículo. Nació en un taller que se cansó de llevar órdenes en libreta y construyó la solución que ahora puedes usar.",
+      "metric_orders": "órdenes al mes ya procesadas sin libreta",
+      "metric_lost": "motos perdidas desde que migraron",
+      "metric_tracked": "de cobros registrados en el sistema",
+      "shop_name": "Taller MotoPartes",
+      "shop_desc": "Reparaciones y modificaciones de motos",
+      "quote": "\"Si a nosotros nos funcionó para dejar la libreta, a tu taller también.\""
+    },
+    "cta_final": {
+      "title": "Lleva tu taller al siguiente nivel",
+      "sub": "Crea tu cuenta hoy — te avisamos por correo cuando tu taller quede activado."
+    },
+    "footer": {
+      "product": "Producto",
+      "resources": "Recursos",
+      "account": "Cuenta",
+      "copy": "© 2026 MotoPartes • Todos los derechos reservados"
+    }
+  }
+}
