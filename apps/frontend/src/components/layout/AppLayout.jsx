@@ -28,6 +28,8 @@ import {
     Store,
     QrCode,
     Plug,
+    LifeBuoy,
+    ShieldCheck,
 } from 'lucide-react';
 import ConnectionStatus from '../ui/ConnectionStatus';
 
@@ -65,8 +67,17 @@ export default function AppLayout() {
         { to: '/admin/referrals', icon: Gift, label: 'Referidos' },
         { to: '/admin/shop-qr', icon: QrCode, label: 'QR del taller' },
         { to: '/admin/integrations', icon: Plug, label: 'Integraciones' },
+        { to: '/admin/support', icon: LifeBuoy, label: 'Soporte' },
         { to: '/admin/bot-health', icon: Activity, label: 'Estado bot' },
     ];
+
+    // Si el usuario es super-admin, agregar enlace al panel super.
+    if (user?.is_super_admin) {
+        adminNavItems.push(
+            { section: 'Super' },
+            { to: '/super', icon: ShieldCheck, label: 'Panel Super' },
+        );
+    }
 
     // Navegación para Mecánico - construida dinámicamente basada en permisos
     const baseMechanicNavItems = [

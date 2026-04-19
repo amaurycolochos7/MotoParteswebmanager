@@ -16,6 +16,8 @@ import {
     UserPlus,
     Bike,
     Wrench,
+    Menu,
+    X,
 } from 'lucide-react';
 import { PUBLIC_PLANS, FEATURE_BLOCKS } from '../../lib/plans';
 import { captureReferralFromUrl, getStoredReferral } from '../../lib/referral';
@@ -62,12 +64,15 @@ function money(n) {
 export default function Landing() {
     const { t, i18n } = useTranslation();
     const [refSlug, setRefSlug] = useState(null);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     useEffect(() => {
-        // Captura ?ref=<slug> (prioridad) o recupera uno ya guardado.
         const fresh = captureReferralFromUrl();
         setRefSlug(fresh || getStoredReferral());
     }, []);
+
+    // Cerrar menú al navegar o tocar un link interno.
+    const closeMobileMenu = () => setMobileMenuOpen(false);
 
     const switchLang = () => {
         const next = i18n.language?.startsWith('en') ? 'es' : 'en';
@@ -86,7 +91,7 @@ export default function Landing() {
 
             <header className="lnav">
                 <div className="lnav-inner">
-                    <Link to="/" className="lnav-brand">
+                    <Link to="/" className="lnav-brand" onClick={closeMobileMenu}>
                         <img src="/logo.png" alt="MotoPartes" />
                         <span className="brand-word">
                             <span className="brand-moto">MOTO</span>
@@ -112,7 +117,39 @@ export default function Landing() {
                             <UserPlus size={16} /> {t('common.signup')}
                         </Link>
                     </div>
+
+                    {/* Hamburger button (solo visible en móvil) */}
+                    <button
+                        className="lnav-hamburger"
+                        aria-label="Abrir menú"
+                        onClick={() => setMobileMenuOpen((v) => !v)}
+                    >
+                        {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                    </button>
                 </div>
+
+                {/* Drawer móvil */}
+                {mobileMenuOpen && (
+                    <>
+                        <div className="lnav-overlay" onClick={closeMobileMenu} />
+                        <div className="lnav-drawer">
+                            <a href="#features" onClick={closeMobileMenu}>{t('landing.nav.features')}</a>
+                            <a href="#pricing" onClick={closeMobileMenu}>{t('landing.nav.pricing')}</a>
+                            <Link to="/blog" onClick={closeMobileMenu}>{t('landing.nav.blog')}</Link>
+                            <Link to="/casos" onClick={closeMobileMenu}>{t('landing.nav.cases')}</Link>
+                            <div className="lnav-drawer-sep" />
+                            <Link to="/login" onClick={closeMobileMenu} className="lnav-drawer-ghost">
+                                <LogIn size={18} /> {t('common.login')}
+                            </Link>
+                            <Link to="/signup" onClick={closeMobileMenu} className="lnav-drawer-primary">
+                                <UserPlus size={18} /> {t('common.signup')}
+                            </Link>
+                            <button onClick={switchLang} className="lnav-drawer-lang">
+                                {i18n.language?.startsWith('en') ? '🇲🇽 Español' : '🇺🇸 English'}
+                            </button>
+                        </div>
+                    </>
+                )}
             </header>
 
             {/* Hero */}
@@ -451,7 +488,7 @@ const landingStyles = `
 /* Nav */
 .lnav { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid #e2e8f0; }
 .lnav-inner { max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-.lnav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.lnav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
 .lnav-brand img { width: 40px; height: 40px; object-fit: contain; }
 .brand-word { font-weight: 800; font-size: 1.1rem; letter-spacing: -0.3px; display: flex; gap: 2px; }
 .brand-moto { color: #1e293b; }
@@ -462,8 +499,27 @@ const landingStyles = `
 .lnav-ctas { display: flex; gap: 10px; align-items: center; }
 .lnav-lang { background: #f1f5f9; color: #475569; border: none; padding: 6px 10px; border-radius: 8px; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s ease; }
 .lnav-lang:hover { background: #e2e8f0; color: #0f172a; }
-@media (max-width: 780px) { .lnav-links { display: none; } }
-@media (max-width: 540px) { .lnav-ctas .btn-ghost { display: none; } }
+.lnav-hamburger { display: none; background: #f1f5f9; border: none; color: #0f172a; padding: 8px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+.lnav-hamburger:hover { background: #e2e8f0; }
+.lnav-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 49; animation: fadeIn 0.2s ease; }
+.lnav-drawer { position: fixed; top: 70px; right: 12px; left: 12px; background: white; border-radius: 16px; padding: 18px; box-shadow: 0 20px 40px rgba(15,23,42,0.2); z-index: 50; display: flex; flex-direction: column; gap: 6px; animation: slideDown 0.22s ease; }
+.lnav-drawer a, .lnav-drawer-primary, .lnav-drawer-ghost, .lnav-drawer-lang { display: flex; align-items: center; gap: 10px; padding: 12px 14px; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 0.95rem; transition: background 0.15s; }
+.lnav-drawer a { color: #334155; }
+.lnav-drawer a:hover { background: #f8fafc; color: #ef4444; }
+.lnav-drawer-sep { height: 1px; background: #e2e8f0; margin: 6px 0; }
+.lnav-drawer-ghost { color: #0f172a; border: 1.5px solid #cbd5e1; justify-content: center; }
+.lnav-drawer-ghost:hover { background: #f8fafc; }
+.lnav-drawer-primary { background: linear-gradient(135deg,#ef4444,#dc2626); color: white; justify-content: center; box-shadow: 0 4px 10px rgba(239,68,68,0.25); }
+.lnav-drawer-primary:hover { color: white; transform: translateY(-1px); }
+.lnav-drawer-lang { background: #f1f5f9; color: #475569; border: none; cursor: pointer; justify-content: center; font-weight: 600; font-size: 0.9rem; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 860px) {
+    .lnav-links { display: none; }
+    .lnav-ctas { display: none; }
+    .lnav-hamburger { display: inline-flex; }
+    .lnav-inner { padding: 12px 16px; }
+}
 
 /* Buttons */
 .btn-primary, .btn-ghost, .btn-outline {
@@ -482,6 +538,16 @@ const landingStyles = `
 
 /* Hero */
 .hero { position: relative; overflow: hidden; padding: 90px 24px 110px; }
+@media (max-width: 640px) {
+    .hero { padding: 50px 20px 70px; }
+    .hero-pill { font-size: 0.75rem; margin-bottom: 14px; }
+    .hero-sub { font-size: 1rem; margin-bottom: 24px; }
+    .hero-cta { flex-direction: column; align-items: stretch; width: 100%; max-width: 320px; margin: 0 auto 14px; }
+    .hero-cta .btn-lg { width: 100%; justify-content: center; }
+    .bg-circle-1 { width: 360px; height: 360px; top: -120px; right: -120px; }
+    .bg-circle-2 { width: 260px; height: 260px; bottom: -60px; left: -60px; }
+    .bg-circle-3 { display: none; }
+}
 .hero-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .bg-circle { position: absolute; border-radius: 50%; opacity: 0.1; }
 .bg-circle-1 { width: 600px; height: 600px; background: linear-gradient(135deg, #ef4444, #dc2626); top: -200px; right: -200px; animation: float 20s ease-in-out infinite; }
@@ -499,6 +565,18 @@ const landingStyles = `
 
 /* Sections */
 .section { padding: 80px 24px; }
+@media (max-width: 640px) {
+    .section { padding: 50px 20px; }
+    .section-sub { margin-bottom: 30px; font-size: 0.95rem; }
+    .feature-card { padding: 22px 18px; }
+    .pricing-card { padding: 24px 20px; }
+    .pricing-amount { font-size: 2rem; }
+    .testimonial-card { padding: 30px 22px; border-radius: 18px; }
+    .testimonial-card blockquote { font-size: 1rem; }
+    .origin-title { font-size: 1.6rem !important; }
+    .origin-sub { font-size: 0.95rem; }
+    .cta-section { padding: 50px 20px; }
+}
 .section-alt { background: #f8fafc; }
 .section-inner { max-width: 1100px; margin: 0 auto; }
 .section-title { font-size: clamp(1.6rem, 3.2vw, 2.4rem); font-weight: 800; letter-spacing: -0.5px; color: #0f172a; text-align: center; margin: 0 0 14px; }

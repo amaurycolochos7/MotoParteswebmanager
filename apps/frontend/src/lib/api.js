@@ -1039,3 +1039,120 @@ export const integrationsService = {
         });
     },
 };
+
+// ───────────────────────────────────────────────
+// TICKETS (cliente de un workspace)
+// ───────────────────────────────────────────────
+export const ticketsService = {
+    list() { return apiFetch('/tickets'); },
+    get(id) { return apiFetch(`/tickets/${id}`); },
+    create(data) {
+        return apiFetch('/tickets', { method: 'POST', body: JSON.stringify(data) });
+    },
+    reply(id, body_md) {
+        return apiFetch(`/tickets/${id}/reply`, {
+            method: 'POST',
+            body: JSON.stringify({ body_md }),
+        });
+    },
+    markResolved(id) {
+        return apiFetch(`/tickets/${id}/mark-resolved`, {
+            method: 'POST',
+            body: JSON.stringify({}),
+        });
+    },
+};
+
+// ───────────────────────────────────────────────
+// SUPER-ADMIN (panel /super)
+// ───────────────────────────────────────────────
+export const superService = {
+    // Métricas
+    metrics() { return apiFetch('/super/metrics'); },
+
+    // Workspaces
+    listWorkspaces(params = {}) {
+        const qs = new URLSearchParams(params).toString();
+        return apiFetch(`/super/workspaces${qs ? '?' + qs : ''}`);
+    },
+    getWorkspace(id) { return apiFetch(`/super/workspaces/${id}`); },
+    assignPlan(id, data) {
+        return apiFetch(`/super/workspaces/${id}/plan`, { method: 'POST', body: JSON.stringify(data) });
+    },
+    extendTrial(id, data) {
+        return apiFetch(`/super/workspaces/${id}/extend-trial`, { method: 'POST', body: JSON.stringify(data) });
+    },
+    suspend(id, reason) {
+        return apiFetch(`/super/workspaces/${id}/suspend`, { method: 'POST', body: JSON.stringify({ reason }) });
+    },
+    unsuspend(id) {
+        return apiFetch(`/super/workspaces/${id}/unsuspend`, { method: 'POST', body: JSON.stringify({}) });
+    },
+    togglePartner(id) {
+        return apiFetch(`/super/workspaces/${id}/partner-toggle`, { method: 'POST', body: JSON.stringify({}) });
+    },
+    impersonate(id, reason) {
+        return apiFetch(`/super/workspaces/${id}/impersonate`, { method: 'POST', body: JSON.stringify({ reason }) });
+    },
+    endImpersonate(session_id) {
+        return apiFetch('/super/impersonate/end', { method: 'POST', body: JSON.stringify({ session_id }) });
+    },
+
+    // Usuarios
+    listUsers(params = {}) {
+        const qs = new URLSearchParams(params).toString();
+        return apiFetch(`/super/users${qs ? '?' + qs : ''}`);
+    },
+    deactivateUser(id) {
+        return apiFetch(`/super/users/${id}/deactivate`, { method: 'POST', body: JSON.stringify({}) });
+    },
+    reactivateUser(id) {
+        return apiFetch(`/super/users/${id}/reactivate`, { method: 'POST', body: JSON.stringify({}) });
+    },
+
+    // Audit
+    audit(params = {}) {
+        const qs = new URLSearchParams(params).toString();
+        return apiFetch(`/super/audit${qs ? '?' + qs : ''}`);
+    },
+
+    // Billing / Payouts
+    listSubscriptions(params = {}) {
+        const qs = new URLSearchParams(params).toString();
+        return apiFetch(`/super/subscriptions${qs ? '?' + qs : ''}`);
+    },
+    listPayouts(params = {}) {
+        const qs = new URLSearchParams(params).toString();
+        return apiFetch(`/super/payouts${qs ? '?' + qs : ''}`);
+    },
+    payPayout(id, data) {
+        return apiFetch(`/super/payouts/${id}/pay`, { method: 'POST', body: JSON.stringify(data) });
+    },
+    skipPayout(id, reason) {
+        return apiFetch(`/super/payouts/${id}/skip`, { method: 'POST', body: JSON.stringify({ reason }) });
+    },
+
+    // Tickets
+    listTickets(params = {}) {
+        const qs = new URLSearchParams(params).toString();
+        return apiFetch(`/super/tickets${qs ? '?' + qs : ''}`);
+    },
+    getTicket(id) { return apiFetch(`/super/tickets/${id}`); },
+    replyTicket(id, data) {
+        return apiFetch(`/super/tickets/${id}/reply`, { method: 'POST', body: JSON.stringify(data) });
+    },
+    patchTicket(id, data) {
+        return apiFetch(`/super/tickets/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+    },
+
+    // Canned
+    listCanned() { return apiFetch('/super/canned'); },
+    createCanned(data) { return apiFetch('/super/canned', { method: 'POST', body: JSON.stringify(data) }); },
+    updateCanned(id, data) { return apiFetch(`/super/canned/${id}`, { method: 'PUT', body: JSON.stringify(data) }); },
+    deleteCanned(id) { return apiFetch(`/super/canned/${id}`, { method: 'DELETE' }); },
+
+    // Maintenance
+    runPayoutSweep() {
+        return apiFetch('/super/maintenance/run-payout-sweep', { method: 'POST', body: JSON.stringify({}) });
+    },
+};

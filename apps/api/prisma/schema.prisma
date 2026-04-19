@@ -53,6 +53,10 @@ model Workspace {
   referred_by_workspace_id String? @db.Uuid
   // Fase 6.4 — Google Calendar (one-way sync)
   google_calendar_tokens Json?                             // { access_token, refresh_token, expiry_date, calendar_id }
+  // Fase 7 — Suspensión desde super panel
+  suspended_at       DateTime? @db.Timestamptz
+  suspended_reason   String?
+  suspended_by       String?   @db.Uuid
   created_by         String?   @db.Uuid
   created_at         DateTime  @default(now()) @db.Timestamptz
   updated_at         DateTime  @default(now()) @updatedAt @db.Timestamptz
@@ -69,6 +73,9 @@ model Workspace {
   referrals_given    Referral[] @relation("ReferrerWorkspace")
   referral_received  Referral?  @relation("ReferredWorkspace")
   referral_payouts   ReferralPayout[]
+
+  // Fase 7 — Tickets
+  support_tickets    SupportTicket[]
 
   // Every data table has a back-reference so cascade-deletes work if a
   // workspace is nuked. ON DELETE behavior is set at the table end.
@@ -139,6 +146,11 @@ model Subscription {
   current_period_end     DateTime? @db.Timestamptz
   cancel_at              DateTime? @db.Timestamptz
   canceled_at            DateTime? @db.Timestamptz
+  // Fase 7 — plan manual (cortesía, flagship, partner)
+  source                 String    @default("stripe")   // 'stripe' | 'manual' | 'grandfathered'
+  manual_assigned_by     String?   @db.Uuid             // super-admin que asignó
+  manual_expires_at      DateTime? @db.Timestamptz      // null = sin caducidad
+  manual_note            String?                        // razón humana
   created_at             DateTime  @default(now()) @db.Timestamptz
   updated_at             DateTime  @default(now()) @updatedAt @db.Timestamptz
 
@@ -416,6 +428,12 @@ model Profile {
   workshop_name         String?
   business_type         String?  @default("motorcycle")
   signup_source         String?
+  // Fase 7 — Super admin
+  is_super_admin        Boolean   @default(false)
+  super_admin_added_at  DateTime? @db.Timestamptz
+  super_admin_added_by  String?   @db.Uuid
+  super_2fa_secret      String?                       // TOTP secret cifrado
+  super_2fa_enabled     Boolean   @default(false)
   created_at            DateTime @default(now()) @db.Timestamptz
   updated_at            DateTime @default(now()) @updatedAt @db.Timestamptz
 
@@ -439,6 +457,12 @@ model Profile {
   // Payment Requests
   payments_sent         PaymentRequest[]  @relation("PaymentSender")
   payments_received     PaymentRequest[]  @relation("PaymentReceiver")
+
+  // Fase 7 — Tickets & acciones super
+  tickets_created       SupportTicket[]      @relation("TicketCreator")
+  tickets_assigned      SupportTicket[]      @relation("TicketAssignee")
+  ticket_messages       TicketMessage[]
+  super_actions         SuperAdminAction[]
 
   @@map("profiles")
 }
@@ -815,4 +839,127 @@ model PaymentRequest {
 
   @@index([workspace_id])
   @@map("payment_requests")
+}
+
+// =============================================
+// FASE 7 — SUPER-ADMIN + TICKETS
+// =============================================
+
+model SupportTicket {
+  id                 String    @id @default(uuid()) @db.Uuid
+  ticket_number      Int       @default(autoincrement())
+  workspace_id       String?   @db.Uuid
+  created_by         String?   @db.Uuid
+  subject            String
+  category           String                                   // billing | technical | feature_request | account | whatsapp | onboarding | other
+  priority           String    @default("normal")             // low | normal | high | urgent
+  status             String    @default("open")               // open | waiting_customer | waiting_admin | resolved | closed | spam
+  assigned_to        String?   @db.Uuid
+  first_response_at  DateTime? @db.Timestamptz
+  resolved_at        DateTime? @db.Timestamptz
+  last_message_at    DateTime  @default(now()) @db.Timestamptz
+  last_message_from  String?                                  // 'customer' | 'admin'
+  customer_unread    Int       @default(0)
+  admin_unread       Int       @default(0)
+  tags               String[]  @default([])
+  metadata           Json      @default("{}")
+  created_at         DateTime  @default(now()) @db.Timestamptz
+  updated_at         DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  workspace   Workspace?         @relation(fields: [workspace_id], references: [id], onDelete: SetNull)
+  creator     Profile?           @relation("TicketCreator",  fields: [created_by],  references: [id], onDelete: SetNull)
+  assignee    Profile?           @relation("TicketAssignee", fields: [assigned_to], references: [id], onDelete: SetNull)
+  messages    TicketMessage[]
+  attachments TicketAttachment[]
+
+  @@unique([ticket_number])
+  @@index([workspace_id, status])
+  @@index([status, priority, last_message_at])
+  @@index([assigned_to, status])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id           String   @id @default(uuid()) @db.Uuid
+  ticket_id    String   @db.Uuid
+  author_id    String?  @db.Uuid
+  author_type  String                                          // 'customer' | 'admin' | 'system'
+  body_md      String   @db.Text
+  is_internal  Boolean  @default(false)
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  ticket      SupportTicket      @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+  author      Profile?           @relation(fields: [author_id], references: [id], onDelete: SetNull)
+  attachments TicketAttachment[]
+
+  @@index([ticket_id, created_at])
+  @@map("ticket_messages")
+}
+
+model TicketAttachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  ticket_id    String   @db.Uuid
+  message_id   String?  @db.Uuid
+  filename     String
+  mime_type    String
+  size_bytes   Int
+  url          String
+  uploaded_by  String?  @db.Uuid
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  ticket  SupportTicket  @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+  message TicketMessage? @relation(fields: [message_id], references: [id], onDelete: SetNull)
+
+  @@map("ticket_attachments")
+}
+
+model CannedResponse {
+  id         String   @id @default(uuid()) @db.Uuid
+  shortcut   String   @unique
+  title      String
+  body_md    String   @db.Text
+  category   String?
+  created_by String   @db.Uuid
+  use_count  Int      @default(0)
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  @@map("canned_responses")
+}
+
+model SuperAdminAction {
+  id             String   @id @default(uuid()) @db.Uuid
+  super_admin_id String   @db.Uuid
+  action         String
+  target_type    String
+  target_id      String?  @db.Uuid
+  payload_before Json?
+  payload_after  Json?
+  reason         String?
+  ip_address     String?
+  user_agent     String?
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  super_admin Profile @relation(fields: [super_admin_id], references: [id])
+
+  @@index([super_admin_id, created_at])
+  @@index([target_type, target_id, created_at])
+  @@index([action, created_at])
+  @@map("super_admin_actions")
+}
+
+model ImpersonationSession {
+  id             String    @id @default(uuid()) @db.Uuid
+  super_admin_id String    @db.Uuid
+  workspace_id   String    @db.Uuid
+  profile_imp_id String    @db.Uuid
+  reason         String
+  started_at     DateTime  @default(now()) @db.Timestamptz
+  ended_at       DateTime? @db.Timestamptz
+  expires_at     DateTime  @db.Timestamptz
+  actions_taken  Int       @default(0)
+  ip_address     String?
+
+  @@index([super_admin_id, started_at])
+  @@index([workspace_id, started_at])
+  @@map("impersonation_sessions")
 }

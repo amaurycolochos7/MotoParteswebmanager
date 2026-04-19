@@ -21,6 +21,23 @@ import AdminBotHealth from './pages/admin/AdminBotHealth';
 import AdminReferrals from './pages/admin/AdminReferrals';
 import AdminShopQR from './pages/admin/AdminShopQR';
 import AdminIntegrations from './pages/admin/AdminIntegrations';
+import AdminSupport from './pages/admin/AdminSupport';
+import AdminSupportNew from './pages/admin/AdminSupportNew';
+import AdminSupportDetail from './pages/admin/AdminSupportDetail';
+
+// Super Admin Pages
+import SuperLayout from './pages/super/SuperLayout';
+import SuperLogin from './pages/super/SuperLogin';
+import SuperDashboard from './pages/super/SuperDashboard';
+import SuperWorkspaces from './pages/super/SuperWorkspaces';
+import SuperWorkspaceDetail from './pages/super/SuperWorkspaceDetail';
+import SuperTickets from './pages/super/SuperTickets';
+import SuperTicketDetail from './pages/super/SuperTicketDetail';
+import SuperUsers from './pages/super/SuperUsers';
+import SuperAudit from './pages/super/SuperAudit';
+import SuperPayouts from './pages/super/SuperPayouts';
+import SuperCanned from './pages/super/SuperCanned';
+import SuperBilling from './pages/super/SuperBilling';
 
 // Admin Pages
 import {
@@ -176,6 +193,9 @@ function AppRoutes() {
         <Route path="referrals" element={<AdminReferrals />} />
         <Route path="shop-qr" element={<AdminShopQR />} />
         <Route path="integrations" element={<AdminIntegrations />} />
+        <Route path="support" element={<AdminSupport />} />
+        <Route path="support/new" element={<AdminSupportNew />} />
+        <Route path="support/:id" element={<AdminSupportDetail />} />
       </Route>
 
       {/* Rutas de Mecánico */}
@@ -212,6 +232,21 @@ function AppRoutes() {
       <Route path="/blog/:slug" element={<BlogPost />} />
       <Route path="/casos" element={<Cases />} />
       <Route path="/casos/:slug" element={<CaseStudy />} />
+
+      {/* Super Admin — panel paralelo al admin del workspace */}
+      <Route path="/super/login" element={<SuperLogin />} />
+      <Route path="/super" element={<SuperLayout />}>
+        <Route index element={<SuperDashboard />} />
+        <Route path="workspaces" element={<SuperWorkspaces />} />
+        <Route path="workspaces/:id" element={<SuperWorkspaceDetail />} />
+        <Route path="tickets" element={<SuperTickets />} />
+        <Route path="tickets/:id" element={<SuperTicketDetail />} />
+        <Route path="users" element={<SuperUsers />} />
+        <Route path="audit" element={<SuperAudit />} />
+        <Route path="payouts" element={<SuperPayouts />} />
+        <Route path="canned" element={<SuperCanned />} />
+        <Route path="billing" element={<SuperBilling />} />
+      </Route>
 
       {/* Home: si ya está logueado va al dashboard; si no, muestra la landing pública */}
       <Route

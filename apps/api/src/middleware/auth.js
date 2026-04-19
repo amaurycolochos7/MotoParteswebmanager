@@ -15,7 +15,7 @@ if (JWT_SECRET === JWT_FALLBACK) {
 // payload is intentionally small — Fastify logs the decoded JWT at trace
 // level, and workspace permissions are looked up fresh on each request by
 // resolveWorkspace.
-export function generateToken(user) {
+export function generateToken(user, options = {}) {
     const payload = {
         id: user.id,
         email: user.email,
@@ -23,7 +23,12 @@ export function generateToken(user) {
     };
     if (Array.isArray(user.memberships)) payload.memberships = user.memberships;
     if (user.workspace_id) payload.workspace_id = user.workspace_id;
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+    // Fase 7 — impersonation & super claims
+    if (user.impersonation_session_id) payload.impersonation_session_id = user.impersonation_session_id;
+    if (user.impersonating_super_id)   payload.impersonating_super_id   = user.impersonating_super_id;
+    if (user.is_super_admin)           payload.is_super_admin           = true;
+    if (user.super_2fa_verified)       payload.super_2fa_verified       = true;
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: options.expiresIn || '7d' });
 }
 
 export function verifyToken(token) {

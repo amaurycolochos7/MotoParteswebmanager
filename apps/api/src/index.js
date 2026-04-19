@@ -28,6 +28,8 @@ import templatesRoutes from './routes/templates.js';
 import tasksRoutes from './routes/tasks.js';
 import referralsRoutes from './routes/referrals.js';
 import integrationsRoutes from './routes/integrations.js';
+import superRoutes from './routes/super.js';
+import ticketsRoutes from './routes/tickets.js';
 import { installWorkspaceStore } from './middleware/workspace.js';
 
 const fastify = Fastify({ logger: true });
@@ -102,6 +104,8 @@ await fastify.register(templatesRoutes, { prefix: '/api/templates' });
 await fastify.register(tasksRoutes, { prefix: '/api/tasks' });
 await fastify.register(referralsRoutes, { prefix: '/api/referrals' });
 await fastify.register(integrationsRoutes, { prefix: '/api/integrations' });
+await fastify.register(superRoutes, { prefix: '/api/super' });
+await fastify.register(ticketsRoutes, { prefix: '/api/tickets' });
 
 // Periodic billing sweep — every hour on the hour, plus once at startup.
 import { runBillingSweep } from './lib/billing-sweep.js';
