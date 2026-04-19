@@ -72,8 +72,15 @@ process.on('unhandledRejection', (reason, p) => {
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: '10mb' }));
 
-// API Key middleware
-const API_KEY = process.env.API_KEY || 'motopartes-whatsapp-key';
+// API Key middleware.
+// Accept either API_KEY (historical, still set in Dokploy) or WHATSAPP_API_KEY
+// (same name as the API uses). Fallback logs a warning — rotate by setting
+// WHATSAPP_API_KEY in Dokploy.
+const API_KEY_FALLBACK = 'motopartes-whatsapp-key';
+const API_KEY = process.env.WHATSAPP_API_KEY || process.env.API_KEY || API_KEY_FALLBACK;
+if (API_KEY === API_KEY_FALLBACK) {
+    console.warn('[BOT] ⚠️ No WHATSAPP_API_KEY or API_KEY env var — using the legacy default.');
+}
 app.use((req, res, next) => {
     // Skip auth for health check and debug
     if (req.path === '/health' || req.path === '/debug') return next();

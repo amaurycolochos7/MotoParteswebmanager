@@ -69,4 +69,10 @@ RUN mkdir -p /app/data/wwebjs_auth
 
 EXPOSE 3002
 
-CMD ["node", "src/index.js"]
+# Defensive: sweep stale Chromium singleton locks before launching Node.
+# SingletonLock is a symlink to "hostname-pid"; when a previous container
+# crashed it remains as a broken link that prevents the next Chrome launch
+# with "The profile appears to be in use by another Chromium process".
+# The in-code cleanup also handles this, but running it here guarantees a
+# clean slate even if WhatsAppSession.js is bypassed.
+CMD ["sh", "-c", "find /app/data/wwebjs_auth -maxdepth 4 -name 'SingletonLock' -delete 2>/dev/null; find /app/data/wwebjs_auth -maxdepth 4 -name 'SingletonSocket' -delete 2>/dev/null; find /app/data/wwebjs_auth -maxdepth 4 -name 'SingletonCookie' -delete 2>/dev/null; exec node src/index.js"]

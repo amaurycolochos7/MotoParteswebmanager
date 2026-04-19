@@ -100,14 +100,19 @@ class WhatsAppSession extends EventEmitter {
             console.log(`📂 Found existing session data at: ${sessionDir} — reusing for persistence`);
             // Clean up stale Chromium lock files from previous container runs.
             // These prevent Puppeteer from launching after container restarts.
+            // NOTE: SingletonLock is a symlink whose target is "hostname-pid"; when the
+            // previous container dies the target becomes unreachable and fs.existsSync()
+            // returns false for the broken symlink. We use fs.lstatSync (which does NOT
+            // follow symlinks) + unconditional unlink to cover both cases.
             const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
             for (const lockFile of lockFiles) {
                 const lockPath = path.join(sessionDir, lockFile);
-                if (fs.existsSync(lockPath)) {
-                    try {
-                        fs.unlinkSync(lockPath);
-                        console.log(`🔓 Removed stale Chrome lock: ${lockFile}`);
-                    } catch (e) {
+                try {
+                    fs.lstatSync(lockPath); // throws if file/symlink is absent
+                    fs.unlinkSync(lockPath);
+                    console.log(`🔓 Removed stale Chrome lock: ${lockFile}`);
+                } catch (e) {
+                    if (e.code !== 'ENOENT') {
                         console.warn(`⚠️ Could not remove lock file ${lockFile}: ${e.message}`);
                     }
                 }
@@ -135,7 +140,7 @@ class WhatsAppSession extends EventEmitter {
 
                 // Give WhatsApp Web more time to load in Docker (default 30s is too short)
                 authTimeoutMs: 120000,
-                qrMaxRetries: 0, // 0 = unlimited retries, keep generating QR until scanned
+                qrMaxRetries: 10, // Cap regenerations to prevent runaway loops (see 'qr' handler below)
                 // Bypass CSP to allow script injection
                 bypassCSP: true,
                 // CRITICAL: Override the outdated Chrome/101 default user agent.
@@ -165,7 +170,7 @@ class WhatsAppSession extends EventEmitter {
                 throw new Error('Client instance is broken (missing .on)');
             }
 
-            // QR Event - track regeneration count
+            // QR Event - track regeneration count, bail out after N unscanned QRs.
             this.client.on('qr', (qr) => {
                 this._qrCount++;
                 console.log(`📱 QR generated for mechanic ${this.mechanicId} (attempt ${this._qrCount})`);
@@ -173,10 +178,13 @@ class WhatsAppSession extends EventEmitter {
                 this.isConnected = false;
                 this.emit('qr', qr);
 
-                // If too many QR regenerations, something is wrong
                 if (this._qrCount >= 10) {
-                    console.error(`❌ Too many QR regenerations (${this._qrCount}) for ${this.mechanicId} - possible version mismatch`);
-                    this.lastError = 'Demasiados intentos de QR. El código QR se está regenerando muy rápido. Intenta cerrar sesión y volver a conectar.';
+                    console.error(`❌ Too many QR regenerations (${this._qrCount}) for ${this.mechanicId} — stopping to prevent runaway loop`);
+                    this.lastError = 'El código QR no fue escaneado a tiempo. Cierra esta sesión y vuelve a iniciarla cuando tengas el teléfono listo.';
+                    // Stop the client so it does not keep generating QRs forever.
+                    // The UI will surface lastError and the user can re-trigger start.
+                    this.client.destroy().catch(() => { /* ignore */ });
+                    this.emit('disconnected', 'qr_exhausted');
                 }
             });
 

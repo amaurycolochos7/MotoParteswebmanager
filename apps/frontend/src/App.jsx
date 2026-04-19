@@ -8,6 +8,7 @@ import AppLayout from './components/layout/AppLayout';
 
 // Auth Pages
 import Login from './pages/auth/Login';
+import Signup from './pages/auth/Signup';
 
 // Admin Pages
 import {
@@ -42,6 +43,7 @@ import {
 
 // Public Pages
 import ClientPortal from './pages/public/ClientPortal';
+import Landing from './pages/public/Landing';
 
 import './index.css';
 
@@ -89,9 +91,9 @@ function AppRoutes() {
     );
   }
 
-  // Determinar ruta por defecto según rol
+  // Ruta por defecto para usuarios AUTENTICADOS (dashboard según rol).
+  // Usuarios no autenticados aterrizan en la Landing pública.
   const getDefaultRoute = () => {
-    if (!isAuthenticated) return '/login';
     if (user?.role === 'admin') return '/admin';
     return '/mechanic';
   };
@@ -106,6 +108,18 @@ function AppRoutes() {
             <Navigate to={getDefaultRoute()} replace />
           ) : (
             <Login />
+          )
+        }
+      />
+
+      {/* Ruta pública - Registro de taller */}
+      <Route
+        path="/signup"
+        element={
+          isAuthenticated ? (
+            <Navigate to={getDefaultRoute()} replace />
+          ) : (
+            <Signup />
           )
         }
       />
@@ -160,9 +174,29 @@ function AppRoutes() {
       {/* Portal público para clientes (sin auth) */}
       <Route path="/orden/:token" element={<ClientPortal />} />
 
-      {/* Redirecciones por defecto */}
-      <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
-      <Route path="*" element={<Navigate to={getDefaultRoute()} replace />} />
+      {/* Home: si ya está logueado va al dashboard; si no, muestra la landing pública */}
+      <Route
+        path="/"
+        element={
+          isAuthenticated ? (
+            <Navigate to={getDefaultRoute()} replace />
+          ) : (
+            <Landing />
+          )
+        }
+      />
+
+      {/* 404 → dashboard si autenticado, landing si no */}
+      <Route
+        path="*"
+        element={
+          isAuthenticated ? (
+            <Navigate to={getDefaultRoute()} replace />
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
+      />
     </Routes>
   );
 }

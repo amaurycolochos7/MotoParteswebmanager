@@ -3,7 +3,14 @@ import { authenticate } from '../middleware/auth.js';
 import PDFDocument from 'pdfkit';
 
 const BOT_URL = process.env.WHATSAPP_BOT_INTERNAL_URL || 'http://whatsapp-bot:3002';
-const BOT_KEY = process.env.WHATSAPP_API_KEY || 'motopartes-whatsapp-key';
+// WHATSAPP_API_KEY must match the bot's API_KEY / WHATSAPP_API_KEY env.
+// Fallback exists to avoid tumbling the API when env is unset; set it in Dokploy
+// to rotate the shared secret.
+const BOT_KEY_FALLBACK = 'motopartes-whatsapp-key';
+const BOT_KEY = process.env.WHATSAPP_API_KEY || BOT_KEY_FALLBACK;
+if (BOT_KEY === BOT_KEY_FALLBACK) {
+    console.warn('[PDF-SEND] ⚠️ WHATSAPP_API_KEY env var is not set — using the legacy default. Set it in Dokploy to rotate.');
+}
 
 /**
  * Generates a professional PDF Buffer for an order using PDFKit
@@ -245,11 +252,14 @@ export default async function orderPdfRoutes(fastify) {
 
             const mechanicId = order.approved_by || order.mechanic_id;
 
-            // Send via WhatsApp bot
+            // Send via WhatsApp bot.
+            // The bot mounts messagesRouter at "/" (see apps/whatsapp-bot/src/index.js),
+            // so the endpoint is /send-document — NOT /api/send-document. Previously
+            // the /api/ prefix caused every PDF send to fail with a 404 from Express.
             let botResult;
-            fastify.log.info(`[PDF-SEND] Sending to bot at ${BOT_URL}/api/send-document for mechanicId=${mechanicId}, phone=${client.phone}`);
+            fastify.log.info(`[PDF-SEND] Sending to bot at ${BOT_URL}/send-document for mechanicId=${mechanicId}, phone=${client.phone}`);
             try {
-                const botResponse = await fetch(`${BOT_URL}/api/send-document`, {
+                const botResponse = await fetch(`${BOT_URL}/send-document`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'x-api-key': BOT_KEY },
                     body: JSON.stringify({ mechanicId, phone: client.phone, message: caption, base64: pdfBase64, filename, mimetype: 'application/pdf' }),

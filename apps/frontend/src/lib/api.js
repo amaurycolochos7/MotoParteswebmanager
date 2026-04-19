@@ -59,6 +59,21 @@ export const authService = {
         return { data: { user: result.user }, error: null };
     },
 
+    async register({ email, password, fullName, workshopName, phone, businessType }) {
+        const result = await apiFetch('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({
+                email,
+                password,
+                full_name: fullName,
+                workshop_name: workshopName,
+                phone,
+                business_type: businessType || 'motorcycle',
+            })
+        });
+        return result; // { success: true, message: '...' }
+    },
+
     async getProfile(id) {
         try {
             const data = await apiFetch(`/auth/profile/${id}`);

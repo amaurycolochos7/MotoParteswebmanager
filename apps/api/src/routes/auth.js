@@ -4,6 +4,64 @@ import { generateToken } from '../middleware/auth.js';
 import { authenticate } from '../middleware/auth.js';
 
 export default async function authRoutes(fastify) {
+    // POST /api/auth/register — public self-signup.
+    //
+    // Until Phase 3 (multi-tenancy) ships, there is no per-workspace data
+    // isolation. Letting a self-registered user log in would expose the
+    // existing workshop's data, so every new account is created with
+    // is_active=false and signup_source='self'. The /login handler above
+    // gives these users a distinct "pending activation" message.
+    //
+    // When Phase 3 lands, the activation flow will: create a Workspace,
+    // assign a Membership(role=owner) to this Profile, flip is_active=true,
+    // and email the user their activation confirmation.
+    fastify.post('/register', async (request, reply) => {
+        try {
+            const { email, password, full_name, workshop_name, phone, business_type } = request.body || {};
+
+            if (!email || !password || !full_name || !workshop_name) {
+                return reply.status(400).send({ error: 'Correo, contraseña, nombre y nombre del taller son obligatorios.' });
+            }
+            if (String(password).length < 8) {
+                return reply.status(400).send({ error: 'La contraseña debe tener al menos 8 caracteres.' });
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
+                return reply.status(400).send({ error: 'Correo inválido.' });
+            }
+
+            const normalizedEmail = String(email).trim().toLowerCase();
+            const existing = await prisma.profile.findUnique({ where: { email: normalizedEmail } });
+            if (existing) {
+                return reply.status(409).send({ error: 'Ya existe una cuenta con ese correo.' });
+            }
+
+            const password_hash = await bcrypt.hash(password, 10);
+
+            const user = await prisma.profile.create({
+                data: {
+                    email: normalizedEmail,
+                    password_hash,
+                    full_name: String(full_name).trim(),
+                    phone: phone ? String(phone).trim() : null,
+                    role: 'admin', // will own their own workspace once Phase 3 activates them
+                    is_active: false, // blocked until multi-tenancy is in place
+                    workshop_name: String(workshop_name).trim(),
+                    business_type: business_type || 'motorcycle',
+                    signup_source: 'self',
+                },
+            });
+
+            console.log(`[REGISTER] New self-signup — email=${user.email} workshop=${user.workshop_name}`);
+            return reply.send({
+                success: true,
+                message: '¡Gracias por registrarte! Revisaremos tu taller y activaremos tu cuenta pronto. Te avisaremos por correo.',
+            });
+        } catch (error) {
+            console.error('[REGISTER_ERROR]', error);
+            return reply.status(500).send({ error: 'No pudimos completar el registro. Intenta de nuevo más tarde.' });
+        }
+    });
+
     // POST /api/auth/login
     fastify.post('/login', async (request, reply) => {
         try {
@@ -17,9 +75,20 @@ export default async function authRoutes(fastify) {
 
             const user = await prisma.profile.findUnique({ where: { email } });
 
-            if (!user || !user.is_active) {
-                console.log(`[LOGIN_DEBUG] User not found or inactive: ${email}`);
+            if (!user) {
+                console.log(`[LOGIN_DEBUG] User not found: ${email}`);
                 return reply.status(401).send({ error: 'Credenciales inválidas' });
+            }
+
+            if (!user.is_active) {
+                console.log(`[LOGIN_DEBUG] User inactive: ${email} source=${user.signup_source}`);
+                // Self-registered users that have not been activated yet get a
+                // distinct message so they know to expect an activation step,
+                // separate from users that an admin has deactivated.
+                if (user.signup_source === 'self') {
+                    return reply.status(401).send({ error: 'Tu cuenta está pendiente de activación. Te contactaremos por correo cuando tu taller esté listo.' });
+                }
+                return reply.status(401).send({ error: 'Tu cuenta ha sido desactivada por el administrador.' });
             }
 
             // Check password - support both plain text (legacy) and bcrypt

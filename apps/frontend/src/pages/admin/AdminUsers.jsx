@@ -655,7 +655,7 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                                 ) : (
                                     <>
                                         <Trash2 size={18} />
-                                        ELIMINAR TODO
+                                        Eliminar usuario
                                     </>
                                 )}
                             </button>

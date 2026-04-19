@@ -1,34 +1,32 @@
 import prisma from '../lib/prisma.js';
+import { requireAdmin } from '../middleware/auth.js';
 
 /**
- * COMPREHENSIVE Migration endpoint — imports ALL missing data from Supabase.
- * Tables migrated (in dependency order):
- *   1. profiles (if missing)
- *   2. clients (if missing)
- *   3. motorcycles
- *   4. services
- *   5. order_statuses
- *   6. orders
- *   7. order_services
- *   8. order_parts
- *   9. order_history
- *  10. mechanic_earnings
- *  11. appointments
+ * Admin-only migration endpoint — imports missing data from the legacy Supabase
+ * project. The main migration already ran; this endpoint is kept as a break-glass
+ * tool and is gated behind requireAdmin so it cannot be abused.
  *
- * POST /api/admin/migrate-motos → triggers full migration
- * GET  /api/admin/migrate-motos → shows current DB counts
+ * Supabase credentials are read from env; if they are unset the migration POST
+ * refuses to run, but the GET (read-only counts) still works for diagnostics.
+ *
+ * NOTE: the destructive `/clear-pending` and `/clear-all-orders` endpoints that
+ * used to live here were REMOVED. Data resets are a one-off concern and should
+ * be executed as a script from the container shell, not exposed as HTTP routes.
  */
 
-const PROJECT_ID = 'evytpaczrwhrhgdkfxfk';
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2eXRwYWN6cndocmhnZGtmeGZrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTY2Mzk0MCwiZXhwIjoyMDgxMjM5OTQwfQ.zTF38VAvMboLbcuZJQ4324wcZP8U1F2Py1OF1i1Q-7M';
-const BASE = `https://${PROJECT_ID}.supabase.co/rest/v1`;
-const HEADERS = {
+const PROJECT_ID = process.env.SUPABASE_LEGACY_PROJECT_ID || '';
+const KEY = process.env.SUPABASE_LEGACY_SERVICE_KEY || '';
+const BASE = PROJECT_ID ? `https://${PROJECT_ID}.supabase.co/rest/v1` : '';
+const HEADERS = KEY ? {
     'apikey': KEY,
     'Authorization': `Bearer ${KEY}`,
     'Content-Type': 'application/json'
-};
+} : null;
 
 async function fetchAll(table) {
+    if (!BASE || !HEADERS) {
+        throw new Error('Legacy Supabase migration is disabled: set SUPABASE_LEGACY_PROJECT_ID and SUPABASE_LEGACY_SERVICE_KEY to re-enable.');
+    }
     const res = await fetch(`${BASE}/${table}?select=*&limit=1000`, { headers: HEADERS });
     if (!res.ok) throw new Error(`Failed to fetch ${table}: ${res.statusText}`);
     return res.json();
@@ -40,8 +38,8 @@ function safeDateNull(d) { return d ? new Date(d) : null; }
 
 export default async function migrateMotosRoute(fastify) {
 
-    // GET — show current DB state
-    fastify.get('/', async () => {
+    // GET — show current DB state (admin only)
+    fastify.get('/', { preHandler: requireAdmin }, async () => {
         const [profiles, clients, motorcycles, services, statuses, orders, orderServices, orderParts] = await Promise.all([
             prisma.profile.count(),
             prisma.client.count(),
@@ -59,8 +57,8 @@ export default async function migrateMotosRoute(fastify) {
         };
     });
 
-    // POST — run full migration
-    fastify.post('/', async (request, reply) => {
+    // POST — run full migration (admin only)
+    fastify.post('/', { preHandler: requireAdmin }, async (request, reply) => {
         const logs = [];
         const log = (msg) => { console.log(msg); logs.push(msg); };
         const summary = {};
@@ -470,108 +468,11 @@ export default async function migrateMotosRoute(fastify) {
         }
     });
 
-    // POST — clear ALL non-terminal orders (Por Atender) to start fresh
-    // Keeps: profiles, clients, motorcycles, services, order_statuses
-    // Deletes: orders + order_services + order_parts + mechanic_earnings for non-terminal orders
-    fastify.post('/clear-pending', async (request, reply) => {
-        const logs = [];
-        const log = (msg) => { console.log(msg); logs.push(msg); };
-
-        try {
-            // Find non-terminal statuses
-            const nonTerminalStatuses = await prisma.orderStatus.findMany({
-                where: { is_terminal: false }
-            });
-            const nonTerminalIds = nonTerminalStatuses.map(s => s.id);
-            log(`📋 Non-terminal statuses: ${nonTerminalStatuses.map(s => s.name).join(', ')}`);
-
-            // Find orders with non-terminal statuses
-            const pendingOrders = await prisma.order.findMany({
-                where: { status_id: { in: nonTerminalIds } },
-                select: { id: true, order_number: true }
-            });
-            const pendingIds = pendingOrders.map(o => o.id);
-            log(`📦 Found ${pendingOrders.length} pending orders to clear`);
-
-            if (pendingIds.length === 0) {
-                return { status: 'ok', message: 'No pending orders to clear', logs };
-            }
-
-            // Delete related records first (FK constraints)
-            const delServices = await prisma.orderService.deleteMany({ where: { order_id: { in: pendingIds } } });
-            log(`🗑️ Deleted ${delServices.count} order_services`);
-
-            const delParts = await prisma.orderPart.deleteMany({ where: { order_id: { in: pendingIds } } });
-            log(`🗑️ Deleted ${delParts.count} order_parts`);
-
-            const delEarnings = await prisma.mechanicEarning.deleteMany({ where: { order_id: { in: pendingIds } } });
-            log(`🗑️ Deleted ${delEarnings.count} mechanic_earnings`);
-
-            // Try to delete order_photos if table exists
-            try {
-                const delPhotos = await prisma.orderPhoto.deleteMany({ where: { order_id: { in: pendingIds } } });
-                log(`🗑️ Deleted ${delPhotos.count} order_photos`);
-            } catch { log('ℹ️ No order_photos table or no records'); }
-
-            // Try to delete order_history if table exists
-            try {
-                const delHistory = await prisma.orderHistory.deleteMany({ where: { order_id: { in: pendingIds } } });
-                log(`🗑️ Deleted ${delHistory.count} order_history`);
-            } catch { log('ℹ️ No order_history table or no records'); }
-
-            // Now delete the orders themselves
-            const delOrders = await prisma.order.deleteMany({ where: { id: { in: pendingIds } } });
-            log(`🗑️ Deleted ${delOrders.count} orders`);
-
-            // Final counts
-            const remaining = await prisma.order.count();
-            log(`📊 Remaining orders in DB: ${remaining}`);
-
-            return {
-                status: 'completed',
-                deletedOrders: delOrders.count,
-                deletedServices: delServices.count,
-                deletedParts: delParts.count,
-                remainingOrders: remaining,
-                logs
-            };
-        } catch (err) {
-            log(`❌ ERROR: ${err.message}`);
-            return reply.status(500).send({ status: 'error', message: err.message, logs });
-        }
-    });
-
-    // POST — clear ALL orders (complete reset, keeps reference data)
-    fastify.post('/clear-all-orders', async (request, reply) => {
-        const logs = [];
-        const log = (msg) => { console.log(msg); logs.push(msg); };
-
-        try {
-            // Delete all related records first
-            const delServices = await prisma.orderService.deleteMany({});
-            log(`🗑️ Deleted ${delServices.count} order_services`);
-
-            const delParts = await prisma.orderPart.deleteMany({});
-            log(`🗑️ Deleted ${delParts.count} order_parts`);
-
-            const delEarnings = await prisma.mechanicEarning.deleteMany({});
-            log(`🗑️ Deleted ${delEarnings.count} mechanic_earnings`);
-
-            try { const d = await prisma.orderPhoto.deleteMany({}); log(`🗑️ Deleted ${d.count} order_photos`); } catch { log('ℹ️ No order_photos'); }
-            try { const d = await prisma.orderHistory.deleteMany({}); log(`🗑️ Deleted ${d.count} order_history`); } catch { log('ℹ️ No order_history'); }
-
-            const delOrders = await prisma.order.deleteMany({});
-            log(`🗑️ Deleted ${delOrders.count} orders`);
-
-            return {
-                status: 'completed',
-                message: 'All orders cleared. Ready to start fresh.',
-                deletedOrders: delOrders.count,
-                logs
-            };
-        } catch (err) {
-            log(`❌ ERROR: ${err.message}`);
-            return reply.status(500).send({ status: 'error', message: err.message, logs });
-        }
-    });
+    // ─────────────────────────────────────────────────────────────────────
+    // The /clear-pending and /clear-all-orders endpoints used to live here.
+    // They were mass-deletion bombs that could nuke every in-flight order
+    // if the route was ever hit without auth. They are intentionally gone.
+    // If you ever need to reset data, do it from a shell with Prisma Studio
+    // or a one-off script, not over HTTP.
+    // ─────────────────────────────────────────────────────────────────────
 }

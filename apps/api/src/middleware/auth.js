@@ -1,6 +1,14 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'motopartes-secret-key-change-in-production';
+// JWT_SECRET should always be set via env. In production we log a loud warning
+// if the fallback is being used; the fallback exists ONLY so that an unset env
+// does not instantly tumble the API. Rotate and set JWT_SECRET in Dokploy as a
+// follow-up — this will log every user out once, by design.
+const JWT_FALLBACK = 'motopartes-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || JWT_FALLBACK;
+if (JWT_SECRET === JWT_FALLBACK) {
+    console.warn('[AUTH] ⚠️ JWT_SECRET env var is not set — using the legacy default. Set JWT_SECRET in Dokploy to rotate it.');
+}
 
 export function generateToken(user) {
     return jwt.sign(

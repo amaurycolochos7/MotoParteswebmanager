@@ -32,6 +32,12 @@ model Profile {
   can_edit_clients      Boolean  @default(false)
   can_delete_orders     Boolean  @default(false)
   can_view_approved_orders Boolean @default(true)
+  // Self-signup fields — set when a user registers through the public /signup
+  // flow. Until Phase 3 (multi-tenancy) ships, these profiles stay is_active=false
+  // and login blocks them with a "pending activation" message.
+  workshop_name         String?
+  business_type         String?  @default("motorcycle")
+  signup_source         String?  // 'self' | 'admin' | 'migration'
   created_at            DateTime @default(now()) @db.Timestamptz
   updated_at            DateTime @default(now()) @updatedAt @db.Timestamptz
 
