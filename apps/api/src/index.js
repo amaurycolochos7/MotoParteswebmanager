@@ -2,6 +2,7 @@ import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
+import rawBody from 'fastify-raw-body';
 
 import authRoutes from './routes/auth.js';
 import clientsRoutes from './routes/clients.js';
@@ -21,6 +22,7 @@ import whatsappBotProxy from './routes/whatsapp-bot-proxy.js';
 import migrateMotosRoute from './routes/migrate-motos.js';
 import orderPdfRoutes from './routes/order-pdf.js';
 import workspacesRoutes from './routes/workspaces.js';
+import billingRoutes from './routes/billing.js';
 import { installWorkspaceStore } from './middleware/workspace.js';
 
 const fastify = Fastify({ logger: true });
@@ -47,6 +49,15 @@ await fastify.register(cors, {
 
 await fastify.register(multipart, {
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+});
+
+// Raw body plugin — opt-in per route. The Stripe webhook marks itself with
+// config.rawBody=true; all other routes keep Fastify's default parsing.
+await fastify.register(rawBody, {
+  field: 'rawBody',
+  global: false,
+  encoding: 'utf8',
+  runFirst: true,
 });
 
 // Install the per-request AsyncLocalStorage workspace store at the earliest
@@ -80,6 +91,16 @@ await fastify.register(whatsappBotProxy, { prefix: '/api/whatsapp-bot' });
 await fastify.register(migrateMotosRoute, { prefix: '/api/admin/migrate-motos' });
 await fastify.register(orderPdfRoutes, { prefix: '/api/order-pdf' });
 await fastify.register(workspacesRoutes, { prefix: '/api/workspaces' });
+await fastify.register(billingRoutes, { prefix: '/api/billing' });
+
+// Periodic billing sweep — every hour on the hour, plus once at startup.
+// Keeps trial expirations and dunning downgrades close to real-time without
+// needing a separate cron container.
+import { runBillingSweep } from './lib/billing-sweep.js';
+runBillingSweep().catch((e) => console.error('[billing-sweep] boot run failed:', e.message));
+setInterval(() => {
+    runBillingSweep().catch((e) => console.error('[billing-sweep] failed:', e.message));
+}, 60 * 60 * 1000);
 
 // Start
 const PORT = process.env.PORT || 3000;

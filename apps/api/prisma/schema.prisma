@@ -202,6 +202,41 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// Raw Stripe webhook events, kept for 90 days for debugging/replay. Every
+// processed event is idempotent-guarded by stripe_event_id so retries don't
+// double-charge or double-downgrade.
+model BillingEvent {
+  id              String   @id @default(uuid()) @db.Uuid
+  workspace_id    String?  @db.Uuid
+  stripe_event_id String?  @unique
+  event_type      String                             // e.g. "invoice.paid" | "customer.subscription.updated"
+  payload         Json
+  processed_at    DateTime? @db.Timestamptz
+  error           String?
+  created_at      DateTime @default(now()) @db.Timestamptz
+
+  @@index([workspace_id, created_at])
+  @@index([event_type, created_at])
+  @@map("billing_events")
+}
+
+// Ring-buffer of failed payment attempts per workspace. Used by the dunning
+// sweep: if 3+ FailedPayment rows land within 7 days and the subscription is
+// still past_due, the workspace gets auto-downgraded to Free.
+model FailedPayment {
+  id                     String   @id @default(uuid()) @db.Uuid
+  workspace_id           String   @db.Uuid
+  stripe_invoice_id      String?
+  stripe_payment_intent  String?
+  amount_cents           Int      @default(0)
+  currency               String   @default("mxn")
+  reason                 String?                    // stripe's failure_reason
+  created_at             DateTime @default(now()) @db.Timestamptz
+
+  @@index([workspace_id, created_at])
+  @@map("failed_payments")
+}
+
 // =============================================
 // 1. PERFILES DE USUARIO
 // =============================================

@@ -30,14 +30,15 @@ const PLANS = [
         display_order: 10,
         is_public: true,
         features: {
-            orders_per_month: 30,
+            orders_per_month: 20,
             users: 2,
             whatsapp_sessions: 1,
-            whatsapp_messages: 300,
+            whatsapp_messages: 100,
             storage_gb: 0.5,
             branding: false,
             automations: 0,
             api: false,
+            support: 'community',
         },
     },
     {
@@ -56,6 +57,7 @@ const PLANS = [
             branding: 'basic',
             automations: 1,
             api: false,
+            support: 'whatsapp',
         },
     },
     {
@@ -66,7 +68,7 @@ const PLANS = [
         display_order: 30,
         is_public: true,
         features: {
-            orders_per_month: null, // unlimited
+            orders_per_month: null,
             users: 15,
             whatsapp_sessions: 3,
             whatsapp_messages: 10000,
@@ -74,6 +76,7 @@ const PLANS = [
             branding: 'full',
             automations: 5,
             api: false,
+            support: 'whatsapp',
         },
     },
     {
@@ -92,6 +95,7 @@ const PLANS = [
             branding: 'custom-domain',
             automations: null,
             api: true,
+            support: 'whatsapp-priority',
         },
     },
     {
@@ -100,7 +104,7 @@ const PLANS = [
         price_mxn_monthly: 0,
         price_mxn_yearly: 0,
         display_order: 99,
-        is_public: false, // never shown on /pricing
+        is_public: false,
         features: {
             orders_per_month: null,
             users: null,
@@ -110,6 +114,7 @@ const PLANS = [
             branding: 'full',
             automations: null,
             api: true,
+            support: 'whatsapp-priority',
             legacy_grandfathered: true,
         },
     },

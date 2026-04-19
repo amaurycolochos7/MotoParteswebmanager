@@ -958,3 +958,30 @@ export const workspaceService = {
         return apiFetch('/workspaces/plans');
     },
 };
+
+// =============================================
+// BILLING SERVICE (Phase 4)
+// =============================================
+export const billingService = {
+    async getStatus() {
+        return apiFetch('/billing/status');
+    },
+    async listPlans() {
+        return apiFetch('/billing/plans');
+    },
+    async checkout({ plan_code, interval }) {
+        return apiFetch('/billing/checkout', {
+            method: 'POST',
+            body: JSON.stringify({ plan_code, interval }),
+        });
+    },
+    async openPortal() {
+        return apiFetch('/billing/portal', { method: 'POST', body: JSON.stringify({}) });
+    },
+    async cancelSubscription() {
+        return apiFetch('/billing/cancel', { method: 'POST', body: JSON.stringify({}) });
+    },
+    async resumeSubscription() {
+        return apiFetch('/billing/resume', { method: 'POST', body: JSON.stringify({}) });
+    },
+};

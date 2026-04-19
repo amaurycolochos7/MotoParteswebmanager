@@ -11,8 +11,9 @@ import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import Onboarding from './pages/auth/Onboarding';
 
-// Workspace settings
+// Workspace + billing settings
 import AdminWorkspace from './pages/admin/AdminWorkspace';
+import AdminBilling from './pages/admin/AdminBilling';
 
 // Admin Pages
 import {
@@ -156,6 +157,7 @@ function AppRoutes() {
         <Route path="mechanics" element={<AdminMechanics />} />
         <Route path="analytics" element={<AdminAnalytics />} />
         <Route path="workspace" element={<AdminWorkspace />} />
+        <Route path="billing" element={<AdminBilling />} />
       </Route>
 
       {/* Rutas de Mecánico */}

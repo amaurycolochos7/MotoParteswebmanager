@@ -148,12 +148,17 @@ export default async function authRoutes(fastify) {
             const baseSlug = slugify(trimmedWorkshop);
             const slug = await pickUniqueSlug(baseSlug);
 
-            // Find the "free" plan and the default free-trial end (14 days of
-            // Pro). If the plans table hasn't been seeded yet, create the user
-            // on a null plan — runtime enforcement treats missing plan as free.
-            const freePlan = await unscoped(() =>
-                prisma.plan.findUnique({ where: { code: 'free' } })
+            // During the 7-day trial, the workspace runs on the Pro plan so
+            // all Pro features (unlimited orders, 3 WA sessions, branding) are
+            // unlocked. If no paid Stripe subscription is created by the time
+            // trial_ends_at passes, the billing sweep downgrades to Free.
+            const [proPlan, freePlan] = await unscoped(() =>
+                Promise.all([
+                    prisma.plan.findUnique({ where: { code: 'pro' } }),
+                    prisma.plan.findUnique({ where: { code: 'free' } }),
+                ])
             );
+            const trialPlan = proPlan || freePlan;
 
             // Transaction: Profile + Workspace + Membership + Subscription all
             // or nothing. We stay unscoped so Prisma's auto-scope doesn't try
@@ -174,7 +179,7 @@ export default async function authRoutes(fastify) {
                         },
                     });
 
-                    const trialEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+                    const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
                     const workspace = await tx.workspace.create({
                         data: {
@@ -182,7 +187,7 @@ export default async function authRoutes(fastify) {
                             name: trimmedWorkshop,
                             business_type: business_type || 'motorcycle',
                             folio_prefix: folioPrefixFromName(trimmedWorkshop),
-                            plan_id: freePlan?.id || null,
+                            plan_id: trialPlan?.id || null,
                             trial_ends_at: trialEnd,
                             subscription_status: 'trialing',
                             is_active: true,
@@ -204,11 +209,11 @@ export default async function authRoutes(fastify) {
                         },
                     });
 
-                    if (freePlan) {
+                    if (trialPlan) {
                         await tx.subscription.create({
                             data: {
                                 workspace_id: workspace.id,
-                                plan_id: freePlan.id,
+                                plan_id: trialPlan.id,
                                 status: 'trialing',
                                 current_period_end: trialEnd,
                             },
@@ -248,7 +253,7 @@ export default async function authRoutes(fastify) {
             const loginPayload = await buildLoginResponse(result.newUser);
             return reply.send({
                 success: true,
-                message: `¡Bienvenido a MotoPartes! Tu taller "${result.workspace.name}" está listo. Tienes 14 días gratis en el plan Pro.`,
+                message: `¡Bienvenido a MotoPartes! Tu taller "${result.workspace.name}" está listo. Tienes 7 días gratis en el plan Pro.`,
                 ...loginPayload,
             });
         } catch (error) {

@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
+import { assertWithinLimit, incrementUsageAsync, PlanLimitError } from '../lib/billing.js';
 
 // Helper: generate an order number of the form "<PREFIX>-YY-NNN" where
 // <PREFIX> comes from the workspace's folio_prefix and NNN is the running
@@ -118,8 +119,22 @@ export default async function ordersRoutes(fastify) {
             });
         });
 
-        // POST /api/orders
-        app.post('/', async (request) => {
+        // POST /api/orders — gated by the workspace's plan orders_per_month.
+        app.post('/', async (request, reply) => {
+            try {
+                await assertWithinLimit(request.workspace.id, 'orders_count');
+            } catch (err) {
+                if (err instanceof PlanLimitError) {
+                    return reply.status(402).send({
+                        error: err.message,
+                        code: 'PLAN_LIMIT',
+                        feature: err.feature,
+                        limit: err.limit,
+                        used: err.used,
+                    });
+                }
+                throw err;
+            }
             const data = request.body;
             const orderNumber = await generateOrderNumber(request.workspace?.folio_prefix || 'MP');
 
@@ -181,6 +196,10 @@ export default async function ordersRoutes(fastify) {
                     notes: 'Orden creada'
                 }
             });
+
+            // Bump plan usage counter for the workspace. Fire-and-forget —
+            // a failure shouldn't roll back an already-created order.
+            incrementUsageAsync(request.workspace.id, 'orders_count', 1);
 
             // Return full order
             return prisma.order.findUnique({

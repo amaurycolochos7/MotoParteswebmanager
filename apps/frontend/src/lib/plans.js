@@ -1,5 +1,5 @@
 // Shared catalog of public plans. The `flagship` plan (motoblaker's cortesía
-// perpetua) is intentionally NOT in this list — it is an internal SKU and
+// perpetua) is intentionally NOT in this list — it's an internal SKU and
 // should never be offered through the public pricing UI.
 
 export const PUBLIC_PLANS = [
@@ -12,10 +12,10 @@ export const PUBLIC_PLANS = [
         cta: 'Comenzar gratis',
         highlight: false,
         features: [
-            '30 órdenes de servicio por mes',
+            '20 órdenes de servicio por mes',
             '2 usuarios (mecánicos o admin)',
             '1 sesión de WhatsApp',
-            '300 mensajes de WhatsApp / mes',
+            '100 mensajes de WhatsApp / mes',
             '500 MB de fotos',
             'Portal público del cliente',
             'Soporte por comunidad',
@@ -27,7 +27,7 @@ export const PUBLIC_PLANS = [
         tagline: 'Para talleres pequeños que arrancan formalmente',
         priceMonthly: 299,
         priceYearly: 2870,
-        cta: 'Probar 14 días gratis',
+        cta: 'Probar 7 días gratis',
         highlight: false,
         features: [
             '200 órdenes de servicio por mes',
@@ -37,7 +37,7 @@ export const PUBLIC_PLANS = [
             '5 GB de fotos',
             'Branding básico (logo y colores)',
             '1 automatización de WhatsApp',
-            'Soporte por correo (48h)',
+            'Soporte por WhatsApp',
         ],
     },
     {
@@ -46,7 +46,7 @@ export const PUBLIC_PLANS = [
         tagline: 'El plan pensado para talleres activos',
         priceMonthly: 599,
         priceYearly: 5750,
-        cta: 'Probar 14 días gratis',
+        cta: 'Probar 7 días gratis',
         highlight: true,
         badge: 'El más popular',
         features: [
@@ -59,7 +59,7 @@ export const PUBLIC_PLANS = [
             '5 tipos de automatizaciones',
             'Comisiones por mecánico',
             'Reportes avanzados',
-            'Soporte por correo (24h)',
+            'Soporte por WhatsApp',
         ],
     },
     {

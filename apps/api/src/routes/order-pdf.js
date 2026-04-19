@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
+import { assertWithinLimit, incrementUsageAsync, PlanLimitError } from '../lib/billing.js';
 import PDFDocument from 'pdfkit';
 
 const BOT_URL = process.env.WHATSAPP_BOT_INTERNAL_URL || 'http://whatsapp-bot:3002';
@@ -237,6 +238,22 @@ export default async function orderPdfRoutes(fastify) {
     fastify.post('/:id/send', async (request, reply) => {
         const { id } = request.params;
 
+        // Gate against the plan's whatsapp_messages monthly limit (Free = 100).
+        try {
+            await assertWithinLimit(request.workspace.id, 'whatsapp_messages');
+        } catch (err) {
+            if (err instanceof PlanLimitError) {
+                return reply.status(402).send({
+                    error: err.message,
+                    code: 'PLAN_LIMIT',
+                    feature: err.feature,
+                    limit: err.limit,
+                    used: err.used,
+                });
+            }
+            throw err;
+        }
+
         try {
             const order = await prisma.order.findUnique({
                 where: { id },
@@ -291,6 +308,8 @@ export default async function orderPdfRoutes(fastify) {
                 return reply.send({ success: false, fallback: true, error: `WhatsApp bot error: ${botError.message}` });
             }
 
+            // Bump the WhatsApp usage counter only on a successful send.
+            incrementUsageAsync(request.workspace.id, 'whatsapp_messages', 1);
             return reply.send({ success: true, automated: true, messageId: botResult.messageId });
         } catch (error) {
             fastify.log.error(`Error in send-pdf: ${error.message}\n${error.stack}`);
