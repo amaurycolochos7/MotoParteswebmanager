@@ -783,7 +783,7 @@ const styles = `
 /* ═══ HERO ═══ */
 .mp-hero {
     position: relative;
-    padding: clamp(48px, 8vw, 100px) 0 clamp(60px, 9vw, 120px);
+    padding: clamp(48px, 7vw, 90px) 0 clamp(60px, 8vw, 110px);
     overflow: hidden;
 }
 .mp-hero-grid {
@@ -791,18 +791,17 @@ const styles = `
     margin: 0 auto;
     padding: 0 clamp(16px, 3vw, 32px);
     display: grid;
-    grid-template-columns: 1.1fr 0.9fr;
-    gap: clamp(32px, 5vw, 80px);
+    grid-template-columns: 1.05fr 1fr;
+    gap: clamp(40px, 5vw, 72px);
     align-items: center;
     position: relative;
     z-index: 1;
 }
-@media (max-width: 900px) {
-    .mp-hero-grid { grid-template-columns: 1fr; }
+@media (max-width: 960px) {
+    .mp-hero-grid { grid-template-columns: 1fr; gap: 40px; }
     .mp-hero-copy { text-align: center; }
     .mp-hero-pill { margin-left: auto; margin-right: auto; }
     .mp-hero-ctas, .mp-hero-trust { justify-content: center; }
-    .mp-hero-mockup { margin: 0 auto; max-width: 360px; }
 }
 @media (max-width: 640px) {
     .mp-hero { padding: 36px 0 50px; }
@@ -875,13 +874,16 @@ const styles = `
 .mp-hero-mockup {
     position: relative;
     width: 100%;
-    height: clamp(380px, 50vw, 540px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 560px;
+    padding: 40px 30px; /* espacio para que floats no se recorten */
 }
 .mp-phone {
     position: relative;
     width: 270px;
     height: 540px;
-    margin: 0 auto;
     background: #0f172a;
     border-radius: 42px;
     padding: 10px;
@@ -889,7 +891,7 @@ const styles = `
         0 40px 80px rgba(15, 23, 42, 0.25),
         0 0 0 10px rgba(15, 23, 42, 0.04),
         inset 0 0 0 2px #1e293b;
-    max-width: 100%;
+    flex-shrink: 0;
 }
 .mp-phone-notch {
     width: 110px;
@@ -966,23 +968,31 @@ const styles = `
     box-shadow: 0 20px 40px rgba(15, 23, 42, 0.14);
     border: 1px solid var(--c-border);
     animation: mp-float 4s ease-in-out infinite;
+    white-space: nowrap;
+    z-index: 2;
 }
-.mp-float-1 { top: 15%; left: -10%; animation-delay: 0s; }
-.mp-float-2 { bottom: 15%; right: -10%; animation-delay: 1.5s; }
+/* Floats posicionadas de manera que SIEMPRE queden dentro del viewport */
+.mp-float-1 { top: 18%; left: calc(50% - 180px); animation-delay: 0s; }
+.mp-float-2 { bottom: 14%; left: calc(50% + 80px); animation-delay: 1.5s; }
 @keyframes mp-float {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+    50% { transform: translateY(-8px); }
+}
+@media (max-width: 960px) {
+    .mp-hero-mockup { min-height: 520px; padding: 30px 20px; }
+    .mp-float-1 { left: calc(50% - 170px); }
+    .mp-float-2 { left: calc(50% + 60px); }
 }
 @media (max-width: 500px) {
-    .mp-hero-mockup { height: 440px; max-width: 280px; }
+    .mp-hero-mockup { min-height: 460px; padding: 24px 12px; }
     .mp-phone { width: 220px; height: 440px; border-radius: 34px; padding: 8px; }
     .mp-phone-screen { border-radius: 26px; }
     .mp-phone-header { padding: 32px 12px 12px; }
     .mp-phone-messages { padding: 12px 10px; gap: 8px; }
     .mp-msg { padding: 7px 10px; font-size: 0.76rem; border-radius: 8px; }
     .mp-float-card { padding: 8px 10px; border-radius: 10px; }
-    .mp-float-1 { top: 8%; left: -6%; }
-    .mp-float-2 { bottom: 12%; right: -6%; }
+    .mp-float-1 { top: 10%; left: calc(50% - 140px); }
+    .mp-float-2 { bottom: 8%; left: calc(50% + 40px); }
     .mp-float-card > div > div > div:first-child { font-size: 0.68rem !important; }
     .mp-float-card > div > div > div:last-child { font-size: 0.62rem !important; }
 }
