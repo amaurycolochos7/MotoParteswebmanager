@@ -860,7 +860,7 @@ html, body {
 /* ═══ HERO ═══ */
 .mp-hero {
     position: relative;
-    padding: clamp(48px, 7vw, 90px) 0 clamp(60px, 8vw, 110px);
+    padding: clamp(20px, 3vw, 44px) 0 clamp(32px, 4vw, 60px);
     overflow: hidden;
 }
 .mp-hero-grid {
@@ -892,21 +892,21 @@ html, body {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 14px;
+    padding: 5px 12px;
     background: var(--c-accent-soft);
     color: var(--c-accent-dark);
     border: 1px solid #fecaca;
     border-radius: 999px;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     font-weight: 600;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 .mp-hero-title {
-    font-size: clamp(2rem, 5.5vw, 3.75rem);
+    font-size: clamp(2rem, 5vw, 3.4rem);
     font-weight: 800;
     line-height: 1.08;
     letter-spacing: -1.5px;
-    margin: 0 0 20px;
+    margin: 0 0 14px;
     color: var(--c-ink);
 }
 .mp-hero-accent {
@@ -916,17 +916,17 @@ html, body {
     -webkit-text-fill-color: transparent;
 }
 .mp-hero-sub {
-    font-size: clamp(1rem, 1.3vw, 1.15rem);
+    font-size: clamp(0.98rem, 1.2vw, 1.1rem);
     color: var(--c-muted);
-    line-height: 1.65;
-    margin: 0 0 30px;
+    line-height: 1.55;
+    margin: 0 0 22px;
     max-width: 560px;
 }
 .mp-hero-ctas {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 24px;
+    margin-bottom: 18px;
 }
 @media (max-width: 500px) {
     .mp-hero-ctas { flex-direction: column; align-items: stretch; }
@@ -956,8 +956,8 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 620px;
-    padding: 30px 30px 40px;
+    min-height: 580px;
+    padding: 20px 30px 30px;
 }
 .mp-phone {
     position: relative;
