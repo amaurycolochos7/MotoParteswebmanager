@@ -567,9 +567,9 @@ const styles = `
 .mp-landing * { box-sizing: border-box; }
 
 .mp-container {
-    max-width: 1200px;
+    max-width: 1240px;
     margin: 0 auto;
-    padding: 0 clamp(16px, 3vw, 32px);
+    padding: 0 clamp(20px, 5vw, 64px);
 }
 
 /* ═══ REF BANNER ═══ */
@@ -599,9 +599,9 @@ const styles = `
     border-bottom: 1px solid rgba(226, 232, 240, 0.6);
 }
 .mp-nav-inner {
-    max-width: 1200px;
+    max-width: 1240px;
     margin: 0 auto;
-    padding: 12px clamp(16px, 3vw, 32px);
+    padding: 12px clamp(20px, 5vw, 64px);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -787,12 +787,12 @@ const styles = `
     overflow: hidden;
 }
 .mp-hero-grid {
-    max-width: 1200px;
+    max-width: 1240px;
     margin: 0 auto;
-    padding: 0 clamp(16px, 3vw, 32px);
+    padding: 0 clamp(20px, 5vw, 64px);
     display: grid;
-    grid-template-columns: 1.05fr 1fr;
-    gap: clamp(40px, 5vw, 72px);
+    grid-template-columns: 1fr minmax(0, 460px);
+    gap: clamp(40px, 5vw, 60px);
     align-items: center;
     position: relative;
     z-index: 1;
@@ -874,11 +874,13 @@ const styles = `
 .mp-hero-mockup {
     position: relative;
     width: 100%;
+    max-width: 460px;
+    margin: 0 auto; /* centrado dentro de su columna */
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 620px;
-    padding: 30px 20px 40px; /* reserva interna para las floats */
+    padding: 30px 30px 40px;
 }
 .mp-phone {
     position: relative;
