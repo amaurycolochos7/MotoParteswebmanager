@@ -21,6 +21,7 @@ import whatsappBotProxy from './routes/whatsapp-bot-proxy.js';
 import migrateMotosRoute from './routes/migrate-motos.js';
 import orderPdfRoutes from './routes/order-pdf.js';
 import workspacesRoutes from './routes/workspaces.js';
+import { installWorkspaceStore } from './middleware/workspace.js';
 
 const fastify = Fastify({ logger: true });
 
@@ -46,6 +47,15 @@ await fastify.register(cors, {
 
 await fastify.register(multipart, {
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+});
+
+// Install the per-request AsyncLocalStorage workspace store at the earliest
+// possible point. resolveWorkspace later mutates this store once the user
+// and workspace are known; mutating (instead of calling enterWith a second
+// time inside a preHandler) is what makes Prisma's auto-scoping propagate
+// reliably across Fastify's internal async boundaries.
+fastify.addHook('onRequest', async (request) => {
+  installWorkspaceStore(request);
 });
 
 // Health check

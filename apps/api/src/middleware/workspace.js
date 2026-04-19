@@ -1,8 +1,23 @@
 import prisma, { workspaceContext } from '../lib/prisma.js';
 
+// Fastify onRequest hook — installs a mutable workspace store on the request's
+// async context at the earliest possible point. We use enterWith here because
+// onRequest runs in the request's root async chain, so the store propagates
+// to every subsequent hook / handler / Prisma call reliably.
+//
+// The store starts as `{ workspaceId: null }` and is mutated in place by
+// resolveWorkspace once the user + workspace are known. Mutation (rather than
+// `enterWith` a second time) is essential — calling enterWith again AFTER an
+// await boundary in a preHandler is unreliable in Fastify because the
+// continuation may not inherit the new store the way enterWith promises.
+export function installWorkspaceStore(request) {
+    workspaceContext.enterWith({ workspaceId: null });
+}
+
 // Fastify preHandler hook that resolves the active workspace for the request,
-// validates that the authenticated user is a member, and opens the
-// AsyncLocalStorage context that the Prisma auto-scoping extension reads.
+// validates that the authenticated user is a member, and mutates the
+// ALS store installed by installWorkspaceStore so the Prisma auto-scoping
+// extension reads the correct workspaceId.
 //
 // Workspace resolution order:
 //   1) `x-workspace-id` HTTP header, if present.
@@ -10,16 +25,11 @@ import prisma, { workspaceContext } from '../lib/prisma.js';
 //      user has exactly one membership, or after the user selects one).
 //   3) The user's single membership, if they only have one.
 //
-// The handler MUST run AFTER `authenticate` so request.user is set.
+// The handler MUST run AFTER `authenticate` so request.user is set, and
+// AFTER installWorkspaceStore so the store exists.
 //
-// Usage in a route file:
-//   fastify.register(async (inst) => {
-//     inst.addHook('preHandler', authenticate);
-//     inst.addHook('preHandler', resolveWorkspace);
-//     inst.get('/', handler);
-//   });
-// or per-route:
-//   { preHandler: [authenticate, resolveWorkspace] }
+// Usage per-route:   { preHandler: [authenticate, resolveWorkspace] }
+// Usage per-plugin:  inst.addHook('preHandler', resolveWorkspace);
 
 export async function resolveWorkspace(request, reply) {
     if (!request.user || !request.user.id) {
@@ -47,24 +57,20 @@ export async function resolveWorkspace(request, reply) {
     }
 
     // Defensive: confirm the user is actually a member of the resolved
-    // workspace. Even if memberships is in the JWT we double-check the DB so
-    // a revoked membership takes effect within the JWT's 7-day window.
-    const membership = await prisma.$transaction(async (tx) => {
-        return workspaceContext.run({ workspaceId: null }, async () => {
-            // Run the membership lookup OUTSIDE of any workspace scope — otherwise
-            // the auto-scoping extension would scope the query to an empty/missing
-            // workspace and the membership would never be found.
-            return tx.membership.findUnique({
-                where: {
-                    workspace_id_profile_id: {
-                        workspace_id: workspaceId,
-                        profile_id: request.user.id,
-                    },
+    // workspace. Ran UNSCOPED so the auto-scoping extension doesn't filter
+    // the membership lookup itself (Membership isn't a scoped model anyway,
+    // but if we ever move it, this keeps us safe).
+    const membership = await workspaceContext.run({ workspaceId: null }, () =>
+        prisma.membership.findUnique({
+            where: {
+                workspace_id_profile_id: {
+                    workspace_id: workspaceId,
+                    profile_id: request.user.id,
                 },
-                include: { workspace: true },
-            });
-        });
-    });
+            },
+            include: { workspace: true },
+        })
+    );
 
     if (!membership || !membership.workspace?.is_active) {
         return reply.status(403).send({ error: 'No tienes acceso a este workspace.' });
@@ -74,12 +80,19 @@ export async function resolveWorkspace(request, reply) {
     request.workspaceRole = membership.role;
     request.workspacePermissions = membership.permissions || {};
 
-    // Open the ALS context so Prisma queries in this request chain get
-    // auto-scoped. We DON'T use .run() here because we need the context to
-    // live for the rest of the request. Fastify's request lifecycle runs
-    // inside a single ALS enterWith call — each request already runs in its
-    // own async context, so enterWith is the right primitive.
-    workspaceContext.enterWith({ workspaceId });
+    // Mutate the store installed by installWorkspaceStore. This is the
+    // hot-path that actually powers the Prisma extension filter. Because the
+    // store was entered in onRequest, every async continuation spawned by
+    // Fastify from this point sees the mutated workspaceId.
+    const store = workspaceContext.getStore();
+    if (store) {
+        store.workspaceId = workspaceId;
+    } else {
+        // Fall-back: if somehow the onRequest hook didn't run (e.g. a route
+        // registered outside the main Fastify instance), install the store
+        // on the spot. Not ideal but safer than crashing.
+        workspaceContext.enterWith({ workspaceId });
+    }
 }
 
 // Require a specific workspace role (owner | admin | mechanic | auxiliary).
