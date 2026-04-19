@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, Navigate, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, Building2, Users, Ticket, CreditCard, Gift,
-    FileText, ShieldCheck, LogOut, Menu, X, AlertCircle,
+    FileText, ShieldCheck, LogOut, Menu, X, AlertCircle, Settings,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -18,6 +18,7 @@ const NAV = [
     { to: '/super/payouts',      icon: Gift,            label: 'Pagos referidos' },
     { to: '/super/canned',       icon: FileText,        label: 'Plantillas' },
     { to: '/super/audit',        icon: ShieldCheck,     label: 'Auditoría' },
+    { to: '/super/settings',     icon: Settings,        label: 'Configuración' },
 ];
 
 export default function SuperLayout() {

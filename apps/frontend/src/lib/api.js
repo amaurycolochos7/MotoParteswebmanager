@@ -76,6 +76,13 @@ export const authService = {
         };
     },
 
+    async changePassword(current_password, new_password) {
+        return apiFetch('/auth/change-password', {
+            method: 'POST',
+            body: JSON.stringify({ current_password, new_password }),
+        });
+    },
+
     async register({ email, password, fullName, workshopName, phone, businessType, referralSlug }) {
         const result = await apiFetch('/auth/register', {
             method: 'POST',
@@ -1069,6 +1076,26 @@ export const ticketsService = {
 export const superService = {
     // Métricas
     metrics() { return apiFetch('/super/metrics'); },
+    timeseries(range = 90) { return apiFetch(`/super/metrics/timeseries?range=${range}`); },
+
+    // Exports CSV — abren descarga directa
+    exportUrl(kind) {
+        const token = localStorage.getItem('motopartes_token');
+        return `${API_URL}/super/exports/${kind}.csv?token=${encodeURIComponent(token || '')}`;
+    },
+    async downloadExport(kind) {
+        const res = await fetch(`${API_URL}/super/exports/${kind}.csv`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('motopartes_token')}` },
+        });
+        if (!res.ok) throw new Error('Error descargando');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${kind}-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    },
 
     // Workspaces
     listWorkspaces(params = {}) {

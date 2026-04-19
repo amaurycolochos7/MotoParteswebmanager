@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
     DollarSign, Building2, TrendingUp, Ticket, AlertTriangle, Clock,
-    ArrowRight, Gift, Users, Loader2,
+    ArrowRight, Gift, Users, Loader2, BarChart3,
 } from 'lucide-react';
 import { superService } from '../../lib/api';
 
@@ -14,14 +14,47 @@ function fmtDate(d) {
     catch { return '—'; }
 }
 
+// Sparkline SVG — línea simple con área, sin dependencias externas.
+function Sparkline({ data, color = '#ef4444', width = 600, height = 120, label }) {
+    if (!data?.length) return null;
+    const max = Math.max(...data, 1);
+    const min = Math.min(...data, 0);
+    const range = max - min || 1;
+    const stepX = width / (data.length - 1 || 1);
+    const points = data.map((v, i) => {
+        const x = i * stepX;
+        const y = height - ((v - min) / range) * (height - 10) - 5;
+        return [x, y];
+    });
+    const path = points.map(([x, y], i) => (i === 0 ? `M ${x},${y}` : `L ${x},${y}`)).join(' ');
+    const area = `${path} L ${width},${height} L 0,${height} Z`;
+
+    return (
+        <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ width: '100%', height, display: 'block' }}>
+            <defs>
+                <linearGradient id={`grad-${label}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+                    <stop offset="100%" stopColor={color} stopOpacity="0" />
+                </linearGradient>
+            </defs>
+            <path d={area} fill={`url(#grad-${label})`} />
+            <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    );
+}
+
 export default function SuperDashboard() {
     const [m, setM] = useState(null);
+    const [timeseries, setTimeseries] = useState(null);
     const [loading, setLoading] = useState(true);
     const [err, setErr] = useState('');
 
     useEffect(() => {
-        superService.metrics()
-            .then(setM)
+        Promise.all([
+            superService.metrics(),
+            superService.timeseries(90).catch(() => null),
+        ])
+            .then(([mt, ts]) => { setM(mt); setTimeseries(ts); })
             .catch((e) => setErr(e?.message || 'Error cargando métricas'))
             .finally(() => setLoading(false));
     }, []);
@@ -62,6 +95,32 @@ export default function SuperDashboard() {
                     </div>
                 ))}
             </div>
+
+            {/* Timeseries 90d */}
+            {timeseries?.series?.length > 0 && (
+                <div className="sp-card" style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                        <h2 style={{ margin: 0 }}><BarChart3 size={16} style={{ verticalAlign: -3, marginRight: 6 }} /> Últimos 90 días</h2>
+                        <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                            {timeseries.series[0].date} → {timeseries.series[timeseries.series.length - 1].date}
+                        </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                        <div>
+                            <div style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>MRR (MXN)</div>
+                            <Sparkline data={timeseries.series.map((d) => d.mrr_mxn)} color="#22c55e" label="mrr" />
+                        </div>
+                        <div>
+                            <div style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Signups</div>
+                            <Sparkline data={timeseries.series.map((d) => d.signups)} color="#3b82f6" label="signups" />
+                        </div>
+                        <div>
+                            <div style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Churn</div>
+                            <Sparkline data={timeseries.series.map((d) => d.churn)} color="#ef4444" label="churn" />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Trials expiring */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

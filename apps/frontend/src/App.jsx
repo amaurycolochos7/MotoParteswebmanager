@@ -38,6 +38,7 @@ import SuperAudit from './pages/super/SuperAudit';
 import SuperPayouts from './pages/super/SuperPayouts';
 import SuperCanned from './pages/super/SuperCanned';
 import SuperBilling from './pages/super/SuperBilling';
+import SuperSettings from './pages/super/SuperSettings';
 
 // Admin Pages
 import {
@@ -246,6 +247,7 @@ function AppRoutes() {
         <Route path="payouts" element={<SuperPayouts />} />
         <Route path="canned" element={<SuperCanned />} />
         <Route path="billing" element={<SuperBilling />} />
+        <Route path="settings" element={<SuperSettings />} />
       </Route>
 
       {/* Home: si ya está logueado va al dashboard; si no, muestra la landing pública */}

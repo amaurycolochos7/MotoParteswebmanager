@@ -334,6 +334,48 @@ export default async function authRoutes(fastify) {
         }
     });
 
+    // POST /api/auth/change-password — cambio de password del usuario autenticado.
+    // Requiere pasar el current_password para validar. Rehashea con bcrypt cost 10.
+    fastify.post('/change-password', { preHandler: [authenticate] }, async (request, reply) => {
+        const { current_password, new_password } = request.body || {};
+        if (!current_password || !new_password) {
+            return reply.status(400).send({ error: 'current_password y new_password son requeridos.' });
+        }
+        if (String(new_password).length < 8) {
+            return reply.status(400).send({ error: 'La nueva contraseña debe tener al menos 8 caracteres.' });
+        }
+        const profile = await unscoped(() =>
+            prisma.profile.findUnique({
+                where: { id: request.user.id },
+                select: { id: true, email: true, password_hash: true },
+            })
+        );
+        if (!profile || !profile.password_hash) {
+            return reply.status(400).send({ error: 'Perfil sin password configurado.' });
+        }
+        const ok = await bcrypt.compare(current_password, profile.password_hash);
+        if (!ok) {
+            return reply.status(401).send({ error: 'Contraseña actual incorrecta.' });
+        }
+        const newHash = await bcrypt.hash(new_password, 10);
+        await unscoped(() =>
+            prisma.profile.update({
+                where: { id: profile.id },
+                data: { password_hash: newHash },
+            })
+        );
+        await unscoped(() =>
+            prisma.auditLog.create({
+                data: {
+                    profile_id: profile.id,
+                    event: 'password.changed',
+                    payload: { ip: request.ip, ua: request.headers['user-agent'] || null },
+                },
+            })
+        );
+        return reply.send({ success: true, message: 'Contraseña actualizada.' });
+    });
+
     // POST /api/auth/login
     fastify.post('/login', async (request, reply) => {
         try {

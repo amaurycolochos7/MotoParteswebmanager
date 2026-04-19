@@ -766,6 +766,148 @@ export default async function superRoutes(fastify) {
         return reply.send({ success: true });
     });
 
+    // ────────── TIMESERIES (Fase 7.4) ──────────
+    // Devuelve series diarias de los últimos N días. Tres métricas:
+    //   - signups:   workspaces creados por día
+    //   - mrr:       MRR snapshot por día (suma de subs activas con sub.created_at ≤ día)
+    //   - churn:     workspaces con subscription_status='canceled' cuyo canceled_at cae en el día
+    fastify.get('/metrics/timeseries', async (request, reply) => {
+        const days = Math.min(365, Math.max(7, parseInt(request.query?.range || '90', 10)));
+        const now = new Date();
+        const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+        startDate.setUTCHours(0, 0, 0, 0);
+
+        // Fetch todas las rows relevantes una sola vez
+        const [workspaces, subs] = await unscoped(() => Promise.all([
+            prisma.workspace.findMany({
+                select: { id: true, created_at: true, subscription_status: true, updated_at: true, is_active: true },
+            }),
+            prisma.subscription.findMany({
+                include: { plan: { select: { price_mxn_monthly: true } } },
+                orderBy: { created_at: 'asc' },
+            }),
+        ]));
+
+        const series = [];
+        for (let i = 0; i <= days; i++) {
+            const day = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+            const dayStr = day.toISOString().slice(0, 10);
+            const dayEnd = new Date(day.getTime() + 24 * 60 * 60 * 1000);
+
+            const signups = workspaces.filter(
+                (w) => w.created_at >= day && w.created_at < dayEnd
+            ).length;
+
+            // MRR snapshot: subs activas cuyo created_at ≤ dayEnd y que no estén canceled al final del día.
+            const mrr = subs.reduce((acc, s) => {
+                if (s.created_at > dayEnd) return acc;
+                if (['canceled', 'paused'].includes(s.status) && s.updated_at <= dayEnd) return acc;
+                return acc + (s.plan?.price_mxn_monthly || 0);
+            }, 0);
+
+            const churn = workspaces.filter((w) =>
+                w.subscription_status === 'canceled' &&
+                w.updated_at >= day && w.updated_at < dayEnd
+            ).length;
+
+            series.push({ date: dayStr, signups, mrr_mxn: mrr, churn });
+        }
+
+        return reply.send({ range_days: days, series });
+    });
+
+    // ────────── EXPORTS CSV (Fase 7.4) ──────────
+    function toCsv(rows) {
+        if (!rows.length) return '';
+        const headers = Object.keys(rows[0]);
+        const esc = (v) => {
+            if (v === null || v === undefined) return '';
+            const s = String(v instanceof Date ? v.toISOString() : v);
+            return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+        return headers.join(',') + '\n' + rows.map((r) => headers.map((h) => esc(r[h])).join(',')).join('\n');
+    }
+
+    fastify.get('/exports/workspaces.csv', async (request, reply) => {
+        const items = await unscoped(() =>
+            prisma.workspace.findMany({
+                include: { plan: true, subscription: true },
+                orderBy: { created_at: 'desc' },
+            })
+        );
+        const rows = items.map((w) => ({
+            id: w.id,
+            slug: w.slug,
+            name: w.name,
+            is_flagship: w.is_flagship,
+            is_partner: w.is_partner,
+            is_active: w.is_active,
+            plan: w.plan?.code || '',
+            subscription_status: w.subscription_status,
+            source: w.subscription?.source || '',
+            trial_ends_at: w.trial_ends_at,
+            manual_expires_at: w.subscription?.manual_expires_at || '',
+            created_at: w.created_at,
+            created_by: w.created_by || '',
+        }));
+        reply.header('Content-Type', 'text/csv; charset=utf-8');
+        reply.header('Content-Disposition', `attachment; filename="workspaces-${new Date().toISOString().slice(0, 10)}.csv"`);
+        return reply.send(toCsv(rows));
+    });
+
+    fastify.get('/exports/tickets.csv', async (request, reply) => {
+        const items = await unscoped(() =>
+            prisma.supportTicket.findMany({
+                include: {
+                    workspace: { select: { name: true, slug: true } },
+                    creator: { select: { email: true, full_name: true } },
+                },
+                orderBy: { created_at: 'desc' },
+            })
+        );
+        const rows = items.map((t) => ({
+            number: t.ticket_number,
+            workspace: t.workspace?.name || '',
+            workspace_slug: t.workspace?.slug || '',
+            creator_email: t.creator?.email || '',
+            creator_name: t.creator?.full_name || '',
+            subject: t.subject,
+            category: t.category,
+            priority: t.priority,
+            status: t.status,
+            first_response_at: t.first_response_at || '',
+            resolved_at: t.resolved_at || '',
+            created_at: t.created_at,
+        }));
+        reply.header('Content-Type', 'text/csv; charset=utf-8');
+        reply.header('Content-Disposition', `attachment; filename="tickets-${new Date().toISOString().slice(0, 10)}.csv"`);
+        return reply.send(toCsv(rows));
+    });
+
+    fastify.get('/exports/payouts.csv', async (request, reply) => {
+        const items = await unscoped(() =>
+            prisma.referralPayout.findMany({
+                include: { referrer: { select: { name: true, slug: true } } },
+                orderBy: [{ period: 'desc' }],
+            })
+        );
+        const rows = items.map((p) => ({
+            period: p.period,
+            referrer: p.referrer?.name || '',
+            referrer_slug: p.referrer?.slug || '',
+            referred_count: p.referred_count,
+            mrr_referred_mxn: Math.round(p.mrr_referred_cents / 100),
+            commission_mxn: Math.round(p.commission_cents / 100),
+            status: p.status,
+            paid_at: p.paid_at || '',
+            paid_via: p.paid_via || '',
+            notes: p.notes || '',
+        }));
+        reply.header('Content-Type', 'text/csv; charset=utf-8');
+        reply.header('Content-Disposition', `attachment; filename="payouts-${new Date().toISOString().slice(0, 10)}.csv"`);
+        return reply.send(toCsv(rows));
+    });
+
     // ────────── MAINTENANCE ──────────
     fastify.post('/maintenance/run-payout-sweep', async (request, reply) => {
         const { runReferralPayoutSweep } = await import('../lib/referral-sweep.js');
