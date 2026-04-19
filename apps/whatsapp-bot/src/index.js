@@ -154,32 +154,41 @@ server.on('error', (err) => {
 });
 
 // ─── SELF-HEAL SWEEP ─────────────────────────────────────────────────
-// Every 2 minutes, look for sessions that SHOULD be connected (they have
-// session data on disk and the DB says is_connected=true) but whose in-memory
-// state shows isConnected=false for >5 min. Re-initialize them with a small
-// backoff so we don't hammer Chromium. This covers "container restarted but
-// nobody reopened the admin UI" scenarios.
-const HEALTH_CHECK_MS = 2 * 60 * 1000;
-const DEAD_THRESHOLD_MS = 5 * 60 * 1000;
-setInterval(async () => {
-    try {
-        const sessions = sessionManager.getAllSessions();
-        for (const s of sessions) {
-            if (s.isConnected) continue;
-            const last = s.lastReadyAt ? new Date(s.lastReadyAt).getTime() : 0;
-            // If the session has been "not connected" for longer than the
-            // dead threshold and isn't currently initializing, kick it.
-            if (Date.now() - last > DEAD_THRESHOLD_MS && !s.initializing) {
-                console.log(`[self-heal] session ${s.mechanicId} looks dead; reinitializing…`);
-                sessionManager.startSession(s.mechanicId).catch((e) =>
-                    console.warn(`[self-heal] start failed for ${s.mechanicId}: ${e.message}`)
-                );
+// Busca sesiones que un día estuvieron conectadas (lastReadyAt != null) y
+// ahora llevan >20 min desconectadas sin inicializar. Solo entonces las
+// reinicia. Sesiones que nunca han visto `ready` (esperando QR / cargando
+// credenciales / autenticando) se DEJAN EN PAZ — el flujo normal de
+// whatsapp-web.js puede tomar 30-90s con IndexedDB grande, y matar en medio
+// corrompe la carpeta de sesión.
+//
+// Se puede desactivar con SELF_HEAL_ENABLED=false para diagnósticos / recovery.
+const HEALTH_CHECK_MS = 5 * 60 * 1000;   // barrida cada 5 min (antes: 2 min)
+const DEAD_THRESHOLD_MS = 20 * 60 * 1000; // 20 min sin ready (antes: 5 min)
+const SELF_HEAL_ENABLED = process.env.SELF_HEAL_ENABLED !== 'false';
+
+if (SELF_HEAL_ENABLED) {
+    setInterval(async () => {
+        try {
+            const sessions = sessionManager.getAllSessions();
+            for (const s of sessions) {
+                if (s.isConnected) continue;
+                if (s.initializing) continue;                 // ya está levantando, no tocar
+                if (!s.lastReadyAt) continue;                 // nunca autenticó — seguramente escanear QR pendiente
+                const last = new Date(s.lastReadyAt).getTime();
+                if (Date.now() - last > DEAD_THRESHOLD_MS) {
+                    console.log(`[self-heal] session ${s.mechanicId} looks dead; reinitializing…`);
+                    sessionManager.startSession(s.mechanicId).catch((e) =>
+                        console.warn(`[self-heal] start failed for ${s.mechanicId}: ${e.message}`)
+                    );
+                }
             }
+        } catch (e) {
+            console.warn('[self-heal] sweep error:', e.message);
         }
-    } catch (e) {
-        console.warn('[self-heal] sweep error:', e.message);
-    }
-}, HEALTH_CHECK_MS);
+    }, HEALTH_CHECK_MS);
+} else {
+    console.log('[self-heal] disabled via SELF_HEAL_ENABLED=false');
+}
 
 // ─── MEMORY WATCHDOG ─────────────────────────────────────────────────
 // If RSS stays above 1.5 GB for 5 straight checks (i.e. 5+ minutes), trigger
