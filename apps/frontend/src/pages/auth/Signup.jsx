@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, User, Phone, Wrench, UserPlus, CheckCircle2, AlertCircle } from 'lucide-react';
-import { authService } from '../../lib/api';
+import { Mail, Lock, Eye, EyeOff, User, Phone, Wrench, UserPlus, AlertCircle } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
 export default function Signup() {
     const navigate = useNavigate();
     const toast = useToast();
+    const { register } = useAuth();
 
     const [form, setForm] = useState({
         fullName: '',
@@ -19,8 +20,6 @@ export default function Signup() {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [success, setSuccess] = useState(false);
-    const [successMsg, setSuccessMsg] = useState('');
 
     const update = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
 
@@ -43,7 +42,7 @@ export default function Signup() {
 
         setLoading(true);
         try {
-            const res = await authService.register({
+            const res = await register({
                 email: form.email.trim().toLowerCase(),
                 password: form.password,
                 fullName: form.fullName.trim(),
@@ -51,43 +50,16 @@ export default function Signup() {
                 phone: form.phone.trim() || null,
                 businessType: 'motorcycle',
             });
-            setSuccess(true);
-            setSuccessMsg(res?.message || '¡Gracias por registrarte!');
-            toast.success('Cuenta creada. Revisaremos tu taller pronto.');
+            toast.success(res?.message || '¡Bienvenido a MotoPartes!');
+            // Auto-login path: register returns { user, memberships, token }.
+            // Go to onboarding wizard so the owner finishes setup.
+            navigate('/onboarding', { replace: true });
         } catch (err) {
             setError(err?.message || 'No pudimos completar el registro.');
         } finally {
             setLoading(false);
         }
     };
-
-    if (success) {
-        return (
-            <div className="signup-page">
-                <div className="signup-bg-decor">
-                    <div className="bg-circle bg-circle-1"></div>
-                    <div className="bg-circle bg-circle-2"></div>
-                    <div className="bg-circle bg-circle-3"></div>
-                </div>
-                <div className="signup-container">
-                    <div className="signup-card" style={{ textAlign: 'center' }}>
-                        <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
-                            <CheckCircle2 size={48} color="#16a34a" />
-                        </div>
-                        <h1 className="signup-title"><span className="title-moto">MOTO</span><span className="title-partes">PARTES</span></h1>
-                        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#1e293b', margin: '24px 0 12px' }}>¡Registro recibido!</h2>
-                        <p style={{ color: '#475569', lineHeight: 1.6, marginBottom: 28 }}>
-                            {successMsg}
-                        </p>
-                        <Link to="/login" className="signup-submit-btn" style={{ textDecoration: 'none' }}>
-                            Ir al inicio de sesión
-                        </Link>
-                    </div>
-                </div>
-                <style>{signupStyles}</style>
-            </div>
-        );
-    }
 
     return (
         <div className="signup-page">

@@ -1,8 +1,10 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
+import { resolveWorkspace } from '../middleware/workspace.js';
 
 export default async function paymentRequestsRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
+    fastify.addHook('preHandler', resolveWorkspace);
 
     // POST /api/payment-requests
     fastify.post('/', async (request) => {

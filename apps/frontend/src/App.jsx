@@ -9,6 +9,10 @@ import AppLayout from './components/layout/AppLayout';
 // Auth Pages
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
+import Onboarding from './pages/auth/Onboarding';
+
+// Workspace settings
+import AdminWorkspace from './pages/admin/AdminWorkspace';
 
 // Admin Pages
 import {
@@ -117,10 +121,18 @@ function AppRoutes() {
         path="/signup"
         element={
           isAuthenticated ? (
-            <Navigate to={getDefaultRoute()} replace />
+            <Navigate to="/onboarding" replace />
           ) : (
             <Signup />
           )
+        }
+      />
+
+      {/* Wizard de onboarding — sólo para usuarios autenticados */}
+      <Route
+        path="/onboarding"
+        element={
+          isAuthenticated ? <Onboarding /> : <Navigate to="/login" replace />
         }
       />
 
@@ -143,6 +155,7 @@ function AppRoutes() {
         <Route path="services" element={<AdminServices />} />
         <Route path="mechanics" element={<AdminMechanics />} />
         <Route path="analytics" element={<AdminAnalytics />} />
+        <Route path="workspace" element={<AdminWorkspace />} />
       </Route>
 
       {/* Rutas de Mecánico */}

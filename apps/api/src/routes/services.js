@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
+import { resolveWorkspace } from '../middleware/workspace.js';
 
 // Only allow known Service model fields
 function sanitizeServiceData(body) {
@@ -22,6 +23,7 @@ function sanitizeServiceData(body) {
 
 export default async function servicesRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
+    fastify.addHook('preHandler', resolveWorkspace);
 
     fastify.get('/', async () => {
         return prisma.service.findMany({ orderBy: { display_order: 'asc' } });

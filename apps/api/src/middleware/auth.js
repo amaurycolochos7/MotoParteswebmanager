@@ -10,12 +10,20 @@ if (JWT_SECRET === JWT_FALLBACK) {
     console.warn('[AUTH] ⚠️ JWT_SECRET env var is not set — using the legacy default. Set JWT_SECRET in Dokploy to rotate it.');
 }
 
+// `user` may include `memberships` (array of {workspace_id, role}) and a
+// `workspace_id` shortcut set when the user only has one membership. The
+// payload is intentionally small — Fastify logs the decoded JWT at trace
+// level, and workspace permissions are looked up fresh on each request by
+// resolveWorkspace.
 export function generateToken(user) {
-    return jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
-        JWT_SECRET,
-        { expiresIn: '7d' }
-    );
+    const payload = {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+    };
+    if (Array.isArray(user.memberships)) payload.memberships = user.memberships;
+    if (user.workspace_id) payload.workspace_id = user.workspace_id;
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 }
 
 export function verifyToken(token) {

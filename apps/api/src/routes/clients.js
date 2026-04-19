@@ -1,8 +1,10 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
+import { resolveWorkspace } from '../middleware/workspace.js';
 
 export default async function clientsRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
+    fastify.addHook('preHandler', resolveWorkspace);
 
     // GET /api/clients
     fastify.get('/', async () => {

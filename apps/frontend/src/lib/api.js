@@ -9,6 +9,7 @@ const WA_BOT_KEY = import.meta.env.VITE_WHATSAPP_BOT_KEY || 'motopartes-whatsapp
 
 // Token management
 let authToken = localStorage.getItem('motopartes_token');
+let activeWorkspaceId = localStorage.getItem('motopartes_active_workspace');
 
 function setToken(token) {
     authToken = token;
@@ -20,19 +21,29 @@ function getToken() {
     return authToken || localStorage.getItem('motopartes_token');
 }
 
+// Called by AuthContext whenever the user picks a workspace. The API uses
+// this header to scope every query/write to that workspace via the Prisma
+// auto-scope extension on the server side.
+export function setActiveWorkspaceId(id) {
+    activeWorkspaceId = id || null;
+}
+
 // Base fetch wrapper
 async function apiFetch(path, options = {}) {
     const token = getToken();
     const headers = { ...options.headers };
 
     if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (activeWorkspaceId && !headers['x-workspace-id']) {
+        headers['x-workspace-id'] = activeWorkspaceId;
+    }
     if (!(options.body instanceof FormData)) {
         headers['Content-Type'] = 'application/json';
     }
 
     const res = await fetch(`${API_URL}${path}`, { ...options, headers });
 
-    if (res.status === 401 && !path.includes('/auth/login')) {
+    if (res.status === 401 && !path.includes('/auth/login') && !path.includes('/auth/register')) {
         setToken(null);
         window.location.href = '/login';
         throw new Error('Sesión expirada');
@@ -56,7 +67,13 @@ export const authService = {
             body: JSON.stringify({ email, password })
         });
         if (result.token) setToken(result.token);
-        return { data: { user: result.user }, error: null };
+        return {
+            data: {
+                user: result.user,
+                memberships: result.memberships || [],
+            },
+            error: null,
+        };
     },
 
     async register({ email, password, fullName, workshopName, phone, businessType }) {
@@ -71,7 +88,10 @@ export const authService = {
                 business_type: businessType || 'motorcycle',
             })
         });
-        return result; // { success: true, message: '...' }
+        // In Phase 3 the register endpoint auto-logs-in: it returns
+        // { success, user, memberships, token, message }.
+        if (result?.token) setToken(result.token);
+        return result;
     },
 
     async getProfile(id) {
@@ -893,3 +913,48 @@ export const whatsappBotService = {
 // Backward compatibility
 export const supabase = null;
 export default null;
+
+// =============================================
+// WORKSPACE SERVICE (Phase 3)
+// =============================================
+export const workspaceService = {
+    async getCurrent() {
+        return apiFetch('/workspaces/current');
+    },
+    async update(data) {
+        return apiFetch('/workspaces/current', {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+    async completeOnboarding() {
+        return apiFetch('/workspaces/current/complete-onboarding', {
+            method: 'POST',
+            body: JSON.stringify({}),
+        });
+    },
+    async listMembers() {
+        return apiFetch('/workspaces/current/members');
+    },
+    async listInvitations() {
+        return apiFetch('/workspaces/current/invitations');
+    },
+    async createInvitation({ email, role }) {
+        return apiFetch('/workspaces/current/invitations', {
+            method: 'POST',
+            body: JSON.stringify({ email, role }),
+        });
+    },
+    async deleteInvitation(id) {
+        return apiFetch(`/workspaces/current/invitations/${id}`, { method: 'DELETE' });
+    },
+    async getUsage() {
+        return apiFetch('/workspaces/current/usage');
+    },
+    async listMine() {
+        return apiFetch('/workspaces/mine');
+    },
+    async listPublicPlans() {
+        return apiFetch('/workspaces/plans');
+    },
+};

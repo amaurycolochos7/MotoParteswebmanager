@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
+import { resolveWorkspace } from '../middleware/workspace.js';
 
 // Only allow known Motorcycle model fields
 function sanitizeMotoData(body) {
@@ -18,6 +19,7 @@ function sanitizeMotoData(body) {
 
 export default async function motorcyclesRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
+    fastify.addHook('preHandler', resolveWorkspace);
 
     // GET /api/motorcycles?clientId=
     fastify.get('/', async (request) => {

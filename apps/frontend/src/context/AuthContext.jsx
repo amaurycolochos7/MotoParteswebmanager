@@ -1,9 +1,11 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { authService } from '../lib/api';
+import { authService, setActiveWorkspaceId } from '../lib/api';
 
 const AuthContext = createContext(null);
 
 const STORAGE_KEY = 'motopartes_auth';
+const MEMBERSHIPS_KEY = 'motopartes_memberships';
+const ACTIVE_WS_KEY = 'motopartes_active_workspace';
 
 // Permisos por rol
 const ROLE_PERMISSIONS = {
@@ -47,7 +49,29 @@ const ROLE_PERMISSIONS = {
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
+    const [memberships, setMemberships] = useState([]); // [{ workspace, role, permissions }]
+    const [activeWorkspace, setActiveWorkspace] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    const applyMemberships = useCallback((mbs, preferredId = null) => {
+        setMemberships(mbs || []);
+        localStorage.setItem(MEMBERSHIPS_KEY, JSON.stringify(mbs || []));
+        let chosen = null;
+        if (mbs && mbs.length) {
+            const byId = preferredId
+                ? mbs.find((m) => m.workspace?.id === preferredId)
+                : null;
+            chosen = byId || mbs[0];
+        }
+        setActiveWorkspace(chosen?.workspace || null);
+        if (chosen?.workspace?.id) {
+            localStorage.setItem(ACTIVE_WS_KEY, chosen.workspace.id);
+            setActiveWorkspaceId(chosen.workspace.id);
+        } else {
+            localStorage.removeItem(ACTIVE_WS_KEY);
+            setActiveWorkspaceId(null);
+        }
+    }, []);
 
     // Cargar sesión al iniciar
     useEffect(() => {
@@ -56,12 +80,26 @@ export function AuthProvider({ children }) {
                 const stored = localStorage.getItem(STORAGE_KEY);
                 if (stored) {
                     const userData = JSON.parse(stored);
-                    // Verificar que el usuario sigue activo en la base de datos
                     const { data: freshUser } = await authService.getProfile(userData.id);
                     if (freshUser && freshUser.is_active) {
                         setUser(freshUser);
+                        // Restore memberships + active workspace from localStorage
+                        // so the Prisma auto-scope header fires on the very first
+                        // API call after refresh.
+                        const mbRaw = localStorage.getItem(MEMBERSHIPS_KEY);
+                        const activeId = localStorage.getItem(ACTIVE_WS_KEY);
+                        if (mbRaw) {
+                            try {
+                                const mbs = JSON.parse(mbRaw);
+                                applyMemberships(mbs, activeId);
+                            } catch { /* ignore */ }
+                        } else if (activeId) {
+                            setActiveWorkspaceId(activeId);
+                        }
                     } else {
                         localStorage.removeItem(STORAGE_KEY);
+                        localStorage.removeItem(MEMBERSHIPS_KEY);
+                        localStorage.removeItem(ACTIVE_WS_KEY);
                     }
                 }
             } catch (error) {
@@ -73,7 +111,7 @@ export function AuthProvider({ children }) {
         };
 
         loadSession();
-    }, []);
+    }, [applyMemberships]);
 
     // Login
     const login = useCallback(async (email, password) => {
@@ -82,22 +120,68 @@ export function AuthProvider({ children }) {
             const { data, error } = await authService.login(email, password);
             if (error) throw error;
             const userData = data.user;
+            const mbs = data.memberships || [];
             setUser(userData);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+            applyMemberships(mbs);
             return userData;
         } catch (error) {
-            // Re-throw the error so the Login component can catch it
             throw error;
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [applyMemberships]);
+
+    // Register — auto-login after successful signup.
+    const register = useCallback(async (payload) => {
+        setLoading(true);
+        try {
+            const res = await authService.register(payload);
+            if (res?.token && res?.user) {
+                const { user: newUser, memberships: mbs, token } = res;
+                localStorage.setItem('motopartes_token', token);
+                setUser(newUser);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
+                applyMemberships(mbs || []);
+            }
+            return res;
+        } finally {
+            setLoading(false);
+        }
+    }, [applyMemberships]);
+
+    // Switch active workspace (user has multiple memberships).
+    const switchWorkspace = useCallback((workspaceId) => {
+        const found = memberships.find((m) => m.workspace?.id === workspaceId);
+        if (!found) return;
+        setActiveWorkspace(found.workspace);
+        localStorage.setItem(ACTIVE_WS_KEY, workspaceId);
+        setActiveWorkspaceId(workspaceId);
+    }, [memberships]);
+
+    // Refresh the workspace record (after onboarding or branding changes).
+    const refreshActiveWorkspace = useCallback((workspace) => {
+        if (!workspace) return;
+        setActiveWorkspace(workspace);
+        const updated = memberships.map((m) =>
+            m.workspace?.id === workspace.id ? { ...m, workspace } : m
+        );
+        setMemberships(updated);
+        localStorage.setItem(MEMBERSHIPS_KEY, JSON.stringify(updated));
+    }, [memberships]);
 
     // Logout
     const logout = useCallback(() => {
         setUser(null);
+        setMemberships([]);
+        setActiveWorkspace(null);
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(MEMBERSHIPS_KEY);
+        localStorage.removeItem(ACTIVE_WS_KEY);
+        setActiveWorkspaceId(null);
     }, []);
+
+    const workspaceRole = memberships.find((m) => m.workspace?.id === activeWorkspace?.id)?.role || null;
 
     // Verificar rol
     const isAdmin = useCallback(() => {
@@ -230,9 +314,15 @@ export function AuthProvider({ children }) {
 
     const value = {
         user,
+        memberships,
+        activeWorkspace,
+        workspaceRole,
         loading,
         login,
+        register,
         logout,
+        switchWorkspace,
+        refreshActiveWorkspace,
         isAdmin,
         isMechanic,
         isAdminMechanic,

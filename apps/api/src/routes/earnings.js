@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
+import { resolveWorkspace } from '../middleware/workspace.js';
 
 function getWeekStart(date) {
     const d = new Date(date);
@@ -12,6 +13,7 @@ function getWeekStart(date) {
 
 export default async function earningsRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
+    fastify.addHook('preHandler', resolveWorkspace);
 
     // POST /api/earnings - Record earning
     fastify.post('/', async (request) => {

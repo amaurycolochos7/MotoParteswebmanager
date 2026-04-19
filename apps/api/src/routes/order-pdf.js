@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
+import { resolveWorkspace } from '../middleware/workspace.js';
 import PDFDocument from 'pdfkit';
 
 const BOT_URL = process.env.WHATSAPP_BOT_INTERNAL_URL || 'http://whatsapp-bot:3002';
@@ -13,9 +14,13 @@ if (BOT_KEY === BOT_KEY_FALLBACK) {
 }
 
 /**
- * Generates a professional PDF Buffer for an order using PDFKit
+ * Generates a professional PDF Buffer for an order using PDFKit.
+ *
+ * `workspace` is optional — when provided, its branding (name, colors,
+ * tagline, pdf_footer) is used. When absent, the defaults match the
+ * flagship MotoPartes look so legacy callers keep working.
  */
-function generatePDF(order, client, motorcycle) {
+function generatePDF(order, client, motorcycle, workspace) {
     return new Promise((resolve, reject) => {
         try {
             const doc = new PDFDocument({ size: 'A4', margin: 50, bufferPages: true });
@@ -30,11 +35,15 @@ function generatePDF(order, client, motorcycle) {
             const marginR = 50;
             const contentW = pageW - marginL - marginR;
 
-            // Colors
-            const RED = '#DC2626';
-            const BLACK = '#191919';
+            // Workspace-aware branding with safe fallbacks.
+            const branding = workspace?.branding || {};
+            const RED = branding.primary_color || '#DC2626';
+            const BLACK = branding.secondary_color || '#191919';
             const GRAY = '#64748B';
             const LIGHT_BG = '#F8FAFC';
+            const wsName = (workspace?.name || 'MotoPartes').toUpperCase();
+            const wsTagline = branding.tagline || 'Sistema de gestión de taller';
+            const wsFooter = branding.pdf_footer || `-- ${workspace?.name || 'MotoPartes'}`;
 
             // ─── HEADER BAR ───
             doc.rect(0, 0, pageW, 80).fill(BLACK);
@@ -42,9 +51,9 @@ function generatePDF(order, client, motorcycle) {
 
             // Title
             doc.fontSize(24).fillColor('white').font('Helvetica-Bold');
-            doc.text('MOTOPARTES CLUB', marginL, 22, { width: contentW / 2 });
+            doc.text(wsName, marginL, 22, { width: contentW / 2 });
             doc.fontSize(10).fillColor('#B0B0B0').font('Helvetica');
-            doc.text('Reparaciones y Modificaciones', marginL, 50);
+            doc.text(wsTagline, marginL, 50);
 
             // Order number (right side)
             doc.fontSize(14).fillColor('white').font('Helvetica-Bold');
@@ -210,7 +219,7 @@ function generatePDF(order, client, motorcycle) {
             const footerY = Math.max(tY + 40, 720);
             doc.moveTo(marginL, footerY).lineTo(marginL + contentW, footerY).strokeColor('#E0E0E0').lineWidth(0.3).stroke();
             doc.fontSize(8).fillColor(GRAY).font('Helvetica');
-            doc.text('MotoPartes Club  |  Reparaciones y Modificaciones', marginL, footerY + 8, { width: contentW, align: 'center' });
+            doc.text(wsFooter, marginL, footerY + 8, { width: contentW, align: 'center' });
             doc.text('Gracias por su preferencia', marginL, footerY + 20, { width: contentW, align: 'center' });
 
             doc.end();
@@ -222,6 +231,7 @@ function generatePDF(order, client, motorcycle) {
 
 export default async function orderPdfRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
+    fastify.addHook('preHandler', resolveWorkspace);
 
     // POST /api/order-pdf/:id/send
     fastify.post('/:id/send', async (request, reply) => {
@@ -240,15 +250,16 @@ export default async function orderPdfRoutes(fastify) {
 
             if (!client?.phone) return reply.code(400).send({ error: 'El cliente no tiene telefono' });
 
-            // Generate PDF
-            const pdfBuffer = await generatePDF(order, client, motorcycle);
+            // Generate PDF with the caller's workspace branding
+            const pdfBuffer = await generatePDF(order, client, motorcycle, request.workspace);
             const pdfBase64 = pdfBuffer.toString('base64');
             const filename = `${order.order_number}_resumen.pdf`;
 
-            // WhatsApp caption
+            // WhatsApp caption signed with the workspace's name
             const motoInfo = motorcycle ? `${motorcycle.brand} ${motorcycle.model}` : 'N/A';
             const totalAmt = parseFloat(order.total_amount) || 0;
-            const caption = `*RESUMEN DE SERVICIO*\n${order.order_number}\nMoto: ${motoInfo}\nTotal: $${totalAmt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}\n\n-- MotoPartes Club`;
+            const wsName = request.workspace?.name || 'MotoPartes';
+            const caption = `*RESUMEN DE SERVICIO*\n${order.order_number}\nMoto: ${motoInfo}\nTotal: $${totalAmt.toLocaleString('es-MX', { minimumFractionDigits: 2 })}\n\n-- ${wsName}`;
 
             const mechanicId = order.approved_by || order.mechanic_id;
 
@@ -301,7 +312,7 @@ export default async function orderPdfRoutes(fastify) {
             const client = await prisma.client.findUnique({ where: { id: order.client_id } });
             const motorcycle = await prisma.motorcycle.findUnique({ where: { id: order.motorcycle_id } });
 
-            const pdfBuffer = await generatePDF(order, client, motorcycle);
+            const pdfBuffer = await generatePDF(order, client, motorcycle, request.workspace);
             const filename = `${order.order_number}_resumen.pdf`;
 
             reply.header('Content-Type', 'application/pdf')

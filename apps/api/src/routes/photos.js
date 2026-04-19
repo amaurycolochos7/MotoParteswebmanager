@@ -1,8 +1,10 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
+import { resolveWorkspace } from '../middleware/workspace.js';
 
 export default async function photosRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
+    fastify.addHook('preHandler', resolveWorkspace);
 
     // POST /api/photos - Upload photo (URL-based, storage handled by frontend or external)
     fastify.post('/', async (request) => {

@@ -1,13 +1,19 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
+import { resolveWorkspace } from '../middleware/workspace.js';
 
-// Helper: generate order number (MP-YY-NN format)
-async function generateOrderNumber() {
+// Helper: generate an order number of the form "<PREFIX>-YY-NNN" where
+// <PREFIX> comes from the workspace's folio_prefix and NNN is the running
+// count of orders THIS YEAR in THIS workspace. The count query relies on the
+// Prisma extension auto-scoping to the active workspace, so the counter is
+// per-workspace naturally.
+async function generateOrderNumber(prefix) {
     const shortYear = String(new Date().getFullYear()).slice(-2);
+    const prefixYear = `${prefix}-${shortYear}-`;
     const count = await prisma.order.count({
-        where: { order_number: { startsWith: `MP-${shortYear}-` } }
+        where: { order_number: { startsWith: prefixYear } },
     });
-    return `MP-${shortYear}-${String(count + 1).padStart(2, '0')}`;
+    return `${prefixYear}${String(count + 1).padStart(3, '0')}`;
 }
 
 // Helper: recalculate order totals
@@ -80,6 +86,7 @@ export default async function ordersRoutes(fastify) {
     // Wrapped in a sub-plugin so the auth hook only applies to these routes
     fastify.register(async function authenticatedRoutes(app) {
         app.addHook('preHandler', authenticate);
+        app.addHook('preHandler', resolveWorkspace);
 
         // GET /api/orders
         app.get('/', async (request) => {
@@ -114,7 +121,7 @@ export default async function ordersRoutes(fastify) {
         // POST /api/orders
         app.post('/', async (request) => {
             const data = request.body;
-            const orderNumber = await generateOrderNumber();
+            const orderNumber = await generateOrderNumber(request.workspace?.folio_prefix || 'MP');
 
             // Generate public token
             const { nanoid } = await import('nanoid');
@@ -347,7 +354,7 @@ export default async function ordersRoutes(fastify) {
         });
 
         // ============ UPDATE ORDER COSTS (labor + parts) ============
-        fastify.put('/:id/costs', { preHandler: [authenticate] }, async (request, reply) => {
+        fastify.put('/:id/costs', { preHandler: [authenticate, resolveWorkspace] }, async (request, reply) => {
             const { id } = request.params;
             const { labor_total, parts } = request.body;
 
