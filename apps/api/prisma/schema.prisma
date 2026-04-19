@@ -238,6 +238,96 @@ model FailedPayment {
 }
 
 // =============================================
+// PHASE 5 — AUTOMATIONS
+// =============================================
+
+// A configurable rule in the automation engine. One Automation ties a trigger
+// (event name + optional filter) to an action (what to send / do) and a
+// template. Automations start disabled; the owner flips them on explicitly.
+model Automation {
+  id            String    @id @default(uuid()) @db.Uuid
+  workspace_id  String    @db.Uuid
+  name          String
+  description   String?
+  trigger       String                           // e.g. 'order.created'
+  filter        Json      @default("{}")         // narrows the trigger
+  action        String                           // 'whatsapp.send_template' | 'pdf.send_quote' | 'task.create' | 'webhook.fire'
+  params        Json      @default("{}")         // action-specific (template_id, to, webhook_url, delay_minutes...)
+  delay_minutes Int       @default(0)            // how long to wait after trigger before firing
+  enabled       Boolean   @default(false)
+  run_count     Int       @default(0)
+  fail_count    Int       @default(0)
+  last_run_at   DateTime? @db.Timestamptz
+  last_error    String?
+  is_default    Boolean   @default(false)        // one of the 7 seeded defaults
+  created_at    DateTime  @default(now()) @db.Timestamptz
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  jobs          AutomationJob[]
+
+  @@index([workspace_id, trigger, enabled])
+  @@map("automations")
+}
+
+// Reusable message templates (WhatsApp and — later — email).
+model MessageTemplate {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspace_id  String   @db.Uuid
+  name          String
+  channel       String                          // 'whatsapp' | 'email'
+  subject       String?                         // email only
+  body          String                          // supports {placeholder} substitution
+  is_default    Boolean  @default(false)
+  created_at    DateTime @default(now()) @db.Timestamptz
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz
+
+  @@index([workspace_id])
+  @@map("message_templates")
+}
+
+// Queue row — each event fires into the queue; the worker picks up pending
+// rows, runs the action, marks done/failed with retry metadata.
+model AutomationJob {
+  id             String    @id @default(uuid()) @db.Uuid
+  workspace_id   String    @db.Uuid
+  automation_id  String?   @db.Uuid
+  trigger_event  String
+  context        Json      @default("{}")       // { order_id, client_id, motorcycle_id, ... }
+  scheduled_at   DateTime  @db.Timestamptz
+  status         String    @default("pending")  // pending | running | done | failed
+  attempts       Int       @default(0)
+  last_error     String?
+  ran_at         DateTime? @db.Timestamptz
+  result         Json?
+  created_at     DateTime  @default(now()) @db.Timestamptz
+
+  automation     Automation? @relation(fields: [automation_id], references: [id], onDelete: SetNull)
+
+  @@index([status, scheduled_at])
+  @@index([workspace_id, created_at])
+  @@map("automation_jobs")
+}
+
+// Internal tasks — created by the `task.create` action or manually.
+model Task {
+  id            String    @id @default(uuid()) @db.Uuid
+  workspace_id  String    @db.Uuid
+  title         String
+  description   String?
+  assigned_to   String?   @db.Uuid              // Profile.id (optional)
+  due_at        DateTime? @db.Timestamptz
+  completed_at  DateTime? @db.Timestamptz
+  source        String    @default("manual")    // 'manual' | 'automation'
+  metadata      Json      @default("{}")        // ref to order_id etc.
+  created_at    DateTime  @default(now()) @db.Timestamptz
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  @@index([workspace_id, completed_at])
+  @@index([assigned_to, completed_at])
+  @@map("tasks")
+}
+
+// =============================================
 // 1. PERFILES DE USUARIO
 // =============================================
 model Profile {

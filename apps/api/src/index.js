@@ -23,6 +23,9 @@ import migrateMotosRoute from './routes/migrate-motos.js';
 import orderPdfRoutes from './routes/order-pdf.js';
 import workspacesRoutes from './routes/workspaces.js';
 import billingRoutes from './routes/billing.js';
+import automationsRoutes from './routes/automations.js';
+import templatesRoutes from './routes/templates.js';
+import tasksRoutes from './routes/tasks.js';
 import { installWorkspaceStore } from './middleware/workspace.js';
 
 const fastify = Fastify({ logger: true });
@@ -92,15 +95,27 @@ await fastify.register(migrateMotosRoute, { prefix: '/api/admin/migrate-motos' }
 await fastify.register(orderPdfRoutes, { prefix: '/api/order-pdf' });
 await fastify.register(workspacesRoutes, { prefix: '/api/workspaces' });
 await fastify.register(billingRoutes, { prefix: '/api/billing' });
+await fastify.register(automationsRoutes, { prefix: '/api/automations' });
+await fastify.register(templatesRoutes, { prefix: '/api/templates' });
+await fastify.register(tasksRoutes, { prefix: '/api/tasks' });
 
 // Periodic billing sweep — every hour on the hour, plus once at startup.
-// Keeps trial expirations and dunning downgrades close to real-time without
-// needing a separate cron container.
 import { runBillingSweep } from './lib/billing-sweep.js';
 runBillingSweep().catch((e) => console.error('[billing-sweep] boot run failed:', e.message));
 setInterval(() => {
     runBillingSweep().catch((e) => console.error('[billing-sweep] failed:', e.message));
 }, 60 * 60 * 1000);
+
+// Automation sweeps:
+//   - Job worker every 30s (processes pending automation jobs)
+//   - Temporal sweep every 5min (generates jobs for time-based triggers)
+import { runAutomationSweep, runTemporalSweep } from './lib/automations.js';
+setInterval(() => {
+    runAutomationSweep().catch((e) => console.error('[automations] worker error:', e.message));
+}, 30 * 1000);
+setInterval(() => {
+    runTemporalSweep().catch((e) => console.error('[automations] temporal error:', e.message));
+}, 5 * 60 * 1000);
 
 // Start
 const PORT = process.env.PORT || 3000;

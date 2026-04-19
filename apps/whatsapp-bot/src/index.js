@@ -152,3 +152,51 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
 server.on('error', (err) => {
     console.error('Server error:', err);
 });
+
+// ─── SELF-HEAL SWEEP ─────────────────────────────────────────────────
+// Every 2 minutes, look for sessions that SHOULD be connected (they have
+// session data on disk and the DB says is_connected=true) but whose in-memory
+// state shows isConnected=false for >5 min. Re-initialize them with a small
+// backoff so we don't hammer Chromium. This covers "container restarted but
+// nobody reopened the admin UI" scenarios.
+const HEALTH_CHECK_MS = 2 * 60 * 1000;
+const DEAD_THRESHOLD_MS = 5 * 60 * 1000;
+setInterval(async () => {
+    try {
+        const sessions = sessionManager.getAllSessions();
+        for (const s of sessions) {
+            if (s.isConnected) continue;
+            const last = s.lastReadyAt ? new Date(s.lastReadyAt).getTime() : 0;
+            // If the session has been "not connected" for longer than the
+            // dead threshold and isn't currently initializing, kick it.
+            if (Date.now() - last > DEAD_THRESHOLD_MS && !s.initializing) {
+                console.log(`[self-heal] session ${s.mechanicId} looks dead; reinitializing…`);
+                sessionManager.startSession(s.mechanicId).catch((e) =>
+                    console.warn(`[self-heal] start failed for ${s.mechanicId}: ${e.message}`)
+                );
+            }
+        }
+    } catch (e) {
+        console.warn('[self-heal] sweep error:', e.message);
+    }
+}, HEALTH_CHECK_MS);
+
+// ─── MEMORY WATCHDOG ─────────────────────────────────────────────────
+// If RSS stays above 1.5 GB for 5 straight checks (i.e. 5+ minutes), trigger
+// a graceful shutdown. Docker/Swarm will restart us, sessions re-hydrate
+// from disk. Prevents Chromium memory leaks from spiraling forever.
+const MEMORY_LIMIT_BYTES = 1.5 * 1024 * 1024 * 1024;
+let overCount = 0;
+setInterval(() => {
+    const rss = process.memoryUsage().rss;
+    if (rss > MEMORY_LIMIT_BYTES) {
+        overCount += 1;
+        console.warn(`[watchdog] RSS ${Math.round(rss / 1024 / 1024)}MB over limit (strike ${overCount}/5)`);
+        if (overCount >= 5) {
+            console.error('[watchdog] RSS over limit for 5 checks — graceful restart');
+            shutdown(0);
+        }
+    } else if (overCount > 0) {
+        overCount = Math.max(0, overCount - 1);
+    }
+}, 60 * 1000);

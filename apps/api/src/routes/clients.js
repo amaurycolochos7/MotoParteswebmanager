@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
+import { fireEvent } from '../lib/events.js';
 
 export default async function clientsRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
@@ -47,6 +48,10 @@ export default async function clientsRoutes(fastify) {
                     created_by: request.user.id
                 },
                 include: { motorcycles: true }
+            });
+            fireEvent('client.created', {
+                workspaceId: request.workspace.id,
+                client_id: client.id,
             });
             return client;
         } catch (error) {

@@ -194,6 +194,7 @@ class SessionManager {
                 initializing: session.initializing,
                 qr: session.lastQr,
                 phoneNumber: session.phoneNumber,
+                lastReadyAt: session.lastReadyAt || null,
                 lastError: session.lastError || this._lastErrors.get(mechanicId) || null,
             });
         }

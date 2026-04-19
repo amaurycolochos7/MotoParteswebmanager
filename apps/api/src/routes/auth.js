@@ -2,6 +2,7 @@ import prisma, { workspaceContext } from '../lib/prisma.js';
 import bcrypt from 'bcryptjs';
 import { generateToken, authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
+import { seedDefaultsForWorkspace } from '../../prisma/seed-automation-defaults.js';
 
 // Run a callback WITHOUT any workspace scoping — used for queries that span
 // tenants (creating workspaces, listing memberships, authenticating).
@@ -241,6 +242,9 @@ export default async function authRoutes(fastify) {
                             payload: { via: 'self-signup', slug, workshop_name: trimmedWorkshop },
                         },
                     });
+
+                    // Seed the 7 default automations + templates (disabled).
+                    await seedDefaultsForWorkspace(tx, workspace.id);
 
                     return { newUser, workspace };
                 })

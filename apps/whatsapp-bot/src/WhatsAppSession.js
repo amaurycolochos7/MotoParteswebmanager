@@ -198,6 +198,7 @@ class WhatsAppSession extends EventEmitter {
             this.client.on('ready', () => {
                 console.log(`✅ Ready: mechanic ${this.mechanicId}`);
                 this.isConnected = true;
+                this.lastReadyAt = new Date();
                 this.lastQr = null;
                 const info = this.client.info;
                 this.phoneNumber = info?.wid?.user || null;

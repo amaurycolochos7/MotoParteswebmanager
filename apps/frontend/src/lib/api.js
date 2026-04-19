@@ -985,3 +985,35 @@ export const billingService = {
         return apiFetch('/billing/resume', { method: 'POST', body: JSON.stringify({}) });
     },
 };
+
+// =============================================
+// AUTOMATIONS / TEMPLATES / TASKS (Phase 5)
+// =============================================
+export const automationService = {
+    list() { return apiFetch('/automations'); },
+    create(data) { return apiFetch('/automations', { method: 'POST', body: JSON.stringify(data) }); },
+    update(id, data) { return apiFetch(`/automations/${id}`, { method: 'PUT', body: JSON.stringify(data) }); },
+    remove(id) { return apiFetch(`/automations/${id}`, { method: 'DELETE' }); },
+    listJobs(opts = {}) {
+        const qs = new URLSearchParams(opts).toString();
+        return apiFetch(`/automations/jobs${qs ? '?' + qs : ''}`);
+    },
+};
+
+export const templateService = {
+    list() { return apiFetch('/templates'); },
+    create(data) { return apiFetch('/templates', { method: 'POST', body: JSON.stringify(data) }); },
+    update(id, data) { return apiFetch(`/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }); },
+    remove(id) { return apiFetch(`/templates/${id}`, { method: 'DELETE' }); },
+};
+
+export const taskService = {
+    list(opts = {}) {
+        const qs = new URLSearchParams(opts).toString();
+        return apiFetch(`/tasks${qs ? '?' + qs : ''}`);
+    },
+    create(data) { return apiFetch('/tasks', { method: 'POST', body: JSON.stringify(data) }); },
+    complete(id) { return apiFetch(`/tasks/${id}/complete`, { method: 'PUT', body: JSON.stringify({}) }); },
+    reopen(id) { return apiFetch(`/tasks/${id}/reopen`, { method: 'PUT', body: JSON.stringify({}) }); },
+    remove(id) { return apiFetch(`/tasks/${id}`, { method: 'DELETE' }); },
+};

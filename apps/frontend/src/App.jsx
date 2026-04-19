@@ -14,6 +14,10 @@ import Onboarding from './pages/auth/Onboarding';
 // Workspace + billing settings
 import AdminWorkspace from './pages/admin/AdminWorkspace';
 import AdminBilling from './pages/admin/AdminBilling';
+import AdminAutomations from './pages/admin/AdminAutomations';
+import AdminTemplates from './pages/admin/AdminTemplates';
+import AdminTasks from './pages/admin/AdminTasks';
+import AdminBotHealth from './pages/admin/AdminBotHealth';
 
 // Admin Pages
 import {
@@ -158,6 +162,10 @@ function AppRoutes() {
         <Route path="analytics" element={<AdminAnalytics />} />
         <Route path="workspace" element={<AdminWorkspace />} />
         <Route path="billing" element={<AdminBilling />} />
+        <Route path="automations" element={<AdminAutomations />} />
+        <Route path="templates" element={<AdminTemplates />} />
+        <Route path="tasks" element={<AdminTasks />} />
+        <Route path="bot-health" element={<AdminBotHealth />} />
       </Route>
 
       {/* Rutas de Mecánico */}

@@ -2,6 +2,7 @@ import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
 import { assertWithinLimit, incrementUsageAsync, PlanLimitError } from '../lib/billing.js';
+import { fireEvent } from '../lib/events.js';
 
 // Helper: generate an order number of the form "<PREFIX>-YY-NNN" where
 // <PREFIX> comes from the workspace's folio_prefix and NNN is the running
@@ -201,6 +202,14 @@ export default async function ordersRoutes(fastify) {
             // a failure shouldn't roll back an already-created order.
             incrementUsageAsync(request.workspace.id, 'orders_count', 1);
 
+            // Fire automations trigger (async, non-blocking).
+            fireEvent('order.created', {
+                workspaceId: request.workspace.id,
+                order_id: order.id,
+                client_id: order.client_id,
+                motorcycle_id: order.motorcycle_id,
+            });
+
             // Return full order
             return prisma.order.findUnique({
                 where: { id: order.id },
@@ -267,16 +276,39 @@ export default async function ordersRoutes(fastify) {
                 }
             });
 
+            // Fire status-change event; the filter { status_name: '...' } on
+            // an automation decides whether it reacts. If the new status is
+            // terminal, also fire order.completed.
+            fireEvent('order.status_changed', {
+                workspaceId: request.workspace.id,
+                order_id: id,
+                client_id: order.client_id,
+                status_name: newStatus?.name || null,
+            });
+            if (newStatus?.is_terminal) {
+                fireEvent('order.completed', {
+                    workspaceId: request.workspace.id,
+                    order_id: id,
+                    client_id: order.client_id,
+                });
+            }
+
             return order;
         });
 
         // PUT /api/orders/:id/paid
         app.put('/:id/paid', async (request) => {
-            return prisma.order.update({
+            const updated = await prisma.order.update({
                 where: { id: request.params.id },
                 data: { is_paid: true, paid_at: new Date() },
                 include: ORDER_INCLUDE
             });
+            fireEvent('order.paid', {
+                workspaceId: request.workspace.id,
+                order_id: updated.id,
+                client_id: updated.client_id,
+            });
+            return updated;
         });
 
         // POST /api/orders/:id/services
