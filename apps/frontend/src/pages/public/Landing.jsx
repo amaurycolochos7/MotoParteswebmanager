@@ -5,7 +5,8 @@ import {
     ArrowRight, MessageCircle, FileText, Users, Package, DollarSign,
     CheckCircle2, ShieldCheck, Star, LogIn, UserPlus, Bike, Wrench,
     Menu, X, Clock, Zap, Camera, Smartphone, TrendingUp, Sparkles,
-    ChevronDown, ChevronUp,
+    ChevronDown, ChevronUp, ArrowLeft, Phone, Video, MoreVertical,
+    Paperclip, Mic, Smile, Wifi, BatteryFull, Signal,
 } from 'lucide-react';
 import { PUBLIC_PLANS, FEATURE_BLOCKS } from '../../lib/plans';
 import { captureReferralFromUrl, getStoredReferral } from '../../lib/referral';
@@ -196,27 +197,88 @@ export default function Landing() {
                         <div className="mp-phone">
                             <div className="mp-phone-notch" />
                             <div className="mp-phone-screen">
-                                <div className="mp-phone-header">
-                                    <div className="mp-phone-avatar">MP</div>
-                                    <div>
-                                        <div style={{ fontSize: '0.78rem', fontWeight: 700 }}>MotoPartes Taller</div>
-                                        <div style={{ fontSize: '0.65rem', color: '#16a34a' }}>● en línea</div>
+                                {/* Statusbar iOS */}
+                                <div className="mp-statusbar">
+                                    <span className="mp-sb-time">14:35</span>
+                                    <div className="mp-sb-right">
+                                        <Signal size={11} strokeWidth={2.5} />
+                                        <Wifi size={11} strokeWidth={2.5} />
+                                        <BatteryFull size={14} strokeWidth={2} />
                                     </div>
                                 </div>
-                                <div className="mp-phone-messages">
-                                    <div className="mp-msg mp-msg-them">
-                                        <div style={{ fontWeight: 600, color: '#ef4444', fontSize: '0.7rem', marginBottom: 2 }}>📎 Orden MP-26-042</div>
-                                        <div>Hola Juan! Tu moto ya está lista.</div>
-                                        <div style={{ marginTop: 4, fontSize: '0.72rem', color: '#64748b' }}>Total: $1,250 MXN</div>
-                                        <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: 2 }}>14:32 ✓✓</div>
+
+                                {/* WhatsApp header */}
+                                <div className="mp-wa-header">
+                                    <ArrowLeft size={18} className="mp-wa-back" />
+                                    <div className="mp-wa-avatar">MP</div>
+                                    <div className="mp-wa-info">
+                                        <div className="mp-wa-name">MotoPartes Taller</div>
+                                        <div className="mp-wa-status">en línea</div>
                                     </div>
-                                    <div className="mp-msg mp-msg-us">
-                                        <div>Perfecto, paso por ella</div>
-                                        <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>14:35 ✓✓</div>
+                                    <div className="mp-wa-icons">
+                                        <Video size={17} strokeWidth={1.8} />
+                                        <Phone size={16} strokeWidth={1.8} />
+                                        <MoreVertical size={17} strokeWidth={1.8} />
                                     </div>
-                                    <div className="mp-msg mp-msg-them" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                        <Camera size={14} style={{ color: '#64748b' }} /> Fotos del servicio adjuntas
+                                </div>
+
+                                {/* Chat con wallpaper */}
+                                <div className="mp-wa-chat">
+                                    <div className="mp-wa-date">HOY</div>
+
+                                    {/* Mensaje: documento PDF */}
+                                    <div className="mp-wa-bubble mp-wa-in mp-wa-delay-1">
+                                        <div className="mp-wa-doc">
+                                            <div className="mp-wa-doc-icon"><FileText size={16} /></div>
+                                            <div className="mp-wa-doc-meta">
+                                                <div className="mp-wa-doc-name">Orden MP-26-042.pdf</div>
+                                                <div className="mp-wa-doc-sub">1 página · 142 KB</div>
+                                            </div>
+                                        </div>
+                                        <div className="mp-wa-text">Hola Juan! Tu moto ya está lista 🎉</div>
+                                        <div className="mp-wa-text mp-wa-total">Total: <strong>$1,250 MXN</strong></div>
+                                        <div className="mp-wa-meta">
+                                            <span className="mp-wa-time">14:32</span>
+                                        </div>
                                     </div>
+
+                                    {/* Mensaje: respuesta cliente */}
+                                    <div className="mp-wa-bubble mp-wa-out mp-wa-delay-2">
+                                        <div className="mp-wa-text">Perfecto, paso por ella 👍</div>
+                                        <div className="mp-wa-meta">
+                                            <span className="mp-wa-time">14:35</span>
+                                            <span className="mp-wa-ticks">✓✓</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Mensaje: fotos del servicio */}
+                                    <div className="mp-wa-bubble mp-wa-in mp-wa-delay-3">
+                                        <div className="mp-wa-photos">
+                                            <div className="mp-wa-photo mp-wa-photo-1" />
+                                            <div className="mp-wa-photo mp-wa-photo-2" />
+                                            <div className="mp-wa-photo mp-wa-photo-3" />
+                                            <div className="mp-wa-photo mp-wa-photo-4" />
+                                        </div>
+                                        <div className="mp-wa-text">Fotos del servicio 📸</div>
+                                        <div className="mp-wa-meta">
+                                            <span className="mp-wa-time">14:38</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Typing dots */}
+                                    <div className="mp-wa-bubble mp-wa-in mp-wa-typing mp-wa-delay-4">
+                                        <span /><span /><span />
+                                    </div>
+                                </div>
+
+                                {/* Input bar */}
+                                <div className="mp-wa-input">
+                                    <div className="mp-wa-input-field">
+                                        <Smile size={16} strokeWidth={1.6} />
+                                        <span className="mp-wa-input-placeholder">Mensaje</span>
+                                        <Paperclip size={15} strokeWidth={1.6} />
+                                    </div>
+                                    <button className="mp-wa-send"><Mic size={15} strokeWidth={2} /></button>
                                 </div>
                             </div>
                         </div>
@@ -912,70 +974,289 @@ html, body {
 }
 .mp-phone-notch {
     width: 110px;
-    height: 24px;
+    height: 22px;
     background: #0f172a;
     border-radius: 0 0 18px 18px;
     position: absolute;
     top: 10px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 2;
+    z-index: 3;
 }
 .mp-phone-screen {
-    background: #f8fafc;
+    background: #efeae2;
     border-radius: 32px;
     height: 100%;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    position: relative;
 }
-.mp-phone-header {
-    background: #075e54;
+
+/* Statusbar iOS */
+.mp-statusbar {
+    height: 28px;
+    padding: 4px 22px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #00a884;
     color: white;
-    padding: 40px 14px 14px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-family: -apple-system, SF Pro, system-ui, sans-serif;
+    flex-shrink: 0;
+}
+.mp-sb-time { font-variant-numeric: tabular-nums; font-size: 0.72rem; font-weight: 600; margin-right: auto; padding-left: 8px; }
+.mp-sb-right { display: flex; align-items: center; gap: 4px; padding-right: 8px; }
+
+/* WhatsApp header verde moderno */
+.mp-wa-header {
+    background: #00a884;
+    color: white;
+    padding: 8px 10px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.08);
 }
-.mp-phone-avatar {
-    width: 38px;
-    height: 38px;
+.mp-wa-back { color: white; flex-shrink: 0; }
+.mp-wa-avatar {
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     background: linear-gradient(135deg, var(--c-accent), var(--c-accent-dark));
     color: white;
     font-weight: 800;
+    font-size: 0.68rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    letter-spacing: 0.5px;
+    border: 2px solid rgba(255,255,255,0.15);
+}
+.mp-wa-info { flex: 1; min-width: 0; }
+.mp-wa-name { font-size: 0.84rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-wa-status { font-size: 0.68rem; color: rgba(255,255,255,0.9); margin-top: -1px; }
+.mp-wa-icons { display: flex; align-items: center; gap: 10px; color: white; margin-right: 4px; flex-shrink: 0; }
+
+/* Chat wallpaper con patrón WhatsApp tenue */
+.mp-wa-chat {
+    flex: 1;
+    padding: 12px 10px 8px;
+    background-color: #efeae2;
+    background-image:
+        radial-gradient(circle at 20% 30%, rgba(0,0,0,0.025) 1px, transparent 1px),
+        radial-gradient(circle at 70% 60%, rgba(0,0,0,0.02) 1px, transparent 1px),
+        radial-gradient(circle at 40% 80%, rgba(0,0,0,0.018) 1px, transparent 1px);
+    background-size: 60px 60px, 80px 80px, 100px 100px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.mp-wa-chat::-webkit-scrollbar { display: none; }
+
+.mp-wa-date {
+    align-self: center;
+    background: rgba(225,245,254,0.92);
+    color: #54656f;
+    font-size: 0.65rem;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 8px;
+    margin: 2px 0 8px;
+    box-shadow: 0 1px 0.5px rgba(0,0,0,0.05);
+}
+
+.mp-wa-bubble {
+    max-width: 78%;
+    padding: 6px 9px 4px;
     font-size: 0.78rem;
+    line-height: 1.35;
+    color: #111b21;
+    box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+    position: relative;
+    opacity: 0;
+    animation: mp-wa-appear 0.35s ease forwards;
+}
+/* Entrantes — blancas con cola arriba-izquierda */
+.mp-wa-in {
+    background: #ffffff;
+    align-self: flex-start;
+    border-radius: 0 8px 8px 8px;
+}
+.mp-wa-in::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -7px;
+    width: 8px;
+    height: 13px;
+    background: #ffffff;
+    clip-path: polygon(100% 0, 100% 100%, 0 0);
+}
+/* Salientes — verde claro con cola arriba-derecha */
+.mp-wa-out {
+    background: #d9fdd3;
+    align-self: flex-end;
+    border-radius: 8px 0 8px 8px;
+}
+.mp-wa-out::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: -7px;
+    width: 8px;
+    height: 13px;
+    background: #d9fdd3;
+    clip-path: polygon(0 0, 0 100%, 100% 0);
+}
+
+.mp-wa-delay-1 { animation-delay: 0.1s; }
+.mp-wa-delay-2 { animation-delay: 0.9s; }
+.mp-wa-delay-3 { animation-delay: 1.7s; }
+.mp-wa-delay-4 { animation-delay: 2.5s; }
+
+@keyframes mp-wa-appear {
+    from { opacity: 0; transform: translateY(6px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.mp-wa-text { word-wrap: break-word; }
+.mp-wa-text + .mp-wa-text { margin-top: 2px; }
+.mp-wa-total { color: #0b6b34; font-size: 0.78rem; }
+
+.mp-wa-meta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-top: 3px;
+    font-size: 0.62rem;
+    color: #667781;
+}
+.mp-wa-ticks { color: #53bdeb; font-weight: 700; letter-spacing: -2px; }
+
+/* Documento adjunto */
+.mp-wa-doc {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f5f6f6;
+    border-radius: 6px;
+    padding: 7px 8px;
+    margin-bottom: 4px;
+}
+.mp-wa-doc-icon {
+    background: #e3646d;
+    color: white;
+    padding: 6px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+.mp-wa-doc-meta { flex: 1; min-width: 0; }
+.mp-wa-doc-name {
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #111b21;
+}
+.mp-wa-doc-sub { font-size: 0.62rem; color: #667781; margin-top: 1px; }
+
+/* Galería de fotos (4 placeholders con gradients) */
+.mp-wa-photos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 4px;
+    width: 180px;
+}
+.mp-wa-photo {
+    aspect-ratio: 1;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+.mp-wa-photo-1 { background: linear-gradient(135deg, #475569, #1e293b); }
+.mp-wa-photo-2 { background: linear-gradient(135deg, #dc2626, #7f1d1d); }
+.mp-wa-photo-3 { background: linear-gradient(135deg, #64748b, #334155); }
+.mp-wa-photo-4 { background: linear-gradient(135deg, #0f172a, #334155); position: relative; }
+.mp-wa-photo-4::after {
+    content: '+3';
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    color: white;
+    font-weight: 700;
+    font-size: 0.85rem;
     display: flex;
     align-items: center;
     justify-content: center;
 }
-.mp-phone-messages {
-    padding: 16px 14px;
-    background-image: linear-gradient(#e5ddd5, #e5ddd5);
+
+/* Typing indicator */
+.mp-wa-typing {
+    padding: 10px 14px !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    width: fit-content;
+}
+.mp-wa-typing span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #8696a0;
+    animation: mp-wa-dot 1.2s ease-in-out infinite;
+}
+.mp-wa-typing span:nth-child(2) { animation-delay: 0.15s; }
+.mp-wa-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes mp-wa-dot {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* Input bar bottom */
+.mp-wa-input {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px 8px;
+    background: #f0f2f5;
+    border-top: 1px solid rgba(0,0,0,0.04);
+    flex-shrink: 0;
+}
+.mp-wa-input-field {
     flex: 1;
     display: flex;
-    flex-direction: column;
-    gap: 10px;
-    overflow-y: auto;
-}
-.mp-msg {
-    max-width: 85%;
-    padding: 8px 12px;
-    border-radius: 10px;
-    font-size: 0.82rem;
-    line-height: 1.4;
-    color: #0f172a;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-.mp-msg-them {
+    align-items: center;
+    gap: 6px;
     background: white;
-    align-self: flex-start;
-    border-top-left-radius: 2px;
+    border-radius: 20px;
+    padding: 7px 10px;
+    color: #8696a0;
+    font-size: 0.74rem;
 }
-.mp-msg-us {
-    background: #dcf8c6;
-    align-self: flex-end;
-    border-top-right-radius: 2px;
+.mp-wa-input-placeholder { flex: 1; color: #8696a0; }
+.mp-wa-send {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #00a884;
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
 }
 .mp-float-card {
     position: absolute;
@@ -1003,11 +1284,21 @@ html, body {
 }
 @media (max-width: 500px) {
     .mp-hero-mockup { min-height: 500px; padding: 20px 10px 28px; }
-    .mp-phone { width: 220px; height: 440px; border-radius: 34px; padding: 8px; }
+    .mp-phone { width: 230px; height: 460px; border-radius: 34px; padding: 8px; }
     .mp-phone-screen { border-radius: 26px; }
-    .mp-phone-header { padding: 32px 12px 12px; }
-    .mp-phone-messages { padding: 12px 10px; gap: 8px; }
-    .mp-msg { padding: 7px 10px; font-size: 0.76rem; border-radius: 8px; }
+    .mp-statusbar { height: 24px; padding: 3px 14px 0; font-size: 0.62rem; }
+    .mp-sb-time { font-size: 0.64rem; }
+    .mp-wa-header { padding: 6px 8px; gap: 6px; }
+    .mp-wa-avatar { width: 28px; height: 28px; font-size: 0.62rem; }
+    .mp-wa-name { font-size: 0.76rem; }
+    .mp-wa-status { font-size: 0.62rem; }
+    .mp-wa-icons { gap: 7px; }
+    .mp-wa-chat { padding: 10px 8px 6px; gap: 3px; }
+    .mp-wa-bubble { font-size: 0.72rem; padding: 5px 7px 3px; max-width: 82%; }
+    .mp-wa-photos { width: 140px; }
+    .mp-wa-input { padding: 5px 6px 7px; }
+    .mp-wa-input-field { padding: 6px 9px; font-size: 0.68rem; }
+    .mp-wa-send { width: 30px; height: 30px; }
     .mp-float-card { padding: 7px 9px; border-radius: 10px; max-width: 150px; }
     .mp-float-1 { top: 30px; left: 4px; }
     .mp-float-2 { bottom: 40px; right: 4px; }
