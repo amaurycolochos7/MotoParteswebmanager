@@ -877,8 +877,8 @@ const styles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 560px;
-    padding: 40px 30px; /* espacio para que floats no se recorten */
+    min-height: 620px;
+    padding: 30px 20px 40px; /* reserva interna para las floats */
 }
 .mp-phone {
     position: relative;
@@ -968,31 +968,32 @@ const styles = `
     box-shadow: 0 20px 40px rgba(15, 23, 42, 0.14);
     border: 1px solid var(--c-border);
     animation: mp-float 4s ease-in-out infinite;
-    white-space: nowrap;
+    max-width: 180px;
     z-index: 2;
 }
-/* Floats posicionadas de manera que SIEMPRE queden dentro del viewport */
-.mp-float-1 { top: 18%; left: calc(50% - 180px); animation-delay: 0s; }
-.mp-float-2 { bottom: 14%; left: calc(50% + 80px); animation-delay: 1.5s; }
+/* Floats ancladas a los bordes internos del container del mockup —
+   nunca salen del viewport sin importar la resolución. */
+.mp-float-1 { top: 50px; left: 0; animation-delay: 0s; }
+.mp-float-2 { bottom: 60px; right: 0; animation-delay: 1.5s; }
 @keyframes mp-float {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-8px); }
 }
 @media (max-width: 960px) {
-    .mp-hero-mockup { min-height: 520px; padding: 30px 20px; }
-    .mp-float-1 { left: calc(50% - 170px); }
-    .mp-float-2 { left: calc(50% + 60px); }
+    .mp-hero-mockup { min-height: 580px; padding: 24px 16px 32px; }
+    .mp-float-1 { top: 40px; left: 8px; }
+    .mp-float-2 { bottom: 50px; right: 8px; }
 }
 @media (max-width: 500px) {
-    .mp-hero-mockup { min-height: 460px; padding: 24px 12px; }
+    .mp-hero-mockup { min-height: 500px; padding: 20px 10px 28px; }
     .mp-phone { width: 220px; height: 440px; border-radius: 34px; padding: 8px; }
     .mp-phone-screen { border-radius: 26px; }
     .mp-phone-header { padding: 32px 12px 12px; }
     .mp-phone-messages { padding: 12px 10px; gap: 8px; }
     .mp-msg { padding: 7px 10px; font-size: 0.76rem; border-radius: 8px; }
-    .mp-float-card { padding: 8px 10px; border-radius: 10px; }
-    .mp-float-1 { top: 10%; left: calc(50% - 140px); }
-    .mp-float-2 { bottom: 8%; left: calc(50% + 40px); }
+    .mp-float-card { padding: 7px 9px; border-radius: 10px; max-width: 150px; }
+    .mp-float-1 { top: 30px; left: 4px; }
+    .mp-float-2 { bottom: 40px; right: 4px; }
     .mp-float-card > div > div > div:first-child { font-size: 0.68rem !important; }
     .mp-float-card > div > div > div:last-child { font-size: 0.62rem !important; }
 }
