@@ -771,7 +771,10 @@ export default function NewServiceOrder() {
             navigate(`/mechanic/order/${order.id}`);
         } catch (error) {
             console.error('Error creating order:', error);
-            alert('Error al crear la orden');
+            // Mostrar el error real al usuario (antes era un alert genérico que
+            // escondía qué pasaba — motoblaker no podía saber qué corregir).
+            const msg = error?.message || (typeof error === 'string' ? error : 'Error desconocido al crear la orden');
+            toast.error(`No se pudo crear la orden: ${msg}`);
         } finally {
             setLoading(false);
         }
@@ -788,9 +791,10 @@ export default function NewServiceOrder() {
                 // Services are now optional - can skip if cost/service unknown
                 return true;
             case 4:
-                // Las 4 fotos obligatorias deben estar tomadas
-                const { front, back, leftSide, rightSide } = formData.entryPhotos;
-                return front && back && leftSide && rightSide;
+                // Fotos recomendadas pero NO obligatorias — si el usuario no tiene
+                // tiempo o la cámara falla, puede avanzar. Se advierte en la UI
+                // sobre el beneficio legal de tener fotos del ingreso.
+                return true;
             case 5:
                 return !formData.hasAdvance || (formData.advanceAmount && parseFloat(formData.advanceAmount) > 0);
             default:
