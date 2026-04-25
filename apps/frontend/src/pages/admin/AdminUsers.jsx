@@ -55,7 +55,8 @@ export default function AdminUsers() {
         can_delete_orders: false,
         is_master_mechanic: false,
         requires_approval: false,
-        can_view_approved_orders: true
+        can_view_approved_orders: true,
+        supervised_by: ''
     });
 
     useEffect(() => {
@@ -64,10 +65,16 @@ export default function AdminUsers() {
 
     const loadUsers = async () => {
         try {
-            const data = await authService.getAllUsers();
-            setUsers(data || []);
+            // authService.getAllUsers() returns { data, error } — must destructure.
+            // Without this, `setUsers({data:[...], error:null})` made `users.map(...)`
+            // crash with "users.map is not a function" and the page rendered blank.
+            const { data, error } = await authService.getAllUsers();
+            if (error) throw error;
+            setUsers(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error loading users:', error);
+            toast.error('No se pudieron cargar los usuarios: ' + (error?.message || 'Error desconocido'));
+            setUsers([]);
         } finally {
             setLoading(false);
         }
@@ -91,7 +98,8 @@ export default function AdminUsers() {
                 can_delete_orders: user.can_delete_orders === true,
                 is_master_mechanic: user.is_master_mechanic === true,
                 requires_approval: user.requires_approval === true,
-                can_view_approved_orders: user.can_view_approved_orders !== false
+                can_view_approved_orders: user.can_view_approved_orders !== false,
+                supervised_by: user.supervised_by || ''
             });
         } else {
             setEditingUser(null);
@@ -110,7 +118,8 @@ export default function AdminUsers() {
                 can_delete_orders: false,
                 is_master_mechanic: false,
                 requires_approval: false,
-                can_view_approved_orders: true
+                can_view_approved_orders: true,
+                supervised_by: ''
             });
         }
         setShowPassword(false); // Reset visualización
@@ -133,6 +142,12 @@ export default function AdminUsers() {
             return;
         }
 
+        // Si requiere aprobación (auxiliar), debe seleccionar un maestro.
+        if (formData.requires_approval && !formData.supervised_by) {
+            toast.warning('Debes seleccionar el maestro al que reporta este auxiliar');
+            return;
+        }
+
         try {
             if (editingUser) {
                 await authService.updateUser(editingUser.id, {
@@ -149,6 +164,7 @@ export default function AdminUsers() {
                     is_master_mechanic: formData.is_master_mechanic,
                     requires_approval: formData.requires_approval,
                     can_view_approved_orders: formData.can_view_approved_orders,
+                    supervised_by: formData.supervised_by || null,
                     ...(formData.password && { password_hash: formData.password })
                 });
             } else {
@@ -167,7 +183,8 @@ export default function AdminUsers() {
                     can_delete_orders: formData.can_delete_orders,
                     is_master_mechanic: formData.is_master_mechanic,
                     requires_approval: formData.requires_approval,
-                    can_view_approved_orders: formData.can_view_approved_orders
+                    can_view_approved_orders: formData.can_view_approved_orders,
+                    supervised_by: formData.supervised_by || null
                 });
             }
             handleCloseModal();
@@ -249,6 +266,10 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
         );
     };
 
+    // Lista de mecánicos maestros disponibles para asignar como supervisor.
+    // Excluye al usuario que se está editando para evitar auto-supervisión.
+    const masters = users.filter(u => u.is_master_mechanic && u.id !== editingUser?.id);
+
     if (loading) {
         return (
             <div className="loading-overlay" style={{ position: 'relative', minHeight: 400 }}>
@@ -308,6 +329,16 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                                 <div className="contact-row commission">
                                     <Percent size={16} />
                                     <span>Comisión: <strong>{user.commission_percentage}%</strong></span>
+                                </div>
+                            )}
+                            {user.requires_approval && user.supervised_by && (
+                                <div className="contact-row">
+                                    <Crown size={16} />
+                                    <span>
+                                        Reporta a: <strong>
+                                            {users.find(u => u.id === user.supervised_by)?.full_name || 'Maestro desconocido'}
+                                        </strong>
+                                    </span>
                                 </div>
                             )}
                         </div>
@@ -449,6 +480,7 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                                         min="0"
                                         max="100"
                                     />
+                                    <p className="form-hint">Porcentaje de la mano de obra que recibe este usuario al cerrar una orden. Default 10%.</p>
                                 </div>
                             </div>
 
@@ -575,6 +607,30 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                                             </label>
                                         )}
                                     </div>
+                                    {formData.requires_approval && (
+                                        <div className="form-group" style={{ marginTop: 'var(--spacing-md)' }}>
+                                            <label className="form-label">
+                                                <Crown size={16} style={{ marginRight: 6, color: 'var(--warning)' }} />
+                                                Maestro al que reporta
+                                            </label>
+                                            <select
+                                                value={formData.supervised_by || ''}
+                                                onChange={(e) => setFormData({ ...formData, supervised_by: e.target.value })}
+                                                className="form-input"
+                                                required
+                                            >
+                                                <option value="">— Selecciona un maestro —</option>
+                                                {masters.map(m => (
+                                                    <option key={m.id} value={m.id}>
+                                                        {m.full_name} ({m.email})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <p className="form-hint">
+                                                Cuando este auxiliar cree una orden, la solicitud se enviará automáticamente a este maestro y al cerrar la orden las ganancias se repartirán entre los dos.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

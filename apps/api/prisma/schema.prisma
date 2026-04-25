@@ -418,6 +418,10 @@ model Profile {
   avatar_url            String?
   is_master_mechanic    Boolean  @default(false)
   requires_approval     Boolean  @default(false)
+  // FK al maestro al que reporta este auxiliar. Solo aplica cuando
+  // requires_approval = true. Permite auto-routear OrderRequests y dividir
+  // ganancias en MechanicEarning sin que el aux elija al maestro cada vez.
+  supervised_by  String?  @db.Uuid
   can_create_services   Boolean  @default(false)
   can_create_appointments Boolean @default(true)
   can_send_messages     Boolean  @default(true)
@@ -466,6 +470,10 @@ model Profile {
   tickets_assigned      SupportTicket[]      @relation("TicketAssignee")
   ticket_messages       TicketMessage[]
   super_actions         SuperAdminAction[]
+
+  // Auxiliar → maestro (auto-relación)
+  supervisor      Profile?   @relation("ProfileSupervision", fields: [supervised_by], references: [id])
+  supervisees     Profile[]  @relation("ProfileSupervision")
 
   @@map("profiles")
 }

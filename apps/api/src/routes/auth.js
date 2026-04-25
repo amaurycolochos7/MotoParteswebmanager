@@ -483,6 +483,26 @@ export default async function authRoutes(fastify) {
         const normalizedEmail = String(data.email).trim().toLowerCase();
         const targetRole = data.workspace_role || data.role || 'mechanic';
 
+        // Resolver supervised_by sólo si requires_approval=true.
+        // Validar que el supuesto maestro exista como miembro del workspace activo.
+        let resolvedSupervisedBy = null;
+        if (data.requires_approval === true && data.supervised_by) {
+            const supervisorMembership = await unscoped(() =>
+                prisma.membership.findUnique({
+                    where: {
+                        workspace_id_profile_id: {
+                            workspace_id: request.workspace.id,
+                            profile_id: data.supervised_by,
+                        },
+                    },
+                })
+            );
+            if (!supervisorMembership) {
+                return reply.status(400).send({ error: 'El maestro asignado no existe en este taller.' });
+            }
+            resolvedSupervisedBy = data.supervised_by;
+        }
+
         const result = await unscoped(() =>
             prisma.$transaction(async (tx) => {
                 let profile = await tx.profile.findUnique({ where: { email: normalizedEmail } });
@@ -498,6 +518,7 @@ export default async function authRoutes(fastify) {
                             commission_percentage: data.commission_percentage || 10,
                             is_master_mechanic: data.is_master_mechanic || false,
                             requires_approval: data.requires_approval || false,
+                            supervised_by: resolvedSupervisedBy,
                             can_create_services: data.can_create_services || false,
                             can_create_appointments: data.can_create_appointments !== false,
                             can_send_messages: data.can_send_messages !== false,
@@ -565,6 +586,42 @@ export default async function authRoutes(fastify) {
         if (updates.password) {
             updates.password_hash = await bcrypt.hash(updates.password, 10);
             delete updates.password;
+        }
+
+        // Reglas para supervised_by:
+        //   - Si el form quita requires_approval (=> false), forzar supervised_by = null.
+        //   - Si requires_approval = true y supervised_by viene en el body, validar
+        //     que el maestro exista como miembro del workspace activo.
+        //   - Si requires_approval no llega en el body, usamos el valor actual del perfil.
+        if ('supervised_by' in updates || 'requires_approval' in updates) {
+            const currentProfile = await unscoped(() =>
+                prisma.profile.findUnique({
+                    where: { id },
+                    select: { requires_approval: true, supervised_by: true },
+                })
+            );
+            const willRequireApproval = ('requires_approval' in updates)
+                ? !!updates.requires_approval
+                : !!currentProfile?.requires_approval;
+
+            if (!willRequireApproval) {
+                // Maestro/normal: nunca puede tener supervisor.
+                updates.supervised_by = null;
+            } else if ('supervised_by' in updates && updates.supervised_by) {
+                const supervisorMembership = await unscoped(() =>
+                    prisma.membership.findUnique({
+                        where: {
+                            workspace_id_profile_id: {
+                                workspace_id: request.workspace.id,
+                                profile_id: updates.supervised_by,
+                            },
+                        },
+                    })
+                );
+                if (!supervisorMembership) {
+                    return reply.status(400).send({ error: 'El maestro asignado no existe en este taller.' });
+                }
+            }
         }
 
         const result = await unscoped(() =>
