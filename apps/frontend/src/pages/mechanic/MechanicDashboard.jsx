@@ -5,7 +5,8 @@ import {
   ChevronRight,
   Bike,
   TrendingUp,
-  ArrowRight
+  ArrowRight,
+  FileText
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
@@ -135,6 +136,12 @@ export default function MechanicDashboard() {
       <Link to="/mechanic/new-order" className="db-cta">
         <Plus size={22} strokeWidth={2.5} />
         Crear nueva orden
+      </Link>
+
+      {/* ===== CTA SECUNDARIA: COTIZACIÓN ===== */}
+      <Link to="/mechanic/quotations/new" className="db-cta-secondary">
+        <FileText size={18} strokeWidth={2.2} />
+        Nueva cotización
       </Link>
 
       {/* ===== ÓRDENES ACTIVAS (PROTAGONISTA) ===== */}
@@ -283,6 +290,34 @@ export default function MechanicDashboard() {
 
         .db-cta:hover { background: #000; }
         .db-cta:active { transform: scale(0.995); }
+
+        /* CTA secundaria: cotización */
+        .db-cta-secondary {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          width: 100%;
+          height: 48px;
+          background: white;
+          color: #111827;
+          border: 1px solid #D1D5DB;
+          border-radius: 10px;
+          font-size: 14px;
+          font-weight: 700;
+          font-family: inherit;
+          text-decoration: none;
+          cursor: pointer;
+          transition: background 0.12s, border-color 0.12s;
+          margin-top: -16px;
+          margin-bottom: 28px;
+          letter-spacing: -0.005em;
+        }
+        .db-cta-secondary:hover {
+          background: #F9FAFB;
+          border-color: #9CA3AF;
+        }
+        .db-cta-secondary:active { transform: scale(0.995); }
 
         /* ===== BLOCK ===== */
         .db-block {

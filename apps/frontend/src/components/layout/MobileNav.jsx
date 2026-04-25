@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Plus, ClipboardList, History, Users, ShieldCheck, Calendar, Crown, DollarSign } from 'lucide-react';
+import { Home, Plus, ClipboardList, History, Users, ShieldCheck, Calendar, Crown, DollarSign, FileText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { orderRequestsService, paymentRequestsService } from '../../lib/api';
 
@@ -76,6 +76,7 @@ export default function MobileNav() {
     let mechanicLinks = [
         { to: '/mechanic', icon: Home, label: 'Inicio' },
         { to: '/mechanic/new-order', icon: Plus, label: 'Nueva', isNew: true },
+        { to: '/mechanic/quotations', icon: FileText, label: 'Cotizar' },
         { to: '/mechanic/appointments', icon: Calendar, label: 'Citas' },
         { to: '/mechanic/clients', icon: Users, label: 'Clientes' },
         { to: '/mechanic/orders', icon: ClipboardList, label: 'Servicios' },

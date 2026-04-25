@@ -31,6 +31,7 @@ import referralsRoutes from './routes/referrals.js';
 import integrationsRoutes from './routes/integrations.js';
 import superRoutes from './routes/super.js';
 import ticketsRoutes from './routes/tickets.js';
+import quotationsRoutes from './routes/quotations.js';
 import { installWorkspaceStore } from './middleware/workspace.js';
 
 const fastify = Fastify({ logger: true });
@@ -127,6 +128,7 @@ await fastify.register(referralsRoutes, { prefix: '/api/referrals' });
 await fastify.register(integrationsRoutes, { prefix: '/api/integrations' });
 await fastify.register(superRoutes, { prefix: '/api/super' });
 await fastify.register(ticketsRoutes, { prefix: '/api/tickets' });
+await fastify.register(quotationsRoutes, { prefix: '/api/quotations' });
 
 // Periodic billing sweep — every hour on the hour, plus once at startup.
 import { runBillingSweep } from './lib/billing-sweep.js';

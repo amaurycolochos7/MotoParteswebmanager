@@ -94,6 +94,9 @@ model Workspace {
   order_requests     OrderRequest[]
   mechanic_earnings  MechanicEarning[]
   payment_requests   PaymentRequest[]
+  quotations         Quotation[]
+  quotation_labor    QuotationLabor[]
+  quotation_parts    QuotationPart[]
 
   @@map("workspaces")
 }
@@ -486,6 +489,7 @@ model Client {
   motorcycles  Motorcycle[]
   orders       Order[]
   appointments Appointment[]
+  quotations   Quotation[]
 
   // Phone can repeat across workspaces (each taller has its own list).
   @@unique([workspace_id, phone])
@@ -514,6 +518,7 @@ model Motorcycle {
   client       Client        @relation(fields: [client_id], references: [id], onDelete: Cascade)
   orders       Order[]
   appointments Appointment[]
+  quotations   Quotation[]
 
   @@index([workspace_id])
   @@map("motorcycles")
@@ -962,4 +967,71 @@ model ImpersonationSession {
   @@index([super_admin_id, started_at])
   @@index([workspace_id, started_at])
   @@map("impersonation_sessions")
+}
+
+// =============================================
+// 17. COTIZACIONES (presupuestos previos a orden)
+// =============================================
+model Quotation {
+  id                 String    @id @default(uuid()) @db.Uuid
+  workspace_id       String?   @db.Uuid
+  quotation_number   String    // Ej: COT-26-0001 — autoincrementable por workspace
+  client_id          String    @db.Uuid
+  motorcycle_id      String?   @db.Uuid
+  customer_complaint String?   // Falla / motivo
+  notes              String?
+  labor_total        Decimal   @default(0) @db.Decimal(10, 2)
+  parts_total        Decimal   @default(0) @db.Decimal(10, 2)
+  total_amount       Decimal   @default(0) @db.Decimal(10, 2)
+  status             String    @default("pendiente") // pendiente | aceptada | rechazada | expirada | convertida
+  valid_until        DateTime? @db.Timestamptz
+  converted_order_id String?   @db.Uuid // si se convirtió en orden
+  created_by         String?   @db.Uuid // mechanic id
+  created_at         DateTime  @default(now()) @db.Timestamptz
+  updated_at         DateTime  @updatedAt
+
+  workspace  Workspace?       @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  client     Client           @relation(fields: [client_id], references: [id])
+  motorcycle Motorcycle?      @relation(fields: [motorcycle_id], references: [id])
+  parts      QuotationPart[]
+  labor      QuotationLabor[]
+
+  @@index([workspace_id])
+  @@index([client_id])
+  @@index([status])
+  @@map("quotations")
+}
+
+model QuotationLabor {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspace_id String?  @db.Uuid
+  quotation_id String   @db.Uuid
+  name         String
+  price        Decimal  @db.Decimal(10, 2)
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  workspace Workspace? @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  quotation Quotation  @relation(fields: [quotation_id], references: [id], onDelete: Cascade)
+
+  @@index([workspace_id])
+  @@index([quotation_id])
+  @@map("quotation_labor")
+}
+
+model QuotationPart {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspace_id String?  @db.Uuid
+  quotation_id String   @db.Uuid
+  name         String
+  price        Decimal  @db.Decimal(10, 2)
+  quantity     Int      @default(1)
+  notes        String?
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  workspace Workspace? @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  quotation Quotation  @relation(fields: [quotation_id], references: [id], onDelete: Cascade)
+
+  @@index([workspace_id])
+  @@index([quotation_id])
+  @@map("quotation_parts")
 }
