@@ -37,7 +37,11 @@ async function apiFetch(path, options = {}) {
     if (activeWorkspaceId && !headers['x-workspace-id']) {
         headers['x-workspace-id'] = activeWorkspaceId;
     }
-    if (!(options.body instanceof FormData)) {
+    // Only set Content-Type when we are actually sending a JSON body. Sending
+    // `Content-Type: application/json` on a body-less request (e.g. DELETE)
+    // makes Fastify's strict JSON parser reject it with 400 "Body cannot be
+    // empty when content-type is set to 'application/json'".
+    if (options.body && !(options.body instanceof FormData)) {
         headers['Content-Type'] = 'application/json';
     }
 

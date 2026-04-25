@@ -34,9 +34,13 @@ import ConnectionStatus from '../ui/ConnectionStatus';
 
 export default function AppLayout() {
     const { user, logout, isAdmin, isMechanic, isMasterMechanic, requiresApproval, hasPermission, workspaceRole } = useAuth();
-    // El owner/admin del workspace ve el menú admin aunque su Profile.role
-    // sea "mechanic" — mismo criterio que ProtectedRoute para /admin.
-    const hasAdminAccess = isAdmin() || workspaceRole === 'owner' || workspaceRole === 'admin';
+    // Only the global Profile.role === 'admin' user gets the full admin sidebar.
+    // The shop owner whose Profile.role is "mechanic" stays on the mechanic
+    // sidebar; they get a single extra "Usuarios" link below to manage their
+    // team — see the Maestro section. Showing the entire admin nav broke
+    // the maestro because most admin pages assume admin context.
+    const isWorkspaceOwner = workspaceRole === 'owner' || workspaceRole === 'admin';
+    const hasAdminAccess = isAdmin();
     const navigate = useNavigate();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -101,6 +105,13 @@ export default function AppLayout() {
             { to: '/mechanic/auxiliaries', icon: Users, label: 'Mis Auxiliares' },
             { to: '/mechanic/whatsapp', icon: MessageSquare, label: 'Conectar Bot' }
         );
+        // Workspace owners (Membership.role === 'owner') get a single extra
+        // entry to manage users — without exposing the full admin panel.
+        if (isWorkspaceOwner) {
+            baseMechanicNavItems.push(
+                { to: '/admin/users', icon: Users, label: 'Gestionar Usuarios' }
+            );
+        }
     }
 
     // Agregar sección de Auxiliar si requiere aprobación

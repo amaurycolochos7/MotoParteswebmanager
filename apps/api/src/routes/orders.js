@@ -396,10 +396,14 @@ export default async function ordersRoutes(fastify) {
 
                 return { success: true };
             } catch (err) {
-                request.log.error('Error deleting order:', err);
+                // Use single-arg form so Pino actually serializes the error,
+                // and surface the Prisma error code in the response so we can
+                // diagnose constraint violations from the client.
+                request.log.error({ err, orderId: id }, 'Error deleting order');
 
                 return reply.status(400).send({
-                    error: err.message || 'Error al eliminar la orden'
+                    error: err.message || 'Error al eliminar la orden',
+                    code: err.code || null,
                 });
             }
         });
