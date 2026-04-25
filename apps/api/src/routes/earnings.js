@@ -40,7 +40,9 @@ export default async function earningsRoutes(fastify) {
     // GET /api/earnings?mechanicId=&startDate=&endDate=
     fastify.get('/', async (request) => {
         const { mechanicId, startDate, endDate } = request.query;
-        const where = {};
+        // Defensa en profundidad: filtramos por workspace_id explícitamente
+        // además de la auto-scope extension de Prisma.
+        const where = { workspace_id: request.workspace.id };
         if (mechanicId) where.mechanic_id = mechanicId;
         if (startDate) where.created_at = { ...(where.created_at || {}), gte: new Date(startDate) };
         if (endDate) where.created_at = { ...(where.created_at || {}), lte: new Date(endDate) };
