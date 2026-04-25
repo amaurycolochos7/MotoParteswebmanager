@@ -83,18 +83,22 @@ export function AuthProvider({ children }) {
                     const { data: freshUser } = await authService.getProfile(userData.id);
                     if (freshUser && freshUser.is_active) {
                         setUser(freshUser);
-                        // Restore memberships + active workspace from localStorage
-                        // so the Prisma auto-scope header fires on the very first
-                        // API call after refresh.
-                        const mbRaw = localStorage.getItem(MEMBERSHIPS_KEY);
+                        // Prefer memberships returned by the API (always fresh).
+                        // Fall back to whatever the previous tab cached if the
+                        // server response omitted them.
                         const activeId = localStorage.getItem(ACTIVE_WS_KEY);
-                        if (mbRaw) {
-                            try {
-                                const mbs = JSON.parse(mbRaw);
-                                applyMemberships(mbs, activeId);
-                            } catch { /* ignore */ }
-                        } else if (activeId) {
-                            setActiveWorkspaceId(activeId);
+                        if (Array.isArray(freshUser.memberships) && freshUser.memberships.length > 0) {
+                            applyMemberships(freshUser.memberships, activeId);
+                        } else {
+                            const mbRaw = localStorage.getItem(MEMBERSHIPS_KEY);
+                            if (mbRaw) {
+                                try {
+                                    const mbs = JSON.parse(mbRaw);
+                                    applyMemberships(mbs, activeId);
+                                } catch { /* ignore */ }
+                            } else if (activeId) {
+                                setActiveWorkspaceId(activeId);
+                            }
                         }
                     } else {
                         localStorage.removeItem(STORAGE_KEY);

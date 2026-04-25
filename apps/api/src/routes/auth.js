@@ -443,6 +443,10 @@ export default async function authRoutes(fastify) {
     });
 
     // GET /api/auth/profile/:id
+    // Returns the profile + the caller's memberships so the SPA can rebuild
+    // its workspace context on a hard refresh. Without memberships the
+    // workspaceRole stays null in AuthContext and ProtectedRoute('admin')
+    // bounces the user even though they are owner of their workspace.
     fastify.get('/profile/:id', { preHandler: [authenticate] }, async (request, reply) => {
         const user = await unscoped(() =>
             prisma.profile.findUnique({ where: { id: request.params.id } })
@@ -450,8 +454,15 @@ export default async function authRoutes(fastify) {
         if (!user) {
             return reply.status(404).send({ error: 'Usuario no encontrado' });
         }
+        const memberships = await unscoped(() =>
+            prisma.membership.findMany({
+                where: { profile_id: user.id },
+                include: { workspace: true },
+                orderBy: { joined_at: 'asc' },
+            })
+        );
         const { password_hash, ...userData } = user;
-        return userData;
+        return { ...userData, memberships };
     });
 
     // GET /api/auth/users — list profiles with a membership in the caller's
