@@ -270,67 +270,6 @@ export const motorcyclesService = {
 };
 
 // =============================================
-// SERVICES CATALOG
-// =============================================
-export const servicesService = {
-    async getAll() {
-        try {
-            const data = await apiFetch('/services');
-            return { data, error: null };
-        } catch (error) {
-            return { data: [], error };
-        }
-    },
-
-    async create(serviceData) {
-        try {
-            const data = await apiFetch('/services', {
-                method: 'POST',
-                body: JSON.stringify(serviceData)
-            });
-            return { data, error: null };
-        } catch (error) {
-            return { data: null, error };
-        }
-    },
-
-    async update(id, updates) {
-        try {
-            const data = await apiFetch(`/services/${id}`, {
-                method: 'PUT',
-                body: JSON.stringify(updates)
-            });
-            return { data, error: null };
-        } catch (error) {
-            return { data: null, error };
-        }
-    },
-
-    async delete(id) {
-        try {
-            await apiFetch(`/services/${id}`, { method: 'DELETE' });
-            return { error: null };
-        } catch (error) {
-            return { error };
-        }
-    },
-
-    async getMechanicsPerformance(startDate, endDate) {
-        try {
-            let url = '/stats/mechanics';
-            const params = new URLSearchParams();
-            if (startDate) params.set('startDate', startDate);
-            if (endDate) params.set('endDate', endDate);
-            if (params.toString()) url += `?${params}`;
-            const data = await apiFetch(url);
-            return { data, error: null };
-        } catch (error) {
-            return { data: [], error };
-        }
-    }
-};
-
-// =============================================
 // ORDER UPDATES SERVICE
 // =============================================
 export const orderUpdatesService = {
@@ -494,6 +433,78 @@ export const ordersService = {
             const data = await apiFetch(`/orders/${orderId}/costs`, {
                 method: 'PUT',
                 body: JSON.stringify(costsData)
+            });
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    }
+};
+
+// =============================================
+// QUOTATIONS SERVICE
+// =============================================
+export const quotationsService = {
+    async getAll(params = {}) {
+        try {
+            const qs = new URLSearchParams();
+            if (params.status) qs.set('status', params.status);
+            if (params.client_id) qs.set('client_id', params.client_id);
+            const url = `/quotations${qs.toString() ? '?' + qs.toString() : ''}`;
+            const data = await apiFetch(url);
+            return { data, error: null };
+        } catch (error) {
+            return { data: [], error };
+        }
+    },
+
+    async getOne(id) {
+        try {
+            const data = await apiFetch(`/quotations/${id}`);
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    async create(quotationData) {
+        try {
+            const data = await apiFetch('/quotations', {
+                method: 'POST',
+                body: JSON.stringify(quotationData)
+            });
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    async update(id, updates) {
+        try {
+            const data = await apiFetch(`/quotations/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(updates)
+            });
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    async remove(id) {
+        try {
+            await apiFetch(`/quotations/${id}`, { method: 'DELETE' });
+            return { error: null };
+        } catch (error) {
+            return { error };
+        }
+    },
+
+    async convert(id) {
+        try {
+            const data = await apiFetch(`/quotations/${id}/convert`, {
+                method: 'POST',
+                body: JSON.stringify({})
             });
             return { data, error: null };
         } catch (error) {

@@ -6,7 +6,6 @@ import {
     ClipboardList,
     Users,
     Wrench,
-    Settings,
     MessageSquare,
     BarChart3,
     Calendar,
@@ -34,7 +33,10 @@ import {
 import ConnectionStatus from '../ui/ConnectionStatus';
 
 export default function AppLayout() {
-    const { user, logout, isAdmin, isMechanic, isMasterMechanic, requiresApproval, hasPermission } = useAuth();
+    const { user, logout, isAdmin, isMechanic, isMasterMechanic, requiresApproval, hasPermission, workspaceRole } = useAuth();
+    // El owner/admin del workspace ve el menú admin aunque su Profile.role
+    // sea "mechanic" — mismo criterio que ProtectedRoute para /admin.
+    const hasAdminAccess = isAdmin() || workspaceRole === 'owner' || workspaceRole === 'admin';
     const navigate = useNavigate();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -53,7 +55,6 @@ export default function AppLayout() {
         { section: 'Gestión' },
         { to: '/admin/clients', icon: Users, label: 'Clientes' },
         { to: '/admin/users', icon: Users, label: 'Usuarios' },
-        { to: '/admin/services', icon: Settings, label: 'Servicios' },
 
         { section: 'Herramientas' },
         { to: '/admin/analytics', icon: BarChart3, label: 'Reportes' },
@@ -85,16 +86,12 @@ export default function AppLayout() {
         { to: '/mechanic', icon: LayoutDashboard, label: 'Inicio', end: true },
         { to: '/mechanic/new-order', icon: PlusCircle, label: 'Nueva Orden' },
         { to: '/mechanic/orders', icon: ClipboardList, label: 'Mis Órdenes' },
+        { to: '/mechanic/quotations', icon: FileText, label: 'Cotizaciones' },
 
         { section: 'Consultas' },
         { to: '/mechanic/clients', icon: Users, label: 'Clientes' },
         { to: '/mechanic/appointments', icon: Calendar, label: 'Citas' },
     ];
-
-    // Agregar opción de Servicios si tiene permiso
-    if (hasPermission('can_create_services')) {
-        baseMechanicNavItems.push({ to: '/mechanic/services', icon: Settings, label: 'Servicios' });
-    }
 
     // Agregar sección de Maestro si es mecánico maestro
     if (isMasterMechanic && isMasterMechanic()) {
@@ -124,7 +121,7 @@ export default function AppLayout() {
     const mechanicNavItems = baseMechanicNavItems;
 
     // Determinar qué navegación mostrar
-    const navItems = isAdmin() ? adminNavItems : mechanicNavItems;
+    const navItems = hasAdminAccess ? adminNavItems : mechanicNavItems;
 
     // Obtener iniciales para el avatar
     const getInitials = (name) => {

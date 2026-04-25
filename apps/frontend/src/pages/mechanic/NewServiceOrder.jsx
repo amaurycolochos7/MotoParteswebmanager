@@ -10,7 +10,6 @@ import {
     User,
     UserPlus,
     Phone,
-    Mail,
     FileText,
     Bike,
     Wrench,
@@ -58,9 +57,7 @@ export default function NewServiceOrder() {
         addClient,
         getClientMotorcycles,
         addMotorcycle,
-        services,
         addOrder,
-        addService
     } = useData();
     const toast = useToast();
 
@@ -82,7 +79,6 @@ export default function NewServiceOrder() {
         // Client
         clientPhone: '',
         clientName: '',
-        clientEmail: '',
         clientNotes: '',
         selectedClient: null,
         isNewClient: false,
@@ -100,8 +96,8 @@ export default function NewServiceOrder() {
             notes: '',
         },
 
-        // Services
-        selectedServices: [],
+        // Service description (catalog removed — solo descripción libre + costo manual,
+        // el cobro real lo registra el mecánico desde OrderDetail con "Agregar costos").
         customService: '',
         customServiceLabor: '',
         customServiceMaterials: '',
@@ -164,7 +160,6 @@ export default function NewServiceOrder() {
                 ...prev,
                 selectedClient: client,
                 clientName: client.full_name,
-                clientEmail: client.email || '',
                 clientNotes: client.notes || '',
                 isNewClient: false,
             }));
@@ -180,70 +175,19 @@ export default function NewServiceOrder() {
         }
     };
 
-    // Toggle service selection
-    const toggleService = (serviceId) => {
-        setFormData(prev => ({
-            ...prev,
-            selectedServices: prev.selectedServices.includes(serviceId)
-                ? prev.selectedServices.filter(id => id !== serviceId)
-                : [...prev.selectedServices, serviceId],
-        }));
-    };
-
     // State for download loading
     const [downloading, setDownloading] = useState(false);
     const [downloadStatus, setDownloadStatus] = useState(null); // 'success' | 'error' | null
-
-    // State for new service form
-    const [showNewServiceForm, setShowNewServiceForm] = useState(false);
-    const [newServiceData, setNewServiceData] = useState({
-        name: '',
-        labor_cost: '',
-        materials_cost: ''
-    });
-    const [savingService, setSavingService] = useState(false);
 
     // State for quick client+moto creation modal
     const [showQuickClientModal, setShowQuickClientModal] = useState(false);
     const [quickClientData, setQuickClientData] = useState({
         full_name: '',
         phone: '',
-        email: '',
         notes: ''
     });
     const [quickMotorcycles, setQuickMotorcycles] = useState([]);
     const [savingQuickClient, setSavingQuickClient] = useState(false);
-
-    // Handle create new service
-    const handleSaveNewService = async () => {
-        if (!newServiceData.name.trim()) {
-            alert('El nombre del servicio es obligatorio');
-            return;
-        }
-
-        setSavingService(true);
-        try {
-            const laborCost = parseFloat(newServiceData.labor_cost) || 0;
-            const materialsCost = parseFloat(newServiceData.materials_cost) || 0;
-
-            await addService({
-                name: newServiceData.name.trim(),
-                labor_cost: laborCost,
-                materials_cost: materialsCost,
-                base_price: laborCost + materialsCost,
-                is_active: true
-            });
-
-            // Reset form and close
-            setNewServiceData({ name: '', labor_cost: '', materials_cost: '' });
-            setShowNewServiceForm(false);
-        } catch (error) {
-            console.error('Error creating service:', error);
-            alert('Error al crear el servicio');
-        } finally {
-            setSavingService(false);
-        }
-    };
 
     // Handle quick client creation with motorcycles
     const handleSaveQuickClient = async () => {
@@ -258,7 +202,6 @@ export default function NewServiceOrder() {
             const newClient = await addClient({
                 full_name: quickClientData.full_name.trim(),
                 phone: quickClientData.phone.trim(),
-                email: quickClientData.email.trim() || null,
                 notes: quickClientData.notes.trim() || null,
             });
 
@@ -283,7 +226,6 @@ export default function NewServiceOrder() {
                 selectedClient: newClient,
                 clientName: newClient.full_name,
                 clientPhone: newClient.phone,
-                clientEmail: newClient.email || '',
                 clientNotes: newClient.notes || '',
                 isNewClient: false,
             }));
@@ -292,7 +234,7 @@ export default function NewServiceOrder() {
             setCurrentStep(2);
 
             // Reset and close modal
-            setQuickClientData({ full_name: '', phone: '', email: '', notes: '' });
+            setQuickClientData({ full_name: '', phone: '', notes: '' });
             setQuickMotorcycles([]);
             setShowQuickClientModal(false);
         } catch (error) {
@@ -355,27 +297,11 @@ export default function NewServiceOrder() {
             const motoPlates = formData.isNewMoto ? formData.motoData.plates : (formData.selectedMoto?.plates || '');
             const motoColor = formData.isNewMoto ? formData.motoData.color : (formData.selectedMoto?.color || '');
 
-            const total = formData.selectedServices.reduce((sum, svcId) => {
-                const svc = services.find(s => s.id === svcId);
-                return sum + (svc?.base_price || 0);
-            }, 0) + (parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0);
-
-            // Calculate labor and parts totals for breakdown
-            const downloadLaborTotal = formData.selectedServices.reduce((sum, svcId) => {
-                const svc = services.find(s => s.id === svcId);
-                return sum + (svc?.labor_cost || svc?.base_price || 0);
-            }, 0) + (parseFloat(formData.customServiceLabor) || 0);
-
-            const downloadPartsTotal = formData.selectedServices.reduce((sum, svcId) => {
-                const svc = services.find(s => s.id === svcId);
-                return sum + (svc?.materials_cost || 0);
-            }, 0) + (parseFloat(formData.customServiceMaterials) || 0);
-
-            // Generate services list with improved styling
-            const servicesList = formData.selectedServices.map(svcId => {
-                const svc = services.find(s => s.id === svcId);
-                return `<div style="display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #f1f5f9; font-size: 15px;"><span style="color: #334155;">${svc?.name || 'Servicio'}</span><span style="font-weight: 700; color: #2563eb;">${formatMXN(svc?.base_price || 0)}</span></div>`;
-            }).join('');
+            // Catálogo de servicios eliminado — el total al crear orden viene SOLO del
+            // costo manual ingresado en el paso "Servicios" (descripción libre).
+            const downloadLaborTotal = parseFloat(formData.customServiceLabor) || 0;
+            const downloadPartsTotal = parseFloat(formData.customServiceMaterials) || 0;
+            const total = downloadLaborTotal + downloadPartsTotal;
 
             tempContainer.innerHTML = `
                 <!-- HEADER PREMIUM - Fondo Blanco Profesional -->
@@ -450,11 +376,7 @@ export default function NewServiceOrder() {
                             <p style="margin: 0; font-size: 14px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: white;">Servicios a Realizar</p>
                         </div>
                         <div style="padding: 20px 24px;">
-                            ${formData.selectedServices.map(svcId => {
-                const svc = services.find(s => s.id === svcId);
-                return `<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0;"><span style="color: #444; font-size: 15px;">${svc?.name || 'Servicio'}</span><span style="font-weight: 700; color: #1a1a2e;">${formatMXN(svc?.base_price || 0)}</span></div>`;
-            }).join('')}
-                            ${formData.customService ? `<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0;"><span style="color: #444; font-size: 15px;">${formData.customService}</span><span style="font-weight: 700; color: #1a1a2e;">${formatMXN((parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0))}</span></div>` : ''}
+                            ${formData.customService ? `<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0;"><span style="color: #444; font-size: 15px;">${formData.customService}</span><span style="font-weight: 700; color: #1a1a2e;">${formatMXN((parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0))}</span></div>` : '<div style="padding: 12px 0; color: #94a3b8; font-size: 14px;">Sin descripción de servicio</div>'}
                             ${downloadPartsTotal > 0 ? `
                                 <div style="margin-top: 12px; padding: 12px 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
                                     <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px;">
@@ -590,7 +512,6 @@ export default function NewServiceOrder() {
                 const newClient = await addClient({
                     phone: formData.clientPhone,
                     full_name: formData.clientName,
-                    email: formData.clientEmail,
                     notes: formData.clientNotes,
                 });
                 clientId = newClient.id;
@@ -617,23 +538,10 @@ export default function NewServiceOrder() {
                 motoPlates = newMoto.plates;
             }
 
-            // Build services array with labor/materials breakdown
-            const orderServices = formData.selectedServices.map(svcId => {
-                const svc = services.find(s => s.id === svcId);
-                const labor = parseFloat(svc?.labor_cost) || 0;
-                const materials = parseFloat(svc?.materials_cost) || 0;
-                const base = parseFloat(svc?.base_price) || 0;
-                // If labor_cost is set, use it. Otherwise use base_price as labor (legacy services)
-                const effectiveLabor = labor > 0 ? labor : (materials > 0 ? 0 : base);
-                return {
-                    service_id: svcId,
-                    name: svc?.name,
-                    price: effectiveLabor + materials || base,
-                    labor_cost: effectiveLabor,
-                    materials_cost: materials
-                };
-            });
-
+            // Catálogo de servicios eliminado — la orden se crea solo con descripción
+            // libre + costo manual opcional. El cobro real se registra después desde
+            // OrderDetail con "Agregar costos".
+            const orderServices = [];
             if (formData.customService.trim()) {
                 const customLabor = parseFloat(formData.customServiceLabor) || 0;
                 const customMaterials = parseFloat(formData.customServiceMaterials) || 0;
@@ -1037,20 +945,6 @@ export default function NewServiceOrder() {
                                 </div>
 
                                 <div className="form-group">
-                                    <label className="form-label">Correo Electrónico (opcional)</label>
-                                    <div className="input-with-icon">
-                                        <Mail className="input-icon" size={20} />
-                                        <input
-                                            type="email"
-                                            className="form-input"
-                                            placeholder="email@ejemplo.com"
-                                            value={formData.clientEmail}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, clientEmail: e.target.value }))}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="form-group">
                                     <label className="form-label">Notas (opcional)</label>
                                     <textarea
                                         className="form-textarea"
@@ -1120,7 +1014,7 @@ export default function NewServiceOrder() {
                                         <button
                                             className="cl-add-card"
                                             onClick={() => {
-                                                setQuickClientData({ full_name: '', phone: '', email: '', notes: '' });
+                                                setQuickClientData({ full_name: '', phone: '', notes: '' });
                                                 setQuickMotorcycles([]);
                                                 setShowQuickClientModal(true);
                                             }}
@@ -1160,7 +1054,6 @@ export default function NewServiceOrder() {
                                                                 selectedClient: client,
                                                                 clientName: client.full_name,
                                                                 clientPhone: client.phone,
-                                                                clientEmail: client.email || '',
                                                                 clientNotes: client.notes || '',
                                                                 isNewClient: false,
                                                             }));
@@ -1370,134 +1263,29 @@ export default function NewServiceOrder() {
                     </div>
                 )}
 
-                {/* Step 3: Services */}
+                {/* Step 3: Service description (catálogo eliminado — texto libre + costo manual opcional) */}
                 {currentStep === 3 && (
                     <div className="step-services">
-                        <p className="text-secondary mb-md">Selecciona los servicios:</p>
-
-                        {/* Add New Service Button - only if has permission */}
-                        {hasPermission('can_create_services') && (
-                            <div className="mb-md">
-                                {!showNewServiceForm ? (
-                                    <button
-                                        className="btn btn-outline btn-sm"
-                                        onClick={() => setShowNewServiceForm(true)}
-                                        style={{ width: '100%', marginBottom: '1rem' }}
-                                    >
-                                        <Plus size={16} />
-                                        Agregar Nuevo Servicio al Catálogo
-                                    </button>
-                                ) : (
-                                    <div className="new-service-form card" style={{ padding: '1rem', marginBottom: '1rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)' }}>
-                                        <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9375rem', fontWeight: 600 }}>Nuevo Servicio</h4>
-                                        <div className="form-group">
-                                            <label className="form-label">Nombre del Servicio *</label>
-                                            <input
-                                                type="text"
-                                                className="form-input"
-                                                placeholder="Ej: Cambio de frenos traseros"
-                                                value={newServiceData.name}
-                                                onChange={(e) => setNewServiceData(prev => ({ ...prev, name: e.target.value }))}
-                                            />
-                                        </div>
-                                        <div className="grid grid-2" style={{ gap: '0.75rem' }}>
-                                            <div className="form-group">
-                                                <label className="form-label">Mano de obra ($)</label>
-                                                <input
-                                                    type="number"
-                                                    className="form-input"
-                                                    placeholder="0.00"
-                                                    value={newServiceData.labor_cost}
-                                                    onChange={(e) => setNewServiceData(prev => ({ ...prev, labor_cost: e.target.value }))}
-                                                />
-                                            </div>
-                                            <div className="form-group">
-                                                <label className="form-label">Refacción ($)</label>
-                                                <input
-                                                    type="number"
-                                                    className="form-input"
-                                                    placeholder="0.00"
-                                                    value={newServiceData.materials_cost}
-                                                    onChange={(e) => setNewServiceData(prev => ({ ...prev, materials_cost: e.target.value }))}
-                                                />
-                                            </div>
-                                        </div>
-                                        {(newServiceData.labor_cost || newServiceData.materials_cost) && (
-                                            <p style={{ fontSize: '0.875rem', color: 'var(--primary)', marginBottom: '0.75rem' }}>
-                                                Precio total: {formatMXN((parseFloat(newServiceData.labor_cost) || 0) + (parseFloat(newServiceData.materials_cost) || 0))}
-                                            </p>
-                                        )}
-                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                            <button
-                                                className="btn btn-secondary btn-sm"
-                                                onClick={() => {
-                                                    setShowNewServiceForm(false);
-                                                    setNewServiceData({ name: '', labor_cost: '', materials_cost: '' });
-                                                }}
-                                                disabled={savingService}
-                                            >
-                                                Cancelar
-                                            </button>
-                                            <button
-                                                className="btn btn-primary btn-sm"
-                                                onClick={handleSaveNewService}
-                                                disabled={savingService || !newServiceData.name.trim()}
-                                                style={{ flex: 1 }}
-                                            >
-                                                {savingService ? (
-                                                    <>
-                                                        <Loader2 size={16} className="spin" />
-                                                        Guardando...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Check size={16} />
-                                                        Guardar Servicio
-                                                    </>
-                                                )}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        <div className="services-list">
-                            {services.filter(s => s.is_active).map(service => {
-                                const labor = parseFloat(service.labor_cost) || 0;
-                                const materials = parseFloat(service.materials_cost) || 0;
-                                const total = labor + materials || parseFloat(service.base_price) || 0;
-                                return (
-                                    <label key={service.id} className="service-item">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.selectedServices.includes(service.id)}
-                                            onChange={() => toggleService(service.id)}
-                                        />
-                                        <div className="service-item-content">
-                                            <div className="service-item-header">
-                                                <span className="service-name">{service.name}</span>
-                                                <span className="service-price">{formatMXN(total)}</span>
-                                            </div>
-                                            {(labor > 0 || materials > 0) && (
-                                                <div className="service-item-breakdown">
-                                                    {labor > 0 && <span>Obra: {formatMXN(labor)}</span>}
-                                                    {materials > 0 && <span>Refacc: {formatMXN(materials)}</span>}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="checkbox-indicator">
-                                            {formData.selectedServices.includes(service.id) && <Check size={16} />}
-                                        </div>
-                                    </label>
-                                );
-                            })}
-                        </div>
-
-                        <div className="divider" />
+                        <p className="text-secondary mb-md">
+                            Describe el servicio a realizar. El costo final puedes registrarlo después con "Agregar costos" desde la orden.
+                        </p>
 
                         <div className="form-group">
-                            <label className="form-label">Otro Servicio / Descripción Específica</label>
+                            <label className="form-label">
+                                <FileText size={16} />
+                                ¿Qué siente la moto? (Descripción de la falla)
+                            </label>
+                            <textarea
+                                className="form-textarea"
+                                placeholder="Describe la falla o petición del cliente..."
+                                value={formData.customerComplaint}
+                                onChange={(e) => setFormData(prev => ({ ...prev, customerComplaint: e.target.value }))}
+                                rows={3}
+                            />
+                        </div>
+
+                        <div className="form-group" style={{ marginTop: '0.75rem' }}>
+                            <label className="form-label">Descripción del servicio (opcional)</label>
                             <textarea
                                 className="form-textarea"
                                 placeholder="Ej: Revisión de chicote del acelerador, cambio de llanta trasera marca X..."
@@ -1508,7 +1296,7 @@ export default function NewServiceOrder() {
                             {formData.customService && (
                                 <div className="mt-sm grid grid-2">
                                     <div>
-                                        <label className="form-label text-sm">Mano de Obra:</label>
+                                        <label className="form-label text-sm">Mano de obra (opcional):</label>
                                         <div className="input-with-icon">
                                             <Wrench className="input-icon" size={16} />
                                             <input
@@ -1521,7 +1309,7 @@ export default function NewServiceOrder() {
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="form-label text-sm">Refacción/Material:</label>
+                                        <label className="form-label text-sm">Refacción/Material (opcional):</label>
                                         <div className="input-with-icon">
                                             <DollarSign className="input-icon" size={16} />
                                             <input
@@ -1537,44 +1325,16 @@ export default function NewServiceOrder() {
                             )}
                         </div>
 
-                        <div className="form-group" style={{ marginTop: '0.75rem' }}>
-                            <label className="form-label">
-                                <FileText size={16} />
-                                ¿Qué siente la moto? (Descripción de la falla)
-                            </label>
-                            <textarea
-                                className="form-textarea"
-                                placeholder="Describe la falla o petición del cliente..."
-                                value={formData.customerComplaint}
-                                onChange={(e) => setFormData(prev => ({ ...prev, customerComplaint: e.target.value }))}
-                                rows={3}
-                            />
-                        </div>
-
-                        {/* Services Summary */}
-                        {formData.selectedServices.length > 0 && (
+                        {/* Service Summary - solo si se ingresó costo manual */}
+                        {formData.customService && (parseFloat(formData.customServiceLabor) > 0 || parseFloat(formData.customServiceMaterials) > 0) && (
                             <div className="services-summary mt-lg" style={{ marginBottom: '2rem' }}>
                                 <h3 className="summary-title">
                                     <DollarSign size={20} /> Resumen de Cotización
                                 </h3>
-
                                 {(() => {
-                                    const totalLabor = formData.selectedServices.reduce((sum, svcId) => {
-                                        const svc = services.find(s => s.id === svcId);
-                                        const labor = parseFloat(svc?.labor_cost) || 0;
-                                        const materials = parseFloat(svc?.materials_cost) || 0;
-                                        const base = parseFloat(svc?.base_price) || 0;
-                                        // If labor_cost is set, use it. Otherwise use base_price as labor (legacy services)
-                                        return sum + (labor > 0 ? labor : (materials > 0 ? 0 : base));
-                                    }, 0) + (parseFloat(formData.customServiceLabor) || 0);
-
-                                    const totalMaterials = formData.selectedServices.reduce((sum, svcId) => {
-                                        const svc = services.find(s => s.id === svcId);
-                                        return sum + (parseFloat(svc?.materials_cost) || 0);
-                                    }, 0) + (parseFloat(formData.customServiceMaterials) || 0);
-
+                                    const totalLabor = parseFloat(formData.customServiceLabor) || 0;
+                                    const totalMaterials = parseFloat(formData.customServiceMaterials) || 0;
                                     const grandTotal = totalLabor + totalMaterials;
-
                                     return (
                                         <div style={{
                                             background: 'white',
@@ -1582,7 +1342,6 @@ export default function NewServiceOrder() {
                                             padding: '20px',
                                             boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                                         }}>
-                                            {/* Mano de obra */}
                                             <div style={{
                                                 display: 'flex',
                                                 justifyContent: 'space-between',
@@ -1593,8 +1352,6 @@ export default function NewServiceOrder() {
                                                 <span style={{ fontSize: '0.95rem', color: '#374151' }}>Mano de obra</span>
                                                 <span style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937' }}>{formatMXN(totalLabor)}</span>
                                             </div>
-
-                                            {/* Refacciones */}
                                             <div style={{
                                                 display: 'flex',
                                                 justifyContent: 'space-between',
@@ -1605,8 +1362,6 @@ export default function NewServiceOrder() {
                                                 <span style={{ fontSize: '0.95rem', color: '#374151' }}>Refacciones</span>
                                                 <span style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937' }}>{formatMXN(totalMaterials)}</span>
                                             </div>
-
-                                            {/* Total */}
                                             <div style={{
                                                 display: 'flex',
                                                 justifyContent: 'space-between',
@@ -1949,42 +1704,23 @@ export default function NewServiceOrder() {
                                 <span>Servicios:</span>
                             </div>
 
-                            {/* List selected services from catalog */}
-                            {formData.selectedServices.map(svcId => {
-                                const svc = services.find(s => s.id === svcId);
-                                if (!svc) return null;
-                                return (
-                                    <div key={svcId} style={{ paddingLeft: 'var(--spacing-md)', fontSize: '0.9rem', marginBottom: '4px' }}>
-                                        <span style={{ color: 'var(--text-muted)' }}>• {svc.name}</span>
-                                    </div>
-                                );
-                            })}
-
-                            {/* Show custom service if exists */}
-                            {formData.customService && (
+                            {/* Show custom service description if exists */}
+                            {formData.customService ? (
                                 <div style={{ paddingLeft: 'var(--spacing-md)', fontSize: '0.9rem', marginBottom: '4px' }}>
                                     <span style={{ color: 'var(--text-muted)' }}>• {formData.customService}</span>
+                                </div>
+                            ) : (
+                                <div style={{ paddingLeft: 'var(--spacing-md)', fontSize: '0.9rem', marginBottom: '4px' }}>
+                                    <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Sin descripción — agrégala después con "Agregar costos"</span>
                                 </div>
                             )}
 
                             <div className="divider" style={{ margin: 'var(--spacing-sm) 0' }} />
 
-                            {/* Desglose Mano de obra y Refacciones */}
+                            {/* Desglose Mano de obra y Refacciones — solo costo manual del custom service */}
                             {(() => {
-                                const totalLabor = formData.selectedServices.reduce((sum, svcId) => {
-                                    const svc = services.find(s => s.id === svcId);
-                                    const labor = parseFloat(svc?.labor_cost) || 0;
-                                    const materials = parseFloat(svc?.materials_cost) || 0;
-                                    const base = parseFloat(svc?.base_price) || 0;
-                                    // If labor_cost is set, use it. Otherwise use base_price as labor (legacy services)
-                                    return sum + (labor > 0 ? labor : (materials > 0 ? 0 : base));
-                                }, 0) + (parseFloat(formData.customServiceLabor) || 0);
-
-                                const totalMaterials = formData.selectedServices.reduce((sum, svcId) => {
-                                    const svc = services.find(s => s.id === svcId);
-                                    return sum + (parseFloat(svc?.materials_cost) || 0);
-                                }, 0) + (parseFloat(formData.customServiceMaterials) || 0);
-
+                                const totalLabor = parseFloat(formData.customServiceLabor) || 0;
+                                const totalMaterials = parseFloat(formData.customServiceMaterials) || 0;
                                 const grandTotal = totalLabor + totalMaterials;
 
                                 return (
@@ -2019,17 +1755,8 @@ export default function NewServiceOrder() {
                                     <span>Restante:</span>
                                     <strong className="text-danger">
                                         {(() => {
-                                            const totalLabor = formData.selectedServices.reduce((sum, svcId) => {
-                                                const svc = services.find(s => s.id === svcId);
-                                                const labor = parseFloat(svc?.labor_cost) || 0;
-                                                const materials = parseFloat(svc?.materials_cost) || 0;
-                                                const base = parseFloat(svc?.base_price) || 0;
-                                                return sum + (labor > 0 ? labor : (materials > 0 ? 0 : base));
-                                            }, 0) + (parseFloat(formData.customServiceLabor) || 0);
-                                            const totalMaterials = formData.selectedServices.reduce((sum, svcId) => {
-                                                const svc = services.find(s => s.id === svcId);
-                                                return sum + (parseFloat(svc?.materials_cost) || 0);
-                                            }, 0) + (parseFloat(formData.customServiceMaterials) || 0);
+                                            const totalLabor = parseFloat(formData.customServiceLabor) || 0;
+                                            const totalMaterials = parseFloat(formData.customServiceMaterials) || 0;
                                             return formatMXN((totalLabor + totalMaterials) - (parseFloat(formData.advanceAmount) || 0));
                                         })()}
                                     </strong>
@@ -3387,20 +3114,6 @@ export default function NewServiceOrder() {
                                                 phone: e.target.value.replace(/\D/g, '').slice(0, 10)
                                             }))}
                                             maxLength={10}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="form-group">
-                                    <label className="form-label">Email (opcional)</label>
-                                    <div className="input-with-icon">
-                                        <Mail className="input-icon" size={20} />
-                                        <input
-                                            type="email"
-                                            className="form-input"
-                                            placeholder="cliente@email.com"
-                                            value={quickClientData.email}
-                                            onChange={e => setQuickClientData(prev => ({ ...prev, email: e.target.value }))}
                                         />
                                     </div>
                                 </div>

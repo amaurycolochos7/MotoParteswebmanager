@@ -7,7 +7,6 @@ import {
     Edit2,
     Trash2,
     Phone,
-    Mail,
     Bike,
     User,
     X,
@@ -26,7 +25,6 @@ export default function AdminClients() {
     const [formData, setFormData] = useState({
         full_name: '',
         phone: '',
-        email: '',
         notes: ''
     });
 
@@ -39,8 +37,7 @@ export default function AdminClients() {
         const search = searchTerm.toLowerCase();
         return clients.filter(client =>
             client.full_name?.toLowerCase().includes(search) ||
-            client.phone?.includes(searchTerm) ||
-            client.email?.toLowerCase().includes(search)
+            client.phone?.includes(searchTerm)
         );
     }, [clients, searchTerm]);
 
@@ -50,12 +47,11 @@ export default function AdminClients() {
             setFormData({
                 full_name: client.full_name || '',
                 phone: client.phone || '',
-                email: client.email || '',
                 notes: client.notes || ''
             });
         } else {
             setEditingClient(null);
-            setFormData({ full_name: '', phone: '', email: '', notes: '' });
+            setFormData({ full_name: '', phone: '', notes: '' });
         }
         setShowModal(true);
     };
@@ -63,7 +59,7 @@ export default function AdminClients() {
     const handleCloseModal = () => {
         setShowModal(false);
         setEditingClient(null);
-        setFormData({ full_name: '', phone: '', email: '', notes: '' });
+        setFormData({ full_name: '', phone: '', notes: '' });
     };
 
     const handleSave = async () => {
@@ -155,7 +151,7 @@ export default function AdminClients() {
                 <Search size={20} />
                 <input
                     type="text"
-                    placeholder="Buscar cliente por nombre, teléfono o email..."
+                    placeholder="Buscar cliente por nombre o teléfono..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -179,12 +175,6 @@ export default function AdminClients() {
                                     <Phone size={14} />
                                     {client.phone}
                                 </div>
-                                {client.email && (
-                                    <div className="client-contact">
-                                        <Mail size={14} />
-                                        {client.email}
-                                    </div>
-                                )}
                             </div>
                         </div>
 
@@ -273,15 +263,6 @@ export default function AdminClients() {
                                     className="form-input"
                                     value={formData.phone}
                                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Email</label>
-                                <input
-                                    type="email"
-                                    className="form-input"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                 />
                             </div>
                             <div className="form-group">

@@ -4,7 +4,6 @@ import {
     Plus,
     User,
     Phone,
-    Mail,
     FileText,
     X,
     Users,
@@ -27,7 +26,6 @@ export default function ClientsList() {
     const [formData, setFormData] = useState({
         full_name: '',
         phone: '',
-        email: '',
         notes: ''
     });
     const [motorcycles, setMotorcyclesForm] = useState([]);
@@ -40,14 +38,13 @@ export default function ClientsList() {
         const query = searchQuery.toLowerCase();
         return clients.filter(client =>
             client.full_name?.toLowerCase().includes(query) ||
-            client.phone?.includes(query) ||
-            client.email?.toLowerCase().includes(query)
+            client.phone?.includes(query)
         );
     }, [clients, searchQuery]);
 
     const openAddModal = () => {
         setEditingClient(null);
-        setFormData({ full_name: '', phone: '', email: '', notes: '' });
+        setFormData({ full_name: '', phone: '', notes: '' });
         setMotorcyclesForm([]);
         setShowModal(true);
     };
@@ -57,7 +54,6 @@ export default function ClientsList() {
         setFormData({
             full_name: client.full_name,
             phone: client.phone,
-            email: client.email || '',
             notes: client.notes || ''
         });
         // Load client's motorcycles
@@ -85,7 +81,6 @@ export default function ClientsList() {
                 await updateClient(editingClient.id, {
                     full_name: formData.full_name.trim(),
                     phone: formData.phone.trim(),
-                    email: formData.email.trim(),
                     notes: formData.notes.trim()
                 });
 
@@ -142,7 +137,6 @@ export default function ClientsList() {
                 const newClient = await addClient({
                     full_name: formData.full_name.trim(),
                     phone: formData.phone.trim(),
-                    email: formData.email.trim(),
                     notes: formData.notes.trim()
                 });
 
@@ -164,7 +158,7 @@ export default function ClientsList() {
             }
 
             setShowModal(false);
-            setFormData({ full_name: '', phone: '', email: '', notes: '' });
+            setFormData({ full_name: '', phone: '', notes: '' });
             setMotorcyclesForm([]);
         } catch (error) {
             console.error('Error saving client:', error);
@@ -235,7 +229,7 @@ export default function ClientsList() {
                 <input
                     type="text"
                     className="search-input"
-                    placeholder="Buscar por nombre, teléfono o email..."
+                    placeholder="Buscar por nombre o teléfono..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -323,12 +317,6 @@ export default function ClientsList() {
                                     <Phone size={16} className="detail-icon" />
                                     <span>{client.phone}</span>
                                 </div>
-                                {client.email && (
-                                    <div className="detail-item">
-                                        <Mail size={16} className="detail-icon" />
-                                        <span>{client.email}</span>
-                                    </div>
-                                )}
                                 {client.notes && (
                                     <div className="detail-item">
                                         <FileText size={16} className="detail-icon" />
@@ -409,20 +397,6 @@ export default function ClientsList() {
                                             placeholder="555-123-4567"
                                             value={formData.phone}
                                             onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="form-group">
-                                    <label className="form-label">Email (opcional)</label>
-                                    <div className="input-with-icon">
-                                        <Mail className="input-icon" size={20} />
-                                        <input
-                                            type="email"
-                                            className="form-input"
-                                            placeholder="cliente@email.com"
-                                            value={formData.email}
-                                            onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
                                         />
                                     </div>
                                 </div>

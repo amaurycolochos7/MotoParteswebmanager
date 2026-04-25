@@ -4,7 +4,6 @@ import {
     clientsService,
     motorcyclesService,
     ordersService,
-    servicesService,
     statusesService,
     statsService,
     orderUpdatesService,
@@ -20,7 +19,6 @@ export function DataProvider({ children }) {
     // Estados
     const [clients, setClients] = useState([]);
     const [orders, setOrders] = useState([]);
-    const [services, setServices] = useState([]);
     const [statuses, setStatuses] = useState([]);
     const [serviceUpdates, setServiceUpdates] = useState([]);
     const [users, setUsers] = useState([]);
@@ -39,19 +37,16 @@ export function DataProvider({ children }) {
             setError(null);
             try {
                 // Cargar datos en paralelo
-                const [clientsRes, servicesRes, statusesRes, updatesRes, usersRes] = await Promise.all([
+                const [clientsRes, statusesRes, updatesRes, usersRes] = await Promise.all([
                     clientsService.getAll(),
-                    servicesService.getAll(),
                     statusesService.getAll(),
                     orderUpdatesService.getAll(),
                     authService.getAllUsers()
                 ]);
 
                 if (clientsRes.error) console.error('Error clients:', clientsRes.error);
-                if (servicesRes.error) console.error('Error services:', servicesRes.error);
 
                 setClients(clientsRes.data || []);
-                setServices(servicesRes.data || []);
                 setStatuses(statusesRes.data || []);
                 setServiceUpdates(updatesRes.data || []);
                 setUsers(usersRes.data || []);
@@ -290,29 +285,6 @@ export function DataProvider({ children }) {
     }, []);
 
     // =============================================
-    // SERVICIOS
-    // =============================================
-    const addService = useCallback(async (serviceData) => {
-        const { data: newService, error } = await servicesService.create(serviceData);
-        if (error) throw error;
-        setServices(prev => [...prev, newService]);
-        return newService;
-    }, []);
-
-    const updateService = useCallback(async (id, updates) => {
-        const { data: updated, error } = await servicesService.update(id, updates);
-        if (error) throw error;
-        setServices(prev => prev.map(s => s.id === id ? { ...s, ...updated } : s));
-        return updated;
-    }, []);
-
-    const deleteService = useCallback(async (id) => {
-        const { error } = await servicesService.delete(id);
-        if (error) throw error;
-        setServices(prev => prev.filter(s => s.id !== id));
-    }, []);
-
-    // =============================================
     // NOVEDADES (UPDATES)
     // =============================================
     const getOrderUpdates = useCallback((orderId) => {
@@ -423,12 +395,6 @@ export function DataProvider({ children }) {
         deleteOrder,
         getActiveOrders,
         getTodayOrders,
-
-        // Servicios
-        services,
-        addService,
-        updateService,
-        deleteService,
 
         // Novedades
         serviceUpdates,
