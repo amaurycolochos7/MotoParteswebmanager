@@ -108,7 +108,8 @@ export default function MechanicHistory() {
       .filter(o => o.is_paid)
       .reduce((sum, o) => sum + (o.total_amount || 0), 0);
 
-    const avgRevenue = total > 0 ? totalRevenue / total : 0;
+    const paidCount = deliveredOrders.filter(o => o.is_paid).length;
+    const avgRevenue = paidCount > 0 ? totalRevenue / paidCount : 0;
 
     return { total, totalRevenue, avgRevenue };
   }, [deliveredOrders]);

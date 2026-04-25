@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import fs from 'node:fs';
+import path from 'node:path';
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
@@ -133,6 +135,42 @@ app.get('/debug', (req, res) => {
 // Start
 const server = app.listen(PORT, '0.0.0.0', async () => {
     console.log(`📱 WhatsApp Bot running on port ${PORT}`);
+
+    // Sweep orphaned session folders on disk: any `session-{uuid}` directory
+    // whose mechanicId has no row in `whatsapp_sessions` is dead weight that
+    // will never be restored. Removing it prevents the bot from re-using
+    // stale auth tokens that produce "expired/invalid" QR codes on the phone.
+    try {
+        const dataPath = process.env.WWEBJS_DATA_PATH || '/app/data/wwebjs_auth';
+        if (fs.existsSync(dataPath)) {
+            const entries = fs.readdirSync(dataPath, { withFileTypes: true });
+            const folderIds = entries
+                .filter(e => e.isDirectory() && e.name.startsWith('session-'))
+                .map(e => e.name.slice('session-'.length));
+
+            if (folderIds.length > 0) {
+                const dbRows = await prisma.whatsappSession.findMany({
+                    where: { mechanic_id: { in: folderIds } },
+                    select: { mechanic_id: true },
+                });
+                const known = new Set(dbRows.map(r => r.mechanic_id));
+                for (const id of folderIds) {
+                    if (!known.has(id)) {
+                        const dir = path.join(dataPath, `session-${id}`);
+                        try {
+                            fs.rmSync(dir, { recursive: true, force: true });
+                            console.log(`🗑️ Removed orphan session folder: session-${id}`);
+                        } catch (err) {
+                            console.warn(`⚠️ Could not remove ${dir}: ${err.message}`);
+                        }
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        console.warn(`⚠️ Orphan session sweep failed: ${err.message}`);
+    }
+
     // Restore persisted sessions on boot
     try {
         const dbSessions = await prisma.whatsappSession.findMany({

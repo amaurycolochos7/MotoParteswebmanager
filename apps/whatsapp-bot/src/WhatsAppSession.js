@@ -180,9 +180,15 @@ class WhatsAppSession extends EventEmitter {
 
                 if (this._qrCount >= 10) {
                     console.error(`❌ Too many QR regenerations (${this._qrCount}) for ${this.mechanicId} — stopping to prevent runaway loop`);
-                    this.lastError = 'El código QR no fue escaneado a tiempo. Cierra esta sesión y vuelve a iniciarla cuando tengas el teléfono listo.';
+                    this.lastError = 'El código QR expiró. Reintentando con sesión limpia…';
+                    // Wipe the on-disk session folder. After 10 unscanned QRs the
+                    // local LocalAuth state is invariably stale (auth tokens that
+                    // no longer pair with anything on the WhatsApp side), and
+                    // reusing it makes the next attempt regenerate QRs that the
+                    // phone shows as "expired/invalid" without ever reaching the
+                    // real pairing flow. Wiping forces a clean cold start.
+                    this._wipeSessionDir();
                     // Stop the client so it does not keep generating QRs forever.
-                    // The UI will surface lastError and the user can re-trigger start.
                     this.client.destroy().catch(() => { /* ignore */ });
                     this.emit('disconnected', 'qr_exhausted');
                 }
@@ -451,6 +457,23 @@ class WhatsAppSession extends EventEmitter {
         if (this._heartbeatInterval) {
             clearInterval(this._heartbeatInterval);
             this._heartbeatInterval = null;
+        }
+    }
+
+    /**
+     * Recursively delete the LocalAuth folder for this mechanicId. Used when
+     * we know the on-disk session is unrecoverable (qr_exhausted, auth_failure,
+     * explicit logout). Safe to call when the folder is missing.
+     */
+    _wipeSessionDir() {
+        try {
+            const dir = path.join(sessionsPath(), `session-${this.mechanicId}`);
+            if (fs.existsSync(dir)) {
+                fs.rmSync(dir, { recursive: true, force: true });
+                console.log(`🗑️ Wiped session dir: ${dir}`);
+            }
+        } catch (err) {
+            console.warn(`⚠️ Could not wipe session dir for ${this.mechanicId}: ${err.message}`);
         }
     }
 }

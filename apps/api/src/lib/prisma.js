@@ -32,6 +32,9 @@ const SCOPED_MODELS = new Set([
     'OrderRequest',
     'MechanicEarning',
     'PaymentRequest',
+    'Quotation',
+    'QuotationLabor',
+    'QuotationPart',
 ]);
 
 const CREATE_OPS = new Set(['create', 'createMany', 'upsert']);
@@ -64,6 +67,12 @@ function whereAlreadyMentionsWorkspace(where) {
     }
     return false;
 }
+
+// Un-extended client used by the workspace-scope extension itself to perform
+// internal `findFirst` reads without re-entering the extension. We can't reuse
+// the extended `prisma` because that would recursively trigger this same
+// extension on the read.
+const rawPrisma = new PrismaClient();
 
 const prisma = new PrismaClient().$extends({
     name: 'workspace-auto-scope',
@@ -114,10 +123,16 @@ const prisma = new PrismaClient().$extends({
                         ? (() => { const e = new Error('Row not found in workspace'); e.code = 'P2025'; throw e; })
                         : () => null;
 
-                    // Internal findUnique without modifying args so we don't
-                    // re-enter the extension recursively.
-                    const target = await query({ where: args.where });
-                    if (!target || (target.workspace_id && target.workspace_id !== wsId)) {
+                    // Use the un-extended client for the scoped read. Reusing
+                    // `query(args)` here would replay the *current* operation
+                    // (e.g. `update`) without its `data` payload, which Prisma
+                    // rejects with PrismaClientValidationError.
+                    const modelKey = model.charAt(0).toLowerCase() + model.slice(1);
+                    const target = await rawPrisma[modelKey].findFirst({
+                        where: { ...args.where, workspace_id: wsId },
+                        select: { workspace_id: true },
+                    });
+                    if (!target) {
                         return resultIfMissing();
                     }
 

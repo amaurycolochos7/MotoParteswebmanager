@@ -93,6 +93,18 @@ class SessionManager {
                 is_connected: false,
                 disconnected_at: new Date(),
             });
+
+            // Auto-restart on causes where the on-disk session was just wiped
+            // (qr_exhausted, auth_failure). The wipe makes the next start a
+            // clean cold pairing — no need to wait for the user to click again.
+            if (reason === 'qr_exhausted' || reason === 'auth_failure') {
+                console.log(`🔄 Auto-restarting session for ${mechanicId} after ${reason} (10s cooldown)...`);
+                setTimeout(() => {
+                    this.startSession(mechanicId).catch(err =>
+                        console.error(`❌ Auto-restart failed for ${mechanicId}: ${err.message}`)
+                    );
+                }, 10000);
+            }
         });
 
         // Auto-restart when QR scan times out (user took too long)

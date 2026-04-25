@@ -94,6 +94,7 @@ export default function OrderDetail() {
     const [editingCosts, setEditingCosts] = useState(false);
     const [costsLabor, setCostsLabor] = useState([]);
     const [costsParts, setCostsParts] = useState([]);
+    const [costsMarkAsPaid, setCostsMarkAsPaid] = useState(false);
     const [savingCosts, setSavingCosts] = useState(false);
     const [sendingPDF, setSendingPDF] = useState(false);
     const [showSendChoice, setShowSendChoice] = useState(false);
@@ -516,6 +517,7 @@ export default function OrderDetail() {
             quantity: p.quantity || 1,
         }));
         setCostsParts(existingParts.length > 0 ? existingParts : [{ id: `new-${Date.now()}`, name: '', price: '', quantity: 1 }]);
+        setCostsMarkAsPaid(order?.is_paid || false);
         setEditingCosts(true);
     };
 
@@ -556,6 +558,7 @@ export default function OrderDetail() {
                     price: parseFloat(p.price) || 0,
                     quantity: parseInt(p.quantity) || 1,
                 })),
+                mark_as_paid: costsMarkAsPaid,
             });
 
             // Also save labor breakdown as mechanic_notes
@@ -640,13 +643,9 @@ export default function OrderDetail() {
             if (order.mechanic_notes) {
                 msgLines.push(``);
                 msgLines.push(`🔧 *Mano de Obra:*`);
-                if (order.mechanic_notes.includes('|')) {
-                    order.mechanic_notes.split(' | ').forEach(item => {
-                        msgLines.push(`  • ${item}`);
-                    });
-                } else {
-                    msgLines.push(`  • ${order.mechanic_notes}: $${laborAmt.toLocaleString('es-MX')}`);
-                }
+                order.mechanic_notes.split(' | ').forEach(item => {
+                    msgLines.push(`  • ${item}`);
+                });
             }
 
             // Add parts
@@ -837,6 +836,10 @@ export default function OrderDetail() {
                                 <span>Total estimado:</span>
                                 <strong>${(costsLabor.reduce((s, l) => s + (parseFloat(l.price) || 0), 0) + costsParts.reduce((s, p) => s + ((parseFloat(p.price) || 0) * (parseInt(p.quantity) || 1)), 0)).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>
                             </div>
+                            <label style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',fontSize:14}}>
+                                <input type="checkbox" checked={costsMarkAsPaid} onChange={e => setCostsMarkAsPaid(e.target.checked)} />
+                                <span>Marcar como pagada (cobrada al cliente)</span>
+                            </label>
                             <button className="od-save-btn" onClick={handleSaveCosts} disabled={savingCosts}>
                                 {savingCosts ? <Loader2 size={18} className="spinner" /> : <Save size={18} />}
                                 {savingCosts ? 'Guardando...' : 'Guardar Costos'}

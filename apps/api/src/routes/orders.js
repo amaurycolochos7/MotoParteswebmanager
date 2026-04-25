@@ -407,7 +407,7 @@ export default async function ordersRoutes(fastify) {
         // ============ UPDATE ORDER COSTS (labor + parts) ============
         fastify.put('/:id/costs', { preHandler: [authenticate, resolveWorkspace] }, async (request, reply) => {
             const { id } = request.params;
-            const { labor_total, parts } = request.body;
+            const { labor_total, parts, mark_as_paid } = request.body;
 
             try {
                 const result = await prisma.$transaction(async (tx) => {
@@ -438,13 +438,20 @@ export default async function ordersRoutes(fastify) {
                     const totalAmount = laborAmount + partsTotal;
 
                     // 5. Update order totals
+                    const updateData = {
+                        labor_total: laborAmount,
+                        parts_total: partsTotal,
+                        total_amount: totalAmount,
+                    };
+
+                    if (mark_as_paid === true) {
+                        updateData.is_paid = true;
+                        updateData.paid_at = new Date();
+                    }
+
                     const updated = await tx.order.update({
                         where: { id },
-                        data: {
-                            labor_total: laborAmount,
-                            parts_total: partsTotal,
-                            total_amount: totalAmount,
-                        },
+                        data: updateData,
                         include: ORDER_INCLUDE,
                     });
 
