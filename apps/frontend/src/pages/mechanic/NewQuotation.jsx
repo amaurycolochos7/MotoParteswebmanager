@@ -19,6 +19,7 @@ import {
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
 import { quotationsService } from '../../lib/api';
+import './Quotations.css';
 
 function formatMXN(amount) {
     return new Intl.NumberFormat('es-MX', {
@@ -33,17 +34,25 @@ export default function NewQuotation() {
     const navigate = useNavigate();
     const toast = useToast();
     const {
-        findClientByPhone,
+        clients,
+        searchClients,
         getClientMotorcycles,
         addClient,
         addMotorcycle,
     } = useData();
 
-    // Client
-    const [clientPhone, setClientPhone] = useState('');
-    const [searchPerformed, setSearchPerformed] = useState(false);
+    // Client search: single input that filters by name OR phone substring.
+    // Live results appear below — no manual "Buscar" click required.
+    const [clientQuery, setClientQuery] = useState('');
     const [selectedClient, setSelectedClient] = useState(null);
     const [clientMotos, setClientMotos] = useState([]);
+
+    const clientMatches = useMemo(() => {
+        const q = clientQuery.trim();
+        if (q.length === 0) return [];
+        if (q.length < 2) return (clients || []).slice(0, 8);
+        return searchClients(q);
+    }, [clientQuery, clients, searchClients]);
 
     // Quick client modal
     const [showQuickClient, setShowQuickClient] = useState(false);
@@ -65,25 +74,23 @@ export default function NewQuotation() {
 
     const [submitting, setSubmitting] = useState(false);
 
-    // Search
-    const handlePhoneSearch = () => {
-        if (clientPhone.replace(/\D/g, '').length < 10) {
-            toast.warning('Ingresa un teléfono de al menos 10 dígitos');
-            return;
-        }
-        const found = findClientByPhone(clientPhone);
-        setSearchPerformed(true);
-        if (found) {
-            setSelectedClient(found);
-            const motos = getClientMotorcycles(found.id);
-            setClientMotos(motos || []);
-            setSelectedMotoId('');
-        } else {
-            setSelectedClient(null);
-            setClientMotos([]);
-            setQuickClient(prev => ({ ...prev, phone: clientPhone }));
-            setShowQuickClient(true);
-        }
+    const selectClient = (c) => {
+        setSelectedClient(c);
+        const motos = getClientMotorcycles(c.id);
+        setClientMotos(motos || []);
+        setSelectedMotoId('');
+        setClientQuery('');
+    };
+
+    const openNewClientModal = () => {
+        // If the query looks like a phone number, prefill it.
+        const digits = clientQuery.replace(/\D/g, '');
+        setQuickClient(prev => ({
+            ...prev,
+            phone: digits.length >= 10 ? clientQuery : prev.phone,
+            full_name: digits.length >= 10 ? prev.full_name : (clientQuery || prev.full_name),
+        }));
+        setShowQuickClient(true);
     };
 
     const handleSaveQuickClient = async () => {
@@ -99,9 +106,8 @@ export default function NewQuotation() {
                 notes: quickClient.notes.trim() || null,
             });
             setSelectedClient(newClient);
-            setClientPhone(newClient.phone);
+            setClientQuery('');
             setClientMotos([]);
-            setSearchPerformed(true);
             setShowQuickClient(false);
             setQuickClient({ full_name: '', phone: '', notes: '' });
             toast.success('Cliente creado');
@@ -225,28 +231,82 @@ export default function NewQuotation() {
                 <h2 className="nq-section-title"><User size={16} /> Cliente</h2>
                 {!selectedClient ? (
                     <>
-                        <div className="nq-search-row">
-                            <div className="nq-input-wrap">
-                                <Phone size={16} className="nq-input-icon" />
-                                <input
-                                    type="tel"
-                                    className="nq-input"
-                                    placeholder="Teléfono del cliente"
-                                    value={clientPhone}
-                                    onChange={(e) => setClientPhone(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handlePhoneSearch()}
-                                />
-                            </div>
-                            <button className="nq-btn nq-btn-secondary" onClick={handlePhoneSearch}>
-                                <Search size={16} /> Buscar
-                            </button>
+                        <div className="nq-input-wrap">
+                            <Search size={16} className="nq-input-icon" />
+                            <input
+                                type="text"
+                                className="nq-input"
+                                placeholder="Buscar por nombre o teléfono..."
+                                value={clientQuery}
+                                onChange={(e) => setClientQuery(e.target.value)}
+                                autoFocus
+                            />
                         </div>
-                        {searchPerformed && (
-                            <p className="nq-hint">No se encontró el cliente. Crea uno nuevo.</p>
+
+                        {clientMatches.length > 0 && (
+                            <ul style={{
+                                listStyle: 'none',
+                                padding: 0,
+                                margin: '12px 0 0 0',
+                                maxHeight: 320,
+                                overflowY: 'auto',
+                                border: '1px solid #e5e7eb',
+                                borderRadius: 8,
+                                background: '#fff',
+                            }}>
+                                {clientMatches.map((c, idx) => (
+                                    <li key={c.id}>
+                                        <button
+                                            type="button"
+                                            onClick={() => selectClient(c)}
+                                            style={{
+                                                width: '100%',
+                                                textAlign: 'left',
+                                                padding: '10px 14px',
+                                                background: 'transparent',
+                                                border: 'none',
+                                                borderTop: idx === 0 ? 'none' : '1px solid #f3f4f6',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: 4,
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
+                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                            <div style={{ fontWeight: 600, color: '#111827', fontSize: 14 }}>
+                                                {c.full_name}
+                                            </div>
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 4,
+                                                fontSize: 12,
+                                                color: '#6b7280',
+                                            }}>
+                                                <Phone size={12} /> {c.phone}
+                                            </div>
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
                         )}
+
+                        {clientQuery.trim().length >= 2 && clientMatches.length === 0 && (
+                            <p className="nq-hint">
+                                No se encontró ningún cliente con &quot;{clientQuery}&quot;.
+                            </p>
+                        )}
+
+                        {clientQuery.length === 0 && (clients?.length || 0) === 0 && (
+                            <p className="nq-hint">
+                                Aún no tienes clientes registrados.
+                            </p>
+                        )}
+
                         <button
                             className="nq-btn nq-btn-outline nq-mt"
-                            onClick={() => setShowQuickClient(true)}
+                            onClick={openNewClientModal}
                         >
                             <UserPlus size={16} /> Nuevo cliente
                         </button>
@@ -261,8 +321,7 @@ export default function NewQuotation() {
                             className="nq-link-btn"
                             onClick={() => {
                                 setSelectedClient(null);
-                                setClientPhone('');
-                                setSearchPerformed(false);
+                                setClientQuery('');
                                 setClientMotos([]);
                                 setSelectedMotoId('');
                             }}
@@ -566,327 +625,6 @@ export default function NewQuotation() {
                 </div>
             )}
 
-            <style>{`
-                .nq-page {
-                    padding: 12px 16px 120px;
-                    max-width: 760px;
-                    margin: 0 auto;
-                }
-                .nq-topbar {
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    margin-bottom: 14px;
-                }
-                .nq-back {
-                    background: white;
-                    border: 1px solid #E5E7EB;
-                    border-radius: 8px;
-                    width: 36px;
-                    height: 36px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                }
-                .nq-title {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 1.25rem;
-                    font-weight: 800;
-                    color: #0F172A;
-                    margin: 0;
-                }
-
-                .nq-section {
-                    background: white;
-                    border: 1px solid #E5E7EB;
-                    border-radius: 10px;
-                    padding: 14px;
-                    margin-bottom: 12px;
-                }
-                .nq-section-title {
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                    font-size: 13px;
-                    font-weight: 700;
-                    color: #0F172A;
-                    margin: 0 0 10px;
-                    text-transform: uppercase;
-                    letter-spacing: 0.04em;
-                }
-
-                .nq-input-wrap {
-                    position: relative;
-                    flex: 1;
-                }
-                .nq-input-icon {
-                    position: absolute;
-                    left: 10px;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    color: #9CA3AF;
-                }
-                .nq-input {
-                    width: 100%;
-                    padding: 10px 12px;
-                    border: 1px solid #E5E7EB;
-                    border-radius: 8px;
-                    font-size: 14px;
-                    font-family: inherit;
-                    background: white;
-                    color: #0F172A;
-                    box-sizing: border-box;
-                }
-                .nq-input-wrap .nq-input { padding-left: 34px; }
-                .nq-input:focus { outline: none; border-color: #111827; }
-                .nq-input-small { width: 100px; }
-
-                .nq-textarea {
-                    width: 100%;
-                    padding: 10px 12px;
-                    border: 1px solid #E5E7EB;
-                    border-radius: 8px;
-                    font-size: 14px;
-                    font-family: inherit;
-                    background: white;
-                    color: #0F172A;
-                    resize: vertical;
-                    box-sizing: border-box;
-                }
-                .nq-textarea:focus { outline: none; border-color: #111827; }
-
-                .nq-search-row {
-                    display: flex;
-                    gap: 8px;
-                    align-items: center;
-                }
-
-                .nq-btn {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 6px;
-                    padding: 9px 14px;
-                    border-radius: 8px;
-                    font-size: 13px;
-                    font-weight: 700;
-                    border: none;
-                    cursor: pointer;
-                    font-family: inherit;
-                }
-                .nq-btn-primary {
-                    background: #111827;
-                    color: white;
-                }
-                .nq-btn-secondary {
-                    background: #1F2937;
-                    color: white;
-                }
-                .nq-btn-outline {
-                    background: white;
-                    border: 1px solid #D1D5DB;
-                    color: #111827;
-                }
-                .nq-btn:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
-                .nq-mt { margin-top: 10px; }
-
-                .nq-hint {
-                    color: #6B7280;
-                    font-size: 12px;
-                    margin: 6px 0 0;
-                }
-
-                .nq-client-card {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    padding: 12px;
-                    background: #F9FAFB;
-                    border: 1px solid #E5E7EB;
-                    border-radius: 8px;
-                }
-                .nq-client-name { font-weight: 700; color: #0F172A; }
-                .nq-client-phone { font-size: 12px; color: #6B7280; margin-top: 2px; }
-                .nq-link-btn {
-                    background: none;
-                    border: none;
-                    color: #2563EB;
-                    font-size: 13px;
-                    font-weight: 600;
-                    cursor: pointer;
-                }
-
-                .nq-moto-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 6px;
-                }
-                .nq-moto-card {
-                    text-align: left;
-                    padding: 10px 12px;
-                    border: 1px solid #E5E7EB;
-                    background: white;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-family: inherit;
-                }
-                .nq-moto-card.selected {
-                    border-color: #111827;
-                    background: #F9FAFB;
-                }
-                .nq-moto-name { font-weight: 700; color: #0F172A; font-size: 14px; }
-                .nq-moto-meta { font-size: 12px; color: #6B7280; margin-top: 2px; }
-
-                .nq-valid-row {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                }
-                .nq-valid-suffix {
-                    font-size: 13px;
-                    color: #6B7280;
-                }
-
-                .nq-rows {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 6px;
-                }
-                .nq-row {
-                    display: flex;
-                    gap: 6px;
-                    align-items: center;
-                }
-                .nq-row-name { flex: 2; min-width: 0; }
-                .nq-row-qty { width: 80px; flex: 0 0 auto; }
-                .nq-row-price { width: 110px; flex: 0 0 auto; }
-                .nq-row-del {
-                    background: rgba(239, 68, 68, 0.1);
-                    border: none;
-                    color: #DC2626;
-                    width: 36px;
-                    height: 36px;
-                    border-radius: 8px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    flex: 0 0 auto;
-                }
-
-                .nq-totals-card {
-                    background: white;
-                    border: 1px solid #E5E7EB;
-                    border-radius: 10px;
-                    padding: 14px;
-                    margin-bottom: 12px;
-                }
-                .nq-totals-row {
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 14px;
-                    color: #374151;
-                    padding: 4px 0;
-                }
-                .nq-totals-grand {
-                    font-size: 16px;
-                    font-weight: 800;
-                    color: #0F172A;
-                }
-                .nq-totals-divider {
-                    height: 1px;
-                    background: #E5E7EB;
-                    margin: 6px 0;
-                }
-
-                .nq-submit {
-                    width: 100%;
-                    padding: 14px;
-                    background: #111827;
-                    color: white;
-                    border: none;
-                    border-radius: 10px;
-                    font-size: 16px;
-                    font-weight: 700;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 8px;
-                    font-family: inherit;
-                }
-                .nq-submit:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
-                .spin { animation: spin 1s linear infinite; }
-                @keyframes spin { to { transform: rotate(360deg); } }
-
-                /* Modals */
-                .nq-modal-overlay {
-                    position: fixed;
-                    inset: 0;
-                    background: rgba(0, 0, 0, 0.45);
-                    z-index: 200;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 16px;
-                }
-                .nq-modal {
-                    background: white;
-                    border-radius: 12px;
-                    width: 100%;
-                    max-width: 420px;
-                    max-height: 90vh;
-                    overflow-y: auto;
-                    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-                }
-                .nq-modal-head {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    padding: 14px 16px;
-                    border-bottom: 1px solid #E5E7EB;
-                }
-                .nq-modal-head h3 {
-                    margin: 0;
-                    font-size: 15px;
-                    font-weight: 700;
-                    color: #0F172A;
-                }
-                .nq-modal-close {
-                    background: none;
-                    border: none;
-                    color: #6B7280;
-                    cursor: pointer;
-                }
-                .nq-modal-body {
-                    padding: 14px 16px;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 4px;
-                }
-                .nq-label {
-                    display: block;
-                    font-size: 12px;
-                    font-weight: 700;
-                    color: #374151;
-                    margin: 8px 0 4px;
-                }
-                .nq-modal-foot {
-                    display: flex;
-                    justify-content: flex-end;
-                    gap: 8px;
-                    padding: 12px 16px;
-                    border-top: 1px solid #E5E7EB;
-                }
-            `}</style>
         </div>
     );
 }

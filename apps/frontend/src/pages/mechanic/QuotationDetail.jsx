@@ -17,9 +17,12 @@ import {
     Loader2,
     ArrowRight,
     AlertCircle,
+    MessageCircle,
+    Send,
 } from 'lucide-react';
 import { quotationsService } from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
+import './Quotations.css';
 
 const STATUS_LABELS = {
     pending: { label: 'Pendiente', bg: '#FEF9C3', color: '#A16207', border: '#FDE68A' },
@@ -53,6 +56,22 @@ function formatDate(dateStr) {
     });
 }
 
+function formatDateShort(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+}
+
+function cleanPhoneMX(raw) {
+    if (!raw) return '';
+    const digits = String(raw).replace(/\D/g, '');
+    if (!digits) return '';
+    return digits.startsWith('52') ? digits : `52${digits}`;
+}
+
 function calcTotal(labor = [], parts = []) {
     const laborTotal = labor.reduce((s, l) => s + (parseFloat(l.price) || 0), 0);
     const partsTotal = parts.reduce(
@@ -81,6 +100,9 @@ export default function QuotationDetail() {
 
     // Delete confirm
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    // WhatsApp send state
+    const [sendingPDF, setSendingPDF] = useState(false);
 
     useEffect(() => {
         load();
@@ -238,6 +260,113 @@ export default function QuotationDetail() {
             toast.error('Error: ' + (err.message || 'no se pudo guardar'));
         } finally {
             setWorking(false);
+        }
+    };
+
+    // ===== ENVIAR POR WHATSAPP (TEXTO, fallback wa.me) =====
+    const handleSendText = () => {
+        if (!quotation) return;
+        const client = quotation.client || {};
+        const moto = quotation.motorcycle || {};
+        if (!client.phone) {
+            toast.error('Este cliente no tiene número de teléfono');
+            return;
+        }
+
+        const laborList = quotation.labor || [];
+        const partsList = quotation.parts || [];
+        const { laborTotal, partsTotal, total } = calcTotal(laborList, partsList);
+
+        const lines = [];
+        lines.push(`*Cotización ${quotation.quotation_number || `#${String(quotation.id).slice(0, 8)}`}*`);
+        lines.push('');
+        lines.push(`Hola ${client.full_name || 'cliente'}, te comparto la cotización:`);
+        lines.push('');
+        if (moto.brand) {
+            const motoStr = `${moto.brand} ${moto.model || ''}`.trim();
+            lines.push(`🏍️ Moto: ${motoStr}${moto.plates ? ` (${moto.plates})` : ''}`);
+        }
+        lines.push(`📋 Motivo: ${quotation.customer_complaint || '(no especificado)'}`);
+
+        if (laborList.length > 0) {
+            lines.push('');
+            lines.push('🔧 *Mano de obra:*');
+            laborList.forEach(l => {
+                const price = parseFloat(l.price) || 0;
+                lines.push(`  • ${l.name} — $${price.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`);
+            });
+        }
+
+        if (partsList.length > 0) {
+            lines.push('');
+            lines.push('🔩 *Refacciones:*');
+            partsList.forEach(p => {
+                const price = parseFloat(p.price) || 0;
+                const qty = parseInt(p.quantity) || 1;
+                const subtotal = price * qty;
+                lines.push(`  • ${p.name} (x${qty}) — $${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`);
+            });
+        }
+
+        lines.push('');
+        lines.push('━━━━━━━━━━━━━━');
+        if (laborTotal > 0) {
+            lines.push(`Mano de obra: $${laborTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`);
+        }
+        if (partsTotal > 0) {
+            lines.push(`Refacciones: $${partsTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`);
+        }
+        lines.push(`*Total estimado: $${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+
+        if (quotation.valid_until) {
+            lines.push('');
+            lines.push(`Vigente hasta: ${formatDateShort(quotation.valid_until)}`);
+        }
+
+        lines.push('');
+        lines.push('Cualquier duda, escríbeme. ¡Gracias!');
+
+        const message = lines.join('\n');
+        const phone = cleanPhoneMX(client.phone);
+        if (!phone) {
+            toast.error('Teléfono inválido');
+            return;
+        }
+
+        const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+        toast.success('Abriendo WhatsApp…');
+    };
+
+    // ===== ENVIAR PDF AL WHATSAPP DEL CLIENTE (server-side) =====
+    const handleSendPDF = async () => {
+        if (!quotation) return;
+        const client = quotation.client || {};
+        if (!client.phone) {
+            toast.error('Este cliente no tiene número de teléfono');
+            return;
+        }
+        setSendingPDF(true);
+        try {
+            const token = localStorage.getItem('motopartes_token');
+            const res = await fetch(`/api/quotation-pdf/${quotation.id}/send`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            const result = await res.json().catch(() => ({}));
+
+            if (result.success && result.automated) {
+                toast.success('PDF enviado por WhatsApp');
+            } else if (result.fallback) {
+                toast.error('WhatsApp no disponible — usa el botón de texto');
+            } else {
+                toast.error(result.error || 'No se pudo enviar el PDF');
+            }
+        } catch (err) {
+            console.error('Error sending PDF:', err);
+            toast.error('Error de conexión al enviar PDF');
+        } finally {
+            setSendingPDF(false);
         }
     };
 
@@ -496,6 +625,34 @@ export default function QuotationDetail() {
                 </div>
             </section>
 
+            {/* SHARE — Enviar al cliente (sólo modo lectura) */}
+            {!editing && client.phone && (
+                <section className="qd-share">
+                    <div className="qd-share-title">
+                        <Send size={14} /> Enviar al cliente
+                    </div>
+                    <div className="qd-share-grid">
+                        <button
+                            className="qd-btn qd-btn-wa qd-btn-block"
+                            onClick={handleSendText}
+                            disabled={working || sendingPDF}
+                            type="button"
+                        >
+                            <MessageCircle size={16} /> Enviar por WhatsApp
+                        </button>
+                        <button
+                            className="qd-btn qd-btn-pdf qd-btn-block"
+                            onClick={handleSendPDF}
+                            disabled={working || sendingPDF}
+                            type="button"
+                        >
+                            {sendingPDF ? <Loader2 size={16} className="spin" /> : <FileText size={16} />}
+                            Enviar PDF
+                        </button>
+                    </div>
+                </section>
+            )}
+
             {/* ACTIONS */}
             {editing ? (
                 <div className="qd-actions">
@@ -599,321 +756,6 @@ export default function QuotationDetail() {
                 </div>
             )}
 
-            <style>{`
-                .qd-page {
-                    padding: 12px 16px 120px;
-                    max-width: 760px;
-                    margin: 0 auto;
-                }
-                .qd-topbar {
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    margin-bottom: 14px;
-                    flex-wrap: wrap;
-                }
-                .qd-back {
-                    background: white;
-                    border: 1px solid #E5E7EB;
-                    border-radius: 8px;
-                    width: 36px;
-                    height: 36px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                }
-                .qd-title {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 1.15rem;
-                    font-weight: 800;
-                    color: #0F172A;
-                    margin: 0;
-                    flex: 1;
-                    min-width: 0;
-                }
-                .qd-badge {
-                    padding: 4px 10px;
-                    border-radius: 6px;
-                    font-size: 11px;
-                    font-weight: 700;
-                    border: 1px solid;
-                }
-
-                .qd-banner {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    padding: 12px 14px;
-                    border-radius: 10px;
-                    margin-bottom: 12px;
-                    font-weight: 700;
-                    text-decoration: none;
-                }
-                .qd-banner-info {
-                    background: #DBEAFE;
-                    color: #1D4ED8;
-                    border: 1px solid #BFDBFE;
-                }
-
-                .qd-section {
-                    background: white;
-                    border: 1px solid #E5E7EB;
-                    border-radius: 10px;
-                    padding: 14px;
-                    margin-bottom: 10px;
-                }
-                .qd-section-title {
-                    display: flex;
-                    align-items: center;
-                    gap: 6px;
-                    font-size: 12px;
-                    font-weight: 700;
-                    color: #0F172A;
-                    margin: 0 0 8px;
-                    text-transform: uppercase;
-                    letter-spacing: 0.04em;
-                }
-                .qd-row-icon {
-                    display: flex;
-                    align-items: flex-start;
-                    gap: 10px;
-                    padding: 4px 0;
-                    color: #374151;
-                }
-                .qd-row-icon svg { color: #6B7280; margin-top: 3px; }
-                .qd-strong { font-weight: 700; color: #0F172A; font-size: 14px; }
-                .qd-muted { color: #6B7280; font-size: 12px; }
-                .qd-text { color: #0F172A; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
-
-                .qd-meta-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-                    gap: 12px;
-                }
-                .qd-meta-label {
-                    font-size: 11px;
-                    font-weight: 700;
-                    color: #6B7280;
-                    text-transform: uppercase;
-                    letter-spacing: 0.04em;
-                }
-                .qd-meta-value {
-                    font-size: 14px;
-                    font-weight: 700;
-                    color: #0F172A;
-                    margin-top: 2px;
-                }
-
-                .qd-rows {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 6px;
-                }
-                .qd-line {
-                    display: flex;
-                    justify-content: space-between;
-                    padding: 8px 10px;
-                    background: #F9FAFB;
-                    border-radius: 8px;
-                    font-size: 14px;
-                }
-                .qd-line-name { color: #0F172A; font-weight: 600; }
-                .qd-line-qty { color: #6B7280; font-weight: 500; }
-                .qd-line-price { color: #0F172A; font-weight: 700; }
-
-                .qd-edit-row {
-                    display: flex;
-                    gap: 6px;
-                    align-items: center;
-                }
-                .qd-input {
-                    padding: 8px 10px;
-                    border: 1px solid #E5E7EB;
-                    border-radius: 8px;
-                    font-size: 13px;
-                    font-family: inherit;
-                    background: white;
-                    color: #0F172A;
-                    box-sizing: border-box;
-                }
-                .qd-input:focus { outline: none; border-color: #111827; }
-                .qd-input-name { flex: 2; min-width: 0; }
-                .qd-input-qty { width: 70px; flex: 0 0 auto; }
-                .qd-input-price { width: 100px; flex: 0 0 auto; }
-                .qd-input-small { width: 90px; }
-
-                .qd-textarea {
-                    width: 100%;
-                    padding: 10px 12px;
-                    border: 1px solid #E5E7EB;
-                    border-radius: 8px;
-                    font-size: 14px;
-                    font-family: inherit;
-                    background: white;
-                    color: #0F172A;
-                    resize: vertical;
-                    box-sizing: border-box;
-                }
-                .qd-textarea:focus { outline: none; border-color: #111827; }
-
-                .qd-row-del {
-                    background: rgba(239, 68, 68, 0.1);
-                    border: none;
-                    color: #DC2626;
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 8px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    flex: 0 0 auto;
-                }
-
-                .qd-totals {
-                    background: white;
-                    border: 1px solid #E5E7EB;
-                    border-radius: 10px;
-                    padding: 14px;
-                    margin-bottom: 14px;
-                }
-                .qd-totals-row {
-                    display: flex;
-                    justify-content: space-between;
-                    font-size: 14px;
-                    color: #374151;
-                    padding: 4px 0;
-                }
-                .qd-totals-grand {
-                    font-size: 16px;
-                    font-weight: 800;
-                    color: #0F172A;
-                }
-                .qd-totals-divider {
-                    height: 1px;
-                    background: #E5E7EB;
-                    margin: 6px 0;
-                }
-
-                .qd-actions {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-                }
-                .qd-status-row {
-                    display: flex;
-                    gap: 8px;
-                }
-
-                .qd-btn {
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 6px;
-                    padding: 11px 14px;
-                    border-radius: 8px;
-                    font-size: 14px;
-                    font-weight: 700;
-                    border: none;
-                    cursor: pointer;
-                    font-family: inherit;
-                }
-                .qd-btn-block { flex: 1; }
-                .qd-btn-primary { background: #111827; color: white; }
-                .qd-btn-success {
-                    background: #15803D;
-                    color: white;
-                    font-size: 15px;
-                    padding: 14px;
-                }
-                .qd-btn-success-outline {
-                    background: white;
-                    border: 1px solid #BBF7D0;
-                    color: #15803D;
-                }
-                .qd-btn-danger { background: #DC2626; color: white; }
-                .qd-btn-danger-outline {
-                    background: white;
-                    border: 1px solid #FECACA;
-                    color: #DC2626;
-                }
-                .qd-btn-outline {
-                    background: white;
-                    border: 1px solid #D1D5DB;
-                    color: #111827;
-                }
-                .qd-btn:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
-                .qd-mt { margin-top: 8px; }
-
-                .spin { animation: spin 1s linear infinite; }
-                @keyframes spin { to { transform: rotate(360deg); } }
-
-                .qd-skeleton {
-                    height: 100px;
-                    background: #F3F4F6;
-                    border-radius: 10px;
-                    margin-bottom: 12px;
-                    animation: pulse 1.2s ease-in-out infinite;
-                }
-                @keyframes pulse {
-                    0%, 100% { opacity: 1; }
-                    50% { opacity: 0.55; }
-                }
-
-                /* Modal */
-                .qd-modal-overlay {
-                    position: fixed;
-                    inset: 0;
-                    background: rgba(0,0,0,0.45);
-                    z-index: 200;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 16px;
-                }
-                .qd-modal {
-                    background: white;
-                    border-radius: 12px;
-                    width: 100%;
-                    max-width: 360px;
-                    padding: 22px;
-                    text-align: center;
-                    box-shadow: 0 20px 50px rgba(0,0,0,0.2);
-                }
-                .qd-modal-icon {
-                    color: #DC2626;
-                    background: #FEE2E2;
-                    width: 56px;
-                    height: 56px;
-                    border-radius: 50%;
-                    margin: 0 auto 12px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-                .qd-modal h3 {
-                    margin: 0 0 6px;
-                    font-size: 16px;
-                    font-weight: 700;
-                    color: #0F172A;
-                }
-                .qd-modal p {
-                    color: #6B7280;
-                    font-size: 13px;
-                    margin: 0 0 16px;
-                }
-                .qd-modal-foot {
-                    display: flex;
-                    gap: 8px;
-                    justify-content: center;
-                }
-            `}</style>
         </div>
     );
 }
