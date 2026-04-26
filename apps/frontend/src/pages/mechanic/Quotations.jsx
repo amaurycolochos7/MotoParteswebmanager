@@ -85,7 +85,8 @@ export default function Quotations() {
         }
         const { error } = await quotationsService.remove(id);
         if (error) {
-            toast.error('No se pudo eliminar la cotización');
+            const msg = error?.body?.error || error?.message || 'No se pudo eliminar la cotización';
+            toast.error(msg);
             return;
         }
         toast.success('Cotización eliminada');

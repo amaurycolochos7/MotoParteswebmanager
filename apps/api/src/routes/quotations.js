@@ -264,11 +264,11 @@ export default async function quotationsRoutes(fastify) {
             if (!existing) {
                 return reply.status(404).send({ error: 'Cotización no encontrada' });
             }
-            if (existing.converted_order_id || existing.status === 'convertida') {
-                return reply.status(400).send({
-                    error: 'No se puede eliminar una cotización ya convertida en orden',
-                });
-            }
+
+            // Allow deletion even if converted: the linked Order is an
+            // independent row with its own history (order_number, costs,
+            // updates). Removing the quotation just drops the back-reference,
+            // which is safe — the order remains intact.
 
             try {
                 await prisma.$transaction(async (tx) => {
@@ -278,7 +278,7 @@ export default async function quotationsRoutes(fastify) {
                 });
                 return { success: true };
             } catch (err) {
-                request.log.error('Error deleting quotation:', err);
+                request.log.error({ err, quotationId: id }, 'Error deleting quotation');
                 return reply.status(400).send({
                     error: err.message || 'Error al eliminar la cotización',
                 });
