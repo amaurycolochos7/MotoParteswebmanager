@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FileText, Plus, Clock, ChevronRight, Bike } from 'lucide-react';
+import { FileText, Plus, Clock, ChevronRight, Bike, Trash2 } from 'lucide-react';
 import { quotationsService } from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
 import './Quotations.css';
@@ -77,6 +77,21 @@ export default function Quotations() {
         setLoading(false);
     };
 
+    const handleDelete = async (id, displayNumber, e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (!window.confirm(`¿Eliminar la cotización ${displayNumber}? Esta acción no se puede deshacer.`)) {
+            return;
+        }
+        const { error } = await quotationsService.remove(id);
+        if (error) {
+            toast.error('No se pudo eliminar la cotización');
+            return;
+        }
+        toast.success('Cotización eliminada');
+        setQuotations(prev => prev.filter(q => q.id !== id));
+    };
+
     const filtered = useMemo(() => {
         if (filter === 'all') return quotations;
         return quotations.filter(q => {
@@ -137,16 +152,31 @@ export default function Quotations() {
                         const total = calcTotal(q);
                         const client = q.client || {};
                         const moto = q.motorcycle || {};
+                        const displayNumber = q.quotation_number || `#${String(q.id).slice(0, 8)}`;
                         return (
-                            <button
+                            <div
                                 key={q.id}
                                 className="qp-card"
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => navigate(`/mechanic/quotations/${q.id}`)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        navigate(`/mechanic/quotations/${q.id}`);
+                                    }
+                                }}
                             >
+                                <button
+                                    type="button"
+                                    className="qp-card-del"
+                                    aria-label={`Eliminar ${displayNumber}`}
+                                    onClick={(e) => handleDelete(q.id, displayNumber, e)}
+                                >
+                                    <Trash2 size={15} />
+                                </button>
                                 <div className="qp-card-head">
-                                    <span className="qp-card-num">
-                                        {q.quotation_number || `#${String(q.id).slice(0, 8)}`}
-                                    </span>
+                                    <span className="qp-card-num">{displayNumber}</span>
                                     <span
                                         className="qp-card-badge"
                                         style={{ background: chip.bg, color: chip.color, borderColor: chip.border }}
@@ -170,7 +200,7 @@ export default function Quotations() {
                                     <span className="qp-card-total">{formatMXN(total)}</span>
                                     <ChevronRight size={16} className="qp-card-arrow" />
                                 </div>
-                            </button>
+                            </div>
                         );
                     })}
                 </div>

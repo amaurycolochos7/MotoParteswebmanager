@@ -689,14 +689,14 @@ export default function QuotationDetail() {
                         <div className="qd-status-row">
                             <button
                                 className="qd-btn qd-btn-success-outline qd-btn-block"
-                                onClick={() => handleSetStatus('accepted')}
+                                onClick={() => handleSetStatus('aceptada')}
                                 disabled={working}
                             >
                                 <CheckCircle size={16} /> Marcar aceptada
                             </button>
                             <button
                                 className="qd-btn qd-btn-danger-outline qd-btn-block"
-                                onClick={() => handleSetStatus('rejected')}
+                                onClick={() => handleSetStatus('rechazada')}
                                 disabled={working}
                             >
                                 <XCircle size={16} /> Marcar rechazada

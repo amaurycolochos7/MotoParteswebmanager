@@ -143,6 +143,7 @@
     width: 100%;
     text-align: left;
     padding: 16px;
+    padding-right: 48px; /* deja espacio para el botón papelero */
     background: var(--q-bg-card);
     border: 1px solid var(--q-line);
     border-radius: var(--q-radius);
@@ -150,12 +151,42 @@
     font-family: inherit;
     box-shadow: var(--q-shadow-sm);
     transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+    position: relative;
 }
 .qp-card:hover {
     border-color: var(--q-rojo-border);
     box-shadow: var(--q-shadow-md);
 }
 .qp-card:active { transform: scale(0.99); }
+.qp-card:focus-visible {
+    outline: 2px solid var(--q-rojo);
+    outline-offset: 2px;
+}
+
+.qp-card-del {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--q-line);
+    background: #fff;
+    color: var(--q-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 120ms ease;
+    padding: 0;
+    z-index: 2;
+}
+.qp-card-del:hover {
+    background: var(--q-rojo-soft);
+    border-color: var(--q-rojo-border);
+    color: var(--q-rojo);
+}
+.qp-card-del:active { transform: scale(0.94); }
 
 .qp-card-head {
     display: flex;
@@ -511,6 +542,28 @@
 .nq-row-name { min-width: 0; }
 .nq-row-qty { width: 100%; }
 .nq-row-price { width: 100%; }
+
+/* Móvil: el concepto va arriba en su propia fila para que sea legible.
+   Debajo: precio + borrar (mano de obra) o cantidad + precio + borrar (refacciones). */
+@media (max-width: 600px) {
+    .nq-row {
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "name name"
+            "price del";
+        gap: 6px 8px;
+    }
+    .nq-row:has(.nq-row-qty) {
+        grid-template-columns: 80px 1fr auto;
+        grid-template-areas:
+            "name name name"
+            "qty  price del";
+    }
+    .nq-row-name  { grid-area: name; }
+    .nq-row-qty   { grid-area: qty; }
+    .nq-row-price { grid-area: price; }
+    .nq-row-del   { grid-area: del; }
+}
 .nq-row-del {
     background: var(--q-rojo-soft);
     border: none;
@@ -843,6 +896,28 @@
 }
 .qd-edit-row:has(.qd-input-qty) {
     grid-template-columns: 1fr 70px 100px auto;
+}
+
+/* Móvil: el concepto va arriba en su propia fila para que sea legible.
+   Debajo: precio + borrar (mano de obra) o cantidad + precio + borrar (refacciones). */
+@media (max-width: 600px) {
+    .qd-edit-row {
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "name name"
+            "price del";
+        gap: 6px 8px;
+    }
+    .qd-edit-row:has(.qd-input-qty) {
+        grid-template-columns: 80px 1fr auto;
+        grid-template-areas:
+            "name name name"
+            "qty  price del";
+    }
+    .qd-input-name  { grid-area: name; }
+    .qd-input-qty   { grid-area: qty; }
+    .qd-input-price { grid-area: price; }
+    .qd-row-del     { grid-area: del; }
 }
 
 .qd-input {
