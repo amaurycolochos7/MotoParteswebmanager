@@ -40,6 +40,7 @@ import { generateOrderPDFBlob, downloadOrderPDF } from '../../utils/pdfGenerator
 import Toast from '../../components/ui/Toast';
 import NoChatWarning from '../../components/ui/NoChatWarning';
 import OrderPhotosDownload from '../../components/ui/OrderPhotosDownload';
+import './OrderDetail.css';
 
 export default function OrderDetail() {
     const { id } = useParams();
@@ -742,36 +743,32 @@ export default function OrderDetail() {
                 </div>
             )}
 
-            {/* Client & Motorcycle Info */}
-            <div className="info-cards">
-                <div className="info-card">
-                    <div className="info-card-icon">
-                        <User size={20} />
+            {/* Client & Motorcycle Info — combined card to reduce scroll */}
+            <div className="od-info-combo">
+                <div className="od-info-row">
+                    <div className="od-info-icon" style={{ background: 'var(--od-rojo-soft)', color: 'var(--od-rojo)' }}>
+                        <User size={16} />
                     </div>
-                    <div className="info-card-content">
-                        <span className="info-label">Cliente</span>
+                    <div className="od-info-text">
                         <strong>{client?.full_name || 'Sin nombre'}</strong>
-                        <span className="info-secondary">{client?.phone}</span>
+                        <span>{client?.phone}</span>
                     </div>
                 </div>
-
-                <div className="info-card">
-                    <div className="info-card-icon" style={{ background: 'rgba(0, 212, 255, 0.15)', color: 'var(--secondary)' }}>
-                        <Bike size={20} />
+                <div className="od-info-divider" />
+                <div className="od-info-row">
+                    <div className="od-info-icon" style={{ background: '#dbeafe', color: '#2563eb' }}>
+                        <Bike size={16} />
                     </div>
-                    <div className="info-card-content">
-                        <span className="info-label">Moto</span>
+                    <div className="od-info-text">
                         <strong>{motorcycle?.brand} {motorcycle?.model}</strong>
-                        <span className="info-secondary">
-                            {motorcycle?.year} • {motorcycle?.plates || 'Sin placas'}
-                        </span>
+                        <span>{motorcycle?.year} • {motorcycle?.plates || 'Sin placas'}</span>
                     </div>
                 </div>
             </div>
 
             {/* Falla reportada (si existe) */}
             {order.customer_complaint && (
-                <div className="od-complaint" style={{ marginBottom: 'var(--spacing-md)' }}>
+                <div className="od-complaint">
                     <span className="od-complaint-label">Falla reportada:</span>
                     <p>{order.customer_complaint}</p>
                 </div>
@@ -836,7 +833,7 @@ export default function OrderDetail() {
                                 <span>Total estimado:</span>
                                 <strong>${(costsLabor.reduce((s, l) => s + (parseFloat(l.price) || 0), 0) + costsParts.reduce((s, p) => s + ((parseFloat(p.price) || 0) * (parseInt(p.quantity) || 1)), 0)).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>
                             </div>
-                            <label style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',fontSize:14}}>
+                            <label className="od-mark-paid">
                                 <input type="checkbox" checked={costsMarkAsPaid} onChange={e => setCostsMarkAsPaid(e.target.checked)} />
                                 <span>Marcar como pagada (cobrada al cliente)</span>
                             </label>
@@ -951,7 +948,7 @@ export default function OrderDetail() {
 
             {/* ── HISTORIAL ── */}
             {order.history?.length > 0 && (
-                <div className="od-section" style={{ marginTop: 'var(--spacing-md)' }}>
+                <div className="od-section">
                     <div className="od-section-header">
                         <Clock size={18} />
                         <span>Historial</span>
@@ -1440,1154 +1437,121 @@ export default function OrderDetail() {
 
 
             <style>{`
-        /* ── NEW FLAT LAYOUT ── */
-        .od-section {
-          background: var(--bg-card);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-lg);
-          margin-bottom: var(--spacing-md);
-          overflow: hidden;
-        }
-        .od-section-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 16px;
-          font-weight: 600;
-          font-size: 0.95rem;
-          border-bottom: 1px solid var(--border-color);
-          color: var(--text-primary);
-        }
-        .od-section-header .badge { margin-left: 4px; font-size: 0.75rem; }
-        .od-section-body {
-          padding: 12px 16px;
-        }
-        .od-service-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 8px 0;
-          border-bottom: 1px solid rgba(0,0,0,0.04);
-        }
-        .od-service-row:last-of-type { border-bottom: none; }
-        .od-service-name {
-          flex: 1;
-          word-break: break-word;
-          font-size: 0.9rem;
-        }
-        .od-service-price {
-          font-weight: 700;
-          color: var(--primary);
-          white-space: nowrap;
-          margin-left: 12px;
-        }
-        .od-empty-text {
-          color: var(--text-muted);
-          font-style: italic;
-          font-size: 0.875rem;
-          padding: 8px 0;
-          margin: 0;
-        }
-        .od-complaint {
-          margin-top: 8px;
-          padding: 10px 12px;
-          background: rgba(245,158,11,0.08);
-          border-radius: var(--radius-md);
-          font-size: 0.875rem;
-        }
-        .od-complaint-label { font-weight: 600; color: var(--text-secondary); }
-        .od-complaint p { margin: 4px 0 0; }
-        .od-add-btn {
-          margin-top: 8px;
-          padding: 10px;
-          font-size: 0.85rem;
-          background: transparent;
-          border: 1px dashed var(--border-color);
-          border-radius: var(--radius-md);
-          color: var(--text-muted);
-          cursor: pointer;
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          transition: all 0.2s;
-        }
-        .od-add-btn:hover {
-          border-color: var(--primary);
-          color: var(--primary);
-          background: rgba(59,130,246,0.05);
-        }
-        .od-edit-btn {
-          margin-left: auto;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          padding: 4px 10px;
-          font-size: 0.8rem;
-          border-radius: var(--radius-sm);
-          border: 1px solid var(--border-color);
-          background: transparent;
-          color: var(--primary);
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .od-edit-btn:hover { background: rgba(59,130,246,0.08); }
-        .od-edit-btn.cancel { color: var(--text-muted); }
-
-        /* Costs form */
-        .od-costs-form { display: flex; flex-direction: column; gap: 12px; }
-        .od-costs-field label { display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; }
-        .od-input-wrap {
-          display: flex;
-          align-items: center;
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-md);
-          overflow: hidden;
-        }
-        .od-input-wrap span {
-          padding: 0 8px;
-          color: var(--text-muted);
-          font-weight: 600;
-        }
-        .od-input-wrap input {
-          flex: 1;
-          border: none;
-          background: transparent;
-          padding: 10px 8px;
-          font-size: 1rem;
-          outline: none;
-          color: var(--text-primary);
-        }
-        .od-input-wrap.small { max-width: 120px; }
-        .od-input-wrap.small input { padding: 8px 6px; font-size: 0.9rem; }
-        .od-costs-parts { margin-top: 4px; }
-        .od-costs-parts-hdr {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 8px;
-        }
-        .od-costs-parts-hdr label { font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; }
-        .od-costs-parts-hdr button {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 0.8rem;
-          color: var(--primary);
-          background: none;
-          border: none;
-          cursor: pointer;
-        }
-        .od-part-row {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-          margin-bottom: 8px;
-        }
-        .od-part-row input[type="text"] {
-          flex: 1;
-          padding: 8px 10px;
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-md);
-          font-size: 0.875rem;
-          background: var(--bg-secondary);
-          color: var(--text-primary);
-        }
-        .od-rm-btn {
-          background: none;
-          border: none;
-          color: var(--text-muted);
-          cursor: pointer;
-          padding: 4px;
-        }
-        .od-rm-btn:hover { color: var(--danger); }
-        .od-costs-total {
-          display: flex;
-          justify-content: space-between;
-          padding: 10px 0;
-          border-top: 1px solid var(--border-color);
-          font-size: 0.95rem;
-        }
-        .od-costs-total strong { color: var(--primary); font-size: 1.1rem; }
-        .od-save-btn {
-          width: 100%;
-          padding: 12px;
-          background: var(--primary);
-          color: white;
-          border: none;
-          border-radius: var(--radius-md);
-          font-size: 0.95rem;
-          font-weight: 600;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          transition: opacity 0.2s;
-        }
-        .od-save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-        /* Costs display */
-        .od-cost-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 6px 0;
-          font-size: 0.9rem;
-          color: var(--text-secondary);
-        }
-        .od-cost-row.part { padding-left: 12px; font-size: 0.85rem; }
-        .od-cost-val { font-weight: 600; color: var(--text-primary); }
-        .od-cost-row.total {
-          border-top: 2px solid var(--border-color);
-          margin-top: 6px;
-          padding-top: 8px;
-          font-weight: 700;
-          font-size: 1.05rem;
-          color: var(--text-primary);
-        }
-        .od-cost-row.total span:last-child { color: var(--primary); font-size: 1.15rem; }
-        .od-cost-row.advance { color: var(--success); font-size: 0.85rem; }
-        .od-paid-badge {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          margin-top: 10px;
-          padding: 8px;
-          background: rgba(16,185,129,0.1);
-          color: var(--success);
-          border-radius: var(--radius-md);
-          font-weight: 700;
-          font-size: 0.85rem;
-        }
-
-        /* Actions section */
-        .od-actions {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          margin: var(--spacing-lg) 0;
-        }
-        .od-actions-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-        }
-        .od-actions-row > :only-child {
-          grid-column: 1 / -1;
-        }
-        .od-send-choice {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-lg);
-          padding: 12px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .od-send-choice-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          font-size: 0.85rem;
-          font-weight: 600;
-          color: var(--text-secondary);
-        }
-        .od-send-choice-close {
-          background: none;
-          border: none;
-          color: var(--text-secondary);
-          font-size: 1.3rem;
-          cursor: pointer;
-          padding: 0 4px;
-          line-height: 1;
-        }
-        .od-action-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          padding: 12px 14px;
-          border-radius: var(--radius-lg);
-          font-size: 0.88rem;
-          font-weight: 600;
-          cursor: pointer;
-          border: none;
-          transition: all 0.2s;
-          white-space: nowrap;
-        }
-        .od-action-btn.primary {
-          background: linear-gradient(135deg, #3b82f6, #2563eb);
-          color: white;
-        }
-        .od-action-btn.primary:hover { filter: brightness(1.1); }
-        .od-action-btn.primary:disabled { opacity: 0.6; }
-        .od-action-btn.wa-text {
-          background: linear-gradient(135deg, #25d366, #128c7e);
-          color: white;
-        }
-        .od-action-btn.wa-text:hover { filter: brightness(1.1); }
-        .od-action-btn.outline {
-          background: transparent;
-          border: 1px solid var(--border-color);
-          color: var(--text-primary);
-        }
-        .od-action-btn.outline:hover { background: var(--bg-secondary); }
-        .od-action-btn.success {
-          background: linear-gradient(135deg, #10b981, #059669);
-          color: white;
-        }
-        .od-action-btn.success:hover { filter: brightness(1.1); }
-        .od-action-btn.secondary {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-color);
-          color: var(--text-primary);
-        }
-        .od-action-btn.secondary:hover { background: var(--bg-tertiary, rgba(255,255,255,0.08)); }
-        .od-action-btn.finish {
-          background: linear-gradient(135deg, #10b981, #047857);
-          color: white;
-        }
-        .od-action-btn.finish:hover { filter: brightness(1.1); }
-        .od-cancel-link {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          background: none;
-          border: none;
-          color: var(--text-tertiary, #999);
-          font-size: 0.8rem;
-          cursor: pointer;
-          padding: 8px;
-          transition: color 0.2s;
-        }
-        .od-cancel-link:hover {
-          color: var(--danger, #ef4444);
-        }
-
-        /* ── EXISTING STYLES (kept) ── */
-        .order-detail {
-          padding-bottom: 100px;
-        }
-
-        .order-detail-header {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-md);
-          margin-bottom: var(--spacing-lg);
-        }
-
-        .order-number {
-          font-size: 1.25rem;
-          font-weight: 700;
-          color: var(--primary);
-        }
-
-        .order-date {
-          font-size: 0.75rem;
-          color: var(--text-secondary);
-        }
-
-        .badge-lg {
-          padding: var(--spacing-sm) var(--spacing-md);
-          font-size: 0.875rem;
-          margin-left: auto;
-        }
-
-        .quick-actions {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-sm);
-          margin-bottom: var(--spacing-xl);
-        }
-
-        .info-cards {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-md);
-          margin-bottom: var(--spacing-xl);
-        }
-
-        .info-card {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-md);
-          padding: var(--spacing-md);
-          background: var(--bg-card);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-lg);
-        }
-
-        .info-card-icon {
-          width: 44px;
-          height: 44px;
-          background: rgba(59, 130, 246, 0.15);
-          color: var(--primary);
-          border-radius: var(--radius-md);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .info-card-content {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .info-label {
-          font-size: 0.625rem;
-          color: var(--text-muted);
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .info-secondary {
-          font-size: 0.875rem;
-          color: var(--text-secondary);
-        }
-
-        .detail-section {
-          background: var(--bg-card);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-lg);
-          margin-bottom: var(--spacing-md);
-          overflow: hidden;
-        }
-
-        .section-header-btn {
-          width: 100%;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: var(--spacing-md);
-          background: none;
-          border: none;
-          color: inherit;
-          cursor: pointer;
-        }
-
-        .section-title {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-sm);
-          font-weight: 600;
-        }
-
-        .section-content {
-          padding: 0 var(--spacing-md) var(--spacing-md);
-        }
-
-        .service-item-detail {
-          display: flex;
-          justify-content: space-between;
-          padding: var(--spacing-sm) 0;
-          border-bottom: 1px solid var(--border-color);
-        }
-
-        .service-item-detail:last-child {
-          border-bottom: none;
-        }
-
-        .complaint-box {
-          margin-top: var(--spacing-md);
-          padding: var(--spacing-md);
-          background: var(--bg-input);
-          border-radius: var(--radius-md);
-        }
-
-        .complaint-label {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-          display: block;
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .updates-list {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-sm);
-        }
-
-        .update-item {
-          padding: var(--spacing-md);
-          background: var(--bg-input);
-          border-radius: var(--radius-md);
-          border: 1px solid var(--border-color);
-        }
-
-        .update-item-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .update-type-label {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .update-item-title {
-          font-size: 1rem;
-          font-weight: 600;
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .update-item-desc {
-          font-size: 0.875rem;
-          color: var(--text-secondary);
-          margin-bottom: var(--spacing-sm);
-        }
-
-        .update-item-price {
-          font-size: 0.875rem;
-          color: var(--primary);
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .update-item-date {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-        }
-
-        .damage-summary {
-          display: flex;
-          flex-wrap: wrap;
-          gap: var(--spacing-sm);
-          margin-top: var(--spacing-md);
-        }
-
-        .damage-tag {
-          background: rgba(255, 107, 0, 0.15);
-          color: var(--accent);
-          padding: var(--spacing-xs) var(--spacing-sm);
-          border-radius: var(--radius-full);
-          font-size: 0.75rem;
-          font-weight: 500;
-        }
-
-        .payment-summary {
-          margin-bottom: var(--spacing-md);
-        }
-
-        .payment-row {
-          display: flex;
-          justify-content: space-between;
-          padding: var(--spacing-sm) 0;
-        }
-
-        .payment-row span {
-          color: var(--text-secondary);
-        }
-
-        .payment-status {
-          margin-top: var(--spacing-sm);
-          padding-top: var(--spacing-sm);
-          border-top: 1px solid var(--border-color);
-          text-align: center;
-        }
-
-        .timeline {
+        /* Reglas locales no cubiertas por OrderDetail.css ni index.css */
+        .order-detail .timeline {
           position: relative;
-          padding-left: var(--spacing-lg);
+          padding-left: 24px;
         }
-
-        .timeline::before {
+        .order-detail .timeline::before {
           content: '';
           position: absolute;
           left: 6px;
           top: 0;
           bottom: 0;
           width: 2px;
-          background: var(--border-color);
+          background: var(--border-color, #e5e7eb);
         }
-
-        .timeline-item {
+        .order-detail .timeline-item {
           position: relative;
-          padding-bottom: var(--spacing-md);
+          padding-bottom: 14px;
         }
-
-        .timeline-dot {
+        .order-detail .timeline-dot {
           position: absolute;
-          left: calc(-1 * var(--spacing-lg) + 2px);
+          left: -22px;
           top: 4px;
           width: 10px;
           height: 10px;
-          background: var(--primary);
+          background: #dc2626;
           border-radius: 50%;
         }
-
-        .timeline-header {
+        .order-detail .timeline-header {
           display: flex;
           justify-content: space-between;
           align-items: baseline;
           margin-bottom: 2px;
         }
-
-        .timeline-time {
-          font-size: 0.75rem;
-          color: var(--text-muted);
+        .order-detail .timeline-time {
+          font-size: 12px;
+          color: #9ca3af;
+        }
+        .order-detail .timeline-note {
+          font-size: 13px;
+          color: #6b7280;
+          margin: 4px 0 0;
         }
 
-        .timeline-note {
-          font-size: 0.875rem;
-          color: var(--text-secondary);
-        }
-
-        .status-options {
+        .order-detail .status-options {
           display: flex;
           flex-direction: column;
-          gap: var(--spacing-sm);
+          gap: 8px;
         }
-
-        .status-option {
+        .order-detail .status-option {
           display: flex;
           align-items: center;
-          gap: var(--spacing-md);
-          padding: var(--spacing-md);
-          background: var(--bg-input);
-          border: 2px solid var(--border-color);
-          border-radius: var(--radius-md);
-          color: var(--text-primary);
+          gap: 12px;
+          padding: 12px 14px;
+          background: #fafafa;
+          border: 2px solid #e5e7eb;
+          border-radius: 10px;
+          color: #1f2937;
           cursor: pointer;
-          transition: all var(--transition-fast);
+          font-family: inherit;
+          font-size: 14px;
+          font-weight: 600;
+          transition: all 120ms ease;
+          width: 100%;
         }
-
-        .status-option:hover:not(:disabled) {
-          border-color: var(--primary);
+        .order-detail .status-option:hover:not(:disabled) {
+          border-color: #dc2626;
+          background: #fff;
         }
-
-        .status-option:disabled {
-          opacity: 0.5;
+        .order-detail .status-option:disabled {
+          opacity: 0.55;
           cursor: not-allowed;
         }
-
-        .status-option.current {
-          border-color: var(--primary);
-          background: rgba(59, 130, 246, 0.05);
+        .order-detail .status-option.current {
+          border-color: #dc2626;
+          background: #fee2e2;
         }
-
-        .status-dot {
+        .order-detail .status-dot {
           width: 12px;
           height: 12px;
           border-radius: 50%;
+          flex-shrink: 0;
         }
-
-        .current-badge {
+        .order-detail .current-badge {
           margin-left: auto;
-          font-size: 0.75rem;
-          color: var(--primary);
+          font-size: 11px;
+          font-weight: 800;
+          color: #dc2626;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
 
-        .input-with-icon {
-          position: relative;
-        }
-
-        .input-with-icon .form-input {
-          padding-left: 48px;
-        }
-
-        .input-icon {
-          position: absolute;
-          left: var(--spacing-md);
-          top: 50%;
-          transform: translateY(-50%);
-          color: var(--text-muted);
-        }
-
-        .text-accent {
-          color: var(--accent);
-        }
-
-        .checkbox-label {
+        .order-detail .checkbox-label {
           display: flex;
           align-items: center;
-          gap: var(--spacing-sm);
+          gap: 8px;
           cursor: pointer;
+          font-size: 14px;
+          color: #1f2937;
+        }
+        .order-detail .checkbox-label input[type="checkbox"] {
+          width: 18px;
+          height: 18px;
+          accent-color: #dc2626;
         }
 
-        .checkbox-label input[type="checkbox"] {
-          width: 20px;
-          height: 20px;
-        }
-
-        .spinner-small {
+        .order-detail .spinner-small {
           width: 16px;
           height: 16px;
           border: 2px solid rgba(255, 255, 255, 0.3);
-          border-top-color: white;
+          border-top-color: #fff;
           border-radius: 50%;
           animation: spin 0.6s linear infinite;
         }
 
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        /* Payment Card - Premium Design */
-        .payment-card {
-          background: var(--bg-card);
-          border-radius: var(--radius-xl);
-          overflow: hidden;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-          border: 1px solid var(--border-color);
-          margin-bottom: var(--spacing-lg);
-        }
-
-        .payment-card-header {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 1rem 1.25rem;
-          background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-          color: white;
-          font-weight: 600;
-          font-size: 0.9375rem;
-        }
-
-        .payment-card-body {
-          padding: 1rem 1.25rem;
-        }
-
-        .payment-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 0.75rem 0;
-        }
-
-        .payment-label {
-          color: var(--text-secondary);
-          font-size: 0.9375rem;
-        }
-
-        .payment-value {
-          font-size: 1.125rem;
-          font-weight: 700;
-          color: var(--text-primary);
-        }
-
-        .payment-value.has-value {
-          color: var(--primary);
-        }
-
-        .payment-value.highlight {
-          color: var(--primary);
-          font-size: 1.375rem;
-        }
-
-        .payment-value.pending {
-          color: var(--warning);
-        }
-
-        .payment-value.paid {
-          color: var(--success);
-        }
-
-        .payment-divider {
-          height: 1px;
-          background: linear-gradient(90deg, transparent 0%, var(--border-color) 50%, transparent 100%);
-        }
-
-        .payment-card-footer {
-          padding: 1rem 1.25rem;
-          background: var(--bg-hover);
-          border-top: 1px solid var(--border-light);
-        }
-
-        .payment-badge {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
-          width: 100%;
-          padding: 0.75rem;
-          border-radius: var(--radius-lg);
-          font-size: 0.875rem;
-          font-weight: 700;
-          letter-spacing: 0.05em;
-        }
-
-        .payment-badge.paid {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-          color: white;
-        }
-
-        .payment-badge.pending {
-          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-          color: white;
-        }
-
-        /* Service Item with Breakdown */
-        .service-item-detail {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          padding: var(--spacing-sm) 0;
-          border-bottom: 1px solid var(--border-light);
-        }
-
-        .service-item-detail:last-of-type {
-          border-bottom: none;
-        }
-
-        .service-info {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          flex: 1;
-        }
-
-        .service-name {
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
-        .service-breakdown {
-          display: flex;
-          gap: var(--spacing-sm);
-          flex-wrap: wrap;
-        }
-
-        .breakdown-item {
-          font-size: 0.75rem;
-          padding: 2px 8px;
-          border-radius: var(--radius-sm);
-        }
-
-        .breakdown-item.labor {
-          background: rgba(59, 130, 246, 0.1);
-          color: var(--primary);
-        }
-
-        .breakdown-item.parts {
-          background: rgba(245, 158, 11, 0.1);
-          color: var(--warning);
-        }
-
-        /* Internal Financial Breakdown */
-        .internal-breakdown {
-          margin-top: var(--spacing-md);
-          padding: var(--spacing-md);
-          background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-          border-radius: var(--radius-md);
-          border: 1px solid rgba(59, 130, 246, 0.2);
-        }
-
-        .internal-breakdown .breakdown-header {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-xs);
-          font-size: 0.8125rem;
-          font-weight: 700;
-          color: var(--primary);
-          margin-bottom: var(--spacing-sm);
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .internal-breakdown .breakdown-items {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-xs);
-        }
-
-        .internal-breakdown .breakdown-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: var(--spacing-xs) 0;
-        }
-
-        .internal-breakdown .breakdown-row.total {
-          border-top: 1px dashed var(--border-color);
-          padding-top: var(--spacing-sm);
-          margin-top: var(--spacing-xs);
-        }
-
-        .internal-breakdown .breakdown-label {
-          font-size: 0.875rem;
-          color: var(--text-secondary);
-        }
-
-        .internal-breakdown .breakdown-value {
-          font-size: 0.9375rem;
-          font-weight: 700;
-          color: var(--text-primary);
-        }
-
-        .internal-breakdown .breakdown-value.labor {
-          color: var(--primary);
-        }
-
-        .internal-breakdown .breakdown-value.parts {
-          color: var(--warning);
-        }
-
-        .internal-breakdown .breakdown-row.total .breakdown-label,
-        .internal-breakdown .breakdown-row.total .breakdown-value {
-          font-weight: 800;
-          color: var(--text-primary);
-        }
-
-        /* ===== COSTS PANEL ===== */
-        .costs-panel {
-          background: var(--card-bg);
-          border: 1px solid var(--border-color);
-          border-radius: 16px;
-          overflow: hidden;
-          margin-bottom: 16px;
-        }
-        .costs-panel-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 20px;
-          border-bottom: 1px solid var(--border-color);
-          background: linear-gradient(135deg, rgba(16, 185, 129, 0.06), rgba(59, 130, 246, 0.04));
-        }
-        .costs-panel-title {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          font-weight: 700;
-          font-size: 1rem;
-          color: var(--text-primary);
-        }
-        .costs-panel-title svg { color: #10b981; }
-        .costs-edit-btn, .costs-cancel-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          padding: 6px 14px;
-          border-radius: 8px;
-          font-size: 0.85rem;
-          font-weight: 600;
-          border: 1px solid var(--border-color);
-          background: transparent;
-          color: var(--primary);
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .costs-edit-btn:hover { background: rgba(59, 130, 246, 0.08); border-color: var(--primary); }
-        .costs-cancel-btn { color: var(--text-muted); }
-        .costs-cancel-btn:hover { background: rgba(239, 68, 68, 0.08); color: #ef4444; border-color: #ef4444; }
-
-        .costs-edit-form { padding: 20px; }
-        .costs-field { margin-bottom: 16px; }
-        .costs-label {
-          display: block;
-          font-size: 0.85rem;
-          font-weight: 600;
-          color: var(--text-secondary);
-          margin-bottom: 6px;
-        }
-        .costs-input-wrap {
-          display: flex;
-          align-items: center;
-          background: var(--bg-color);
-          border: 1px solid var(--border-color);
-          border-radius: 10px;
-          overflow: hidden;
-          transition: border-color 0.15s;
-        }
-        .costs-input-wrap:focus-within { border-color: var(--primary); }
-        .costs-input-wrap.small { flex: 0 0 130px; }
-        .costs-currency {
-          padding: 0 12px;
-          font-weight: 700;
-          color: var(--text-muted);
-          font-size: 0.95rem;
-        }
-        .costs-input {
-          flex: 1;
-          border: none;
-          background: transparent;
-          padding: 10px 12px 10px 0;
-          font-size: 1rem;
-          color: var(--text-primary);
-          outline: none;
-          font-family: inherit;
-        }
-        .costs-parts-section { margin-bottom: 16px; }
-        .costs-parts-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 10px;
-        }
-        .costs-add-part-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          padding: 4px 12px;
-          border-radius: 6px;
-          font-size: 0.82rem;
-          font-weight: 600;
-          border: 1px dashed var(--primary);
-          background: transparent;
-          color: var(--primary);
-          cursor: pointer;
-          transition: background 0.15s;
-        }
-        .costs-add-part-btn:hover { background: rgba(59, 130, 246, 0.08); }
-        .costs-part-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 8px;
-        }
-        .costs-part-name {
-          flex: 1;
-          padding: 10px 12px;
-          border: 1px solid var(--border-color);
-          border-radius: 10px;
-          background: var(--bg-color);
-          color: var(--text-primary);
-          font-size: 0.9rem;
-          outline: none;
-          font-family: inherit;
-          transition: border-color 0.15s;
-        }
-        .costs-part-name:focus { border-color: var(--primary); }
-        .costs-remove-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 36px;
-          height: 36px;
-          border-radius: 8px;
-          border: 1px solid var(--border-color);
-          background: transparent;
-          color: var(--text-muted);
-          cursor: pointer;
-          transition: all 0.15s;
-          flex-shrink: 0;
-        }
-        .costs-remove-btn:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: #ef4444; }
-        .costs-calculated-total {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 12px 16px;
-          background: rgba(16, 185, 129, 0.06);
-          border-radius: 10px;
-          margin-bottom: 16px;
-          font-weight: 600;
-          color: var(--text-secondary);
-        }
-        .costs-total-amount { color: #10b981; font-size: 1.1rem; font-weight: 800; }
-        .costs-save-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          width: 100%;
-          padding: 12px;
-          border-radius: 12px;
-          border: none;
-          background: linear-gradient(135deg, #10b981, #059669);
-          color: white;
-          font-weight: 700;
-          font-size: 0.95rem;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .costs-save-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
-        .costs-save-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-        .costs-save-btn .spinner { animation: spin 1s linear infinite; }
-
-        .costs-display { padding: 20px; }
-        .costs-display-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 8px 0;
-          font-size: 0.95rem;
-          color: var(--text-primary);
-        }
-        .costs-display-row.total {
-          margin-top: 12px;
-          padding-top: 12px;
-          border-top: 2px solid var(--border-color);
-          font-weight: 800;
-          font-size: 1.1rem;
-          color: #10b981;
-        }
-        .costs-display-label { color: var(--text-secondary); font-weight: 500; }
-        .costs-display-value { font-weight: 700; }
-        .costs-parts-list {
-          padding: 12px;
-          background: rgba(0,0,0,0.02);
-          border-radius: 10px;
-          margin: 8px 0;
-        }
-        .costs-display-part {
-          display: flex;
-          justify-content: space-between;
-          padding: 4px 0;
-          font-size: 0.88rem;
-          color: var(--text-secondary);
-        }
-        .costs-empty {
-          text-align: center;
-          padding: 24px 16px;
-          color: var(--text-muted);
-        }
-        .costs-empty p { margin: 8px 0 4px; font-weight: 600; font-size: 0.95rem; }
-        .costs-empty span { font-size: 0.82rem; }
-
-        /* ===== PDF ACTIONS ===== */
-        .pdf-actions-card {
-          display: flex;
-          gap: 10px;
-          margin-bottom: 16px;
-        }
-        .btn-send-pdf {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 14px;
-          border-radius: 14px;
-          border: none;
-          background: linear-gradient(135deg, #25d366, #128c7e);
-          color: white;
-          font-weight: 700;
-          font-size: 0.92rem;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .btn-send-pdf:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3); }
-        .btn-send-pdf:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-        .btn-send-pdf .spinner { animation: spin 1s linear infinite; }
-        .btn-download-pdf {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          padding: 14px 18px;
-          border-radius: 14px;
-          border: 1px solid var(--border-color);
-          background: var(--card-bg);
-          color: var(--text-secondary);
-          font-weight: 600;
-          font-size: 0.85rem;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .btn-download-pdf:hover { border-color: var(--primary); color: var(--primary); }
-
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
             {/* Order Photos Download Section */}
