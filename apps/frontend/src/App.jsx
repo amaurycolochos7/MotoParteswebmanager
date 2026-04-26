@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
@@ -5,6 +6,7 @@ import { ToastProvider } from './context/ToastContext';
 
 // Layout
 import AppLayout from './components/layout/AppLayout';
+import ProtectedRoute from './components/layout/ProtectedRoute';
 
 // Auth Pages
 import Login from './pages/auth/Login';
@@ -82,36 +84,11 @@ import CaseStudy from './pages/public/CaseStudy';
 
 import './index.css';
 
-// Componente de ruta protegida
-function ProtectedRoute({ children, requiredRole = null }) {
-  const { isAuthenticated, user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="loading-overlay">
-        <div className="spinner spinner-lg"></div>
-        <p>Cargando...</p>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Verificar rol si es necesario
-  if (requiredRole === 'admin' && user?.role !== 'admin') {
-    return <Navigate to="/mechanic" replace />;
-  }
-
-  if (requiredRole === 'mechanic') {
-    if (user?.role !== 'mechanic' && user?.role !== 'admin_mechanic') {
-      return <Navigate to="/admin" replace />;
-    }
-  }
-
-  return children;
-}
+// ProtectedRoute lives in components/layout/ProtectedRoute.jsx and accepts
+// admin route entry for any of: Profile.role === 'admin', workspaceRole in
+// (owner, admin), or is_master_mechanic === true. The previous local copy
+// here only checked the first condition, which silently ignored every fix
+// to the shared component and bounced master mechanics out of /admin/users.
 
 // Componente principal de rutas
 function AppRoutes() {
@@ -279,17 +256,71 @@ function AppRoutes() {
   );
 }
 
+// Visible error boundary so a runtime crash inside the app shows the actual
+// stack on screen instead of leaving a blank page. Temporary diagnostic.
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null, info: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error('[AppErrorBoundary]', error, info);
+    this.setState({ info });
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{
+          padding: 24,
+          fontFamily: 'ui-monospace, monospace',
+          fontSize: 12,
+          background: '#fef2f2',
+          color: '#7f1d1d',
+          minHeight: '100vh',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}>
+          <h2 style={{ fontSize: 18, marginBottom: 12, color: '#b91c1c' }}>
+            Runtime error in app
+          </h2>
+          <div style={{ marginBottom: 12 }}>
+            <strong>Message:</strong> {String(this.state.error?.message || this.state.error)}
+          </div>
+          {this.state.error?.stack && (
+            <details open>
+              <summary style={{ cursor: 'pointer', marginBottom: 8 }}>Stack</summary>
+              {this.state.error.stack}
+            </details>
+          )}
+          {this.state.info?.componentStack && (
+            <details open>
+              <summary style={{ cursor: 'pointer', marginBottom: 8 }}>Component stack</summary>
+              {this.state.info.componentStack}
+            </details>
+          )}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <DataProvider>
-          <ToastProvider>
-            <AppRoutes />
-          </ToastProvider>
-        </DataProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <AppErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <DataProvider>
+            <ToastProvider>
+              <AppRoutes />
+            </ToastProvider>
+          </DataProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </AppErrorBoundary>
   );
 }
 

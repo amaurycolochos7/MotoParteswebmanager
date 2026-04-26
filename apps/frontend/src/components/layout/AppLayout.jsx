@@ -39,7 +39,15 @@ export default function AppLayout() {
     // sidebar; they get a single extra "Usuarios" link below to manage their
     // team — see the Maestro section. Showing the entire admin nav broke
     // the maestro because most admin pages assume admin context.
-    const isWorkspaceOwner = workspaceRole === 'owner' || workspaceRole === 'admin';
+    //
+    // "Workshop owner" is anyone who can manage the team. We accept both the
+    // workspace membership (preferred) AND the legacy is_master_mechanic flag
+    // so the link still renders if the AuthContext lost the active workspace
+    // (stale localStorage / hydration race).
+    const isWorkspaceOwner =
+        workspaceRole === 'owner' ||
+        workspaceRole === 'admin' ||
+        user?.is_master_mechanic === true;
     const hasAdminAccess = isAdmin();
     const navigate = useNavigate();
     const [sidebarOpen, setSidebarOpen] = useState(false);
