@@ -140,7 +140,7 @@ class WhatsAppSession extends EventEmitter {
 
                 // Give WhatsApp Web more time to load in Docker (default 30s is too short)
                 authTimeoutMs: 120000,
-                qrMaxRetries: 10, // Cap regenerations to prevent runaway loops (see 'qr' handler below)
+                qrMaxRetries: 3, // After 3 unscanned QRs the on-disk state is invariably stale — wipe+restart instead of regenerating forever (see 'qr' handler below)
                 // Bypass CSP to allow script injection
                 bypassCSP: true,
                 // CRITICAL: Override the outdated Chrome/101 default user agent.
@@ -178,7 +178,7 @@ class WhatsAppSession extends EventEmitter {
                 this.isConnected = false;
                 this.emit('qr', qr);
 
-                if (this._qrCount >= 10) {
+                if (this._qrCount >= 3) {
                     console.error(`❌ Too many QR regenerations (${this._qrCount}) for ${this.mechanicId} — stopping to prevent runaway loop`);
                     this.lastError = 'El código QR expiró. Reintentando con sesión limpia…';
                     // Wipe the on-disk session folder. After 10 unscanned QRs the
@@ -388,6 +388,13 @@ class WhatsAppSession extends EventEmitter {
             }
             this.client = null;
             this.initializing = false;
+            // Wipe the on-disk session folder. client.logout() promises to clear
+            // local auth, but in practice it leaves a half-cleaned Default/ profile
+            // whose stale tokens the WA server rejects on the next QR pairing —
+            // the phone shows "no es posible conectarse" until 10 QRs expire and
+            // the qr_exhausted handler wipes manually. Doing it here makes the
+            // very next initialize() start from a guaranteed-clean state.
+            this._wipeSessionDir();
         }
     }
 
