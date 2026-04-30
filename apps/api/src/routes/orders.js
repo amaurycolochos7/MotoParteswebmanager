@@ -1,21 +1,33 @@
-import prisma from '../lib/prisma.js';
+import prisma, { workspaceContext } from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
 import { assertWithinLimit, incrementUsageAsync, PlanLimitError } from '../lib/billing.js';
 import { fireEvent } from '../lib/events.js';
 
-// Helper: generate an order number of the form "<PREFIX>-YY-NNN" where
-// <PREFIX> comes from the workspace's folio_prefix and NNN is the running
-// count of orders THIS YEAR in THIS workspace. The count query relies on the
-// Prisma extension auto-scoping to the active workspace, so the counter is
-// per-workspace naturally.
+// Helper: generate an order number of the form "<PREFIX>-YY-NNN".
+// `order_number` has a GLOBAL unique constraint, so we look up the max
+// existing suffix across ALL workspaces sharing this prefix-year (bypassing
+// the workspace auto-scope). Using MAX instead of COUNT also survives row
+// deletions, which used to cause P2002 collisions when the running count
+// dropped below the largest existing suffix.
 async function generateOrderNumber(prefix) {
     const shortYear = String(new Date().getFullYear()).slice(-2);
     const prefixYear = `${prefix}-${shortYear}-`;
-    const count = await prisma.order.count({
-        where: { order_number: { startsWith: prefixYear } },
-    });
-    return `${prefixYear}${String(count + 1).padStart(3, '0')}`;
+    const rows = await workspaceContext.run({ workspaceId: null }, () =>
+        prisma.$queryRaw`
+            SELECT order_number FROM orders
+            WHERE order_number LIKE ${prefixYear + '%'}
+            ORDER BY LENGTH(order_number) DESC, order_number DESC
+            LIMIT 1
+        `
+    );
+    let next = 1;
+    if (rows.length > 0) {
+        const lastSuffix = String(rows[0].order_number).slice(prefixYear.length);
+        const lastNum = parseInt(lastSuffix, 10);
+        if (!Number.isNaN(lastNum) && lastNum >= next) next = lastNum + 1;
+    }
+    return `${prefixYear}${String(next).padStart(3, '0')}`;
 }
 
 // Helper: recalculate order totals
@@ -137,7 +149,7 @@ export default async function ordersRoutes(fastify) {
                 throw err;
             }
             const data = request.body;
-            const orderNumber = await generateOrderNumber(request.workspace?.folio_prefix || 'MP');
+            const folioPrefix = request.workspace?.folio_prefix || 'MP';
 
             // Generate public token
             const { nanoid } = await import('nanoid');
@@ -153,24 +165,42 @@ export default async function ordersRoutes(fastify) {
                 statusId = initialStatus?.id || null;
             }
 
-            const order = await prisma.order.create({
-                data: {
-                    order_number: orderNumber,
-                    client_id: data.client_id || null,
-                    motorcycle_id: data.motorcycle_id || null,
-                    mechanic_id: data.mechanic_id || null,
-                    approved_by: data.approved_by || null,
-                    status_id: statusId,
-                    customer_complaint: data.customer_complaint || null,
-                    initial_diagnosis: data.initial_diagnosis || null,
-                    mechanic_notes: data.mechanic_notes || null,
-                    advance_payment: data.advance_payment ? parseFloat(data.advance_payment) : 0,
-                    payment_method: data.payment_method || null,
-                    public_token: publicToken,
-                    client_link: `/orden/${publicToken}`,
-                },
-                include: ORDER_INCLUDE
-            });
+            // Retry on P2002 (order_number unique collision) to absorb races
+            // between concurrent creates that resolve the same next suffix.
+            let order;
+            let lastErr;
+            for (let attempt = 0; attempt < 6; attempt++) {
+                const orderNumber = await generateOrderNumber(folioPrefix);
+                try {
+                    order = await prisma.order.create({
+                        data: {
+                            order_number: orderNumber,
+                            client_id: data.client_id || null,
+                            motorcycle_id: data.motorcycle_id || null,
+                            mechanic_id: data.mechanic_id || null,
+                            approved_by: data.approved_by || null,
+                            status_id: statusId,
+                            customer_complaint: data.customer_complaint || null,
+                            initial_diagnosis: data.initial_diagnosis || null,
+                            mechanic_notes: data.mechanic_notes || null,
+                            advance_payment: data.advance_payment ? parseFloat(data.advance_payment) : 0,
+                            payment_method: data.payment_method || null,
+                            public_token: publicToken,
+                            client_link: `/orden/${publicToken}`,
+                        },
+                        include: ORDER_INCLUDE
+                    });
+                    break;
+                } catch (err) {
+                    lastErr = err;
+                    if (err.code === 'P2002' && Array.isArray(err.meta?.target) && err.meta.target.includes('order_number')) {
+                        request.log.warn({ attempt, orderNumber }, 'order_number collision, retrying');
+                        continue;
+                    }
+                    throw err;
+                }
+            }
+            if (!order) throw lastErr;
 
             // Add services if provided (filter to only known OrderService fields)
             if (data.services && data.services.length > 0) {
