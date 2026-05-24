@@ -8,6 +8,7 @@
 
 const BOT_URL = process.env.WHATSAPP_BOT_INTERNAL_URL || 'http://whatsapp-bot:3002';
 const BOT_KEY = process.env.WHATSAPP_API_KEY || 'motopartes-whatsapp-key';
+const BOT_DEBUG_PUBLIC = process.env.WHATSAPP_BOT_DEBUG_PUBLIC === 'true';
 
 export default async function whatsappBotProxy(fastify) {
     // Disable Fastify's default content-type parsing for this route
@@ -26,6 +27,10 @@ export default async function whatsappBotProxy(fastify) {
             // Build the target URL: strip /api/whatsapp-bot prefix
             const targetPath = request.url.replace(/^\/api\/whatsapp-bot/, '') || '/';
             const targetUrl = `${BOT_URL}${targetPath}`;
+
+            if (targetPath.startsWith('/debug') && !BOT_DEBUG_PUBLIC) {
+                return reply.code(404).send({ error: 'Not found' });
+            }
 
             fastify.log.info(`[WA-Proxy] ${request.method} ${request.url} → ${targetUrl}`);
 

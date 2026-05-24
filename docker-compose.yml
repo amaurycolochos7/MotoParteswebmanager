@@ -70,6 +70,7 @@ services:
       DATABASE_URL: postgresql://motopartes:${DB_PASSWORD:-MotoPartes2026!}@postgres:5432/motopartes
       WHATSAPP_API_KEY: ${WHATSAPP_API_KEY:-local-dev-bot-key}
       PORT: 3002
+      WWEBJS_WEB_VERSION: ${WWEBJS_WEB_VERSION:-auto}
     ports:
       - "3002:3002"
     healthcheck:

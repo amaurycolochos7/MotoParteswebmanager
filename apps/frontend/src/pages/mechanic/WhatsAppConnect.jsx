@@ -56,18 +56,22 @@ export default function WhatsAppConnect() {
                 setStatus('connected');
                 setSessionData(statusRes);
                 setQrCode(null);
+                setError(null);
             } else {
-                if (statusRes.exists === false) {
+                if (statusRes.exists === false || (!statusRes.initializing && !statusRes.qr)) {
                     await whatsappBotService.startSession(user.id);
                     setStatus('disconnected');
+                    setError(statusRes.lastError || null);
                     return;
                 }
                 const qrRes = await whatsappBotService.getQR(user.id);
                 if (qrRes.qr) {
                     setQrCode(qrRes.qr);
                     setStatus('qr');
+                    setError(null);
                 } else {
                     setStatus('disconnected');
+                    setError(statusRes.lastError || null);
                 }
             }
         } catch (err) {
@@ -222,6 +226,7 @@ export default function WhatsAppConnect() {
                         <Loader size={40} className="spin text-primary" />
                         <h3>Iniciando sesión...</h3>
                         <p>Preparando tu sesión de WhatsApp. Esto puede tomar un momento...</p>
+                        {error && <p className="wa-retry-note">Ultimo intento: {error}. Reintentando automaticamente.</p>}
                         <button className="btn btn-outline mt-md" onClick={checkStatus}>
                             <RefreshCw size={16} /> Verificar estado
                         </button>
@@ -523,6 +528,13 @@ export default function WhatsAppConnect() {
                 .wa-disconnected h3, .wa-error h3 {
                     color: var(--text-primary);
                     margin: 12px 0 8px;
+                }
+
+                .wa-retry-note {
+                    max-width: 360px;
+                    margin: 10px auto 0;
+                    font-size: 0.8125rem;
+                    color: var(--text-muted);
                 }
 
                 .wa-error svg {

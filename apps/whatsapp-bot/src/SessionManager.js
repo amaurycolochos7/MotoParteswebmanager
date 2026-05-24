@@ -6,6 +6,8 @@ class SessionManager {
         this.sessions = new Map();      // mechanicId → WhatsAppSession
         this._initPromises = new Map(); // mechanicId → Promise (lock por sesión)
         this._lastErrors = new Map();   // mechanicId → last error message
+        this._restartTimers = new Map();
+        this._restartAttempts = new Map();
     }
 
     /**
@@ -14,6 +16,8 @@ class SessionManager {
      * para que N requests concurrentes obtengan la misma sesión.
      */
     async startSession(mechanicId) {
+        this._clearScheduledRestart(mechanicId);
+
         // Si ya hay una sesión conectada, retornar directo
         if (this.sessions.has(mechanicId)) {
             const existing = this.sessions.get(mechanicId);
@@ -80,6 +84,7 @@ class SessionManager {
 
         session.on('ready', async () => {
             console.log(`✅ Session ready for mechanic ${mechanicId}`);
+            this._restartAttempts.delete(mechanicId);
             await this.updateDbSession(mechanicId, {
                 is_connected: true,
                 connected_at: new Date(),
@@ -94,29 +99,14 @@ class SessionManager {
                 disconnected_at: new Date(),
             });
 
-            // Auto-restart on causes where the on-disk session was just wiped
-            // (qr_exhausted, auth_failure). The wipe makes the next start a
-            // clean cold pairing — no need to wait for the user to click again.
-            if (reason === 'qr_exhausted' || reason === 'auth_failure') {
-                console.log(`🔄 Auto-restarting session for ${mechanicId} after ${reason} (10s cooldown)...`);
-                setTimeout(() => {
-                    this.startSession(mechanicId).catch(err =>
-                        console.error(`❌ Auto-restart failed for ${mechanicId}: ${err.message}`)
-                    );
-                }, 10000);
+            if (this._shouldAutoRestart(reason)) {
+                this._scheduleRestart(mechanicId, reason);
             }
         });
 
         // Auto-restart when QR scan times out (user took too long)
         session.on('qr_timeout', async () => {
-            console.log(`🔄 Auto-restarting session for ${mechanicId} after QR timeout (10s cooldown)...`);
-            // Small delay to let Chrome fully close
-            await new Promise(resolve => setTimeout(resolve, 10000));
-            try {
-                await this.startSession(mechanicId);
-            } catch (err) {
-                console.error(`❌ Auto-restart failed for ${mechanicId}:`, err.message);
-            }
+            this._scheduleRestart(mechanicId, 'qr_timeout');
         });
 
         // Initialize WhatsApp client
@@ -134,11 +124,18 @@ class SessionManager {
                 await session.destroy().catch(() => {});
             } catch { /* noop */ }
             this.sessions.delete(mechanicId);
+            await this.updateDbSession(mechanicId, {
+                is_connected: false,
+                disconnected_at: new Date(),
+            });
+            this._scheduleRestart(mechanicId, `init_failed: ${err.message}`);
+            throw err;
         }
         return session;
     }
 
     async stopSession(mechanicId) {
+        this._clearScheduledRestart(mechanicId);
         const session = this.sessions.get(mechanicId);
         if (!session) return false;
 
@@ -160,6 +157,7 @@ class SessionManager {
      * - Destruye el cliente de Puppeteer
      */
     async logoutSession(mechanicId) {
+        this._clearScheduledRestart(mechanicId);
         const session = this.sessions.get(mechanicId);
         if (!session) return false;
 
@@ -199,6 +197,9 @@ class SessionManager {
         await Promise.allSettled(promises);
         this.sessions.clear();
         this._initPromises.clear();
+        for (const timer of this._restartTimers.values()) clearTimeout(timer);
+        this._restartTimers.clear();
+        this._restartAttempts.clear();
         console.log('✅ All sessions destroyed.');
     }
 
@@ -217,6 +218,8 @@ class SessionManager {
                 phoneNumber: session.phoneNumber,
                 lastReadyAt: session.lastReadyAt || null,
                 lastError: session.lastError || this._lastErrors.get(mechanicId) || null,
+                restartScheduled: this._restartTimers.has(mechanicId),
+                restartAttempts: this._restartAttempts.get(mechanicId) || 0,
             });
         }
         return result;
@@ -265,6 +268,41 @@ class SessionManager {
         } catch (err) {
             console.error(`Error updating DB session for ${mechanicId}:`, err.message);
         }
+    }
+
+    _shouldAutoRestart(reason) {
+        return reason !== 'LOGOUT' && reason !== 'manual_stop';
+    }
+
+    _scheduleRestart(mechanicId, reason) {
+        if (this._restartTimers.has(mechanicId)) return;
+
+        const attempt = (this._restartAttempts.get(mechanicId) || 0) + 1;
+        this._restartAttempts.set(mechanicId, attempt);
+
+        const baseDelayMs = Number.parseInt(process.env.WWEBJS_RESTART_BASE_DELAY_MS || '15000', 10);
+        const maxDelayMs = Number.parseInt(process.env.WWEBJS_RESTART_MAX_DELAY_MS || '600000', 10);
+        const safeBase = Number.isFinite(baseDelayMs) && baseDelayMs > 0 ? baseDelayMs : 15000;
+        const safeMax = Number.isFinite(maxDelayMs) && maxDelayMs > safeBase ? maxDelayMs : 600000;
+        const delay = Math.min(safeMax, safeBase * 2 ** Math.min(attempt - 1, 6));
+        const jitter = Math.floor(Math.random() * 5000);
+
+        console.log(`🔄 Scheduling restart for ${mechanicId} after ${reason} in ${delay + jitter}ms (attempt ${attempt})`);
+        const timer = setTimeout(() => {
+            this._restartTimers.delete(mechanicId);
+            this.startSession(mechanicId).catch(err => {
+                console.error(`❌ Auto-restart failed for ${mechanicId}: ${err.message}`);
+            });
+        }, delay + jitter);
+
+        this._restartTimers.set(mechanicId, timer);
+    }
+
+    _clearScheduledRestart(mechanicId) {
+        const timer = this._restartTimers.get(mechanicId);
+        if (!timer) return;
+        clearTimeout(timer);
+        this._restartTimers.delete(mechanicId);
     }
 }
 

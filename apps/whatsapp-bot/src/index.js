@@ -84,8 +84,9 @@ if (API_KEY === API_KEY_FALLBACK) {
     console.warn('[BOT] ⚠️ No WHATSAPP_API_KEY or API_KEY env var — using the legacy default.');
 }
 app.use((req, res, next) => {
-    // Skip auth for health check and debug
-    if (req.path === '/health' || req.path === '/debug') return next();
+    // Skip auth for health check only. Debug can be exposed temporarily via env.
+    if (req.path === '/health') return next();
+    if (req.path === '/debug' && process.env.WHATSAPP_BOT_DEBUG_PUBLIC === 'true') return next();
     const key = req.headers['x-api-key'];
     if (key && key === API_KEY) return next();
     // Also allow if coming from internal network (docker)

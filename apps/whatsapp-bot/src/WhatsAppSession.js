@@ -8,6 +8,14 @@ const { Client, LocalAuth, MessageMedia } = pkg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const DEFAULT_WEB_VERSION = '2.3000.1040081378-alpha';
+const DEFAULT_VERSION_MANIFEST_URL = 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/versions.json';
+const DEFAULT_VERSION_HTML_BASE_URL = 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html';
+const WEB_VERSION_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+let cachedWebVersion = null;
+let cachedWebVersionAt = 0;
+
 /**
  * Resuelve la ruta absoluta para almacenar sesiones de WhatsApp.
  * - En Docker: usa WWEBJS_DATA_PATH (ej. /app/.wwebjs_auth)
@@ -29,6 +37,107 @@ function withTimeout(promise, ms, label = 'Operation') {
     ]);
 }
 
+function parsePositiveInt(value, fallback) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+async function fetchJson(url, timeoutMs = 10000) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const res = await fetch(url, {
+            signal: controller.signal,
+            headers: { 'user-agent': 'motopartes-whatsapp-bot' },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+async function versionHtmlExists(version, baseUrl, timeoutMs = 8000) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const res = await fetch(`${baseUrl}/${version}.html`, {
+            method: 'HEAD',
+            signal: controller.signal,
+            headers: { 'user-agent': 'motopartes-whatsapp-bot' },
+        });
+        return res.ok;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+async function resolveWebVersionOptions() {
+    const mode = (process.env.WWEBJS_WEB_VERSION || 'auto').trim();
+    const cacheType = (process.env.WWEBJS_WEB_VERSION_CACHE || 'remote').trim();
+
+    if (cacheType === 'none' || mode === 'latest' || mode === 'none') {
+        console.log('[WA Web] Using live WhatsApp Web (web version cache disabled).');
+        return { webVersionCache: { type: 'none' } };
+    }
+
+    const baseUrl = (process.env.WWEBJS_VERSION_HTML_BASE_URL || DEFAULT_VERSION_HTML_BASE_URL).replace(/\/$/, '');
+    const now = Date.now();
+
+    let version = null;
+    let usedCachedVersion = false;
+    if (mode !== 'auto') {
+        version = mode;
+    } else if (cachedWebVersion && now - cachedWebVersionAt < WEB_VERSION_CACHE_TTL_MS) {
+        version = cachedWebVersion;
+        usedCachedVersion = true;
+    } else {
+        try {
+            const manifestUrl = process.env.WWEBJS_VERSION_MANIFEST_URL || DEFAULT_VERSION_MANIFEST_URL;
+            const manifest = await fetchJson(manifestUrl);
+            const candidates = [
+                manifest?.currentVersion,
+                ...(Array.isArray(manifest?.versions)
+                    ? manifest.versions.map(v => v?.version).reverse()
+                    : []),
+            ].filter(Boolean);
+
+            for (const candidate of candidates) {
+                if (await versionHtmlExists(candidate, baseUrl)) {
+                    version = candidate;
+                    break;
+                }
+            }
+        } catch (err) {
+            console.warn(`[WA Web] Could not resolve current archived version: ${err.message}`);
+        }
+
+        version ||= DEFAULT_WEB_VERSION;
+        cachedWebVersion = version;
+        cachedWebVersionAt = now;
+    }
+
+    if (!(await versionHtmlExists(version, baseUrl).catch(() => false))) {
+        if (mode === 'auto' && usedCachedVersion) {
+            cachedWebVersion = null;
+            cachedWebVersionAt = 0;
+            return resolveWebVersionOptions();
+        }
+        console.warn(`[WA Web] Archived version ${version} is unavailable. Falling back to live WhatsApp Web.`);
+        return { webVersionCache: { type: 'none' } };
+    }
+
+    console.log(`[WA Web] Using archived WhatsApp Web version ${version}`);
+    return {
+        webVersion: version,
+        webVersionCache: {
+            type: 'remote',
+            remotePath: `${baseUrl}/{version}.html`,
+            strict: false,
+        },
+    };
+}
+
 class WhatsAppSession extends EventEmitter {
     constructor(mechanicId, prisma) {
         super();
@@ -40,6 +149,7 @@ class WhatsAppSession extends EventEmitter {
         this.lastQr = null;
         this.phoneNumber = null;
         this._heartbeatInterval = null;
+        this._terminalReasonEmitted = false;
     }
 
     async initialize() {
@@ -55,6 +165,7 @@ class WhatsAppSession extends EventEmitter {
 
         this.initializing = true;
         this.lastError = null;
+        this._terminalReasonEmitted = false;
         console.log(`🔧 Initializing WhatsApp client for mechanic ${this.mechanicId}...`);
 
         // Detect Chrome binary
@@ -91,6 +202,10 @@ class WhatsAppSession extends EventEmitter {
         console.log(`📂 Session data path: ${dataPath}`);
 
         this._qrCount = 0; // Track QR regeneration attempts
+        const qrMaxRetries = parsePositiveInt(process.env.WWEBJS_QR_MAX_RETRIES, 6);
+        const authTimeoutMs = parsePositiveInt(process.env.WWEBJS_AUTH_TIMEOUT_MS, 180000);
+        const initTimeoutMs = parsePositiveInt(process.env.WWEBJS_INIT_TIMEOUT_MS, authTimeoutMs + 30000);
+        const webVersionOptions = await resolveWebVersionOptions();
 
         // Session data is preserved for persistence across deploys.
         // The Docker named volume (whatsapp_data) survives container rebuilds.
@@ -129,18 +244,14 @@ class WhatsAppSession extends EventEmitter {
                     dataPath: dataPath,
                 }),
 
-                // Pin to a specific, known-working WhatsApp Web version from the
-                // wppconnect-team/wa-version repo. This prevents WhatsApp's server-side
-                // A/B testing from serving an incompatible version that breaks authentication.
-                // If QR pairing stops working in the future, update this version string.
-                webVersionCache: {
-                    type: 'remote',
-                    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1033759004-alpha.html',
-                },
+                // Use an archived WhatsApp Web build when available. This avoids
+                // WhatsApp's live A/B rollout breaking whatsapp-web.js mid-month,
+                // while still auto-updating when archived builds rotate.
+                ...webVersionOptions,
 
                 // Give WhatsApp Web more time to load in Docker (default 30s is too short)
-                authTimeoutMs: 120000,
-                qrMaxRetries: 3, // After 3 unscanned QRs the on-disk state is invariably stale — wipe+restart instead of regenerating forever (see 'qr' handler below)
+                authTimeoutMs,
+                qrMaxRetries,
                 // Bypass CSP to allow script injection
                 bypassCSP: true,
                 // CRITICAL: Override the outdated Chrome/101 default user agent.
@@ -150,7 +261,9 @@ class WhatsAppSession extends EventEmitter {
                 puppeteer: {
                     headless: 'new', // CRITICAL: 'new' mode is undetectable; old 'true' mode is blocked by WhatsApp
                     ...(chromePath ? { executablePath: chromePath } : {}),
-                    timeout: 120000, // 120 seconds to launch
+                    timeout: authTimeoutMs,
+                    protocolTimeout: initTimeoutMs,
+                    defaultViewport: null,
                     args: [
                         '--no-sandbox',
                         '--disable-setuid-sandbox',
@@ -160,6 +273,11 @@ class WhatsAppSession extends EventEmitter {
                         '--disable-software-rasterizer',
                         '--disable-accelerated-2d-canvas',
                         '--no-first-run',
+                        '--disable-background-timer-throttling',
+                        '--disable-backgrounding-occluded-windows',
+                        '--disable-renderer-backgrounding',
+                        '--disable-features=Translate,BackForwardCache,MediaRouter,OptimizationHints',
+                        '--window-size=1280,720',
                     ],
                 },
             });
@@ -178,20 +296,22 @@ class WhatsAppSession extends EventEmitter {
                 this.isConnected = false;
                 this.emit('qr', qr);
 
-                if (this._qrCount >= 3) {
+                if (this._qrCount >= qrMaxRetries) {
                     console.error(`❌ Too many QR regenerations (${this._qrCount}) for ${this.mechanicId} — stopping to prevent runaway loop`);
                     this.lastError = 'El código QR expiró. Reintentando con sesión limpia…';
-                    // Wipe the on-disk session folder. After 10 unscanned QRs the
+                    this.lastQr = null;
+                    // Wipe the on-disk session folder. After several unscanned QRs the
                     // local LocalAuth state is invariably stale (auth tokens that
                     // no longer pair with anything on the WhatsApp side), and
                     // reusing it makes the next attempt regenerate QRs that the
                     // phone shows as "expired/invalid" without ever reaching the
                     // real pairing flow. Wiping forces a clean cold start.
-                    this._wipeSessionDir();
-                    // Stop the client so it does not keep generating QRs forever.
-                    this.client.destroy().catch(() => { /* ignore */ });
-                    this.emit('disconnected', 'qr_exhausted');
+                    void this._stopForRelink('qr_exhausted', true);
                 }
+            });
+
+            this.client.on('loading_screen', (percent, message) => {
+                console.log(`⏳ Loading WhatsApp Web ${percent}%: ${message || ''}`);
             });
 
             // Authenticated
@@ -204,8 +324,10 @@ class WhatsAppSession extends EventEmitter {
             this.client.on('ready', () => {
                 console.log(`✅ Ready: mechanic ${this.mechanicId}`);
                 this.isConnected = true;
+                this._terminalReasonEmitted = false;
                 this.lastReadyAt = new Date();
                 this.lastQr = null;
+                this.lastError = null;
                 const info = this.client.info;
                 this.phoneNumber = info?.wid?.user || null;
                 this.pushname = info?.pushname || null;
@@ -219,8 +341,11 @@ class WhatsAppSession extends EventEmitter {
 
             // Disconnected
             this.client.on('disconnected', (reason) => {
+                if (this._terminalReasonEmitted) return;
+                this._terminalReasonEmitted = true;
                 console.log(`🔴 Disconnected: mechanic ${this.mechanicId} - ${reason}`);
                 this.isConnected = false;
+                this.lastQr = null;
                 this._stopHeartbeat();
                 this.emit('disconnected', reason);
 
@@ -235,6 +360,7 @@ class WhatsAppSession extends EventEmitter {
             this.client.on('auth_failure', async (msg) => {
                 this.isConnected = false;
                 this.lastError = `Error de autenticación: ${msg}. Intenta cerrar sesión y vincular de nuevo.`;
+                this.lastQr = null;
                 console.error(`❌ Auth failure for mechanic ${this.mechanicId}:`, msg);
                 console.error(`   QR attempts before failure: ${this._qrCount}`);
 
@@ -254,11 +380,12 @@ class WhatsAppSession extends EventEmitter {
 
             console.log(`🚀 Step 2: Launching Puppeteer for mechanic ${this.mechanicId}...`);
 
-            // Initialize with a 120-second timeout that actually cancels the hung call
+            // Initialize with a hard timeout. If WhatsApp Web hangs, destroy the
+            // browser and let SessionManager recreate the session cleanly.
             await Promise.race([
                 this.client.initialize(),
                 new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('client.initialize() timed out after 120s')), 120000)
+                    setTimeout(() => reject(new Error(`client.initialize() timed out after ${initTimeoutMs}ms`)), initTimeoutMs)
                 ),
             ]);
             console.log(`✅ Step 2 done: Client initialized for mechanic ${this.mechanicId}`);
@@ -270,7 +397,12 @@ class WhatsAppSession extends EventEmitter {
             console.error('Full error object:', JSON.stringify(err, Object.getOwnPropertyNames(err || {}), 2));
             console.error(errStack);
             this.isConnected = false;
+            this.lastQr = null;
             this.lastError = errMsg;
+            this._stopHeartbeat();
+            await this._destroyClientOnly(`initialize failed for ${this.mechanicId}`);
+            this._cleanupSessionLocks();
+            throw err;
 
         } finally {
             this.initializing = false; // siempre liberar el mutex
@@ -406,13 +538,17 @@ class WhatsAppSession extends EventEmitter {
      */
     async destroy() {
         this._stopHeartbeat();
+        await this._destroyClientOnly(`client.destroy(${this.mechanicId})`);
+    }
+
+    async _destroyClientOnly(label = 'client.destroy') {
         try {
             this.isConnected = false;
             if (this.client) {
                 await withTimeout(
                     this.client.destroy(),
                     15000,
-                    `client.destroy(${this.mechanicId})`
+                    label
                 );
             }
         } catch (err) {
@@ -422,6 +558,17 @@ class WhatsAppSession extends EventEmitter {
             this.client = null;
             this.initializing = false;
         }
+    }
+
+    async _stopForRelink(reason, wipeSessionDir = false) {
+        if (this._terminalReasonEmitted) return;
+        this._terminalReasonEmitted = true;
+        this.isConnected = false;
+        this.lastQr = null;
+        this._stopHeartbeat();
+        await this._destroyClientOnly(`client.destroy(${this.mechanicId}) after ${reason}`);
+        if (wipeSessionDir) this._wipeSessionDir();
+        this.emit('disconnected', reason);
     }
 
     _formatPhone(phone) {
@@ -464,6 +611,23 @@ class WhatsAppSession extends EventEmitter {
         if (this._heartbeatInterval) {
             clearInterval(this._heartbeatInterval);
             this._heartbeatInterval = null;
+        }
+    }
+
+    _cleanupSessionLocks() {
+        const dir = path.join(sessionsPath(), `session-${this.mechanicId}`);
+        const lockFiles = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+        for (const lockFile of lockFiles) {
+            const lockPath = path.join(dir, lockFile);
+            try {
+                fs.lstatSync(lockPath);
+                fs.unlinkSync(lockPath);
+                console.log(`🔓 Removed Chrome lock after failure: ${lockFile}`);
+            } catch (err) {
+                if (err.code !== 'ENOENT') {
+                    console.warn(`⚠️ Could not remove Chrome lock ${lockFile}: ${err.message}`);
+                }
+            }
         }
     }
 

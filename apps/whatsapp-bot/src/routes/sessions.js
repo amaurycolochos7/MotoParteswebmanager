@@ -21,10 +21,12 @@ router.get('/:mechanicId/status', (req, res) => {
     res.json({
         exists: true,
         isConnected: session.isConnected,
+        initializing: session.initializing,
         phoneNumber: session.phoneNumber,
         pushname: session.pushname || null,
         platform: session.platform || 'Web',
         qr: session.lastQr ? true : false, // Don't send raw QR string
+        lastError: session.lastError || null,
     });
 });
 
