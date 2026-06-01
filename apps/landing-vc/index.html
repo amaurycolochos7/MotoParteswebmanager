@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Moto Partes VC — Taller y Refaccionaria en Venustiano Carranza, Chiapas</title>
+  <meta name="description" content="Taller mecánico especializado en motocicletas y refaccionaria en Venustiano Carranza, Chiapas. Agenda tu cita online. Servicio completo, frenos, motor, electricidad." />
+  <meta name="theme-color" content="#1e293b" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     NAVBAR
+═══════════════════════════════════════════ -->
+<nav class="navbar" id="navbar">
+  <div class="nav-container">
+    <a href="#inicio" class="nav-logo">
+      <span class="logo-icon">🏍️</span>
+      <span class="logo-text">Moto<span class="logo-accent">Partes</span> <span class="logo-vc">VC</span></span>
+    </a>
+    <div class="nav-links">
+      <a href="#servicios" class="nav-link">Servicios</a>
+      <a href="#refaccionaria" class="nav-link">Refaccionaria</a>
+      <a href="#promocion" class="nav-link">Promos</a>
+      <a href="#citas" class="nav-link nav-cta">Agendar Cita</a>
+    </div>
+    <button class="nav-hamburger" id="hamburger" aria-label="Menú">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <div class="nav-mobile" id="navMobile">
+    <a href="#servicios" class="nav-mobile-link">Servicios</a>
+    <a href="#refaccionaria" class="nav-mobile-link">Refaccionaria</a>
+    <a href="#promocion" class="nav-mobile-link">Promos</a>
+    <a href="#citas" class="nav-mobile-link nav-mobile-cta">Agendar Cita</a>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════
+     HERO
+═══════════════════════════════════════════ -->
+<section class="hero" id="inicio">
+  <div class="hero-bg-overlay"></div>
+  <div class="hero-content">
+    <div class="hero-badge">📍 Venustiano Carranza, Chiapas</div>
+    <h1 class="hero-title">
+      Tu taller de confianza<br/>
+      <span class="hero-highlight">en Venustiano Carranza</span>
+    </h1>
+    <p class="hero-subtitle">
+      Mecánica especializada en motocicletas · Refaccionaria completa<br/>
+      Servicio de calidad, diagnóstico preciso, precios honestos.
+    </p>
+    <div class="hero-buttons">
+      <a href="#citas" class="btn btn-primary btn-lg">
+        📅 Agendar mi cita
+      </a>
+      <a href="https://wa.me/529671234567" target="_blank" rel="noopener" class="btn btn-wa btn-lg" id="waHeroBtn">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        WhatsApp directo
+      </a>
+    </div>
+    <div class="hero-trust">
+      <div class="trust-item"><span class="trust-icon">✓</span> Más de 10 años de experiencia</div>
+      <div class="trust-item"><span class="trust-icon">✓</span> Garantía en trabajos</div>
+      <div class="trust-item"><span class="trust-icon">✓</span> Todas las marcas</div>
+    </div>
+  </div>
+  <div class="hero-scroll-hint">
+    <span>Desliza para ver más</span>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     BANNER PROMOCIÓN JUNIO 2026
+═══════════════════════════════════════════ -->
+<section class="promo-section" id="promocion">
+  <div class="promo-container">
+    <div class="promo-flyer">
+      <div class="promo-fire-row">
+        <span class="promo-fire">🔥</span>
+        <span class="promo-mes">PROMOCIÓN · JUNIO 2026</span>
+        <span class="promo-fire">🔥</span>
+      </div>
+      <div class="promo-servicio">SERVICIO COMPLETO</div>
+      <div class="promo-precio-row">
+        <span class="promo-antes">$1,500</span>
+        <span class="promo-flecha">→</span>
+        <span class="promo-ahora">$1,200 <span class="promo-mxn">MXN</span></span>
+      </div>
+      <div class="promo-incluye">
+        <div class="promo-item">✅ Afinación general</div>
+        <div class="promo-item">✅ Cambio de aceite y filtro</div>
+        <div class="promo-item">✅ Revisión de frenos</div>
+        <div class="promo-item">✅ Chequeo de cadena</div>
+      </div>
+      <div class="promo-countdown-label">⏱️ La promoción termina en:</div>
+      <div class="promo-countdown" id="countdown">
+        <div class="cd-block"><span class="cd-num" id="cd-days">00</span><span class="cd-label">días</span></div>
+        <div class="cd-sep">:</div>
+        <div class="cd-block"><span class="cd-num" id="cd-hours">00</span><span class="cd-label">hrs</span></div>
+        <div class="cd-sep">:</div>
+        <div class="cd-block"><span class="cd-num" id="cd-mins">00</span><span class="cd-label">min</span></div>
+        <div class="cd-sep">:</div>
+        <div class="cd-block"><span class="cd-num" id="cd-secs">00</span><span class="cd-label">seg</span></div>
+      </div>
+      <div class="promo-vigencia">Vigencia: 1 – 30 de junio 2026 · Solo con cita previa</div>
+      <a href="#citas" class="btn btn-promo btn-lg">🗓️ Agendar con descuento</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     SERVICIOS
+═══════════════════════════════════════════ -->
+<section class="section bg-light" id="servicios">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Lo que hacemos</span>
+      <h2 class="section-title">Servicios del Taller</h2>
+      <p class="section-sub">Atendemos todos los sistemas de tu motocicleta con herramienta especializada y refacciones originales.</p>
+    </div>
+    <div class="services-grid">
+      <div class="service-card">
+        <div class="service-icon">⚙️</div>
+        <h3>Afinación General</h3>
+        <p>Bujías, filtros, carburador, cadena, tensores y ajuste completo de la moto.</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">🛢️</div>
+        <h3>Cambio de Aceite</h3>
+        <p>Aceite y filtro de aceite para todas las marcas. Motul, Castrol, Mobil y más.</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">🔩</div>
+        <h3>Frenos y Suspensión</h3>
+        <p>Balatas, discos, líquido de frenos, horquillas y amortiguadores.</p>
+      </div>
+      <div class="service-card featured-service">
+        <div class="service-icon">🔧</div>
+        <h3>Reparación de Motor</h3>
+        <p>Diagnóstico y reparación de pistones, cigüeñal, cabeza, embrague y transmisión.</p>
+        <span class="service-badge">Especialidad</span>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">⚡</div>
+        <h3>Sistema Eléctrico</h3>
+        <p>Diagnóstico electrónico, falla de arranque, alternador, luces y cableado.</p>
+      </div>
+      <div class="service-card">
+        <div class="service-icon">🏍️</div>
+        <h3>Revisión General</h3>
+        <p>Inspección completa pre-viaje o post-accidente. Reporte detallado por escrito.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     POR QUÉ NOSOTROS
+═══════════════════════════════════════════ -->
+<section class="section bg-white">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Nuestra diferencia</span>
+      <h2 class="section-title">¿Por qué elegirnos?</h2>
+    </div>
+    <div class="why-grid">
+      <div class="why-card">
+        <div class="why-num">+10</div>
+        <h4>Años de experiencia</h4>
+        <p>Llevamos más de una década atendiendo motos en Venustiano Carranza.</p>
+      </div>
+      <div class="why-card">
+        <div class="why-num">500+</div>
+        <h4>Clientes atendidos</h4>
+        <p>Cientos de familias y motociclistas confían en nuestro trabajo.</p>
+      </div>
+      <div class="why-card">
+        <div class="why-num">100%</div>
+        <h4>Garantía en trabajos</h4>
+        <p>Si algo no queda bien, lo reparamos sin costo adicional.</p>
+      </div>
+      <div class="why-card">
+        <div class="why-num">All</div>
+        <h4>Todas las marcas</h4>
+        <p>Yamaha, Honda, Kawasaki, Suzuki, Italika, BERA y más.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     RESEÑAS
+═══════════════════════════════════════════ -->
+<section class="section bg-light">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Lo que dicen</span>
+      <h2 class="section-title">Clientes satisfechos</h2>
+    </div>
+    <div class="reviews-grid">
+      <div class="review-card">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Excelente servicio, me revisaron la Honda completa y quedó perfecta. Los precios son muy honestos y el trabajo de primera."</p>
+        <div class="review-author">Carlos M.</div>
+        <div class="review-role">Cliente desde 2021</div>
+      </div>
+      <div class="review-card">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"Llevé mi Yamaha FZ con problema en el motor y en dos días ya la tenía lista. Muy profesionales y me explicaron todo con claridad."</p>
+        <div class="review-author">Lupita R.</div>
+        <div class="review-role">Cliente frecuente</div>
+      </div>
+      <div class="review-card">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text">"El mejor taller de la zona. También tienen refacciones a buen precio, ya no tengo que ir hasta Tuxtla a buscar piezas."</p>
+        <div class="review-author">Don Roberto S.</div>
+        <div class="review-role">Venustiano Carranza</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     REFACCIONARIA
+═══════════════════════════════════════════ -->
+<section class="section bg-dark" id="refaccionaria">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag light">Refaccionaria</span>
+      <h2 class="section-title light">Encuentra las piezas que necesitas</h2>
+      <p class="section-sub light">Contamos con stock para las marcas más populares del mercado mexicano. Si no la tenemos, la conseguimos.</p>
+    </div>
+
+    <div class="brands-row">
+      <div class="brand-chip">Yamaha</div>
+      <div class="brand-chip">Honda</div>
+      <div class="brand-chip">Kawasaki</div>
+      <div class="brand-chip">Suzuki</div>
+      <div class="brand-chip">Italika</div>
+      <div class="brand-chip">BERA</div>
+      <div class="brand-chip">Vento</div>
+      <div class="brand-chip">Carabela</div>
+    </div>
+
+    <div class="parts-grid">
+      <div class="part-card"><span class="part-emoji">🔗</span><span>Cadenas y sprockets</span></div>
+      <div class="part-card"><span class="part-emoji">⚫</span><span>Llantas y cámaras</span></div>
+      <div class="part-card"><span class="part-emoji">🔴</span><span>Balatas y discos</span></div>
+      <div class="part-card"><span class="part-emoji">💡</span><span>Bujías</span></div>
+      <div class="part-card"><span class="part-emoji">🟤</span><span>Filtros de aceite y aire</span></div>
+      <div class="part-card"><span class="part-emoji">🛢️</span><span>Aceites y lubricantes</span></div>
+      <div class="part-card"><span class="part-emoji">🔦</span><span>Faros y luces</span></div>
+      <div class="part-card"><span class="part-emoji">🪞</span><span>Espejos y carrocería</span></div>
+      <div class="part-card"><span class="part-emoji">⚙️</span><span>Carburadores</span></div>
+      <div class="part-card"><span class="part-emoji">🔌</span><span>Cables y electrónica</span></div>
+      <div class="part-card"><span class="part-emoji">🌀</span><span>Amortiguadores</span></div>
+      <div class="part-card"><span class="part-emoji">🔑</span><span>Cerraduras y manubrios</span></div>
+    </div>
+
+    <div class="refac-cta">
+      <p class="light">¿No encuentras la pieza que buscas? Consúltanos por WhatsApp.</p>
+      <a href="https://wa.me/529671234567" target="_blank" rel="noopener" class="btn btn-wa btn-lg" id="waRefacBtn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Consultar disponibilidad
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     FORMULARIO DE CITAS
+═══════════════════════════════════════════ -->
+<section class="section bg-light" id="citas">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">100% online</span>
+      <h2 class="section-title">Agenda tu cita</h2>
+      <p class="section-sub">Llena el formulario y te confirmamos por WhatsApp. Sin esperas, sin llamadas.</p>
+    </div>
+
+    <div class="form-wrapper">
+      <form class="cita-form" id="citaForm" novalidate>
+        <div class="form-row">
+          <div class="form-field">
+            <label for="nombre">Nombre completo *</label>
+            <input type="text" id="nombre" name="nombre" placeholder="Tu nombre" required autocomplete="name" />
+          </div>
+          <div class="form-field">
+            <label for="telefono">WhatsApp (10 dígitos) *</label>
+            <input type="tel" id="telefono" name="telefono" placeholder="5512345678" required maxlength="10" autocomplete="tel" inputmode="numeric" />
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="tipo_servicio">Tipo de servicio *</label>
+          <select id="tipo_servicio" name="tipo_servicio" required>
+            <option value="">Selecciona un servicio…</option>
+            <option value="Afinación general">Afinación general</option>
+            <option value="Cambio de aceite y filtros">Cambio de aceite y filtros</option>
+            <option value="Servicio completo (PROMO junio $1,200)">🔥 Servicio completo — Promo junio $1,200</option>
+            <option value="Frenos y suspensión">Frenos y suspensión</option>
+            <option value="Reparación de motor">Reparación de motor</option>
+            <option value="Sistema eléctrico">Sistema eléctrico</option>
+            <option value="Consulta de refacción">Consulta de refacción</option>
+            <option value="Diagnóstico general">Diagnóstico general</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="fecha">Fecha deseada *</label>
+            <input type="date" id="fecha" name="fecha" required />
+          </div>
+          <div class="form-field">
+            <label for="hora">Hora *</label>
+            <select id="hora" name="hora" required>
+              <option value="">Selecciona…</option>
+              <option value="09:00">09:00 am</option>
+              <option value="10:00">10:00 am</option>
+              <option value="11:00">11:00 am</option>
+              <option value="12:00">12:00 pm</option>
+              <option value="13:00">01:00 pm</option>
+              <option value="14:00">02:00 pm</option>
+              <option value="15:00">03:00 pm</option>
+              <option value="16:00">04:00 pm</option>
+              <option value="17:00">05:00 pm</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="notas">Notas adicionales <span class="label-opt">(opcional)</span></label>
+          <textarea id="notas" name="notas" rows="3" placeholder="Describe el problema o cualquier detalle importante sobre tu moto…"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg btn-submit" id="submitBtn">
+          <span id="submitText">📅 Solicitar cita</span>
+        </button>
+
+        <div class="form-note">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Al confirmar, recibirás un mensaje de WhatsApp en el número que proporcionaste.
+        </div>
+      </form>
+
+      <!-- Éxito -->
+      <div class="form-success" id="formSuccess" hidden>
+        <div class="success-icon">✅</div>
+        <h3>¡Cita solicitada!</h3>
+        <p>Te confirmaremos por WhatsApp en breve. Estamos revisando disponibilidad para el día que elegiste.</p>
+        <a href="https://wa.me/529671234567" target="_blank" rel="noopener" class="btn btn-wa" id="waSuccessBtn">
+          Escribirnos directamente
+        </a>
+      </div>
+
+      <!-- Error -->
+      <div class="form-error-msg" id="formError" hidden></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     UBICACIÓN
+═══════════════════════════════════════════ -->
+<section class="section bg-white" id="ubicacion">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">¿Cómo llegar?</span>
+      <h2 class="section-title">Encuéntranos</h2>
+    </div>
+    <div class="location-wrapper">
+      <div class="location-info">
+        <div class="info-card">
+          <div class="info-item">
+            <span class="info-icon">📍</span>
+            <div>
+              <strong>Dirección</strong>
+              <p>Venustiano Carranza, Chiapas, México<br/><small style="color:#94a3b8">Cerca del centro municipal</small></p>
+            </div>
+          </div>
+          <div class="info-item">
+            <span class="info-icon">🕐</span>
+            <div>
+              <strong>Horario</strong>
+              <p>Lunes a Sábado<br/>9:00 am – 6:00 pm</p>
+            </div>
+          </div>
+          <div class="info-item">
+            <span class="info-icon">📱</span>
+            <div>
+              <strong>WhatsApp</strong>
+              <p id="waNumber">Contáctanos</p>
+            </div>
+          </div>
+        </div>
+        <div class="location-buttons">
+          <a href="https://maps.app.goo.gl/5ettAZT7YhUaKfCT8" target="_blank" rel="noopener" class="btn btn-outline-dark">
+            🗺️ Abrir en Google Maps
+          </a>
+          <a href="https://wa.me/529671234567" target="_blank" rel="noopener" class="btn btn-wa" id="waLocationBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            Enviar WhatsApp
+          </a>
+        </div>
+      </div>
+      <div class="map-wrapper">
+        <iframe
+          src="https://maps.google.com/maps?q=16.3372744,-92.5594909&hl=es&z=16&output=embed"
+          width="100%"
+          height="360"
+          style="border:0; border-radius: 12px;"
+          allowfullscreen=""
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          title="Ubicación Moto Partes VC"
+        ></iframe>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     FOOTER
+═══════════════════════════════════════════ -->
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <span class="logo-text footer-logo">Moto<span class="logo-accent">Partes</span> <span class="logo-vc">VC</span></span>
+      <p>Taller mecánico y refaccionaria<br/>Venustiano Carranza, Chiapas</p>
+    </div>
+    <div class="footer-links">
+      <a href="#servicios">Servicios</a>
+      <a href="#refaccionaria">Refaccionaria</a>
+      <a href="#promocion">Promociones</a>
+      <a href="#citas">Agendar cita</a>
+      <a href="#ubicacion">Ubicación</a>
+    </div>
+    <div class="footer-copy">
+      <p>© 2026 Moto Partes VC · Todos los derechos reservados</p>
+      <p class="footer-powered">Gestionado con <a href="https://motopartes.cloud" target="_blank" rel="noopener">motopartes.cloud</a></p>
+    </div>
+  </div>
+</footer>
+
+<!-- WhatsApp flotante -->
+<a href="https://wa.me/529671234567" target="_blank" rel="noopener" class="wa-float" id="waFloat" aria-label="Abrir WhatsApp">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+</a>
+
+<script src="app.js"></script>
+</body>
+</html>

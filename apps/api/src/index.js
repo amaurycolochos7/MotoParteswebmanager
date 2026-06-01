@@ -33,6 +33,7 @@ import integrationsRoutes from './routes/integrations.js';
 import superRoutes from './routes/super.js';
 import ticketsRoutes from './routes/tickets.js';
 import quotationsRoutes from './routes/quotations.js';
+import publicRoutes from './routes/public.js';
 import { installWorkspaceStore } from './middleware/workspace.js';
 
 const fastify = Fastify({ logger: true });
@@ -44,6 +45,8 @@ await fastify.register(cors, {
     const allowedOrigins = [
       'https://motopartes.cloud',
       'http://motopartes.cloud',
+      'https://vc.motopartes.cloud',
+      'http://vc.motopartes.cloud',
       ...envOrigins
     ];
     // Sin origin: permitimos solo si viene sin cookies/auth (e.g. curl a /health).
@@ -131,6 +134,7 @@ await fastify.register(integrationsRoutes, { prefix: '/api/integrations' });
 await fastify.register(superRoutes, { prefix: '/api/super' });
 await fastify.register(ticketsRoutes, { prefix: '/api/tickets' });
 await fastify.register(quotationsRoutes, { prefix: '/api/quotations' });
+await fastify.register(publicRoutes, { prefix: '/api/public' });
 
 // Periodic billing sweep — every hour on the hour, plus once at startup.
 import { runBillingSweep } from './lib/billing-sweep.js';

@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
+import { fireEvent } from '../lib/events.js';
 import {
     syncAppointmentToCalendar,
     removeAppointmentFromCalendar,
@@ -52,11 +53,34 @@ export default async function appointmentsRoutes(fastify) {
     fastify.put('/:id', async (request) => {
         const updates = { ...request.body };
         if (updates.scheduled_date) updates.scheduled_date = new Date(updates.scheduled_date);
+
+        // Captura status anterior para detectar transiciones y disparar eventos WA
+        const prev = await prisma.appointment.findUnique({
+            where: { id: request.params.id },
+            select: { status: true },
+        });
+
         const updated = await prisma.appointment.update({
             where: { id: request.params.id },
             data: updates
         });
         syncAppointmentToCalendar(updated.id, request.workspaceId).catch(() => {});
+
+        const newStatus = updates.status;
+        if (newStatus && prev?.status !== newStatus) {
+            if (newStatus === 'confirmed') {
+                fireEvent('appointment.confirmed', {
+                    workspaceId: request.workspaceId,
+                    appointment_id: updated.id,
+                }).catch(() => {});
+            } else if (newStatus === 'rejected') {
+                fireEvent('appointment.rejected', {
+                    workspaceId: request.workspaceId,
+                    appointment_id: updated.id,
+                }).catch(() => {});
+            }
+        }
+
         return updated;
     });
 

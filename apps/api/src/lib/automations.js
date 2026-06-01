@@ -83,6 +83,10 @@ async function buildVars(workspaceId, context) {
             if (app.client) {
                 vars.cliente = app.client.full_name || '';
                 vars.cliente_telefono = app.client.phone || '';
+            } else {
+                // Cita externa (desde landing pública) — usa campos directos
+                vars.cliente = app.client_name_ext || '';
+                vars.cliente_telefono = app.client_phone || '';
             }
             if (app.motorcycle) {
                 vars.marca = app.motorcycle.brand || '';

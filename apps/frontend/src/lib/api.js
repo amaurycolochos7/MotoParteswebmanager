@@ -1198,3 +1198,28 @@ export const superService = {
         return apiFetch('/super/maintenance/run-payout-sweep', { method: 'POST', body: JSON.stringify({}) });
     },
 };
+
+// =============================================
+// APPOINTMENTS SERVICE
+// =============================================
+export const appointmentsService = {
+    getAll(params = {}) {
+        const qs = new URLSearchParams(params).toString();
+        return apiFetch(`/appointments${qs ? '?' + qs : ''}`);
+    },
+    create(data) {
+        return apiFetch('/appointments', { method: 'POST', body: JSON.stringify(data) });
+    },
+    update(id, data) {
+        return apiFetch(`/appointments/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    },
+    remove(id) {
+        return apiFetch(`/appointments/${id}`, { method: 'DELETE' });
+    },
+    confirm(id) {
+        return apiFetch(`/appointments/${id}`, { method: 'PUT', body: JSON.stringify({ status: 'confirmed' }) });
+    },
+    reject(id) {
+        return apiFetch(`/appointments/${id}`, { method: 'PUT', body: JSON.stringify({ status: 'rejected' }) });
+    },
+};

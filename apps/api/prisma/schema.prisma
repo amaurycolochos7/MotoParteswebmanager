@@ -744,8 +744,11 @@ model Appointment {
   service_type         String?
   notes                String?
   status               String   @default("scheduled")
+  source               String   @default("internal")          // "internal" | "external" (desde landing pública)
+  client_phone         String?                                // para citas externas sin client_id
+  client_name_ext      String?                                // nombre del cliente externo sin perfil en DB
   reminder_sent        Boolean  @default(false)
-  google_event_id      String?                                 // Fase 6.4 — id del evento en Google Calendar, si sincronizado
+  google_event_id      String?                                // Fase 6.4 — id del evento en Google Calendar, si sincronizado
   created_by           String?  @db.Uuid
   created_at           DateTime @default(now()) @db.Timestamptz
 

@@ -101,6 +101,36 @@ const DEFAULTS = [
         },
     },
     {
+        key: 'cita_confirmada',
+        template: {
+            name: 'Cita confirmada (landing)',
+            channel: 'whatsapp',
+            body: 'Hola {cliente} 👋\n\nTu cita en *{taller}* ha sido *confirmada* ✅\n\n📅 Fecha: {fecha}\n🕐 Hora: {hora}\n🔧 Servicio: {servicio}\n\n¡Te esperamos! 🏍️',
+        },
+        automation: {
+            name: 'Cita confirmada — notificación al cliente',
+            description: 'Al confirmar una cita solicitada desde la landing, avisa al cliente por WhatsApp.',
+            trigger: 'appointment.confirmed',
+            action: 'whatsapp.send_template',
+            params: { to: 'client' },
+        },
+    },
+    {
+        key: 'cita_rechazada',
+        template: {
+            name: 'Cita rechazada (landing)',
+            channel: 'whatsapp',
+            body: 'Hola {cliente}, lamentablemente no tenemos disponibilidad para el {fecha}.\n\nPor favor contáctanos para reagendar 📞 — {taller}',
+        },
+        automation: {
+            name: 'Cita rechazada — notificación al cliente',
+            description: 'Al rechazar una cita de la landing, avisa al cliente para que reagende.',
+            trigger: 'appointment.rejected',
+            action: 'whatsapp.send_template',
+            params: { to: 'client' },
+        },
+    },
+    {
         key: 'orden_estancada',
         template: {
             name: 'Orden estancada (tarea interna)',

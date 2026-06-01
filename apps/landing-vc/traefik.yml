@@ -1,0 +1,23 @@
+http:
+  routers:
+    landing-vc-router-http:
+      rule: "Host(`vc.motopartes.cloud`)"
+      service: landing-vc-service
+      middlewares:
+        - redirect-to-https
+      entryPoints:
+        - web
+    landing-vc-router-https:
+      rule: "Host(`vc.motopartes.cloud`)"
+      service: landing-vc-service
+      middlewares: []
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+  services:
+    landing-vc-service:
+      loadBalancer:
+        servers:
+          - url: http://landing-vc:80
+        passHostHeader: true
