@@ -1,95 +1,134 @@
-/* ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════════════
    MOTO PARTES VC — app.js
+   · Reveal animations (IntersectionObserver + delays)
    · Navbar scroll + hamburger
-   · Countdown timer (promo junio 2026)
-   · Formulario de citas → API
-   · WhatsApp número dinámico (configurable)
-   · Fecha mínima en datepicker (mañana, sin domingos)
-═══════════════════════════════════════════ */
+   · Stats counter animation
+   · Countdown timer
+   · Form de citas → API
+   · WhatsApp links dinámicos
+   · Datepicker (min = mañana, bloquea domingos)
+═══════════════════════════════════════════════════ */
 
-// ─── CONFIG ───────────────────────────────────
-const API_URL = 'https://motopartes.cloud/api/public/appointments';
-const WA_NUMBER = '529671234567'; // Número de ejemplo — cambiar por el real
-const PROMO_END  = new Date('2026-06-30T23:59:59'); // fin de la promo
+const API_URL   = 'https://motopartes.cloud/api/public/appointments';
+const WA_NUMBER = '529671234567';
+const PROMO_END = new Date('2026-06-30T23:59:59');
 
-// ─── WHATSAPP LINKS ───────────────────────────
-function setWaLinks() {
-  const waUrl = `https://wa.me/${WA_NUMBER}`;
-  document.querySelectorAll('a[id$="Btn"], a.wa-float, a.btn-wa').forEach(el => {
-    if (el.href.includes('9XXXXXXXXX')) el.href = waUrl;
-  });
+/* ── WA LINKS ────────────────────────────────────── */
+function initWaLinks() {
+  const url = 'https://wa.me/' + WA_NUMBER;
+  document.querySelectorAll('a[href*="wa.me"]').forEach(el => { el.href = url; });
   const num = document.getElementById('waNumber');
-  if (num) num.textContent = WA_NUMBER.replace('52', '+52 ').replace(/(\d{3})(\d{3})(\d{4})$/, '$1 $2 $3');
+  if (num) num.textContent = '+52 967 123 4567';
 }
 
-// ─── NAVBAR ──────────────────────────────────
+/* ── NAVBAR ──────────────────────────────────────── */
 function initNavbar() {
-  const navbar = document.getElementById('navbar');
+  const navbar    = document.getElementById('navbar');
   const hamburger = document.getElementById('hamburger');
   const navMobile = document.getElementById('navMobile');
 
+  let lastY = 0;
   window.addEventListener('scroll', () => {
-    navbar.classList.toggle('scrolled', window.scrollY > 40);
+    const y = window.scrollY;
+    navbar.classList.toggle('scrolled', y > 40);
+    lastY = y;
   }, { passive: true });
 
-  hamburger.addEventListener('click', () => {
-    navMobile.classList.toggle('open');
-  });
-
-  // cerrar mobile nav al hacer click en un link
-  navMobile.querySelectorAll('a').forEach(a => {
-    a.addEventListener('click', () => navMobile.classList.remove('open'));
-  });
+  hamburger.addEventListener('click', () => navMobile.classList.toggle('open'));
+  navMobile.querySelectorAll('a').forEach(a => a.addEventListener('click', () => navMobile.classList.remove('open')));
 }
 
-// ─── COUNTDOWN ───────────────────────────────
-function initCountdown() {
-  const daysEl  = document.getElementById('cd-days');
-  const hoursEl = document.getElementById('cd-hours');
-  const minsEl  = document.getElementById('cd-mins');
-  const secsEl  = document.getElementById('cd-secs');
-  if (!daysEl) return;
+/* ── REVEAL ANIMATIONS ───────────────────────────── */
+function initReveal() {
+  const els = document.querySelectorAll('.reveal-up, .reveal-left, .reveal-right');
+  if (!('IntersectionObserver' in window)) {
+    els.forEach(el => el.classList.add('revealed'));
+    return;
+  }
 
-  function pad(n) { return String(n).padStart(2, '0'); }
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const el    = entry.target;
+      const delay = parseInt(el.dataset.delay || 0);
+      setTimeout(() => el.classList.add('revealed'), delay);
+      obs.unobserve(el);
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -48px 0px' });
+
+  els.forEach(el => obs.observe(el));
+}
+
+/* ── STATS COUNTER ───────────────────────────────── */
+function animateCounter(el, target, duration = 1800) {
+  let start = null;
+  const step = (ts) => {
+    if (!start) start = ts;
+    const progress = Math.min((ts - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3); // cubic ease-out
+    el.textContent = Math.floor(ease * target);
+    if (progress < 1) requestAnimationFrame(step);
+    else el.textContent = target;
+  };
+  requestAnimationFrame(step);
+}
+
+function initStats() {
+  const statEls = document.querySelectorAll('.stat-num[data-target]');
+  if (!statEls.length || !('IntersectionObserver' in window)) return;
+
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const el     = entry.target;
+      const target = parseInt(el.dataset.target);
+      animateCounter(el, target);
+      obs.unobserve(el);
+    });
+  }, { threshold: 0.5 });
+
+  statEls.forEach(el => obs.observe(el));
+}
+
+/* ── COUNTDOWN ───────────────────────────────────── */
+function initCountdown() {
+  const els = {
+    days:  document.getElementById('cd-days'),
+    hours: document.getElementById('cd-hours'),
+    mins:  document.getElementById('cd-mins'),
+    secs:  document.getElementById('cd-secs'),
+  };
+  if (!els.days) return;
+  const pad = n => String(n).padStart(2, '0');
 
   function tick() {
     const diff = PROMO_END - Date.now();
     if (diff <= 0) {
-      daysEl.textContent = hoursEl.textContent = minsEl.textContent = secsEl.textContent = '00';
-      // Cambiar banner a "promo finalizada"
+      Object.values(els).forEach(e => { if (e) e.textContent = '00'; });
       const label = document.querySelector('.promo-countdown-label');
-      if (label) label.textContent = '⚠️ Esta promoción ya terminó';
+      if (label) label.textContent = 'Esta promoción ha finalizado';
       return;
     }
-    const d = Math.floor(diff / 864e5);
-    const h = Math.floor((diff % 864e5) / 36e5);
-    const m = Math.floor((diff % 36e5) / 6e4);
-    const s = Math.floor((diff % 6e4) / 1000);
-    daysEl.textContent  = pad(d);
-    hoursEl.textContent = pad(h);
-    minsEl.textContent  = pad(m);
-    secsEl.textContent  = pad(s);
+    els.days.textContent  = pad(Math.floor(diff / 864e5));
+    els.hours.textContent = pad(Math.floor((diff % 864e5) / 36e5));
+    els.mins.textContent  = pad(Math.floor((diff % 36e5) / 6e4));
+    els.secs.textContent  = pad(Math.floor((diff % 6e4) / 1000));
   }
-
   tick();
   setInterval(tick, 1000);
 }
 
-// ─── DATEPICKER — mínimo mañana, sin domingos ─
+/* ── DATEPICKER ──────────────────────────────────── */
 function initDatepicker() {
   const fechaInput = document.getElementById('fecha');
   if (!fechaInput) return;
-
-  // Mínimo = mañana
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const min = tomorrow.toISOString().slice(0, 10);
-  fechaInput.min = min;
-  fechaInput.value = '';
+  fechaInput.min = tomorrow.toISOString().slice(0, 10);
 
   fechaInput.addEventListener('change', () => {
-    const chosen = new Date(fechaInput.value + 'T12:00:00');
-    if (chosen.getDay() === 0) { // domingo
+    const d = new Date(fechaInput.value + 'T12:00:00');
+    if (d.getDay() === 0) {
       fechaInput.setCustomValidity('No atendemos los domingos. Por favor elige otro día.');
       fechaInput.reportValidity();
       fechaInput.value = '';
@@ -99,7 +138,7 @@ function initDatepicker() {
   });
 }
 
-// ─── FORMULARIO DE CITAS ──────────────────────
+/* ── FORMULARIO ──────────────────────────────────── */
 function initForm() {
   const form       = document.getElementById('citaForm');
   const successBox = document.getElementById('formSuccess');
@@ -112,7 +151,6 @@ function initForm() {
     e.preventDefault();
     errorBox.hidden = true;
 
-    // Validación básica visual
     let valid = true;
     ['nombre', 'telefono', 'tipo_servicio', 'fecha', 'hora'].forEach(id => {
       const el = document.getElementById(id);
@@ -120,22 +158,16 @@ function initForm() {
       else el.classList.remove('error');
     });
 
-    // Validar teléfono 10 dígitos
     const telEl = document.getElementById('telefono');
     const phone = telEl.value.replace(/\D/g, '');
-    if (phone.length !== 10) {
-      telEl.classList.add('error');
-      valid = false;
-    }
+    if (phone.length !== 10) { telEl.classList.add('error'); valid = false; }
 
     if (!valid) {
       errorBox.textContent = 'Por favor completa todos los campos requeridos correctamente.';
       errorBox.hidden = false;
-      errorBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       return;
     }
 
-    // Enviar
     submitBtn.disabled = true;
     submitText.textContent = 'Enviando…';
 
@@ -152,66 +184,32 @@ function initForm() {
           notas:         document.getElementById('notas').value.trim(),
         }),
       });
-
       const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Error ' + res.status);
 
-      if (!res.ok) {
-        throw new Error(data.error || `Error ${res.status}`);
-      }
-
-      // Éxito
-      form.hidden = true;
+      form.hidden       = true;
       successBox.hidden = false;
       successBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
     } catch (err) {
-      errorBox.textContent = err.message || 'Ocurrió un error. Inténtalo de nuevo o escríbenos por WhatsApp.';
+      errorBox.textContent = err.message || 'Ocurrió un error. Inténtalo por WhatsApp.';
       errorBox.hidden = false;
-      submitBtn.disabled = false;
-      submitText.textContent = '📅 Solicitar cita';
-      errorBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      submitBtn.disabled  = false;
+      submitText.textContent = 'Solicitar cita';
     }
   });
 
-  // Limpiar error al escribir
   form.querySelectorAll('input, select, textarea').forEach(el => {
     el.addEventListener('input', () => el.classList.remove('error'));
   });
 }
 
-// ─── ANIMACIONES DE ENTRADA (IntersectionObserver) ─
-function initAnimations() {
-  if (!('IntersectionObserver' in window)) return;
-  const style = document.createElement('style');
-  style.textContent = `
-    .fade-in { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; }
-    .fade-in.visible { opacity: 1; transform: none; }
-  `;
-  document.head.appendChild(style);
-
-  const targets = document.querySelectorAll(
-    '.service-card, .part-card, .brand-chip, .info-item'
-  );
-  targets.forEach(el => el.classList.add('fade-in'));
-
-  const obs = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-        obs.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
-
-  targets.forEach(el => obs.observe(el));
-}
-
-// ─── INIT ─────────────────────────────────────
+/* ── INIT ────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
-  setWaLinks();
+  initWaLinks();
   initNavbar();
+  initReveal();
+  initStats();
   initCountdown();
   initDatepicker();
   initForm();
-  initAnimations();
 });
