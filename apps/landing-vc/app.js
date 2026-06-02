@@ -163,7 +163,7 @@ function initForm() {
     e.preventDefault();
     err.hidden = true;
     let valid = true;
-    ['nombre','telefono','tipo_servicio','fecha','hora'].forEach(id => {
+    ['nombre','telefono','tipo_servicio','moto_marca','moto_modelo','fecha','hora'].forEach(id => {
       const el = document.getElementById(id);
       if (!el.value.trim()) { el.classList.add('error'); valid = false; }
       else el.classList.remove('error');
@@ -183,7 +183,7 @@ function initForm() {
 
     btn.disabled = true; txt.textContent = 'Enviando…';
     try {
-      const res  = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nombre: document.getElementById('nombre').value.trim(), telefono: ph, tipo_servicio: servicioFinal, fecha: document.getElementById('fecha').value, hora: document.getElementById('hora').value, notas: document.getElementById('notas').value.trim() }) });
+      const res  = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nombre: document.getElementById('nombre').value.trim(), telefono: ph, tipo_servicio: servicioFinal, moto_marca: document.getElementById('moto_marca').value, moto_modelo: document.getElementById('moto_modelo').value.trim(), moto_anio: document.getElementById('moto_anio').value || null, fecha: document.getElementById('fecha').value, hora: document.getElementById('hora').value, notas: document.getElementById('notas').value.trim() }) });
       const data = await res.json().catch(()=>({}));
       if (!res.ok) throw new Error(data.error || 'Error ' + res.status);
       form.hidden = true; ok.hidden = false;

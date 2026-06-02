@@ -1,6 +1,8 @@
 import prisma from '../lib/prisma.js';
 
 const WORKSPACE_ID = process.env.LANDING_VC_WORKSPACE_ID || null;
+const BOT_URL = process.env.WHATSAPP_BOT_INTERNAL_URL || 'http://whatsapp-bot:3002';
+const BOT_KEY = process.env.WHATSAPP_API_KEY || 'motopartes-whatsapp-key';
 
 // In-memory rate limiter: max 3 appointment requests per phone per 24h.
 const phoneRateMap = new Map();
@@ -17,12 +19,50 @@ function isRateLimited(phone) {
     return false;
 }
 
+// Envía WhatsApp de confirmación al cliente (no bloquea la respuesta)
+async function sendConfirmationWA(workspaceId, phone, nombre, fecha, hora, servicio, moto) {
+    try {
+        const session = await prisma.whatsappSession.findFirst({
+            where: { workspace_id: workspaceId, is_connected: true },
+        });
+        if (!session?.mechanic_id) return;
+
+        const fechaFmt = new Date(`${fecha}T12:00:00`).toLocaleDateString('es-MX', {
+            weekday: 'long', day: 'numeric', month: 'long',
+        });
+        const horaFmt = hora.replace(':00', '') + (parseInt(hora) < 12 ? ' am' : ' pm');
+        const motoLine = moto ? `\n🏍️ Moto: ${moto}` : '';
+
+        const message =
+            `¡Hola ${nombre}! ✅\n\n` +
+            `Tu solicitud de cita en *Moto Partes* fue recibida.\n\n` +
+            `📅 *Fecha:* ${fechaFmt}\n` +
+            `⏰ *Hora:* ${horaFmt}\n` +
+            `🔧 *Servicio:* ${servicio}` +
+            motoLine +
+            `\n\nEstamos revisando tu solicitud y te confirmaremos a la brevedad. ¡Gracias! 🙌`;
+
+        await fetch(`${BOT_URL}/send-message`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': BOT_KEY },
+            body: JSON.stringify({ mechanicId: session.mechanic_id, phone: `52${phone}`, message }),
+            signal: AbortSignal.timeout(15000),
+        });
+    } catch (e) {
+        // No bloquear la respuesta si WhatsApp falla
+        console.error('[public/appt] WA send failed:', e.message);
+    }
+}
+
 export default async function publicRoutes(fastify) {
     // POST /api/public/appointments — sin autenticación, desde la landing vc.motopartes.cloud
     fastify.post('/appointments', {
         config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
     }, async (request, reply) => {
-        const { nombre, telefono, fecha, hora, tipo_servicio, notas } = request.body || {};
+        const {
+            nombre, telefono, fecha, hora, tipo_servicio, notas,
+            moto_marca, moto_modelo, moto_anio,
+        } = request.body || {};
 
         if (!nombre?.trim())
             return reply.code(400).send({ error: 'El nombre es obligatorio.' });
@@ -46,7 +86,13 @@ export default async function publicRoutes(fastify) {
         if (isNaN(scheduledDate.getTime()))
             return reply.code(400).send({ error: 'Fecha u hora inválida.' });
 
-        // Busca cliente existente por teléfono en el workspace para linkear si ya existe
+        // Construir notas con datos de la moto
+        const motoInfo = [moto_marca, moto_modelo, moto_anio].filter(Boolean).join(' ');
+        const notasFull = [
+            motoInfo ? `Moto: ${motoInfo}` : null,
+            notas?.trim() || null,
+        ].filter(Boolean).join('\n') || null;
+
         const existingClient = await prisma.client.findFirst({
             where: { workspace_id: WORKSPACE_ID, phone },
         });
@@ -57,7 +103,7 @@ export default async function publicRoutes(fastify) {
                 client_id: existingClient?.id || null,
                 scheduled_date: scheduledDate,
                 service_type: tipo_servicio,
-                notes: notas || null,
+                notes: notasFull,
                 status: 'pending_external',
                 source: 'external',
                 client_phone: existingClient ? null : phone,
@@ -65,9 +111,12 @@ export default async function publicRoutes(fastify) {
             },
         });
 
+        // Enviar confirmación por WhatsApp al cliente (async, no bloquea)
+        sendConfirmationWA(WORKSPACE_ID, phone, nombre.trim(), fecha, hora, tipo_servicio, motoInfo);
+
         return reply.code(201).send({
             success: true,
-            message: '¡Cita solicitada! Te confirmaremos vía WhatsApp en breve. 📱',
+            message: '¡Cita solicitada! Te enviaremos confirmación por WhatsApp. 📱',
         });
     });
 }
