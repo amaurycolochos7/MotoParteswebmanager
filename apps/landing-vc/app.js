@@ -174,6 +174,78 @@ function initForm() {
   form.querySelectorAll('input,select,textarea').forEach(el => el.addEventListener('input', () => el.classList.remove('error')));
 }
 
+/* ── CANVAS 3D RINGS ─────────────────────────────── */
+function initCanvas3D() {
+  const canvas = document.getElementById('heroCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  function resize() {
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize, { passive: true });
+
+  let t = 0;
+  const RINGS = [
+    { R: 180, tilt: 0.22, speed: 0.008, opacity: 0.18, width: 1.5 },
+    { R: 280, tilt: 0.55, speed: -0.005, opacity: 0.12, width: 1 },
+    { R: 380, tilt: 0.85, speed: 0.006, opacity: 0.08, width: 1 },
+    { R: 100, tilt: 1.1, speed: -0.012, opacity: 0.22, width: 2 },
+  ];
+
+  function drawRing(ring, time) {
+    const cx = canvas.width  * 0.72;
+    const cy = canvas.height * 0.48;
+    const seg = 80;
+    const cos = Math.cos, sin = Math.sin;
+    const rotY = time * ring.speed;
+    const rotX = ring.tilt;
+
+    ctx.beginPath();
+    for (let i = 0; i <= seg; i++) {
+      const a = (i / seg) * Math.PI * 2;
+      // 3D circle in XZ plane
+      let x = ring.R * cos(a);
+      let y = 0;
+      let z = ring.R * sin(a);
+      // Rotate around Y
+      const x2 = x * cos(rotY) - z * sin(rotY);
+      const z2 = x * sin(rotY) + z * cos(rotY);
+      // Rotate around X (tilt)
+      const y2 = y * cos(rotX) - z2 * sin(rotX);
+      const z3 = y * sin(rotX) + z2 * cos(rotX);
+      // Project with depth fade
+      const fov = 900;
+      const scale = fov / (fov + z3 + 500);
+      const px = cx + x2 * scale;
+      const py = cy + y2 * scale;
+      const alpha = ring.opacity * Math.max(0.2, (z3 + ring.R + 500) / (ring.R * 2 + 500));
+      ctx.strokeStyle = `rgba(220,38,38,${alpha.toFixed(3)})`;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.lineWidth = ring.width;
+    ctx.stroke();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Subtle dark red glow in center-right
+    const grd = ctx.createRadialGradient(canvas.width*.72, canvas.height*.48, 0, canvas.width*.72, canvas.height*.48, 350);
+    grd.addColorStop(0, 'rgba(220,38,38,0.06)');
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    RINGS.forEach(r => drawRing(r, t));
+    t += 0.016;
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
 /* ── INIT ────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   initWaLinks();
@@ -183,4 +255,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initCountdown();
   initDatepicker();
   initForm();
+  initCanvas3D();
 });

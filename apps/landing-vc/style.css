@@ -106,6 +106,27 @@ button { font-family: inherit; }
 .nm:hover { background: var(--light); color: var(--red); }
 .nm-cta { background: var(--red); color: #fff !important; text-align: center; border-radius: 10px; margin-top: 6px; }
 
+/* ── CANVAS 3D ───────────────────────────── */
+.hero-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+
+/* GYROSCOPE — anillos 3D claramente visibles */
+.gyro {
+  position: absolute; right: 5%; top: 50%; transform: translateY(-50%);
+  width: 280px; height: 280px; perspective: 700px;
+  pointer-events: none; z-index: 1;
+}
+.gyro-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid rgba(220,38,38,.55);
+  box-shadow: 0 0 20px rgba(220,38,38,.3), inset 0 0 20px rgba(220,38,38,.1);
+}
+.gr1 { animation: gyroA 7s linear infinite; }
+.gr2 { animation: gyroA 10s linear infinite reverse; border-width: 3px; border-color: rgba(220,38,38,.4); }
+.gr3 { animation: gyroB 13s linear infinite; border-color: rgba(255,120,120,.3); }
+@keyframes gyroA { 0%{transform:rotateX(72deg) rotateZ(0deg)} 100%{transform:rotateX(72deg) rotateZ(360deg)} }
+@keyframes gyroB { 0%{transform:rotateX(72deg) rotateY(60deg) rotateZ(0deg)} 100%{transform:rotateX(72deg) rotateY(60deg) rotateZ(-360deg)} }
+@media (max-width: 1024px) { .gyro { display: none; } }
+
 /* ── HERO ────────────────────────────────── */
 .hero {
   position: relative; min-height: 100vh; display: flex; align-items: center;
@@ -309,8 +330,9 @@ button { font-family: inherit; }
 .cds { font-family: 'Bebas Neue', sans-serif; font-size: 1.75rem; color: rgba(255,255,255,.2); padding-bottom: 16px; }
 
 /* ── REFACCIONARIA ───────────────────────── */
-.brands { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 44px; }
-.bc { background: rgba(255,255,255,.06); color: rgba(255,255,255,.75); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 7px 22px; font-size: .875rem; font-weight: 700; letter-spacing: .04em; transition: var(--t); }
+.refac-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; margin-bottom: 52px; }
+.refac-img { border-radius: var(--rlg); overflow: hidden; box-shadow: 0 16px 48px rgba(0,0,0,.5); }
+.refac-img img { width: 100%; height: 380px; object-fit: cover; display: block; }
 .bc:hover { background: var(--red); border-color: var(--red); color: #fff; }
 .parts { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 52px; }
 .pc { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); border-radius: var(--r); padding: 13px 16px; color: rgba(255,255,255,.7); font-size: .875rem; font-weight: 500; transition: var(--t); display: flex; align-items: center; gap: 10px; }
@@ -378,6 +400,8 @@ button { font-family: inherit; }
 
 /* ── RESPONSIVE ──────────────────────────── */
 @media (max-width: 1024px) {
+  .refac-layout { grid-template-columns: 1fr; }
+  .refac-img img { height: 260px; }
   .hero-layout  { grid-template-columns: 1fr; padding: 80px 1.5rem; }
   .hero-h1      { font-size: clamp(3.5rem,10vw,5.5rem); }
   .hero-moto    { display: none; }
