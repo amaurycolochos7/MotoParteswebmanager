@@ -17,8 +17,7 @@
 <nav class="navbar" id="navbar">
   <div class="nav-inner">
     <a href="#inicio" class="nav-logo">
-      <span class="logo-wordmark">MOTO<span class="logo-red">PARTES</span></span>
-      <span class="logo-vc-tag">VC</span>
+      <img src="/img/logo.png" alt="Moto Partes" class="nav-logo-img"/>
     </a>
     <div class="nav-links">
       <a href="#servicios" class="nl">Servicios</a>
@@ -49,15 +48,15 @@
         Venustiano Carranza, Chiapas &nbsp;·&nbsp; +15 Años de Experiencia
       </p>
       <h1 class="hero-h1 reveal-up" data-d="80">
-        <span class="red">MOTO PARTES.</span>
+        MOTO PARTES.
       </h1>
       <p class="hero-sub reveal-up" data-d="180">
         Mecánica profesional para todas las marcas de motocicleta.
         Refaccionaria completa. Diagnóstico incluido en cada servicio.
       </p>
       <div class="hero-btns reveal-up" data-d="260">
-        <a href="#citas" class="btn btn-red btn-hero">AGENDAR CITA</a>
-        <a href="#servicios" class="btn-text-link">VER SERVICIOS &rarr;</a>
+        <a href="#citas" class="hbtn hbtn-red">AGENDAR CITA</a>
+        <a href="#servicios" class="hbtn hbtn-outline">VER SERVICIOS</a>
       </div>
     </div>
   </div>
@@ -77,13 +76,22 @@
 <!-- ═══ FRANJA DE DATOS ═══ -->
 <div class="data-strip">
   <div class="container data-grid">
-    <div class="ds reveal-up" data-d="0"><span class="ds-n" data-target="400">0</span><span class="ds-plus">+</span><span class="ds-l">Clientes al mes</span></div>
-    <div class="ds-div"></div>
-    <div class="ds reveal-up" data-d="80"><span class="ds-n" data-target="15">0</span><span class="ds-plus">+</span><span class="ds-l">Años de experiencia</span></div>
-    <div class="ds-div"></div>
-    <div class="ds reveal-up" data-d="160"><span class="ds-n" data-target="8">0</span><span class="ds-l">Tipos de servicio</span></div>
-    <div class="ds-div"></div>
-    <div class="ds reveal-up" data-d="240"><span class="ds-n" data-target="6">0</span><span class="ds-l">Días a la semana</span></div>
+    <div class="ds reveal-up" data-d="0">
+      <div class="ds-val"><span class="ds-n" data-target="400">0</span><span class="ds-plus">+</span></div>
+      <span class="ds-l">Clientes al mes</span>
+    </div>
+    <div class="ds reveal-up" data-d="80">
+      <div class="ds-val"><span class="ds-n" data-target="15">0</span><span class="ds-plus">+</span></div>
+      <span class="ds-l">Años de experiencia</span>
+    </div>
+    <div class="ds reveal-up" data-d="160">
+      <div class="ds-val"><span class="ds-n" data-target="8">0</span></div>
+      <span class="ds-l">Tipos de servicio</span>
+    </div>
+    <div class="ds reveal-up" data-d="240">
+      <div class="ds-val"><span class="ds-n" data-target="6">0</span></div>
+      <span class="ds-l">Días a la semana</span>
+    </div>
   </div>
 </div>
 
@@ -116,27 +124,46 @@
 </section>
 
 <!-- ═══ SERVICIOS DETALLE ═══ -->
-<section class="section bg-white">
-  <div class="container">
-    <div class="services-layout">
-      <div class="services-img reveal-left" data-d="0">
-        <img src="/img/moto-workshop.jpg" alt="Mecánico trabajando en motocicleta" loading="lazy"
-             onerror="this.style.background='#1f2937'"/>
-        <div class="img-tag">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
-          Trabajo garantizado
+<section class="svcd-section" id="servicios-detalle">
+  <!-- Foto de fondo full-bleed con overlay -->
+  <div class="svcd-bg">
+    <img src="/img/mecanicotrabajando.jpg" alt="Mecánico trabajando en motocicleta" loading="lazy"/>
+    <div class="svcd-overlay"></div>
+  </div>
+  <!-- Contenido encima -->
+  <div class="container svcd-inner">
+    <div class="svcd-left reveal-up" data-d="0">
+      <span class="svcd-eyebrow">Lo que hacemos</span>
+      <h2 class="svcd-h2">SERVICIO<br/>COMPLETO<br/><span class="svcd-red">PARA TU MOTO</span></h2>
+      <p class="svcd-lead">Más de 15 años atendiendo todas las marcas.<br/>Herramienta especializada · Refacciones de calidad.</p>
+      <a href="#citas" class="svcd-btn">AGENDAR SERVICIO</a>
+    </div>
+    <div class="svcd-right reveal-up" data-d="120">
+      <div class="svcd-chips">
+        <div class="svcd-chip">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          <div><strong>Afinación general</strong><span>Bujías, filtros, carburador, cadena</span></div>
         </div>
-      </div>
-      <div class="services-content reveal-right" data-d="80">
-        <div class="eyebrow">Lo que hacemos</div>
-        <h2 class="title-xl">Servicio completo<br/><span class="red">para tu moto</span></h2>
-        <p class="lead">Más de quince años atendiendo motocicletas de todas las marcas. Herramienta especializada, refacciones de calidad.</p>
-        <div class="svc-list">
-          <div class="svc-item"><div class="svc-dot"></div><div><strong>Afinación general</strong><p>Bujías, filtros, carburador, cadena, tensores.</p></div></div>
-          <div class="svc-item"><div class="svc-dot"></div><div><strong>Cambio de aceite</strong><p>Motul, Castrol, Mobil para todas las marcas.</p></div></div>
-          <div class="svc-item"><div class="svc-dot"></div><div><strong>Revisión general</strong><p>Inspección completa pre-viaje o post-accidente.</p></div></div>
+        <div class="svcd-chip">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="12" rx="10" ry="10"/><path d="M12 8v4l3 3"/></svg>
+          <div><strong>Cambio de aceite</strong><span>Motul, Castrol, Mobil — todas las marcas</span></div>
         </div>
-        <a href="#citas" class="btn btn-red">Agendar servicio</a>
+        <div class="svcd-chip">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/></svg>
+          <div><strong>Frenos y suspensión</strong><span>Balatas, discos, horquillas</span></div>
+        </div>
+        <div class="svcd-chip">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"/></svg>
+          <div><strong>Sistema eléctrico</strong><span>Diagnóstico, cableado, luces</span></div>
+        </div>
+        <div class="svcd-chip">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
+          <div><strong>Revisión general</strong><span>Pre-viaje o post-accidente</span></div>
+        </div>
+        <div class="svcd-chip">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+          <div><strong>Diagnóstico incluido</strong><span>En cada servicio, sin costo extra</span></div>
+        </div>
       </div>
     </div>
   </div>
@@ -169,7 +196,7 @@
 <!-- ═══ PROMO JUNIO 2026 ═══ -->
 <section class="promo-section" id="promocion">
   <div class="promo-bg">
-    <img src="/img/moto-night.jpg" alt="" aria-hidden="true" loading="lazy"/>
+    <img src="/img/fotooscura.jpg" alt="" aria-hidden="true" loading="lazy"/>
   </div>
   <div class="promo-overlay"></div>
   <div class="container promo-inner">
