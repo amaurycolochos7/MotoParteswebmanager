@@ -38,46 +38,43 @@
   </div>
 </nav>
 
-<!-- ═══ HERO — foto pantalla completa ═══ -->
+<!-- ═══ HERO — Ducati-style ═══ -->
 <section class="hero" id="inicio">
-  <!-- FOTO DE FONDO -->
-  <div class="hero-photo">
-    <img src="/img/hero-wide.jpg" alt="Motocicleta deportiva" fetchpriority="high"
-         onerror="this.parentElement.style.background='linear-gradient(135deg,#0a0a0f 0%,#1a0505 100%)'"/>
-  </div>
 
-  <!-- Gradientes sobre la foto -->
-  <div class="hero-grad-left"></div>
-  <div class="hero-grad-right"></div>
-  <div class="hero-grad-bottom"></div>
-
-  <!-- Canvas 3D rings (sutil) -->
-  <canvas id="heroCanvas" class="hero-canvas" aria-hidden="true"></canvas>
-
-  <!-- CONTENIDO: texto en lado derecho -->
-  <div class="hero-content">
-    <div class="hero-text-box">
+  <!-- IZQUIERDA: texto sobre fondo negro -->
+  <div class="hero-left">
+    <canvas id="heroCanvas" class="hero-canvas" aria-hidden="true"></canvas>
+    <div class="hero-left-content">
       <div class="hero-tag reveal-up" data-d="0">
         <span class="htag-line"></span>
-        Venustiano Carranza, Chiapas
+        Venustiano Carranza, Chiapas &nbsp;·&nbsp; +15 Años
       </div>
       <h1 class="hero-h1 reveal-up" data-d="80">
-        TU MOTO<br/>
-        EN LAS<br/>
-        MEJORES <span class="red">MANOS</span>
+        <span class="h1-line">TU MOTO</span>
+        <span class="h1-line">MERECE</span>
+        <span class="h1-line red">LO MEJOR<span style="color:rgba(220,38,38,.6)">.</span></span>
       </h1>
       <p class="hero-sub reveal-up" data-d="180">
-        Mecánica profesional · Refaccionaria completa<br/>
-        Más de 15 años de experiencia en Chiapas.
+        Mecánica profesional · Refaccionaria completa.<br/>
+        Diagnóstico incluido en cada servicio.
       </p>
       <div class="hero-btns reveal-up" data-d="260">
-        <a href="#servicios" class="btn btn-red btn-lg">Ver servicios</a>
-        <a href="#citas" class="btn btn-outline-white btn-lg">Agendar cita</a>
+        <a href="#citas" class="btn btn-red btn-lg">AGENDAR CITA</a>
+        <a href="#servicios" class="btn btn-ghost-sm">VER SERVICIOS &rarr;</a>
       </div>
     </div>
   </div>
 
-  <!-- Indicador de scroll -->
+  <!-- DERECHA: foto de moto que llena el panel -->
+  <div class="hero-right">
+    <img src="/img/ducati2.jpg"
+         alt="Motocicleta deportiva"
+         fetchpriority="high"
+         onerror="this.style.opacity='0'"/>
+    <div class="hero-right-fade"></div>
+    <div class="hero-right-glow"></div>
+  </div>
+
   <div class="scroll-hint" aria-hidden="true"><div class="scroll-bar"></div></div>
 </section>
 
