@@ -702,13 +702,17 @@ button { font-family: inherit; }
 .form-note { display: flex; align-items: center; gap: 6px; color: rgba(255,255,255,.25); font-size: .75rem; margin-top: 12px; }
 .form-note svg { stroke: rgba(255,255,255,.25); flex-shrink: 0; }
 .form-ok {
-  text-align: center; background: #111;
+  text-align: center;
+  background: #111;
   border: 1px solid rgba(34,197,94,.3);
-  border-radius: 14px; padding: 48px 32px;
+  border-top: 2px solid #22c55e;
+  border-radius: 14px;
+  padding: 36px 24px;
+  width: 100%; box-sizing: border-box;
 }
-.ok-icon { color: #22c55e; display: flex; justify-content: center; margin-bottom: 16px; }
-.form-ok h3 { font-size: 1.4rem; font-weight: 800; color: #fff; margin-bottom: 8px; }
-.form-ok p { color: rgba(255,255,255,.45); margin-bottom: 24px; font-size: .9rem; }
+.ok-icon { color: #22c55e; display: flex; justify-content: center; margin-bottom: 14px; }
+.form-ok h3 { font-size: 1.25rem; font-weight: 800; color: #fff; margin-bottom: 8px; }
+.form-ok p { color: rgba(255,255,255,.45); font-size: .875rem; line-height: 1.6; margin: 0; }
 .form-err {
   background: rgba(220,38,38,.08); border: 1px solid rgba(220,38,38,.3);
   color: #f87171; border-radius: 8px;
