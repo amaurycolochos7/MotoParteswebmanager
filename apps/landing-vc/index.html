@@ -186,8 +186,6 @@
         <a href="#citas" class="btn btn-red">Agendar cita ahora</a>
       </div>
       <div class="about-img reveal-right" data-d="80">
-        <img src="/img/moto-hero.jpg" alt="Motocicleta deportiva" loading="lazy"
-             onerror="this.style.background='#1f2937'"/>
       </div>
     </div>
   </div>
@@ -200,29 +198,42 @@
   </div>
   <div class="promo-overlay"></div>
   <div class="container promo-inner">
+
+    <!-- IZQUIERDA: título + precio + CTA -->
     <div class="promo-left reveal-left" data-d="0">
-      <div class="promo-tag">Promoción · Junio 2026</div>
+      <div class="promo-tag">Junio 2026</div>
       <div class="promo-title">SERVICIO<br/>COMPLETO</div>
       <div class="promo-price">
         <span class="p-old">$1,500</span>
         <span class="p-arr">→</span>
         <span class="p-new">$1,200 <small>MXN</small></span>
+        <span class="p-save">Ahorra $300</span>
       </div>
-      <div class="promo-vig">Vigencia: 1 al 30 de junio 2026 · Solo con cita previa</div>
-      <a href="#citas" class="btn btn-red btn-lg">Reservar con descuento</a>
+      <div class="promo-vig">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+        1 al 30 de junio · Solo con cita previa
+      </div>
+      <a href="#citas" class="btn btn-red btn-lg promo-cta">Reservar con descuento</a>
     </div>
-    <div class="promo-right reveal-right" data-d="100">
+
+    <!-- DERECHA: incluye + countdown -->
+    <div class="promo-right reveal-right" data-d="120">
+      <!-- Card "Incluye" -->
       <div class="promo-box">
-        <h4>Incluye:</h4>
-        <ul>
-          <li>Afinación general</li>
-          <li>Cambio de aceite y filtro</li>
-          <li>Revisión de frenos</li>
-          <li>Chequeo de cadena</li>
-        </ul>
+        <h4>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>
+          Incluye en el precio
+        </h4>
+        <div class="promo-items">
+          <div class="pi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>Afinación general</div>
+          <div class="pi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>Aceite y filtro</div>
+          <div class="pi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>Revisión de frenos</div>
+          <div class="pi"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>Chequeo de cadena</div>
+        </div>
       </div>
+      <!-- Countdown -->
       <div class="countdown-wrap">
-        <div class="cd-lbl">Termina en:</div>
+        <div class="cd-lbl">Oferta termina en</div>
         <div class="countdown" id="countdown">
           <div class="cdb"><span class="cdn" id="cd-days">00</span><span class="cdl">días</span></div>
           <span class="cds">:</span>
@@ -234,91 +245,168 @@
         </div>
       </div>
     </div>
+
   </div>
 </section>
 
 <!-- ═══ REFACCIONARIA ═══ -->
-<section class="section bg-dark" id="refaccionaria">
-  <div class="container">
-    <div class="section-head-c reveal-up" data-d="0">
+<section class="refac-section" id="refaccionaria">
+  <!-- Foto de fondo -->
+  <div class="refac-photo">
+    <img src="/img/refacciones.jpg" alt="Refacciones para motocicleta" loading="lazy"/>
+    <div class="refac-photo-overlay"></div>
+  </div>
+
+  <div class="container refac-inner">
+
+    <!-- IZQUIERDA: header + CTA -->
+    <div class="refac-header reveal-left" data-d="0">
       <div class="eyebrow light">Refaccionaria</div>
-      <h2 class="title-xl light">Piezas para tu <span class="red">motocicleta</span></h2>
-      <p class="sub-c" style="color:rgba(255,255,255,.5)">Stock permanente. Si no la tenemos, la conseguimos.</p>
-    </div>
-    <div class="refac-layout reveal-up" data-d="80">
-      <div class="refac-img">
-        <img src="/img/moto-dark.jpg" alt="Motocicleta en taller" loading="lazy"
-             onerror="this.style.background='#374151'"/>
-      </div>
-      <div class="parts">
-        <div class="pc">Cadenas y sprockets</div>
-        <div class="pc">Llantas y cámaras</div>
-        <div class="pc">Balatas y discos</div>
-        <div class="pc">Bujías</div>
-        <div class="pc">Filtros de aceite y aire</div>
-        <div class="pc">Aceites y lubricantes</div>
-        <div class="pc">Faros y luces</div>
-        <div class="pc">Espejos y carrocería</div>
-        <div class="pc">Carburadores</div>
-        <div class="pc">Cables y electrónica</div>
-        <div class="pc">Amortiguadores</div>
-        <div class="pc">Cerraduras y manubrios</div>
-      </div>
-    </div>
-    <div class="refac-cta reveal-up" data-d="120">
-      <p>¿No encuentras la pieza? La conseguimos.</p>
-      <a href="https://wa.me/529671234567" target="_blank" rel="noopener" class="btn btn-wa btn-lg" id="waRefacBtn">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-        Consultar disponibilidad
+      <h2 class="title-xl light">Piezas para tu<br/><span class="red">motocicleta</span></h2>
+      <p class="refac-sub">Stock permanente en las marcas más populares. Si no la tenemos, la conseguimos en 24 h.</p>
+      <a href="https://wa.me/529631911772" target="_blank" rel="noopener" class="btn btn-wa" id="waRefacBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Consultar pieza
       </a>
     </div>
+
+    <!-- DERECHA: grid de partes -->
+    <div class="refac-grid reveal-right" data-d="80">
+      <div class="pc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>Cadenas y sprockets</div>
+      <div class="pc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>Llantas y cámaras</div>
+      <div class="pc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>Balatas y discos</div>
+      <div class="pc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Bujías</div>
+      <div class="pc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2"/></svg>Filtros de aceite</div>
+      <div class="pc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5S12 2 12 2s-4 5-4 7.5C6 13.1 5 15 5 17a7 7 0 0 0 7 7z"/></svg>Aceites y lubricantes</div>
+      <div class="pc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>Faros y luces</div>
+      <div class="pc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Espejos y carrocería</div>
+      <div class="pc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>Carburadores</div>
+      <div class="pc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>Cables y electrónica</div>
+      <div class="pc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12,5 19,12 12,19"/></svg>Amortiguadores</div>
+      <div class="pc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Cerraduras y manubrios</div>
+    </div>
+
   </div>
 </section>
 
 <!-- ═══ FORMULARIO CITAS ═══ -->
-<section class="section bg-light" id="citas">
-  <div class="container">
-    <div class="section-head-c reveal-up" data-d="0">
+<section class="appt-section" id="citas">
+  <div class="container appt-inner">
+
+    <!-- IZQUIERDA: info -->
+    <div class="appt-info reveal-left" data-d="0">
       <div class="eyebrow">Citas en línea</div>
-      <h2 class="title-xl">Agenda tu <span class="red">cita</span></h2>
-      <p class="sub-c">Llena el formulario y te confirmamos por WhatsApp.</p>
+      <h2 class="title-xl light">Agenda tu<br/><span class="red">cita</span></h2>
+      <p class="appt-sub">Llena el formulario y te confirmamos por WhatsApp en menos de una hora.</p>
+      <div class="appt-items">
+        <div class="appt-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+          <span>Lunes a Sábado · 9 am – 6 pm</span>
+        </div>
+        <div class="appt-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg>
+          <span>Confirmación inmediata por WhatsApp</span>
+        </div>
+        <div class="appt-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>Venustiano Carranza, Chiapas</span>
+        </div>
+      </div>
+      <a href="https://wa.me/529631911772" target="_blank" rel="noopener" class="btn btn-wa appt-wa">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Preferiero por WhatsApp
+      </a>
     </div>
-    <div class="form-wrap reveal-up" data-d="80">
+
+    <!-- DERECHA: formulario -->
+    <div class="appt-form-wrap reveal-right" data-d="80">
       <form class="cita-form" id="citaForm" novalidate>
-        <div class="frow"><div class="ff"><label for="nombre">Nombre completo *</label><input type="text" id="nombre" name="nombre" placeholder="Tu nombre" required autocomplete="name"/></div><div class="ff"><label for="telefono">WhatsApp (10 dígitos) *</label><input type="tel" id="telefono" name="telefono" placeholder="10 dígitos" required maxlength="10" autocomplete="tel" inputmode="numeric"/></div></div>
-        <div class="ff"><label for="tipo_servicio">Servicio requerido *</label><select id="tipo_servicio" name="tipo_servicio" required><option value="">Selecciona un servicio…</option><option value="Afinación general">Afinación general</option><option value="Cambio de aceite y filtros">Cambio de aceite y filtros</option><option value="Servicio completo — Promo junio $1,200">Servicio completo — Promo junio $1,200</option><option value="Frenos y suspensión">Frenos y suspensión</option><option value="Reparación de motor">Reparación de motor</option><option value="Sistema eléctrico">Sistema eléctrico</option><option value="Consulta de refacción">Consulta de refacción</option><option value="Diagnóstico general">Diagnóstico general</option><option value="Otro">Otro</option></select></div>
-        <div class="frow"><div class="ff"><label for="fecha">Fecha deseada *</label><input type="date" id="fecha" name="fecha" required/></div><div class="ff"><label for="hora">Hora *</label><select id="hora" name="hora" required><option value="">Selecciona…</option><option value="09:00">9:00 am</option><option value="10:00">10:00 am</option><option value="11:00">11:00 am</option><option value="12:00">12:00 pm</option><option value="13:00">1:00 pm</option><option value="14:00">2:00 pm</option><option value="15:00">3:00 pm</option><option value="16:00">4:00 pm</option><option value="17:00">5:00 pm</option></select></div></div>
-        <div class="ff"><label for="notas">Notas <span class="opt">(opcional)</span></label><textarea id="notas" name="notas" rows="3" placeholder="Describe el problema o detalles sobre tu moto…"></textarea></div>
-        <button type="submit" class="btn btn-red btn-lg btn-full" id="submitBtn"><span id="submitText">Solicitar cita</span></button>
-        <p class="form-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Recibirás confirmación por WhatsApp.</p>
+        <div class="frow">
+          <div class="ff"><label for="nombre">Nombre *</label><input type="text" id="nombre" name="nombre" placeholder="Tu nombre completo" required autocomplete="name"/></div>
+          <div class="ff"><label for="telefono">WhatsApp *</label><input type="tel" id="telefono" name="telefono" placeholder="10 dígitos" required maxlength="10" autocomplete="tel" inputmode="numeric"/></div>
+        </div>
+        <div class="ff">
+          <label for="tipo_servicio">Servicio *</label>
+          <select id="tipo_servicio" name="tipo_servicio" required>
+            <option value="">Selecciona…</option>
+            <option value="Afinación general">Afinación general</option>
+            <option value="Cambio de aceite y filtros">Cambio de aceite y filtros</option>
+            <option value="Servicio completo — Promo junio $1,200">Servicio completo — Promo junio $1,200</option>
+            <option value="Frenos y suspensión">Frenos y suspensión</option>
+            <option value="Reparación de motor">Reparación de motor</option>
+            <option value="Sistema eléctrico">Sistema eléctrico</option>
+            <option value="Consulta de refacción">Consulta de refacción</option>
+            <option value="Diagnóstico general">Diagnóstico general</option>
+            <option value="Otro">Otro — especificar</option>
+          </select>
+        </div>
+        <div class="ff ff-otro" id="otroWrap" style="display:none">
+          <label for="otro_servicio">Describe el servicio *</label>
+          <input type="text" id="otro_servicio" name="otro_servicio" placeholder="Ej: revisión de carburador, cambio de llanta…"/>
+        </div>
+        <div class="frow">
+          <div class="ff"><label for="fecha">Fecha *</label><input type="date" id="fecha" name="fecha" required/></div>
+          <div class="ff"><label for="hora">Hora *</label><select id="hora" name="hora" required><option value="">Hora…</option><option value="09:00">9:00 am</option><option value="10:00">10:00 am</option><option value="11:00">11:00 am</option><option value="12:00">12:00 pm</option><option value="13:00">1:00 pm</option><option value="14:00">2:00 pm</option><option value="15:00">3:00 pm</option><option value="16:00">4:00 pm</option><option value="17:00">5:00 pm</option></select></div>
+        </div>
+        <div class="ff"><label for="notas">Notas <span class="opt">(opcional)</span></label><textarea id="notas" name="notas" rows="2" placeholder="Describe el problema o tu moto…"></textarea></div>
+        <button type="submit" class="btn btn-red btn-full" id="submitBtn"><span id="submitText">Solicitar cita</span></button>
+        <p class="form-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Te confirmamos por WhatsApp.</p>
       </form>
-      <div class="form-ok" id="formSuccess" hidden><div class="ok-icon"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="10"/><polyline points="9,12 11,14 15,10"/></svg></div><h3>Cita solicitada</h3><p>Te confirmamos por WhatsApp en breve.</p><a href="https://wa.me/529671234567" target="_blank" rel="noopener" class="btn btn-wa" id="waSuccessBtn">Escribirnos directamente</a></div>
+      <div class="form-ok" id="formSuccess" hidden>
+        <div class="ok-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="10"/><polyline points="9,12 11,14 15,10"/></svg></div>
+        <h3>¡Cita solicitada!</h3>
+        <p>Te confirmamos por WhatsApp en breve.</p>
+        <a href="https://wa.me/529631911772" target="_blank" rel="noopener" class="btn btn-wa" id="waSuccessBtn">Escribirnos directamente</a>
+      </div>
       <div class="form-err" id="formError" hidden></div>
     </div>
+
   </div>
 </section>
 
 <!-- ═══ UBICACIÓN ═══ -->
-<section class="section bg-white" id="ubicacion">
-  <div class="container">
-    <div class="section-head-c reveal-up" data-d="0">
-      <div class="eyebrow">Visítanos</div>
-      <h2 class="title-xl">Encuéntranos</h2>
-    </div>
-    <div class="loc-layout reveal-up" data-d="80">
-      <div class="loc-info">
-        <div class="loc-card">
-          <div class="loc-item"><div class="loc-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div><div><strong>Dirección</strong><p>Venustiano Carranza, Chiapas, México</p></div></div>
-          <div class="loc-item"><div class="loc-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></div><div><strong>Horario</strong><p>Lunes a Sábado · 9:00 am – 6:00 pm</p></div></div>
-          <div class="loc-item"><div class="loc-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></div><div><strong>WhatsApp</strong><p id="waNumber">Contáctanos</p></div></div>
+<section class="loc-section" id="ubicacion">
+  <div class="container loc-inner">
+
+    <!-- IZQUIERDA: info -->
+    <div class="loc-left reveal-left" data-d="0">
+      <div class="eyebrow light">Visítanos</div>
+      <h2 class="title-xl light">Encuéntranos</h2>
+
+      <div class="loc-card">
+        <div class="loc-item">
+          <div class="loc-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+          <div><strong>Dirección</strong><p>Venustiano Carranza, Chiapas</p></div>
         </div>
-        <div class="loc-btns">
-          <a href="https://maps.app.goo.gl/5ettAZT7YhUaKfCT8" target="_blank" rel="noopener" class="btn btn-outline-dark">Ver en Google Maps</a>
-          <a href="https://wa.me/529671234567" target="_blank" rel="noopener" class="btn btn-wa" id="waLocationBtn"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>Enviar WhatsApp</a>
+        <div class="loc-item">
+          <div class="loc-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg></div>
+          <div><strong>Horario</strong><p>Lun – Sáb · 9:00 am – 6:00 pm</p></div>
+        </div>
+        <div class="loc-item">
+          <div class="loc-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></div>
+          <div><strong>WhatsApp</strong><p id="waNumber">+52 963 191 1772</p></div>
         </div>
       </div>
-      <div class="map-wrap"><iframe src="https://maps.google.com/maps?q=16.3372744,-92.5594909&hl=es&z=16&output=embed" width="100%" height="380" style="border:0;border-radius:14px;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Ubicación Moto Partes VC"></iframe></div>
+
+      <div class="loc-btns">
+        <a href="https://maps.app.goo.gl/5ettAZT7YhUaKfCT8" target="_blank" rel="noopener" class="btn btn-outline-white">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Ver en Google Maps
+        </a>
+        <a href="https://wa.me/529631911772" target="_blank" rel="noopener" class="btn btn-wa" id="waLocationBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          Enviar WhatsApp
+        </a>
+      </div>
     </div>
+
+    <!-- DERECHA: mapa -->
+    <div class="loc-right reveal-right" data-d="80">
+      <div class="map-wrap">
+        <iframe src="https://maps.google.com/maps?q=16.3372744,-92.5594909&hl=es&z=16&output=embed" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Ubicación Moto Partes VC"></iframe>
+      </div>
+    </div>
+
   </div>
 </section>
 
@@ -331,7 +419,7 @@
   </div>
 </footer>
 
-<a href="https://wa.me/529671234567" target="_blank" rel="noopener" class="wa-float" id="waFloat" aria-label="WhatsApp"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></a>
+<a href="https://wa.me/529631911772" target="_blank" rel="noopener" class="wa-float" id="waFloat" aria-label="WhatsApp"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></a>
 
 <script src="app.js"></script>
 </body>

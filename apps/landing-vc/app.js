@@ -3,7 +3,7 @@
 ═══════════════════════════════════════════════════ */
 
 const API_URL   = 'https://motopartes.cloud/api/public/appointments';
-const WA_NUMBER = '529671234567';
+const WA_NUMBER = '529631911772';
 const PROMO_END = new Date('2026-06-30T23:59:59');
 
 /* ── WA LINKS ────────────────────────────────────── */
@@ -11,7 +11,7 @@ function initWaLinks() {
   const url = 'https://wa.me/' + WA_NUMBER;
   document.querySelectorAll('a[href*="wa.me"]').forEach(el => { el.href = url; });
   const num = document.getElementById('waNumber');
-  if (num) num.textContent = '+52 967 123 4567';
+  if (num) num.textContent = '+52 963 191 1772';
 }
 
 /* ── NAVBAR ──────────────────────────────────────── */
@@ -148,6 +148,17 @@ function initForm() {
   const txt  = document.getElementById('submitText');
   if (!form) return;
 
+  /* Mostrar campo libre al seleccionar "Otro" */
+  const selectServicio = document.getElementById('tipo_servicio');
+  const otroWrap       = document.getElementById('otroWrap');
+  const otroInput      = document.getElementById('otro_servicio');
+  selectServicio.addEventListener('change', () => {
+    const esOtro = selectServicio.value === 'Otro';
+    otroWrap.style.display = esOtro ? 'flex' : 'none';
+    if (esOtro) otroInput.focus();
+    else { otroInput.value = ''; otroInput.classList.remove('error'); }
+  });
+
   form.addEventListener('submit', async e => {
     e.preventDefault();
     err.hidden = true;
@@ -160,11 +171,19 @@ function initForm() {
     const tel = document.getElementById('telefono');
     const ph  = tel.value.replace(/\D/g, '');
     if (ph.length !== 10) { tel.classList.add('error'); valid = false; }
+
+    /* Validar y resolver servicio libre */
+    let servicioFinal = selectServicio.value;
+    if (servicioFinal === 'Otro') {
+      if (!otroInput.value.trim()) { otroInput.classList.add('error'); valid = false; }
+      else servicioFinal = otroInput.value.trim();
+    }
+
     if (!valid) { err.textContent = 'Por favor completa todos los campos requeridos.'; err.hidden = false; return; }
 
     btn.disabled = true; txt.textContent = 'Enviando…';
     try {
-      const res  = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nombre: document.getElementById('nombre').value.trim(), telefono: ph, tipo_servicio: document.getElementById('tipo_servicio').value, fecha: document.getElementById('fecha').value, hora: document.getElementById('hora').value, notas: document.getElementById('notas').value.trim() }) });
+      const res  = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nombre: document.getElementById('nombre').value.trim(), telefono: ph, tipo_servicio: servicioFinal, fecha: document.getElementById('fecha').value, hora: document.getElementById('hora').value, notas: document.getElementById('notas').value.trim() }) });
       const data = await res.json().catch(()=>({}));
       if (!res.ok) throw new Error(data.error || 'Error ' + res.status);
       form.hidden = true; ok.hidden = false;
