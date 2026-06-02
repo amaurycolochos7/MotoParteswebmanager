@@ -38,41 +38,38 @@
   </div>
 </nav>
 
-<!-- ═══ HERO — Ducati-style ═══ -->
+<!-- ═══ HERO — Ducati ═══ -->
 <section class="hero" id="inicio">
 
-  <!-- IZQUIERDA: texto sobre fondo negro -->
+  <!-- IZQUIERDA: texto -->
   <div class="hero-left">
     <canvas id="heroCanvas" class="hero-canvas" aria-hidden="true"></canvas>
     <div class="hero-left-content">
-      <div class="hero-tag reveal-up" data-d="0">
-        <span class="htag-line"></span>
-        Venustiano Carranza, Chiapas &nbsp;·&nbsp; +15 Años
-      </div>
+      <p class="hero-eyebrow reveal-up" data-d="0">
+        Venustiano Carranza, Chiapas &nbsp;·&nbsp; +15 Años de Experiencia
+      </p>
       <h1 class="hero-h1 reveal-up" data-d="80">
-        <span class="h1-line">TU MOTO</span>
-        <span class="h1-line">MERECE</span>
-        <span class="h1-line red">LO MEJOR<span style="color:rgba(220,38,38,.6)">.</span></span>
+        GAME ON.<br/>
+        <span class="red">MOTO PARTES.</span>
       </h1>
       <p class="hero-sub reveal-up" data-d="180">
-        Mecánica profesional · Refaccionaria completa.<br/>
-        Diagnóstico incluido en cada servicio.
+        Mecánica profesional para todas las marcas de motocicleta.
+        Refaccionaria completa. Diagnóstico incluido en cada servicio.
       </p>
       <div class="hero-btns reveal-up" data-d="260">
-        <a href="#citas" class="btn btn-red btn-lg">AGENDAR CITA</a>
-        <a href="#servicios" class="btn btn-ghost-sm">VER SERVICIOS &rarr;</a>
+        <a href="#citas" class="btn btn-red btn-hero">AGENDAR CITA</a>
+        <a href="#servicios" class="btn-text-link">VER SERVICIOS &rarr;</a>
       </div>
     </div>
   </div>
 
-  <!-- DERECHA: foto de moto que llena el panel -->
+  <!-- DERECHA: Ducati (portrait, contenida) -->
   <div class="hero-right">
-    <img src="/img/ducati2.jpg"
-         alt="Motocicleta deportiva"
-         fetchpriority="high"
-         onerror="this.style.opacity='0'"/>
-    <div class="hero-right-fade"></div>
-    <div class="hero-right-glow"></div>
+    <div class="hero-right-glow" aria-hidden="true"></div>
+    <img src="/img/ducati.jpg"
+         alt="Motocicleta Ducati"
+         class="hero-ducati"
+         fetchpriority="high"/>
   </div>
 
   <div class="scroll-hint" aria-hidden="true"><div class="scroll-bar"></div></div>

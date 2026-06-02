@@ -99,127 +99,173 @@ button { font-family: inherit; }
 .navbar.solid .nm:hover { background: var(--light); color: var(--red); }
 .nm-cta { background: var(--red); color: #fff !important; text-align: center; border-radius: 10px; margin-top: 6px; }
 
-/* ══ HERO — Ducati-style: izquierda negro/texto, derecha foto ══
-   Layout exacto al reference: fondo negro, moto a la derecha,
-   texto grande a la izquierda, gradiente que los une.
+/* ══ HERO — Estilo Ducati reference ══════════════════════════
+   Fondo negro puro · Texto izquierda · Ducati portrait derecha
+   Idéntico al screenshot de referencia enviado por el usuario.
 ═══════════════════════════════════════════════════════════════ */
 .hero {
-  background: #000;
-  height: 100vh; min-height: 620px;
+  background: #0a0a0a;
+  height: 100vh; min-height: 600px;
   display: grid;
-  grid-template-columns: 48fr 52fr;
+  grid-template-columns: 50fr 50fr;
   overflow: hidden;
   position: relative;
 }
 
-/* ── IZQUIERDA: texto ──────────────────── */
+/* ── IZQUIERDA ─────────────────────────── */
 .hero-left {
   position: relative;
   display: flex; align-items: center;
-  padding: 100px 48px 80px 60px;
-  overflow: hidden;
-  z-index: 2;
+  padding: 110px 56px 80px 64px;
+  z-index: 2; overflow: hidden;
 }
-/* Canvas 3D sutil en el fondo izquierdo */
 .hero-canvas {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
-  pointer-events: none; z-index: 0; opacity: .5;
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 0; opacity: .4;
 }
 .hero-left-content { position: relative; z-index: 1; }
 
-.hero-tag {
-  display: inline-flex; align-items: center; gap: 10px;
-  font-size: .7rem; font-weight: 800; letter-spacing: .18em;
-  text-transform: uppercase; color: var(--red); margin-bottom: 24px;
+.hero-eyebrow {
+  font-size: .72rem; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; color: rgba(255,255,255,.45);
+  margin-bottom: 20px; display: block;
 }
-.htag-line { display: block; width: 28px; height: 2px; background: var(--red); flex-shrink: 0; }
 
 .hero-h1 {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: clamp(3.5rem, 7vw, 6.5rem);
-  line-height: .92; letter-spacing: .02em;
+  font-size: clamp(3.5rem, 6.5vw, 6.5rem);
+  line-height: .95; letter-spacing: .02em;
   color: #fff; margin-bottom: 24px;
-  display: flex; flex-direction: column;
 }
-.h1-line { display: block; }
 .hero-h1 .red { color: var(--red); }
 
 .hero-sub {
-  color: rgba(255,255,255,.55);
-  font-size: clamp(.8125rem, 1.5vw, .9375rem);
-  line-height: 1.75; margin-bottom: 40px; max-width: 400px;
+  color: rgba(255,255,255,.5);
+  font-size: .9375rem; line-height: 1.75;
+  max-width: 400px; margin-bottom: 40px;
 }
 
 .hero-btns { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-.btn-ghost-sm {
-  background: transparent; border: none; color: rgba(255,255,255,.55);
-  font-size: .875rem; font-weight: 700; letter-spacing: .06em;
-  cursor: pointer; padding: 0; transition: var(--t); text-decoration: none;
-  display: inline-flex; align-items: center; gap: 6px;
+.btn-hero {
+  background: var(--red); color: #fff;
+  border: none; border-radius: 6px;
+  padding: 13px 28px; font-size: .875rem; font-weight: 800;
+  letter-spacing: .08em; cursor: pointer; transition: var(--t);
+  text-decoration: none; display: inline-block;
 }
-.btn-ghost-sm:hover { color: #fff; }
+.btn-hero:hover { background: var(--red-d); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(220,38,38,.4); }
+.btn-text-link {
+  color: rgba(255,255,255,.5); font-size: .875rem; font-weight: 700;
+  letter-spacing: .06em; cursor: pointer; transition: var(--t);
+  text-decoration: none; display: inline-block;
+}
+.btn-text-link:hover { color: #fff; }
 
-/* ── DERECHA: foto de moto ─────────────── */
+/* ── DERECHA: Ducati portrait ──────────── */
 .hero-right {
-  position: relative; overflow: hidden;
+  position: relative;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 0; overflow: hidden;
+  /* Gradiente izq para fundir con el negro del texto */
+  background: linear-gradient(to right, #0a0a0a 0%, #1a0808 30%, #0f0000 70%, #0a0a0a 100%);
 }
-.hero-right img {
-  width: 100%; height: 100%;
-  object-fit: cover;
-  object-position: 35% center;
-  display: block;
-}
-/* Gradiente que funde foto con el negro de la izquierda */
-.hero-right-fade {
-  position: absolute; inset: 0;
-  background: linear-gradient(to right, #000 0%, rgba(0,0,0,.3) 30%, rgba(0,0,0,.05) 60%, transparent 100%);
-  z-index: 1;
-}
-/* Glow rojo sutil detrás de la moto */
+
+/* Glow rojo detrás de la moto — efecto premium */
 .hero-right-glow {
-  position: absolute; inset: 0; z-index: 0;
-  background: radial-gradient(ellipse at 60% 55%, rgba(220,38,38,.18) 0%, transparent 60%);
+  position: absolute;
+  width: 70%; height: 70%;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse, rgba(220,38,38,.22) 0%, rgba(180,10,10,.08) 45%, transparent 70%);
+  filter: blur(20px);
+  pointer-events: none; z-index: 0;
 }
 
-/* Scroll indicator */
-.scroll-hint { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); z-index: 5; }
-.scroll-bar { width: 1.5px; height: 48px; background: linear-gradient(to bottom, transparent, rgba(255,255,255,.45)); animation: scrollAnim 2s ease-in-out infinite; }
-@keyframes scrollAnim { 0%,100%{opacity:.3} 50%{opacity:.8} }
+/* La imagen Ducati: portrait, mostrarla completa, pegada al fondo */
+.hero-ducati {
+  position: relative; z-index: 1;
+  width: auto;
+  height: 100%;
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  display: block;
+  /* Sombra roja sutil debajo de las ruedas */
+  filter: drop-shadow(0 -4px 40px rgba(220,38,38,.25))
+          drop-shadow(0 20px 60px rgba(0,0,0,.8));
+}
 
-/* ── HERO MOBILE ───────────────────────── */
+/* Vignette izquierda: funde foto con fondo negro del texto */
+.hero-right::after {
+  content: '';
+  position: absolute; inset: 0; z-index: 2;
+  background: linear-gradient(to right, #0a0a0a 0%, rgba(10,10,10,.4) 18%, transparent 38%);
+  pointer-events: none;
+}
+
+/* Scroll dot */
+.scroll-hint {
+  position: absolute; bottom: 28px; left: 48px; z-index: 10;
+}
+.scroll-bar {
+  width: 1.5px; height: 44px;
+  background: linear-gradient(to bottom, rgba(255,255,255,.4), transparent);
+  animation: scrollAnim 2.2s ease-in-out infinite;
+}
+@keyframes scrollAnim { 0%,100%{opacity:.3;transform:scaleY(1)} 60%{opacity:.8;transform:scaleY(1.15)} }
+
+/* ── MOBILE RESPONSIVO ─────────────────── */
+/* Tablet: 769px–1024px — reducir texto pero mantener split */
+@media (max-width: 1024px) {
+  .hero { grid-template-columns: 52fr 48fr; }
+  .hero-left { padding: 100px 36px 60px 40px; }
+  .hero-h1 { font-size: clamp(3rem, 6vw, 5rem); }
+}
+
+/* Mobile: 768px y menor — foto arriba, texto abajo */
 @media (max-width: 768px) {
   .hero {
     grid-template-columns: 1fr;
-    grid-template-rows: 55vh 45vh;
-    height: 100svh;
-    min-height: 100svh;
+    grid-template-rows: auto auto;
+    height: auto; min-height: 100svh;
   }
-  /* En mobile: foto arriba, texto abajo */
-  .hero-left {
-    grid-row: 2;
-    padding: 28px 24px 36px;
-    align-items: flex-start;
-    background: #000;
-  }
+  /* Foto en la parte SUPERIOR */
   .hero-right {
     grid-row: 1;
+    height: 52vmax; min-height: 280px; max-height: 65vh;
+    align-items: flex-end; justify-content: center;
+    background: #0a0a0a;
   }
-  .hero-right img { object-position: center 25%; }
-  /* Gradiente bottom-to-top para fusionar con el panel de texto */
-  .hero-right-fade {
-    background: linear-gradient(to top, #000 0%, rgba(0,0,0,.3) 35%, transparent 70%);
+  .hero-ducati {
+    height: 100%; width: auto; max-width: 88%;
+    margin: 0 auto; object-position: center bottom;
   }
-  .hero-h1 { font-size: clamp(2.5rem, 11vw, 4rem); margin-bottom: 14px; }
-  .hero-sub { margin-bottom: 24px; font-size: .875rem; }
-  .hero-btns { gap: 12px; }
-  .hero-tag { margin-bottom: 14px; }
+  /* Gradiente bottom: funde foto hacia el texto */
+  .hero-right::after {
+    background: linear-gradient(to top, #0a0a0a 0%, rgba(10,10,10,.6) 20%, transparent 55%);
+  }
+  /* Texto en la parte INFERIOR */
+  .hero-left {
+    grid-row: 2;
+    padding: 24px 24px 48px;
+    align-items: flex-start;
+    background: #0a0a0a;
+  }
+  .hero-eyebrow { font-size: .68rem; margin-bottom: 14px; }
+  .hero-h1 { font-size: clamp(2.5rem, 10vw, 3.5rem); margin-bottom: 14px; }
+  .hero-sub { font-size: .875rem; margin-bottom: 24px; max-width: 100%; }
+  .hero-btns { gap: 14px; }
   .scroll-hint { display: none; }
-  .hero-canvas { opacity: .25; }
+  .hero-canvas { opacity: .2; }
 }
-@media (max-width: 480px) {
-  .hero { grid-template-rows: 48vh 52vh; }
-  .hero-left { padding: 20px 20px 28px; }
+
+/* Phones pequeños */
+@media (max-width: 420px) {
+  .hero-right { height: 58vmax; }
+  .hero-left { padding: 20px 20px 40px; }
+  .hero-h1 { font-size: clamp(2.25rem, 12vw, 3rem); }
+  .hero-ducati { max-width: 100%; }
 }
 
 /* ── DATA STRIP ──────────────────────────── */
