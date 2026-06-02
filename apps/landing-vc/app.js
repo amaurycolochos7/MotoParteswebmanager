@@ -19,8 +19,9 @@ function initNavbar() {
   const navbar = document.getElementById('navbar');
   const burger  = document.getElementById('burger');
   const mob     = document.getElementById('navMobile');
+  // Transparente sobre el hero, sólida al hacer scroll
   window.addEventListener('scroll', () => {
-    navbar.classList.toggle('scrolled', window.scrollY > 40);
+    navbar.classList.toggle('solid', window.scrollY > 80);
   }, { passive: true });
   burger.addEventListener('click', () => mob.classList.toggle('open'));
   mob.querySelectorAll('a').forEach(a => a.addEventListener('click', () => mob.classList.remove('open')));
