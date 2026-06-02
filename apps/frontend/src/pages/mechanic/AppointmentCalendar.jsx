@@ -68,16 +68,18 @@ export default function AppointmentCalendar() {
         loadAppointments();
     }, [loadAppointments]);
 
-    const allActive = appointments.filter(a =>
-        a.status !== 'cancelled' && a.status !== 'completed' && a.status !== 'rejected'
-    ).sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date));
+    const HIDDEN = new Set(['cancelled', 'completed', 'rejected']);
+
+    const allActive = appointments
+        .filter(a => !HIDDEN.has(a.status))
+        .sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date));
 
     const externalPending = appointments.filter(a => a.status === 'pending_external');
 
     const filtered = filter === 'external'
-        ? appointments.filter(a => a.source === 'external')
+        ? appointments.filter(a => a.source === 'external' && !HIDDEN.has(a.status))
         : filter === 'internal'
-            ? appointments.filter(a => a.source !== 'external' && a.status !== 'cancelled' && a.status !== 'completed')
+            ? appointments.filter(a => a.source !== 'external' && !HIDDEN.has(a.status))
             : allActive;
 
     const clientName = (apt) => {

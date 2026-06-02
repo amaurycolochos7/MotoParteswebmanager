@@ -7,6 +7,54 @@ import {
     removeAppointmentFromCalendar,
 } from '../lib/calendar-sync.js';
 
+const BOT_URL = process.env.WHATSAPP_BOT_INTERNAL_URL || 'http://whatsapp-bot:3002';
+const BOT_KEY = process.env.WHATSAPP_API_KEY || 'motopartes-whatsapp-key';
+
+async function sendApptNotification(workspaceId, appt, status) {
+    try {
+        const phone = appt.client?.phone || appt.client_phone;
+        if (!phone) return;
+
+        const session = await prisma.whatsappSession.findFirst({
+            where: { workspace_id: workspaceId, is_connected: true },
+        });
+        if (!session?.mechanic_id) return;
+
+        const nombre = appt.client?.full_name || appt.client_name_ext || 'Cliente';
+        const fecha = new Date(appt.scheduled_date).toLocaleDateString('es-MX', {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+        });
+        const hora = new Date(appt.scheduled_date).toLocaleTimeString('es-MX', {
+            hour: '2-digit', minute: '2-digit', hour12: true,
+        });
+        const servicio = appt.service_type || 'Servicio';
+
+        let message;
+        if (status === 'confirmed') {
+            message =
+                `¡Hola ${nombre}! ✅\n\n` +
+                `*Tu cita ha sido CONFIRMADA* en Moto Partes.\n\n` +
+                `📅 *Fecha:* ${fecha}\n` +
+                `⏰ *Hora:* ${hora}\n` +
+                `🔧 *Servicio:* ${servicio}\n\n` +
+                `Por favor llega 5 minutos antes. ¡Te esperamos! 🏍️`;
+        } else {
+            message =
+                `Hola ${nombre}, lamentablemente no podemos atenderte en la fecha solicitada.\n\n` +
+                `Por favor contáctanos por WhatsApp para reagendar tu cita. ¡Gracias!`;
+        }
+
+        await fetch(`${BOT_URL}/send-message`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': BOT_KEY },
+            body: JSON.stringify({ mechanicId: session.mechanic_id, phone: phone.startsWith('52') ? phone : `52${phone}`, message }),
+            signal: AbortSignal.timeout(15000),
+        });
+    } catch (e) {
+        console.error('[appt] WA notification failed:', e.message);
+    }
+}
+
 export default async function appointmentsRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
     fastify.addHook('preHandler', resolveWorkspace);
@@ -54,7 +102,6 @@ export default async function appointmentsRoutes(fastify) {
         const updates = { ...request.body };
         if (updates.scheduled_date) updates.scheduled_date = new Date(updates.scheduled_date);
 
-        // Captura status anterior para detectar transiciones y disparar eventos WA
         const prev = await prisma.appointment.findUnique({
             where: { id: request.params.id },
             select: { status: true },
@@ -62,19 +109,20 @@ export default async function appointmentsRoutes(fastify) {
 
         const updated = await prisma.appointment.update({
             where: { id: request.params.id },
-            data: updates
+            data: updates,
+            include: {
+                client: { select: { full_name: true, phone: true } },
+            },
         });
         syncAppointmentToCalendar(updated.id, request.workspaceId).catch(() => {});
 
         const newStatus = updates.status;
         if (newStatus && prev?.status !== newStatus) {
-            if (newStatus === 'confirmed') {
-                fireEvent('appointment.confirmed', {
-                    workspaceId: request.workspaceId,
-                    appointment_id: updated.id,
-                }).catch(() => {});
-            } else if (newStatus === 'rejected') {
-                fireEvent('appointment.rejected', {
+            if (newStatus === 'confirmed' || newStatus === 'rejected') {
+                // WhatsApp directo al cliente
+                sendApptNotification(request.workspaceId, updated, newStatus).catch(() => {});
+                // Evento para automaciones configuradas
+                fireEvent(`appointment.${newStatus}`, {
                     workspaceId: request.workspaceId,
                     appointment_id: updated.id,
                 }).catch(() => {});
