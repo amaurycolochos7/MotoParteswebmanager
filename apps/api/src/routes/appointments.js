@@ -21,11 +21,12 @@ async function sendApptNotification(workspaceId, appt, status) {
         if (!session?.mechanic_id) return;
 
         const nombre = appt.client?.full_name || appt.client_name_ext || 'Cliente';
+        const TZ = 'America/Mexico_City';
         const fecha = new Date(appt.scheduled_date).toLocaleDateString('es-MX', {
-            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ,
         });
         const hora = new Date(appt.scheduled_date).toLocaleTimeString('es-MX', {
-            hour: '2-digit', minute: '2-digit', hour12: true,
+            hour: '2-digit', minute: '2-digit', hour12: true, timeZone: TZ,
         });
         const servicio = appt.service_type || 'Servicio';
 

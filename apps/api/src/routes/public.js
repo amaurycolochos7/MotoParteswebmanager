@@ -28,10 +28,15 @@ async function sendConfirmationWA(workspaceId, phone, nombre, fecha, hora, servi
         });
         if (!session?.mechanic_id) return;
 
-        const fechaFmt = new Date(`${fecha}T12:00:00`).toLocaleDateString('es-MX', {
-            weekday: 'long', day: 'numeric', month: 'long',
+        const TZ = 'America/Mexico_City';
+        const fechaFmt = new Date(`${fecha}T12:00:00-06:00`).toLocaleDateString('es-MX', {
+            weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ,
         });
-        const horaFmt = hora.replace(':00', '') + (parseInt(hora) < 12 ? ' am' : ' pm');
+        const [hh] = hora.split(':');
+        const horaFmt = parseInt(hh) === 0 ? '12:00 am'
+            : parseInt(hh) < 12 ? `${parseInt(hh)}:${hora.split(':')[1]} am`
+            : parseInt(hh) === 12 ? `12:${hora.split(':')[1]} pm`
+            : `${parseInt(hh) - 12}:${hora.split(':')[1]} pm`;
         const motoLine = moto ? `\n🏍️ Moto: ${moto}` : '';
 
         const message =
@@ -83,7 +88,8 @@ export default async function publicRoutes(fastify) {
             return reply.code(429).send({ error: 'Demasiadas solicitudes. Intenta mañana.' });
         }
 
-        const scheduledDate = new Date(`${fecha}T${hora}:00`);
+        // Chiapas = CST (UTC-6), sin horario de verano desde 2022
+        const scheduledDate = new Date(`${fecha}T${hora}:00-06:00`);
         if (isNaN(scheduledDate.getTime()))
             return reply.code(400).send({ error: 'Fecha u hora inválida.' });
 
