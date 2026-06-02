@@ -1,12 +1,5 @@
 /* ═══════════════════════════════════════════════════
    MOTO PARTES VC — app.js
-   · Reveal animations (IntersectionObserver + delays)
-   · Navbar scroll + hamburger
-   · Stats counter animation
-   · Countdown timer
-   · Form de citas → API
-   · WhatsApp links dinámicos
-   · Datepicker (min = mañana, bloquea domingos)
 ═══════════════════════════════════════════════════ */
 
 const API_URL   = 'https://motopartes.cloud/api/public/appointments';
@@ -23,96 +16,107 @@ function initWaLinks() {
 
 /* ── NAVBAR ──────────────────────────────────────── */
 function initNavbar() {
-  const navbar    = document.getElementById('navbar');
-  const hamburger = document.getElementById('hamburger');
-  const navMobile = document.getElementById('navMobile');
-
-  let lastY = 0;
+  const navbar = document.getElementById('navbar');
+  const burger  = document.getElementById('burger');
+  const mob     = document.getElementById('navMobile');
   window.addEventListener('scroll', () => {
-    const y = window.scrollY;
-    navbar.classList.toggle('scrolled', y > 40);
-    lastY = y;
+    navbar.classList.toggle('scrolled', window.scrollY > 40);
   }, { passive: true });
-
-  hamburger.addEventListener('click', () => navMobile.classList.toggle('open'));
-  navMobile.querySelectorAll('a').forEach(a => a.addEventListener('click', () => navMobile.classList.remove('open')));
+  burger.addEventListener('click', () => mob.classList.toggle('open'));
+  mob.querySelectorAll('a').forEach(a => a.addEventListener('click', () => mob.classList.remove('open')));
 }
 
-/* ── REVEAL ANIMATIONS ───────────────────────────── */
+/* ── REVEAL — corregido ──────────────────────────── */
 function initReveal() {
-  const els = document.querySelectorAll('.reveal-up, .reveal-left, .reveal-right');
+  const els = Array.from(document.querySelectorAll('.reveal-up, .reveal-left, .reveal-right'));
+  if (!els.length) return;
+
+  // Fallback instantáneo si no hay IntersectionObserver
   if (!('IntersectionObserver' in window)) {
     els.forEach(el => el.classList.add('revealed'));
     return;
   }
 
-  const obs = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      const el    = entry.target;
-      const delay = parseInt(el.dataset.delay || 0);
-      setTimeout(() => el.classList.add('revealed'), delay);
-      obs.unobserve(el);
-    });
-  }, { threshold: 0.12, rootMargin: '0px 0px -48px 0px' });
+  function revealEl(el) {
+    if (el.classList.contains('revealed')) return;
+    const d = parseInt(el.dataset.d || 0); // <-- usa data-d (correcto)
+    setTimeout(() => el.classList.add('revealed'), d);
+  }
 
-  els.forEach(el => obs.observe(el));
+  // 1. Revelar INMEDIATAMENTE los que ya están en pantalla
+  //    (IntersectionObserver es async, causa la pantalla negra en mobile)
+  function revealVisible() {
+    const vh = window.innerHeight;
+    els.forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (r.top < vh + 100 && r.bottom > -100) revealEl(el);
+    });
+  }
+
+  revealVisible();                        // al cargar
+  setTimeout(revealVisible, 200);         // retry por si el layout tardó
+
+  // 2. IntersectionObserver para los que están debajo del fold
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { revealEl(e.target); obs.unobserve(e.target); }
+    });
+  }, { threshold: 0.05, rootMargin: '0px 0px -20px 0px' });
+
+  els.forEach(el => { if (!el.classList.contains('revealed')) obs.observe(el); });
 }
 
-/* ── STATS COUNTER ───────────────────────────────── */
-function animateCounter(el, target, duration = 1800) {
-  let start = null;
-  const step = (ts) => {
+/* ── STATS COUNTER — corregido ───────────────────── */
+function animateCounter(el, target) {
+  const dur  = target > 100 ? 2200 : 1600;
+  let start  = null;
+  const step = ts => {
     if (!start) start = ts;
-    const progress = Math.min((ts - start) / duration, 1);
-    const ease = 1 - Math.pow(1 - progress, 3); // cubic ease-out
-    el.textContent = Math.floor(ease * target);
-    if (progress < 1) requestAnimationFrame(step);
+    const p   = Math.min((ts - start) / dur, 1);
+    const e   = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.floor(e * target);
+    if (p < 1) requestAnimationFrame(step);
     else el.textContent = target;
   };
   requestAnimationFrame(step);
 }
 
 function initStats() {
-  const statEls = document.querySelectorAll('.stat-num[data-target]');
-  if (!statEls.length || !('IntersectionObserver' in window)) return;
+  // Soporta .stat-n y .hs-n (clases usadas en el HTML)
+  const els = document.querySelectorAll('[data-target]');
+  if (!els.length) return;
+
+  if (!('IntersectionObserver' in window)) {
+    els.forEach(el => animateCounter(el, parseInt(el.dataset.target)));
+    return;
+  }
 
   const obs = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      const el     = entry.target;
-      const target = parseInt(el.dataset.target);
-      animateCounter(el, target);
-      obs.unobserve(el);
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      animateCounter(e.target, parseInt(e.target.dataset.target));
+      obs.unobserve(e.target);
     });
-  }, { threshold: 0.5 });
+  }, { threshold: 0.4 });
 
-  statEls.forEach(el => obs.observe(el));
+  els.forEach(el => obs.observe(el));
 }
 
 /* ── COUNTDOWN ───────────────────────────────────── */
 function initCountdown() {
-  const els = {
-    days:  document.getElementById('cd-days'),
-    hours: document.getElementById('cd-hours'),
-    mins:  document.getElementById('cd-mins'),
-    secs:  document.getElementById('cd-secs'),
-  };
-  if (!els.days) return;
+  const d = document.getElementById('cd-days');
+  const h = document.getElementById('cd-hours');
+  const m = document.getElementById('cd-mins');
+  const s = document.getElementById('cd-secs');
+  if (!d) return;
   const pad = n => String(n).padStart(2, '0');
-
   function tick() {
     const diff = PROMO_END - Date.now();
-    if (diff <= 0) {
-      Object.values(els).forEach(e => { if (e) e.textContent = '00'; });
-      const label = document.querySelector('.promo-countdown-label');
-      if (label) label.textContent = 'Esta promoción ha finalizado';
-      return;
-    }
-    els.days.textContent  = pad(Math.floor(diff / 864e5));
-    els.hours.textContent = pad(Math.floor((diff % 864e5) / 36e5));
-    els.mins.textContent  = pad(Math.floor((diff % 36e5) / 6e4));
-    els.secs.textContent  = pad(Math.floor((diff % 6e4) / 1000));
+    if (diff <= 0) { [d,h,m,s].forEach(e => { if(e) e.textContent='00'; }); return; }
+    d.textContent = pad(Math.floor(diff / 864e5));
+    h.textContent = pad(Math.floor((diff % 864e5) / 36e5));
+    m.textContent = pad(Math.floor((diff % 36e5) / 6e4));
+    s.textContent = pad(Math.floor((diff % 6e4) / 1000));
   }
   tick();
   setInterval(tick, 1000);
@@ -120,87 +124,54 @@ function initCountdown() {
 
 /* ── DATEPICKER ──────────────────────────────────── */
 function initDatepicker() {
-  const fechaInput = document.getElementById('fecha');
-  if (!fechaInput) return;
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  fechaInput.min = tomorrow.toISOString().slice(0, 10);
-
-  fechaInput.addEventListener('change', () => {
-    const d = new Date(fechaInput.value + 'T12:00:00');
-    if (d.getDay() === 0) {
-      fechaInput.setCustomValidity('No atendemos los domingos. Por favor elige otro día.');
-      fechaInput.reportValidity();
-      fechaInput.value = '';
-    } else {
-      fechaInput.setCustomValidity('');
-    }
+  const fi = document.getElementById('fecha');
+  if (!fi) return;
+  const t = new Date(); t.setDate(t.getDate() + 1);
+  fi.min = t.toISOString().slice(0, 10);
+  fi.addEventListener('change', () => {
+    if (new Date(fi.value + 'T12:00:00').getDay() === 0) {
+      fi.setCustomValidity('No atendemos domingos. Elige otro día.');
+      fi.reportValidity(); fi.value = '';
+    } else { fi.setCustomValidity(''); }
   });
 }
 
 /* ── FORMULARIO ──────────────────────────────────── */
 function initForm() {
-  const form       = document.getElementById('citaForm');
-  const successBox = document.getElementById('formSuccess');
-  const errorBox   = document.getElementById('formError');
-  const submitBtn  = document.getElementById('submitBtn');
-  const submitText = document.getElementById('submitText');
+  const form = document.getElementById('citaForm');
+  const ok   = document.getElementById('formSuccess');
+  const err  = document.getElementById('formError');
+  const btn  = document.getElementById('submitBtn');
+  const txt  = document.getElementById('submitText');
   if (!form) return;
 
-  form.addEventListener('submit', async (e) => {
+  form.addEventListener('submit', async e => {
     e.preventDefault();
-    errorBox.hidden = true;
-
+    err.hidden = true;
     let valid = true;
-    ['nombre', 'telefono', 'tipo_servicio', 'fecha', 'hora'].forEach(id => {
+    ['nombre','telefono','tipo_servicio','fecha','hora'].forEach(id => {
       const el = document.getElementById(id);
       if (!el.value.trim()) { el.classList.add('error'); valid = false; }
       else el.classList.remove('error');
     });
+    const tel = document.getElementById('telefono');
+    const ph  = tel.value.replace(/\D/g, '');
+    if (ph.length !== 10) { tel.classList.add('error'); valid = false; }
+    if (!valid) { err.textContent = 'Por favor completa todos los campos requeridos.'; err.hidden = false; return; }
 
-    const telEl = document.getElementById('telefono');
-    const phone = telEl.value.replace(/\D/g, '');
-    if (phone.length !== 10) { telEl.classList.add('error'); valid = false; }
-
-    if (!valid) {
-      errorBox.textContent = 'Por favor completa todos los campos requeridos correctamente.';
-      errorBox.hidden = false;
-      return;
-    }
-
-    submitBtn.disabled = true;
-    submitText.textContent = 'Enviando…';
-
+    btn.disabled = true; txt.textContent = 'Enviando…';
     try {
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nombre:        document.getElementById('nombre').value.trim(),
-          telefono:      phone,
-          tipo_servicio: document.getElementById('tipo_servicio').value,
-          fecha:         document.getElementById('fecha').value,
-          hora:          document.getElementById('hora').value,
-          notas:         document.getElementById('notas').value.trim(),
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
+      const res  = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nombre: document.getElementById('nombre').value.trim(), telefono: ph, tipo_servicio: document.getElementById('tipo_servicio').value, fecha: document.getElementById('fecha').value, hora: document.getElementById('hora').value, notas: document.getElementById('notas').value.trim() }) });
+      const data = await res.json().catch(()=>({}));
       if (!res.ok) throw new Error(data.error || 'Error ' + res.status);
-
-      form.hidden       = true;
-      successBox.hidden = false;
-      successBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch (err) {
-      errorBox.textContent = err.message || 'Ocurrió un error. Inténtalo por WhatsApp.';
-      errorBox.hidden = false;
-      submitBtn.disabled  = false;
-      submitText.textContent = 'Solicitar cita';
+      form.hidden = true; ok.hidden = false;
+      ok.scrollIntoView({ behavior:'smooth', block:'start' });
+    } catch(e) {
+      err.textContent = e.message || 'Ocurrió un error. Inténtalo por WhatsApp.';
+      err.hidden = false; btn.disabled = false; txt.textContent = 'Solicitar cita';
     }
   });
-
-  form.querySelectorAll('input, select, textarea').forEach(el => {
-    el.addEventListener('input', () => el.classList.remove('error'));
-  });
+  form.querySelectorAll('input,select,textarea').forEach(el => el.addEventListener('input', () => el.classList.remove('error')));
 }
 
 /* ── INIT ────────────────────────────────────────── */

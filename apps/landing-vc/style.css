@@ -21,11 +21,14 @@ button { font-family: inherit; }
 .reveal-up, .reveal-left, .reveal-right {
   opacity: 0; transition: opacity .75s ease, transform .75s ease;
   will-change: opacity, transform;
+  /* Fallback de seguridad: si JS falla, muestra el contenido a los 2s */
+  animation: revealFallback 0s 2s forwards;
 }
+@keyframes revealFallback { to { opacity: 1; transform: none; } }
 .reveal-up    { transform: translateY(44px); }
 .reveal-left  { transform: translateX(-56px); }
 .reveal-right { transform: translateX(56px); }
-.revealed     { opacity: 1 !important; transform: none !important; }
+.revealed     { opacity: 1 !important; transform: none !important; animation: none !important; }
 
 /* ── UTILITIES ───────────────────────────── */
 .container { max-width: 1140px; margin: 0 auto; padding: 0 1.5rem; }
@@ -83,11 +86,13 @@ button { font-family: inherit; }
 .navbar { position: sticky; top: 0; z-index: 1000; background: var(--white); border-bottom: 1px solid var(--border); box-shadow: 0 1px 8px rgba(0,0,0,.06); transition: var(--t); }
 .navbar.scrolled { box-shadow: 0 4px 20px rgba(0,0,0,.1); }
 .nav-inner { max-width: 1140px; margin: 0 auto; padding: 0 1.5rem; height: 66px; display: flex; align-items: center; justify-content: space-between; }
-.nav-logo { display: flex; align-items: center; gap: 10px; }
-.logo-badge { width: 34px; height: 34px; background: var(--red); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.logo-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.45rem; letter-spacing: .04em; color: var(--dark); }
-.logo-vc { background: var(--dark); color: #fff; padding: 1px 5px; border-radius: 4px; font-size: 1.05rem; margin-left: 3px; }
-.logo-name.footer-logo { font-size: 1.5rem; display: block; margin-bottom: 10px; }
+.nav-logo { display: flex; align-items: center; gap: 8px; }
+.logo-wordmark { font-family: 'Bebas Neue', sans-serif; font-size: 1.55rem; letter-spacing: .05em; color: var(--dark); line-height: 1; }
+.logo-red { color: var(--red); }
+.logo-vc-tag { font-family: 'Bebas Neue', sans-serif; font-size: 1rem; background: var(--dark); color: #fff; padding: 2px 7px; border-radius: 5px; letter-spacing: .06em; }
+/* Footer logo alias */
+.logo-name.footer-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; display: block; margin-bottom: 10px; letter-spacing: .05em; color: rgba(255,255,255,.85); }
+.logo-name.footer-logo .logo-vc { background: var(--dark3); color: rgba(255,255,255,.6); padding: 1px 5px; border-radius: 4px; margin-left: 4px; }
 .nav-links { display: flex; align-items: center; gap: 3px; }
 .nl { color: var(--text); font-size: .875rem; font-weight: 600; padding: 7px 12px; border-radius: 8px; transition: var(--t); }
 .nl:hover { background: var(--light); color: var(--red); }
@@ -356,6 +361,9 @@ button { font-family: inherit; }
 .footer { background: var(--dark); color: rgba(255,255,255,.5); padding: 52px 0 30px; border-top: 2px solid var(--red); }
 .footer-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; align-items: start; }
 .footer p { font-size: .875rem; line-height: 1.8; }
+.footer-brand-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: .05em; color: rgba(255,255,255,.85); margin-bottom: 10px; }
+.footer-brand-red { color: var(--red); }
+.footer-brand-vc { font-size: 1.1rem; background: var(--dark3); color: rgba(255,255,255,.5); padding: 1px 6px; border-radius: 4px; }
 .footer-links { display: flex; flex-direction: column; gap: 10px; }
 .footer-links a { font-size: .9rem; font-weight: 500; transition: var(--t); }
 .footer-links a:hover { color: var(--red); }
