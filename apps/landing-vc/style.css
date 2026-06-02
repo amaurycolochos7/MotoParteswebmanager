@@ -19,14 +19,14 @@ button { font-family: inherit; }
 
 /* ── REVEAL ──────────────────────────────── */
 .reveal-up, .reveal-left, .reveal-right {
-  opacity: 0; transition: opacity .7s ease, transform .7s ease;
+  opacity: 0; transition: opacity .6s ease, transform .6s ease;
   will-change: opacity, transform;
-  animation: revealFallback 0s 2s forwards;
+  animation: revealFallback 0s 0.6s forwards;
 }
 @keyframes revealFallback { to { opacity: 1; transform: none; } }
-.reveal-up    { transform: translateY(36px); }
-.reveal-left  { transform: translateX(-44px); }
-.reveal-right { transform: translateX(44px); }
+.reveal-up    { transform: translateY(28px); }
+.reveal-left  { transform: translateX(-36px); }
+.reveal-right { transform: translateX(36px); }
 .revealed     { opacity: 1 !important; transform: none !important; animation: none !important; }
 
 /* ── UTILITIES ───────────────────────────── */
@@ -93,7 +93,7 @@ button { font-family: inherit; }
 .burger { display: none; flex-direction: column; gap: 5px; background: transparent; border: none; cursor: pointer; padding: 6px; }
 .burger span { display: block; width: 22px; height: 2px; background: white; border-radius: 2px; transition: var(--t); }
 .navbar.solid .burger span { background: var(--dark); }
-.nav-mobile { display: none; flex-direction: column; padding: 1rem 1.5rem 1.5rem; border-top: 1px solid rgba(255,255,255,.1); gap: 4px; background: rgba(9,9,11,.95); backdrop-filter: blur(12px); }
+.nav-mobile { display: none; flex-direction: column; padding: 1rem 1.5rem 1.5rem; border-top: 1px solid rgba(255,255,255,.1); gap: 4px; background: rgba(9,9,11,.97); }
 .navbar.solid .nav-mobile { background: var(--white); border-top-color: var(--border); }
 .nav-mobile.open { display: flex; }
 .nm { color: rgba(255,255,255,.85); font-size: 1rem; font-weight: 600; padding: 10px 14px; border-radius: 8px; transition: var(--t); }
@@ -231,14 +231,15 @@ button { font-family: inherit; }
 @media (max-width: 768px) {
   .hero {
     grid-template-columns: 1fr;
+    grid-template-rows: 76vh 24vh;
     grid-template-rows: 76svh 24svh;
-    height: 100svh;
+    height: 100vh; height: 100svh;
     overflow: hidden;
   }
   /* Panel de la moto: 76% */
   .hero-right {
     grid-row: 1;
-    height: 76svh;
+    height: 76vh; height: 76svh;
     min-height: unset; max-height: unset;
     display: flex; align-items: center; justify-content: center;
     background: #000; overflow: hidden;
@@ -259,7 +260,7 @@ button { font-family: inherit; }
   /* Panel de texto: 24% — compacto */
   .hero-left {
     grid-row: 2;
-    height: 24svh;
+    height: 24vh; height: 24svh;
     padding: 6px 20px 8px;
     align-items: flex-start;
     justify-content: center;
@@ -278,12 +279,12 @@ button { font-family: inherit; }
 
 /* Phones muy pequeños */
 @media (max-width: 390px) {
-  .hero { grid-template-rows: 74svh 26svh; }
+  .hero { grid-template-rows: 74vh 26vh; grid-template-rows: 74svh 26svh; }
   .hero-h1 { font-size: clamp(1.6rem, 9vw, 2rem); }
 }
 /* Pantallas bajas (iPhone SE, etc.) */
 @media (max-height: 700px) and (max-width: 768px) {
-  .hero { grid-template-rows: 68svh 32svh; }
+  .hero { grid-template-rows: 68vh 32vh; grid-template-rows: 68svh 32svh; }
   .hero-h1 { font-size: 1.75rem; margin-bottom: 3px; }
   .hero-sub { margin-bottom: 8px; font-size: .70rem; }
 }
@@ -528,7 +529,6 @@ button { font-family: inherit; }
   border: 1px solid rgba(255,255,255,.12);
   border-top: 2px solid rgba(220,38,38,.6);
   border-radius: 12px; padding: 24px 26px; margin-bottom: 20px;
-  backdrop-filter: blur(8px);
 }
 .promo-box h4 {
   font-size: .68rem; font-weight: 800; letter-spacing: .14em;
@@ -548,7 +548,6 @@ button { font-family: inherit; }
   background: rgba(0,0,0,.35);
   border: 1px solid rgba(255,255,255,.08);
   border-radius: 12px; padding: 18px 20px;
-  backdrop-filter: blur(8px);
 }
 .cd-lbl {
   color: rgba(255,255,255,.35); font-size: .68rem; font-weight: 800;

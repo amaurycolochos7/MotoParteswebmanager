@@ -55,7 +55,9 @@ function initReveal() {
   }
 
   revealVisible();                        // al cargar
-  setTimeout(revealVisible, 200);         // retry por si el layout tardó
+  setTimeout(revealVisible, 100);
+  setTimeout(revealVisible, 300);
+  setTimeout(revealVisible, 700);        // retry para browsers lentos
 
   // 2. IntersectionObserver para los que están debajo del fold
   const obs = new IntersectionObserver((entries) => {
