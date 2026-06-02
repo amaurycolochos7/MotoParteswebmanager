@@ -233,12 +233,8 @@ function initCanvas3D() {
 
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // Subtle dark red glow in center-right
-    const grd = ctx.createRadialGradient(canvas.width*.72, canvas.height*.48, 0, canvas.width*.72, canvas.height*.48, 350);
-    grd.addColorStop(0, 'rgba(220,38,38,0.06)');
-    grd.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = grd;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // fondo negro puro — sin tinte de color
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     RINGS.forEach(r => drawRing(r, t));
     t += 0.016;
