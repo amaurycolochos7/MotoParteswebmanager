@@ -148,7 +148,7 @@ function initForm() {
   const txt  = document.getElementById('submitText');
   if (!form) return;
 
-  /* Mostrar campo libre al seleccionar "Otro" */
+  /* Mostrar campo libre al seleccionar "Otro servicio" */
   const selectServicio = document.getElementById('tipo_servicio');
   const otroWrap       = document.getElementById('otroWrap');
   const otroInput      = document.getElementById('otro_servicio');
@@ -159,31 +159,51 @@ function initForm() {
     else { otroInput.value = ''; otroInput.classList.remove('error'); }
   });
 
+  /* Mostrar campo libre al seleccionar "Otra marca" */
+  const selectMarca    = document.getElementById('moto_marca');
+  const otraMarcaWrap  = document.getElementById('otraMarcaWrap');
+  const otraMarcaInput = document.getElementById('moto_marca_custom');
+  selectMarca.addEventListener('change', () => {
+    const esOtra = selectMarca.value === 'Otra';
+    otraMarcaWrap.style.display = esOtra ? 'flex' : 'none';
+    if (esOtra) otraMarcaInput.focus();
+    else { otraMarcaInput.value = ''; otraMarcaInput.classList.remove('error'); }
+  });
+
   form.addEventListener('submit', async e => {
     e.preventDefault();
     err.hidden = true;
     let valid = true;
-    ['nombre','telefono','tipo_servicio','moto_marca','moto_modelo','fecha','hora'].forEach(id => {
+    ['nombre','telefono','tipo_servicio','moto_modelo','fecha','hora'].forEach(id => {
       const el = document.getElementById(id);
       if (!el.value.trim()) { el.classList.add('error'); valid = false; }
       else el.classList.remove('error');
     });
+    // Validar marca
+    if (!selectMarca.value) { selectMarca.classList.add('error'); valid = false; }
+    else selectMarca.classList.remove('error');
     const tel = document.getElementById('telefono');
     const ph  = tel.value.replace(/\D/g, '');
     if (ph.length !== 10) { tel.classList.add('error'); valid = false; }
 
-    /* Validar y resolver servicio libre */
+    /* Resolver servicio */
     let servicioFinal = selectServicio.value;
     if (servicioFinal === 'Otro') {
       if (!otroInput.value.trim()) { otroInput.classList.add('error'); valid = false; }
       else servicioFinal = otroInput.value.trim();
+    }
+    /* Resolver marca */
+    let marcaFinal = selectMarca.value;
+    if (marcaFinal === 'Otra') {
+      if (!otraMarcaInput.value.trim()) { otraMarcaInput.classList.add('error'); valid = false; }
+      else marcaFinal = otraMarcaInput.value.trim();
     }
 
     if (!valid) { err.textContent = 'Por favor completa todos los campos requeridos.'; err.hidden = false; return; }
 
     btn.disabled = true; txt.textContent = 'Enviando…';
     try {
-      const res  = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nombre: document.getElementById('nombre').value.trim(), telefono: ph, tipo_servicio: servicioFinal, moto_marca: document.getElementById('moto_marca').value, moto_modelo: document.getElementById('moto_modelo').value.trim(), moto_anio: document.getElementById('moto_anio').value || null, fecha: document.getElementById('fecha').value, hora: document.getElementById('hora').value, notas: document.getElementById('notas').value.trim() }) });
+      const res  = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nombre: document.getElementById('nombre').value.trim(), telefono: ph, tipo_servicio: servicioFinal, moto_marca: marcaFinal, moto_modelo: document.getElementById('moto_modelo').value.trim(), moto_anio: document.getElementById('moto_anio').value || null, fecha: document.getElementById('fecha').value, hora: document.getElementById('hora').value, notas: document.getElementById('notas').value.trim() }) });
       const data = await res.json().catch(()=>({}));
       if (!res.ok) throw new Error(data.error || 'Error ' + res.status);
       form.hidden = true; ok.hidden = false;

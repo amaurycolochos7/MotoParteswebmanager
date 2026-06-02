@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma.js';
 
-const WORKSPACE_ID = process.env.LANDING_VC_WORKSPACE_ID || null;
+// ID fijo del workspace de Moto Partes VC — env var preferred, hardcoded fallback
+const WORKSPACE_ID = process.env.LANDING_VC_WORKSPACE_ID || 'c4bca2c8-1ca2-49c0-a084-8b677439c731';
 const BOT_URL = process.env.WHATSAPP_BOT_INTERNAL_URL || 'http://whatsapp-bot:3002';
 const BOT_KEY = process.env.WHATSAPP_API_KEY || 'motopartes-whatsapp-key';
 
