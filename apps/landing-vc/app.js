@@ -27,12 +27,14 @@ function initNavbar() {
   mob.querySelectorAll('a').forEach(a => a.addEventListener('click', () => mob.classList.remove('open')));
 }
 
-/* ── REVEAL — corregido ──────────────────────────── */
+/* ── REVEAL ──────────────────────────────────────── */
 function initReveal() {
+  // Activar ocultamiento solo si JS funciona correctamente
+  document.body.classList.add('js-reveal');
+
   const els = Array.from(document.querySelectorAll('.reveal-up, .reveal-left, .reveal-right'));
   if (!els.length) return;
 
-  // Fallback instantáneo si no hay IntersectionObserver
   if (!('IntersectionObserver' in window)) {
     els.forEach(el => el.classList.add('revealed'));
     return;
@@ -40,12 +42,10 @@ function initReveal() {
 
   function revealEl(el) {
     if (el.classList.contains('revealed')) return;
-    const d = parseInt(el.dataset.d || 0); // <-- usa data-d (correcto)
+    const d = parseInt(el.dataset.d || 0);
     setTimeout(() => el.classList.add('revealed'), d);
   }
 
-  // 1. Revelar INMEDIATAMENTE los que ya están en pantalla
-  //    (IntersectionObserver es async, causa la pantalla negra en mobile)
   function revealVisible() {
     const vh = window.innerHeight;
     els.forEach(el => {
@@ -54,12 +54,12 @@ function initReveal() {
     });
   }
 
-  revealVisible();                        // al cargar
-  setTimeout(revealVisible, 100);
-  setTimeout(revealVisible, 300);
-  setTimeout(revealVisible, 700);        // retry para browsers lentos
+  revealVisible();
+  setTimeout(revealVisible, 150);
+  setTimeout(revealVisible, 500);
+  // Seguro final: revelar todo lo que quede a los 1.5s
+  setTimeout(() => els.forEach(el => el.classList.add('revealed')), 1500);
 
-  // 2. IntersectionObserver para los que están debajo del fold
   const obs = new IntersectionObserver((entries) => {
     entries.forEach(e => {
       if (e.isIntersecting) { revealEl(e.target); obs.unobserve(e.target); }
