@@ -104,7 +104,7 @@ button { font-family: inherit; }
    Idéntico al screenshot de referencia enviado por el usuario.
 ═══════════════════════════════════════════════════════════════ */
 .hero {
-  background: #080808;   /* mismo negro del fondo de la Ducati */
+  background: #000000;   /* mismo negro del fondo de la Ducati */
   height: 100vh; min-height: 600px;
   display: grid;
   grid-template-columns: 50fr 50fr;
@@ -118,7 +118,7 @@ button { font-family: inherit; }
   display: flex; align-items: center;
   padding: 110px 56px 80px 64px;
   z-index: 2; overflow: hidden;
-  background: #080808;
+  background: #000000;
 }
 .hero-canvas {
   position: absolute; inset: 0; width: 100%; height: 100%;
@@ -168,41 +168,31 @@ button { font-family: inherit; }
   display: flex; align-items: flex-end; justify-content: center;
   overflow: hidden;
   /* Fondo idéntico al de la foto de la Ducati */
-  background: #080808;
+  background: #000000;
 }
 
-/* Glow rojo detrás — efecto premium */
-.hero-right-glow {
-  position: absolute;
-  width: 75%; height: 75%;
-  top: 45%; left: 50%;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(ellipse, rgba(220,38,38,.18) 0%, rgba(180,10,10,.06) 50%, transparent 72%);
-  filter: blur(24px);
-  pointer-events: none; z-index: 0;
-}
+/* Sin glow de color — fondo completamente negro */
+.hero-right-glow { display: none; }
 
-/* La imagen Ducati: más grande y ligeramente más abajo */
+/* La imagen Ducati: más grande y más abajo */
 .hero-ducati {
   position: relative; z-index: 1;
   width: auto;
-  /* +10% más grande que antes, más abajo con translateY */
-  height: 112%;
-  max-height: 112%;
-  max-width: 105%;
+  height: 120%;
+  max-height: 120%;
+  max-width: 110%;
   object-fit: contain;
   object-position: center bottom;
   display: block;
-  transform: translateY(6%);    /* baja la moto un poco */
-  filter: drop-shadow(0 -8px 50px rgba(220,38,38,.2))
-          drop-shadow(0 0 80px rgba(0,0,0,.95));
+  transform: translateY(14%);   /* baja más la moto */
+  filter: drop-shadow(0 0 0 transparent);  /* sin glow de color */
 }
 
 /* Gradiente izquierdo: funde foto con el panel de texto */
 .hero-right::after {
   content: '';
   position: absolute; inset: 0; z-index: 2;
-  background: linear-gradient(to right, #080808 0%, rgba(8,8,8,.5) 15%, transparent 35%);
+  background: linear-gradient(to right, #000 0%, rgba(0,0,0,.6) 12%, transparent 30%);
   pointer-events: none;
 }
 
@@ -240,20 +230,20 @@ button { font-family: inherit; }
     background: #0a0a0a;
   }
   .hero-ducati {
-    height: 108%; width: auto; max-width: 92%;
-    transform: translateY(4%);
+    height: 115%; width: auto; max-width: 96%;
+    transform: translateY(10%);
     object-position: center bottom;
   }
   /* Gradiente bottom: funde foto hacia el texto */
   .hero-right::after {
-    background: linear-gradient(to top, #080808 0%, rgba(8,8,8,.6) 20%, transparent 55%);
+    background: linear-gradient(to top, #000 0%, rgba(0,0,0,.7) 20%, transparent 55%);
   }
   /* Texto en la parte INFERIOR */
   .hero-left {
     grid-row: 2;
     padding: 24px 24px 48px;
     align-items: flex-start;
-    background: #080808;
+    background: #000000;
   }
   .hero-eyebrow { font-size: .68rem; margin-bottom: 14px; }
   .hero-h1 { font-size: clamp(2.5rem, 10vw, 3.5rem); margin-bottom: 14px; }
