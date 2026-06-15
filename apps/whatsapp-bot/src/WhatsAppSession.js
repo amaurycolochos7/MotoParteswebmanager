@@ -347,6 +347,14 @@ class WhatsAppSession extends EventEmitter {
                 this.isConnected = false;
                 this.lastQr = null;
                 this._stopHeartbeat();
+
+                // ponytail: wipe session dir on disconnect so next QR starts clean.
+                // Stale tokens cause "intente más tarde" error on the phone.
+                // Upgrade path: selective wipe only on token-related reasons.
+                if (reason !== 'LOGOUT' && reason !== 'NAVIGATION') {
+                    this._wipeSessionDir();
+                }
+
                 this.emit('disconnected', reason);
 
                 // Auto-restart if disconnected due to QR timeout

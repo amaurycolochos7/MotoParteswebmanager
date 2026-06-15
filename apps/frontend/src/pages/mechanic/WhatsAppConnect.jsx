@@ -22,6 +22,7 @@ export default function WhatsAppConnect() {
     const [sessionData, setSessionData] = useState(null);
     const [error, setError] = useState(null);
     const pollInterval = useRef(null);
+    const startRequested = useRef(false); // ponytail: prevents startSession spam during init
 
     useEffect(() => {
         checkStatus();
@@ -46,7 +47,9 @@ export default function WhatsAppConnect() {
 
     const startPolling = () => {
         if (pollInterval.current) return;
-        pollInterval.current = setInterval(checkStatus, 3000);
+        // ponytail: 5s when waiting for init (Puppeteer needs time), 3s when QR showing
+        const interval = status === 'qr' ? 3000 : 5000;
+        pollInterval.current = setInterval(checkStatus, interval);
     };
 
     const checkStatus = async () => {
@@ -57,18 +60,27 @@ export default function WhatsAppConnect() {
                 setSessionData(statusRes);
                 setQrCode(null);
                 setError(null);
-            } else {
-                if (statusRes.exists === false || (!statusRes.initializing && !statusRes.qr)) {
+                startRequested.current = false;
+            } else if (statusRes.initializing || statusRes.restartScheduled) {
+                // Bot is working on it — just wait, don't spam startSession
+                setStatus('disconnected');
+                setError(statusRes.lastError || null);
+            } else if (statusRes.exists === false || (!statusRes.initializing && !statusRes.qr)) {
+                // Only call startSession ONCE until we get a QR or connection
+                if (!startRequested.current) {
+                    startRequested.current = true;
                     await whatsappBotService.startSession(user.id);
-                    setStatus('disconnected');
-                    setError(statusRes.lastError || null);
-                    return;
                 }
+                setStatus('disconnected');
+                setError(statusRes.lastError || null);
+            } else {
+                // Session exists, check for QR
                 const qrRes = await whatsappBotService.getQR(user.id);
                 if (qrRes.qr) {
                     setQrCode(qrRes.qr);
                     setStatus('qr');
                     setError(null);
+                    startRequested.current = false;
                 } else {
                     setStatus('disconnected');
                     setError(statusRes.lastError || null);
@@ -84,6 +96,7 @@ export default function WhatsAppConnect() {
     const handleRestartSession = async () => {
         setStatus('loading');
         setError(null);
+        startRequested.current = false;
         try {
             await whatsappBotService.logoutSession(user.id);
             // After logout, set to 'logged_out' state — NOT 'disconnected' which would auto-start polling

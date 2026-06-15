@@ -15,18 +15,22 @@ router.get('/:mechanicId/status', (req, res) => {
     const session = sessionManager.getSession(req.params.mechanicId);
 
     if (!session) {
-        return res.json({ exists: false, isConnected: false, qr: null });
+        // ponytail: also check if a restart is scheduled or init is in-flight
+        const restartScheduled = sessionManager._restartTimers.has(req.params.mechanicId);
+        const initializing = sessionManager._initPromises.has(req.params.mechanicId);
+        return res.json({ exists: false, isConnected: false, qr: null, restartScheduled, initializing });
     }
 
     res.json({
         exists: true,
         isConnected: session.isConnected,
-        initializing: session.initializing,
+        initializing: session.initializing || sessionManager._initPromises.has(req.params.mechanicId),
         phoneNumber: session.phoneNumber,
         pushname: session.pushname || null,
         platform: session.platform || 'Web',
-        qr: session.lastQr ? true : false, // Don't send raw QR string
+        qr: session.lastQr ? true : false,
         lastError: session.lastError || null,
+        restartScheduled: sessionManager._restartTimers.has(req.params.mechanicId),
     });
 });
 
