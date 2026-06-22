@@ -165,6 +165,18 @@ export default function AppointmentCalendar() {
         }
     };
 
+    const handleDelete = async () => {
+        if (!window.confirm('¿Eliminar esta cita permanentemente?')) return;
+        setActionLoading('delete');
+        try {
+            await appointmentsService.remove(selectedApt.id);
+            setShowEditModal(false);
+            await loadAppointments();
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
     return (
         <div className="appointments-page">
             {!showList ? (
@@ -394,6 +406,14 @@ export default function AppointmentCalendar() {
                         <div className="modal-footer">
                             <button className="btn btn-outline" onClick={() => setShowEditModal(false)}>Cerrar</button>
                             <button
+                                className="btn btn-ghost-danger"
+                                disabled={!!actionLoading}
+                                onClick={handleDelete}
+                                style={{ marginRight: 'auto' }}
+                            >
+                                <Trash2 size={16} /> Eliminar
+                            </button>
+                            <button
                                 className={`btn ${editMode === 'edit' ? 'btn-primary' : 'btn-danger'}`}
                                 disabled={!!actionLoading}
                                 onClick={editMode === 'edit' ? handleUpdate : handleCancel}
@@ -505,6 +525,22 @@ export default function AppointmentCalendar() {
                 @media (max-width: 768px) {
                     .main-buttons { max-width: 100%; }
                     .btn-main { font-size: 1rem; padding: var(--spacing-md) var(--spacing-lg); }
+                }
+
+                .btn-ghost-danger {
+                    background: transparent;
+                    color: var(--danger, #ef4444);
+                    border: none;
+                    font-size: 0.8125rem;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: var(--spacing-sm) var(--spacing-md);
+                    border-radius: var(--radius-md);
+                }
+                .btn-ghost-danger:hover {
+                    background: rgba(239, 68, 68, 0.1);
                 }
             `}</style>
         </div>
