@@ -205,45 +205,12 @@ export function DataProvider({ children }) {
     }, [user, refreshOrders]);
 
     const markOrderAsPaid = useCallback(async (orderId) => {
-        // Obtener la orden para calcular ganancias
-        const order = orders.find(o => o.id === orderId);
-
         const { error } = await ordersService.markAsPaid(orderId);
         if (error) throw error;
-
-        // Registrar ganancias automáticamente
-        if (order && order.mechanic_id) {
-            const laborTotal = order.services?.reduce((sum, svc) =>
-                sum + (parseFloat(svc.labor_cost) || 0), 0) || 0;
-
-            // Determinar supervisor_id - si el mecánico es auxiliar, buscar su maestro
-            let supervisorId = order.approved_by || null;
-
-            // Si no hay approved_by, intentar obtenerlo del perfil del mecánico
-            if (!supervisorId) {
-                try {
-                    const { data: mechanic } = await authService.getProfile(order.mechanic_id);
-                    if (mechanic?.requires_approval && mechanic?.supervisor_id) {
-                        supervisorId = mechanic.supervisor_id;
-                    }
-                } catch (err) {
-                    console.log('Could not get mechanic profile for supervisor');
-                }
-            }
-
-            try {
-                await earningsService.recordEarning(
-                    { id: orderId, labor_total: laborTotal },
-                    order.mechanic_id,
-                    supervisorId
-                );
-            } catch (err) {
-                console.error('Error recording earnings:', err);
-            }
-        }
-
+        // ponytail: earnings are now created server-side in PUT /orders/:id/paid.
+        // No need to call earningsService from the client.
         await refreshOrders();
-    }, [orders, refreshOrders]);
+    }, [refreshOrders]);
 
     const updateOrder = useCallback(async (orderId, updates) => {
         const { error } = await ordersService.update(orderId, updates);

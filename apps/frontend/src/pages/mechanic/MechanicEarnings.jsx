@@ -45,6 +45,23 @@ export default function MechanicEarnings() {
         ).sort((a, b) => new Date(b.completed_at || b.created_at) - new Date(a.completed_at || a.created_at));
     }, [orders, user?.id]);
 
+    // ponytail: calculate labor from order.labor_total; if 0, fallback to
+    // summing services (price - cost). Covers orders paid before the backend
+    // recalc fix was deployed. Ceiling: O(n*m) where m = services per order.
+    const getLaborAmount = (order) => {
+        const direct = parseFloat(order.labor_total) || 0;
+        if (direct > 0) return direct;
+        // Fallback: sum(price - cost) from services
+        if (Array.isArray(order.services) && order.services.length > 0) {
+            return order.services.reduce((sum, svc) => {
+                const price = parseFloat(svc.price) || 0;
+                const cost = parseFloat(svc.cost) || 0;
+                return sum + ((price - cost) * (svc.quantity || 1));
+            }, 0);
+        }
+        return 0;
+    };
+
     // Calculate earnings by month
     const earningsByMonth = useMemo(() => {
         const grouped = {};
@@ -62,7 +79,7 @@ export default function MechanicEarnings() {
                 };
             }
 
-            const laborAmount = parseFloat(order.labor_total) || 0;
+            const laborAmount = getLaborAmount(order);
             const commission = laborAmount * (commissionRate / 100);
 
             grouped[monthKey].orders.push({
@@ -101,7 +118,7 @@ export default function MechanicEarnings() {
         });
 
         const ordersWithCommission = weekOrders.map(order => {
-            const laborAmount = parseFloat(order.labor_total) || 0;
+            const laborAmount = getLaborAmount(order);
             const commission = laborAmount * (commissionRate / 100);
             return { ...order, laborAmount, commission };
         });

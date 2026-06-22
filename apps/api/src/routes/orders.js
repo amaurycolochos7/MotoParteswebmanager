@@ -303,17 +303,129 @@ export default async function ordersRoutes(fastify) {
 
         // PUT /api/orders/:id/paid
         app.put('/:id/paid', async (request) => {
-            const updated = await prisma.order.update({
-                where: { id: request.params.id },
-                data: { is_paid: true, paid_at: new Date() },
-                include: ORDER_INCLUDE
+            const { id } = request.params;
+
+            const result = await prisma.$transaction(async (tx) => {
+                // Recalculate totals from services + parts before marking paid.
+                // This ensures labor_total is correct even if /:id/costs was never called.
+                const services = await tx.orderService.findMany({ where: { order_id: id } });
+                const parts = await tx.orderPart.findMany({ where: { order_id: id } });
+
+                const svcLaborTotal = services.reduce((sum, s) => {
+                    const price = Number(s.price) * s.quantity;
+                    const matCost = Number(s.cost) * s.quantity;
+                    return sum + (price - matCost);
+                }, 0);
+                const svcPartsTotal = services.reduce((sum, s) => sum + Number(s.cost) * s.quantity, 0);
+                const orderPartsTotal = parts.reduce((sum, p) => sum + Number(p.price) * p.quantity, 0);
+
+                const laborTotal = svcLaborTotal;
+                const partsTotal = svcPartsTotal + orderPartsTotal;
+
+                const updated = await tx.order.update({
+                    where: { id },
+                    data: {
+                        is_paid: true,
+                        paid_at: new Date(),
+                        labor_total: laborTotal,
+                        parts_total: partsTotal,
+                        total_amount: laborTotal + partsTotal,
+                    },
+                    include: ORDER_INCLUDE,
+                });
+
+                // ── Create mechanic earnings (same logic as PUT /:id/costs) ──
+                if (updated.mechanic_id && laborTotal > 0) {
+                    const mechanic = await tx.profile.findUnique({
+                        where: { id: updated.mechanic_id },
+                        select: {
+                            id: true,
+                            commission_percentage: true,
+                            requires_approval: true,
+                            supervised_by: true,
+                        },
+                    });
+
+                    if (mechanic) {
+                        const now = new Date();
+                        const dow = now.getDay();
+                        const offsetToMonday = (dow === 0 ? -6 : 1 - dow);
+                        const weekStart = new Date(now);
+                        weekStart.setDate(now.getDate() + offsetToMonday);
+                        weekStart.setHours(0, 0, 0, 0);
+
+                        // Clean previous earnings to avoid duplicates
+                        await tx.mechanicEarning.deleteMany({ where: { order_id: id } });
+
+                        const auxRate = parseFloat(mechanic.commission_percentage || 0);
+                        const isAuxiliary = mechanic.requires_approval === true;
+                        const supervisorId = mechanic.supervised_by || null;
+
+                        if (isAuxiliary && supervisorId) {
+                            const supervisor = await tx.profile.findUnique({
+                                where: { id: supervisorId },
+                                select: { id: true, commission_percentage: true },
+                            });
+                            let auxEffectiveRate = auxRate;
+                            let masterEffectiveRate = supervisor?.commission_percentage != null
+                                ? parseFloat(supervisor.commission_percentage)
+                                : (100 - auxRate);
+                            const sumRates = auxEffectiveRate + masterEffectiveRate;
+                            if (sumRates > 100 && sumRates > 0) {
+                                const scale = 100 / sumRates;
+                                auxEffectiveRate *= scale;
+                                masterEffectiveRate *= scale;
+                            }
+                            const earningsRows = [{
+                                workspace_id: updated.workspace_id,
+                                order_id: id,
+                                mechanic_id: mechanic.id,
+                                labor_amount: laborTotal,
+                                commission_rate: auxEffectiveRate,
+                                earned_amount: laborTotal * (auxEffectiveRate / 100),
+                                is_paid: false,
+                                week_start: weekStart,
+                            }];
+                            if (supervisor) {
+                                earningsRows.push({
+                                    workspace_id: updated.workspace_id,
+                                    order_id: id,
+                                    mechanic_id: supervisor.id,
+                                    labor_amount: laborTotal,
+                                    commission_rate: masterEffectiveRate,
+                                    earned_amount: laborTotal - earningsRows[0].earned_amount,
+                                    is_paid: false,
+                                    week_start: weekStart,
+                                });
+                            }
+                            await tx.mechanicEarning.createMany({ data: earningsRows });
+                        } else {
+                            const earned = laborTotal * (auxRate / 100);
+                            await tx.mechanicEarning.create({
+                                data: {
+                                    workspace_id: updated.workspace_id,
+                                    order_id: id,
+                                    mechanic_id: mechanic.id,
+                                    labor_amount: laborTotal,
+                                    commission_rate: auxRate,
+                                    earned_amount: earned,
+                                    is_paid: false,
+                                    week_start: weekStart,
+                                },
+                            });
+                        }
+                    }
+                }
+
+                return updated;
             });
+
             fireEvent('order.paid', {
                 workspaceId: request.workspace.id,
-                order_id: updated.id,
-                client_id: updated.client_id,
+                order_id: result.id,
+                client_id: result.client_id,
             });
-            return updated;
+            return result;
         });
 
         // POST /api/orders/:id/services
