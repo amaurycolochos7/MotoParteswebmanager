@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
+import { generateOrderNumber } from '../lib/order-number.js';
 
 // Helper: generate a quotation number "COT-YY-NNNN" — sequence per workspace.
 // The Prisma extension auto-scopes findFirst() to the active workspace, so the
@@ -296,25 +297,19 @@ export default async function quotationsRoutes(fastify) {
             if (!quotation) {
                 return reply.status(404).send({ error: 'Cotización no encontrada' });
             }
+            // Idempotent: si ya fue convertida, devolver la orden existente
             if (quotation.converted_order_id || quotation.status === 'convertida') {
-                return reply.status(400).send({
-                    error: 'La cotización ya fue convertida en orden',
+                return {
                     order_id: quotation.converted_order_id,
-                });
+                    already_converted: true,
+                };
             }
 
-            // Genera order_number — replica el patrón de orders.js
+            // ponytail: reuse the proven MAX-based folio generation from lib/order-number.js.
+            // COUNT was the root cause of P2002 collisions after row deletions.
             const folioPrefix = request.workspace?.folio_prefix || 'MP';
-            const shortYear = String(new Date().getFullYear()).slice(-2);
-            const prefixYear = `${folioPrefix}-${shortYear}-`;
-            const orderCount = await prisma.order.count({
-                where: { order_number: { startsWith: prefixYear } },
-            });
-            const orderNumber = `${prefixYear}${String(orderCount + 1).padStart(3, '0')}`;
 
-            // Public token para link cliente
             const { nanoid } = await import('nanoid');
-            const publicToken = nanoid(12);
 
             // Status inicial (no terminal)
             const initialStatus = await prisma.orderStatus.findFirst({
@@ -322,82 +317,117 @@ export default async function quotationsRoutes(fastify) {
                 orderBy: { display_order: 'asc' },
             });
 
-            try {
-                const result = await prisma.$transaction(async (tx) => {
-                    // 1. Crea la orden
-                    const order = await tx.order.create({
-                        data: {
-                            order_number: orderNumber,
-                            client_id: quotation.client_id,
-                            motorcycle_id: quotation.motorcycle_id,
-                            mechanic_id: request.user?.id || null,
-                            status_id: initialStatus?.id || null,
-                            customer_complaint: quotation.customer_complaint,
-                            mechanic_notes: quotation.notes,
-                            labor_total: quotation.labor_total,
-                            parts_total: quotation.parts_total,
-                            total_amount: quotation.total_amount,
-                            public_token: publicToken,
-                            client_link: `/orden/${publicToken}`,
-                        },
-                    });
-
-                    // 2. Cada QuotationLabor → OrderService (price = labor.price, cost=0, quantity=1)
-                    if (quotation.labor.length > 0) {
-                        await tx.orderService.createMany({
-                            data: quotation.labor.map((l) => ({
-                                order_id: order.id,
-                                name: l.name,
-                                price: l.price,
-                                cost: 0,
-                                quantity: 1,
-                            })),
+            // Retry loop: absorb P2002 races on order_number
+            let result;
+            let lastErr;
+            for (let attempt = 0; attempt < 6; attempt++) {
+                const orderNumber = await generateOrderNumber(folioPrefix);
+                const publicToken = nanoid(12);
+                try {
+                    result = await prisma.$transaction(async (tx) => {
+                        // Re-check inside tx to prevent double-conversion race
+                        const fresh = await tx.quotation.findUnique({
+                            where: { id },
+                            select: { converted_order_id: true, status: true },
                         });
-                    }
+                        if (fresh?.converted_order_id || fresh?.status === 'convertida') {
+                            return { order_id: fresh.converted_order_id, already_converted: true };
+                        }
 
-                    // 3. Cada QuotationPart → OrderPart (cost = price ya que en cotización no separamos costo)
-                    if (quotation.parts.length > 0) {
-                        await tx.orderPart.createMany({
-                            data: quotation.parts.map((p) => ({
-                                order_id: order.id,
-                                name: p.name,
-                                cost: p.price,
-                                price: p.price,
-                                quantity: p.quantity,
-                                notes: p.notes,
-                            })),
+                        const order = await tx.order.create({
+                            data: {
+                                order_number: orderNumber,
+                                client_id: quotation.client_id,
+                                motorcycle_id: quotation.motorcycle_id,
+                                mechanic_id: request.user?.id || null,
+                                status_id: initialStatus?.id || null,
+                                customer_complaint: quotation.customer_complaint,
+                                mechanic_notes: quotation.notes,
+                                labor_total: quotation.labor_total,
+                                parts_total: quotation.parts_total,
+                                total_amount: quotation.total_amount,
+                                public_token: publicToken,
+                                client_link: `/orden/${publicToken}`,
+                            },
                         });
+
+                        if (quotation.labor.length > 0) {
+                            await tx.orderService.createMany({
+                                data: quotation.labor.map((l) => ({
+                                    order_id: order.id,
+                                    name: l.name,
+                                    price: l.price,
+                                    cost: 0,
+                                    quantity: 1,
+                                })),
+                            });
+                        }
+
+                        if (quotation.parts.length > 0) {
+                            await tx.orderPart.createMany({
+                                data: quotation.parts.map((p) => ({
+                                    order_id: order.id,
+                                    name: p.name,
+                                    cost: p.price,
+                                    price: p.price,
+                                    quantity: p.quantity,
+                                    notes: p.notes,
+                                })),
+                            });
+                        }
+
+                        await tx.orderHistory.create({
+                            data: {
+                                order_id: order.id,
+                                changed_by: request.user?.id || null,
+                                new_status: 'Registrada',
+                                notes: `Orden creada desde cotización ${quotation.quotation_number}`,
+                            },
+                        });
+
+                        await tx.quotation.update({
+                            where: { id: quotation.id },
+                            data: {
+                                status: 'convertida',
+                                converted_order_id: order.id,
+                            },
+                        });
+
+                        return { order_id: order.id, order_number: order.order_number };
+                    });
+                    break;
+                } catch (err) {
+                    lastErr = err;
+                    if (err.code === 'P2002' && Array.isArray(err.meta?.target)) {
+                        if (err.meta.target.includes('order_number')) {
+                            request.log.warn({ attempt, orderNumber }, 'order_number collision on convert, retrying');
+                            continue;
+                        }
+                        if (err.meta.target.includes('converted_order_id')) {
+                            // Another request already converted this quotation (race resolved by DB constraint)
+                            const fresh = await prisma.quotation.findUnique({
+                                where: { id },
+                                select: { converted_order_id: true },
+                            });
+                            return { order_id: fresh?.converted_order_id, already_converted: true };
+                        }
                     }
-
-                    // 4. Historial inicial
-                    await tx.orderHistory.create({
-                        data: {
-                            order_id: order.id,
-                            changed_by: request.user?.id || null,
-                            new_status: 'Registrada',
-                            notes: `Orden creada desde cotización ${quotation.quotation_number}`,
-                        },
+                    // Unknown error — don't expose Prisma internals
+                    request.log.error({ err, quotationId: id }, 'Unexpected error converting quotation');
+                    return reply.status(500).send({
+                        error: 'Error interno al convertir la cotización. Intenta de nuevo.',
                     });
+                }
+            }
 
-                    // 5. Marca la cotización como convertida
-                    await tx.quotation.update({
-                        where: { id: quotation.id },
-                        data: {
-                            status: 'convertida',
-                            converted_order_id: order.id,
-                        },
-                    });
-
-                    return order;
-                });
-
-                return { order_id: result.id, order_number: result.order_number };
-            } catch (err) {
-                request.log.error('Error converting quotation:', err);
-                return reply.status(400).send({
-                    error: err.message || 'Error al convertir la cotización',
+            if (!result) {
+                request.log.error('All retries exhausted converting quotation', lastErr);
+                return reply.status(500).send({
+                    error: 'No se pudo generar el folio de orden. Intenta de nuevo.',
                 });
             }
+
+            return result;
         });
     });
 }

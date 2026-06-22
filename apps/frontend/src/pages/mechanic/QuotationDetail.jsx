@@ -168,15 +168,21 @@ export default function QuotationDetail() {
         try {
             const { data, error } = await quotationsService.convert(quotation.id);
             if (error) throw error;
-            toast.success('Cotización convertida');
             const newOrderId = data?.order_id;
+            if (data?.already_converted) {
+                toast.success('La cotización ya fue convertida');
+            } else {
+                toast.success('Cotización convertida en orden');
+            }
             if (newOrderId) {
                 navigate(`/mechanic/order/${newOrderId}`);
             } else {
                 await load();
             }
         } catch (err) {
-            toast.error('Error: ' + (err.message || 'no se pudo convertir'));
+            toast.error(err?.message?.includes('Prisma') || err?.message?.includes('prisma')
+                ? 'No se pudo convertir la cotización. Intenta de nuevo.'
+                : 'Error: ' + (err.message || 'no se pudo convertir'));
         } finally {
             setWorking(false);
         }

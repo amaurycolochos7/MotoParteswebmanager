@@ -95,10 +95,16 @@ async function resolveWebVersionOptions() {
         try {
             const manifestUrl = process.env.WWEBJS_VERSION_MANIFEST_URL || DEFAULT_VERSION_MANIFEST_URL;
             const manifest = await fetchJson(manifestUrl);
+            // ponytail: filter expired versions — wa-version entries have an `expire` field.
+            // Using an expired version's HTML produces QRs that the phone rejects ("No se pudo vincular").
+            // Upgrade path: none needed, this is the correct approach per the manifest schema.
             const candidates = [
                 manifest?.currentVersion,
                 ...(Array.isArray(manifest?.versions)
-                    ? manifest.versions.map(v => v?.version).reverse()
+                    ? manifest.versions
+                        .filter(v => !v.expire || new Date(v.expire).getTime() > now)
+                        .map(v => v?.version)
+                        .reverse()
                     : []),
             ].filter(Boolean);
 
@@ -112,6 +118,9 @@ async function resolveWebVersionOptions() {
             console.warn(`[WA Web] Could not resolve current archived version: ${err.message}`);
         }
 
+        // ponytail: only use the hardcoded default if nothing better was found.
+        // If even the default's HTML is gone from the archive, resolveWebVersionOptions
+        // will fall through to the "unavailable" check below and use live WA Web.
         version ||= DEFAULT_WEB_VERSION;
         cachedWebVersion = version;
         cachedWebVersionAt = now;

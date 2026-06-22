@@ -1,34 +1,9 @@
-import prisma, { workspaceContext } from '../lib/prisma.js';
+import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
 import { assertWithinLimit, incrementUsageAsync, PlanLimitError } from '../lib/billing.js';
 import { fireEvent } from '../lib/events.js';
-
-// Helper: generate an order number of the form "<PREFIX>-YY-NNN".
-// `order_number` has a GLOBAL unique constraint, so we look up the max
-// existing suffix across ALL workspaces sharing this prefix-year (bypassing
-// the workspace auto-scope). Using MAX instead of COUNT also survives row
-// deletions, which used to cause P2002 collisions when the running count
-// dropped below the largest existing suffix.
-async function generateOrderNumber(prefix) {
-    const shortYear = String(new Date().getFullYear()).slice(-2);
-    const prefixYear = `${prefix}-${shortYear}-`;
-    const rows = await workspaceContext.run({ workspaceId: null }, () =>
-        prisma.$queryRaw`
-            SELECT order_number FROM orders
-            WHERE order_number LIKE ${prefixYear + '%'}
-            ORDER BY LENGTH(order_number) DESC, order_number DESC
-            LIMIT 1
-        `
-    );
-    let next = 1;
-    if (rows.length > 0) {
-        const lastSuffix = String(rows[0].order_number).slice(prefixYear.length);
-        const lastNum = parseInt(lastSuffix, 10);
-        if (!Number.isNaN(lastNum) && lastNum >= next) next = lastNum + 1;
-    }
-    return `${prefixYear}${String(next).padStart(3, '0')}`;
-}
+import { generateOrderNumber } from '../lib/order-number.js';
 
 // Helper: recalculate order totals
 // price = total per service (labor + materials), cost = materials portion
