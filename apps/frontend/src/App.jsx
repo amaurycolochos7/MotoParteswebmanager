@@ -82,6 +82,10 @@ import BlogPost from './pages/public/BlogPost';
 import Cases from './pages/public/Cases';
 import CaseStudy from './pages/public/CaseStudy';
 
+// Módulo interno "MotoPartes Questions" (acceso solo por PIN, fuera de menús)
+import QuestionsApp from './pages/questions/QuestionsApp';
+import QuestionsAdmin from './pages/questions/QuestionsAdmin';
+
 import './index.css';
 
 // ProtectedRoute lives in components/layout/ProtectedRoute.jsx and accepts
@@ -206,6 +210,12 @@ function AppRoutes() {
 
       {/* Portal público para clientes (sin auth) */}
       <Route path="/orden/:token" element={<ClientPortal />} />
+
+      {/* Módulo interno "MotoPartes Questions" — acceso solo por PIN.
+          Va FUERA de AppLayout y ProtectedRoute (no usa el auth principal) y
+          NO aparece en ningún menú. Solo accesible por enlace directo + PIN. */}
+      <Route path="/questions" element={<QuestionsApp />} />
+      <Route path="/questions/admin" element={<QuestionsAdmin />} />
 
       {/* Blog y casos (públicos) */}
       <Route path="/blog" element={<Blog />} />

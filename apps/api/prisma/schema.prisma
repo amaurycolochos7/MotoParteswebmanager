@@ -1046,3 +1046,62 @@ model QuotationPart {
   @@index([quotation_id])
   @@map("quotation_parts")
 }
+
+
+// =============================================
+// MÓDULO INTERNO — MOTOPARTES QUESTIONS
+// =============================================
+// Cuestionario privado para entender cómo usan el sistema los mecánicos
+// maestros ELIHU y MACIEL. Es un módulo AISLADO:
+//   - Las tablas NO tienen workspace_id.
+//   - NO se añaden al Set SCOPED_MODELS en src/lib/prisma.js, por lo que el
+//     auto-scoping de workspace NUNCA las toca.
+//   - Las rutas (/api/questions) NO usan resolveWorkspace, así que no
+//     interfieren con el aislamiento multi-tenant existente.
+// La definición del cuestionario (secciones/preguntas) vive como JSON estático
+// versionado en src/lib/questions-survey.js; aquí solo persistimos respuestas.
+
+model SurveyParticipant {
+  id           String    @id @default(uuid()) @db.Uuid
+  key          String    @unique                  // ELIHU | MACIEL
+  display_name String
+  status       String    @default("NOT_STARTED")  // NOT_STARTED | IN_PROGRESS | SUBMITTED
+  locked       Boolean   @default(false)          // true tras enviar; el admin puede desbloquear para corregir
+  submitted_at DateTime? @db.Timestamptz
+  survey_version String?                          // versión del cuestionario respondido (trazabilidad)
+  created_at   DateTime  @default(now()) @db.Timestamptz
+  updated_at   DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  answers SurveyAnswer[]
+
+  @@map("survey_participants")
+}
+
+model SurveyAnswer {
+  id             String   @id @default(uuid()) @db.Uuid
+  participant_id String   @db.Uuid
+  question_key   String
+  answer_value   Json?                            // estructura según el tipo de pregunta
+  answer_text    String?                          // texto "Otro, explicar" o respuestas libres
+  created_at     DateTime @default(now()) @db.Timestamptz
+  updated_at     DateTime @default(now()) @updatedAt @db.Timestamptz
+
+  participant SurveyParticipant @relation(fields: [participant_id], references: [id], onDelete: Cascade)
+
+  @@unique([participant_id, question_key])
+  @@index([participant_id])
+  @@map("survey_answers")
+}
+
+model SurveyEvent {
+  id              String   @id @default(uuid()) @db.Uuid
+  actor           String                           // admin | ELIHU | MACIEL
+  action          String                           // login | save | submit | unlock | export
+  participant_key String?
+  detail          Json     @default("{}")
+  ip_address      String?
+  created_at      DateTime @default(now()) @db.Timestamptz
+
+  @@index([created_at])
+  @@map("survey_events")
+}
