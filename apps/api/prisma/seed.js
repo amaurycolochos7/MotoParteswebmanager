@@ -9,12 +9,13 @@ async function seed() {
     // 1. Create order statuses
     const statuses = [
         { name: 'Registrada', color: '#06b6d4', display_order: 1, is_terminal: false },
-        { name: 'En Revisión', color: '#f59e0b', display_order: 2, is_terminal: false },
-        { name: 'En Proceso', color: '#3b82f6', display_order: 3, is_terminal: false },
-        { name: 'Esperando Refacciones', color: '#8b5cf6', display_order: 4, is_terminal: false },
-        { name: 'Lista para Entregar', color: '#22c55e', display_order: 5, is_terminal: false },
-        { name: 'Entregada', color: '#6b7280', display_order: 6, is_terminal: true },
-        { name: 'Cancelada', color: '#ef4444', display_order: 7, is_terminal: true },
+        { name: 'Autorizada', color: '#0ea5e9', display_order: 2, is_terminal: false },
+        { name: 'En Revisión', color: '#f59e0b', display_order: 3, is_terminal: false },
+        { name: 'En Proceso', color: '#3b82f6', display_order: 4, is_terminal: false },
+        { name: 'Esperando Refacciones', color: '#8b5cf6', display_order: 5, is_terminal: false },
+        { name: 'Lista para Entregar', color: '#22c55e', display_order: 6, is_terminal: false },
+        { name: 'Entregada', color: '#6b7280', display_order: 7, is_terminal: true },
+        { name: 'Cancelada', color: '#ef4444', display_order: 8, is_terminal: true },
     ];
 
     for (const s of statuses) {

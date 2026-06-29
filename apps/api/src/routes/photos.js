@@ -9,6 +9,10 @@ export default async function photosRoutes(fastify) {
     // POST /api/photos - Upload photo (URL-based, storage handled by frontend or external)
     fastify.post('/', async (request) => {
         const data = request.body;
+        // ELIHU: evidencia retenida 30 días. expires_at lo fija el backend
+        // (no se confía en el cliente). category = tipo de foto.
+        const retentionDays = Number(process.env.PHOTO_RETENTION_DAYS) || 30;
+        const expiresAt = new Date(Date.now() + retentionDays * 24 * 60 * 60 * 1000);
         return prisma.orderPhoto.create({
             data: {
                 order_id: data.order_id,
@@ -16,6 +20,7 @@ export default async function photosRoutes(fastify) {
                 category: data.category || 'evidence',
                 caption: data.caption || null,
                 uploaded_by: request.user.id,
+                expires_at: expiresAt,
             }
         });
     });

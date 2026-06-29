@@ -32,6 +32,20 @@ async function recalcOrderTotals(orderId) {
     });
 }
 
+// ELIHU 14: el auxiliar puede CREAR orden pero NO cambiar precios/costos,
+// marcar pagado, dar descuentos, editar pagos, borrar órdenes ni cambiar
+// comisión. Estos son los roles que SÍ pueden tocar dinero.
+// (role 'mechanic' = maestro; 'auxiliary' = auxiliar)
+function canEditMoney(request) {
+    if (['owner', 'admin', 'mechanic'].includes(request.workspaceRole)) return true;
+    return (request.workspacePermissions || {}).can_edit_costs === true;
+}
+function denyMoney(reply) {
+    return reply.status(403).send({
+        error: 'No tienes permiso para modificar precios, costos o pagos de la orden.',
+    });
+}
+
 const ORDER_INCLUDE = {
     client: true,
     motorcycle: true,
@@ -227,6 +241,13 @@ export default async function ordersRoutes(fastify) {
             const { id } = request.params;
             const data = { ...request.body };
             delete data.id;
+            // ELIHU 14: si el rol no puede tocar dinero, ignorar campos
+            // monetarios aunque vengan en el body (defensa en backend, no solo UI).
+            if (!canEditMoney(request)) {
+                delete data.labor_total; delete data.parts_total; delete data.total_amount;
+                delete data.advance_payment; delete data.is_paid; delete data.paid_at;
+                delete data.payment_method;
+            }
             delete data.created_at;
             delete data.client;
             delete data.motorcycle;
@@ -302,7 +323,8 @@ export default async function ordersRoutes(fastify) {
         });
 
         // PUT /api/orders/:id/paid
-        app.put('/:id/paid', async (request) => {
+        app.put('/:id/paid', async (request, reply) => {
+            if (!canEditMoney(request)) return denyMoney(reply);
             const { id } = request.params;
 
             const result = await prisma.$transaction(async (tx) => {
@@ -429,7 +451,8 @@ export default async function ordersRoutes(fastify) {
         });
 
         // POST /api/orders/:id/services
-        app.post('/:id/services', async (request) => {
+        app.post('/:id/services', async (request, reply) => {
+            if (!canEditMoney(request)) return denyMoney(reply);
             const { id } = request.params;
             const data = request.body;
 
@@ -460,14 +483,16 @@ export default async function ordersRoutes(fastify) {
         });
 
         // DELETE /api/orders/:id/services/:serviceId
-        app.delete('/:id/services/:serviceId', async (request) => {
+        app.delete('/:id/services/:serviceId', async (request, reply) => {
+            if (!canEditMoney(request)) return denyMoney(reply);
             await prisma.orderService.delete({ where: { id: request.params.serviceId } });
             await recalcOrderTotals(request.params.id);
             return { success: true };
         });
 
         // POST /api/orders/:id/parts
-        app.post('/:id/parts', async (request) => {
+        app.post('/:id/parts', async (request, reply) => {
+            if (!canEditMoney(request)) return denyMoney(reply);
             const { id } = request.params;
             const part = await prisma.orderPart.create({
                 data: { order_id: id, ...request.body }
@@ -477,7 +502,8 @@ export default async function ordersRoutes(fastify) {
         });
 
         // DELETE /api/orders/:id/parts/:partId
-        app.delete('/:id/parts/:partId', async (request) => {
+        app.delete('/:id/parts/:partId', async (request, reply) => {
+            if (!canEditMoney(request)) return denyMoney(reply);
             await prisma.orderPart.delete({ where: { id: request.params.partId } });
             await recalcOrderTotals(request.params.id);
             return { success: true };
@@ -485,6 +511,14 @@ export default async function ordersRoutes(fastify) {
 
         // DELETE /api/orders/:id
         app.delete('/:id', async (request, reply) => {
+            // Borrar orden es destructivo: solo owner/admin/maestro, o permiso
+            // explícito can_delete_orders. El auxiliar NO puede (ELIHU 14).
+            const canDelete =
+                ['owner', 'admin', 'mechanic'].includes(request.workspaceRole) ||
+                (request.workspacePermissions || {}).can_delete_orders === true;
+            if (!canDelete) {
+                return reply.status(403).send({ error: 'No tienes permiso para borrar órdenes.' });
+            }
             const { id } = request.params;
 
             try {
@@ -527,6 +561,7 @@ export default async function ordersRoutes(fastify) {
 
         // ============ UPDATE ORDER COSTS (labor + parts) ============
         fastify.put('/:id/costs', { preHandler: [authenticate, resolveWorkspace] }, async (request, reply) => {
+            if (!canEditMoney(request)) return denyMoney(reply);
             const { id } = request.params;
             const { labor_total, parts, mark_as_paid } = request.body;
 

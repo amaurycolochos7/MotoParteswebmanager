@@ -311,11 +311,16 @@ export default async function quotationsRoutes(fastify) {
 
             const { nanoid } = await import('nanoid');
 
-            // Status inicial (no terminal)
-            const initialStatus = await prisma.orderStatus.findFirst({
-                where: { is_terminal: false },
-                orderBy: { display_order: 'asc' },
-            });
+            // ELIHU: la orden nacida de una cotización aceptada debe quedar
+            // "Autorizada". Buscamos ese estado (creado por migración 007 /
+            // seed); si el taller no lo tiene, caemos al primer estado no
+            // terminal por display_order para no romper talleres existentes.
+            const initialStatus =
+                (await prisma.orderStatus.findFirst({ where: { name: 'Autorizada' } })) ||
+                (await prisma.orderStatus.findFirst({
+                    where: { is_terminal: false },
+                    orderBy: { display_order: 'asc' },
+                }));
 
             // Retry loop: absorb P2002 races on order_number
             let result;
@@ -380,7 +385,7 @@ export default async function quotationsRoutes(fastify) {
                             data: {
                                 order_id: order.id,
                                 changed_by: request.user?.id || null,
-                                new_status: 'Registrada',
+                                new_status: initialStatus?.name || 'Autorizada',
                                 notes: `Orden creada desde cotización ${quotation.quotation_number}`,
                             },
                         });

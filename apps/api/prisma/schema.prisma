@@ -97,6 +97,7 @@ model Workspace {
   quotations         Quotation[]
   quotation_labor    QuotationLabor[]
   quotation_parts    QuotationPart[]
+  order_payments     OrderPayment[]
 
   @@map("workspaces")
 }
@@ -600,6 +601,8 @@ model Order {
   payment_method      String?
   is_paid             Boolean   @default(false)
   paid_at             DateTime? @db.Timestamptz
+  // ELIHU workflow v1 (additive, nullable for back-compat):
+  estimated_delivery_at DateTime? @db.Timestamptz   // fecha prometida de entrega
   public_token        String?   @unique
   client_link         String?
   client_last_seen_at DateTime? @db.Timestamptz
@@ -620,6 +623,7 @@ model Order {
   history      OrderHistory[]
   updates      OrderUpdate[]
   earnings     MechanicEarning[]
+  payments     OrderPayment[]
 
   @@index([workspace_id])
   @@map("orders")
@@ -681,6 +685,10 @@ model OrderPhoto {
   category     String?
   caption      String?
   uploaded_by  String?  @db.Uuid
+  // ELIHU workflow v1: retención de evidencia 30 días. Nullable para fotos
+  // antiguas. El sweep solo borra filas con expires_at < now() (ver lib/photo-retention).
+  // `category` actúa como el "tipo" de foto (frente | trasera | tablero | daños | refacción | otra).
+  expires_at   DateTime? @db.Timestamptz
   created_at   DateTime @default(now()) @db.Timestamptz
 
   workspace Workspace? @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
@@ -819,6 +827,11 @@ model MechanicEarning {
   labor_amount       Decimal   @default(0) @db.Decimal(10, 2)
   commission_rate    Decimal   @default(0) @db.Decimal(5, 2)
   earned_amount      Decimal   @default(0) @db.Decimal(10, 2)
+  // ELIHU workflow v1: la comisión se libera SOLO cuando el cliente liquida
+  // todo. Lifecycle: PENDING_PAYMENT -> READY_TO_PAY -> PAID (CANCELLED terminal).
+  // is_paid se conserva por compatibilidad; commission_status es la fuente nueva.
+  commission_status      String    @default("PENDING_PAYMENT")
+  commission_released_at DateTime? @db.Timestamptz
   is_paid            Boolean   @default(false)
   paid_at            DateTime? @db.Timestamptz
   week_start         DateTime? @db.Timestamptz
@@ -1045,6 +1058,37 @@ model QuotationPart {
   @@index([workspace_id])
   @@index([quotation_id])
   @@map("quotation_parts")
+}
+
+// =============================================
+// 18. PAGOS / ABONOS POR ORDEN (ELIHU workflow v1)
+// =============================================
+// Pagos parciales del cliente sobre una orden. NUNCA se borran físicamente:
+// un pago cancelado se marca con cancelled_at + motivo (auditoría). El saldo
+// pendiente se calcula sumando los pagos no cancelados (ver lib/payments.js).
+model OrderPayment {
+  id                  String    @id @default(uuid()) @db.Uuid
+  workspace_id        String?   @db.Uuid
+  order_id            String    @db.Uuid
+  receipt_number      String?   @unique           // folio legible del recibo (REC-26-0001)
+  amount              Decimal   @db.Decimal(10, 2)
+  payment_method      String    @default("efectivo") // efectivo | transferencia | tarjeta | otro
+  payment_date        DateTime  @default(now()) @db.Timestamptz
+  note                String?
+  received_by         String?   @db.Uuid           // quién recibió el pago (Profile)
+  created_by          String?   @db.Uuid
+  cancelled_at        DateTime? @db.Timestamptz
+  cancelled_by        String?   @db.Uuid
+  cancellation_reason String?
+  created_at          DateTime  @default(now()) @db.Timestamptz
+  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  workspace Workspace? @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  order     Order      @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@index([workspace_id])
+  @@index([order_id])
+  @@map("order_payments")
 }
 
 

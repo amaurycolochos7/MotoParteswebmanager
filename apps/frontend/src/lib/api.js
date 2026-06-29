@@ -192,6 +192,27 @@ export const clientsService = {
         }
     },
 
+    // ELIHU: búsqueda por nombre (parcial, sin acentos, también tel/placas).
+    async search(query, { limit = 20 } = {}) {
+        try {
+            const q = encodeURIComponent(query || '');
+            const data = await apiFetch(`/clients/search?q=${q}&limit=${limit}`);
+            return { data, error: null };
+        } catch (error) {
+            return { data: [], error };
+        }
+    },
+
+    // Historial del cliente (órdenes, cotizaciones, saldo pendiente, última visita).
+    async getHistory(id) {
+        try {
+            const data = await apiFetch(`/clients/${id}/history`);
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
     async create(clientData) {
         try {
             const data = await apiFetch('/clients', {
@@ -1221,5 +1242,51 @@ export const appointmentsService = {
     },
     reject(id) {
         return apiFetch(`/appointments/${id}`, { method: 'PUT', body: JSON.stringify({ status: 'rejected' }) });
+    },
+};
+
+// =============================================
+// ORDER PAYMENTS / ABONOS SERVICE (ELIHU workflow v1)
+// =============================================
+export const orderPaymentsService = {
+    // Lista de abonos + resumen financiero { finance, payments }.
+    async listByOrder(orderId) {
+        try {
+            const data = await apiFetch(`/order-payments/order/${orderId}`);
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    // Registrar un abono. Backend valida monto, saldo y permisos.
+    async create({ order_id, amount, payment_method, note, allow_overpay }) {
+        try {
+            const data = await apiFetch('/order-payments', {
+                method: 'POST',
+                body: JSON.stringify({ order_id, amount, payment_method, note, allow_overpay }),
+            });
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    async cancel(id, reason) {
+        try {
+            const data = await apiFetch(`/order-payments/${id}/cancel`, {
+                method: 'POST',
+                body: JSON.stringify({ reason }),
+            });
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    async getReceipt(id) {
+        try {
+            const data = await apiFetch(`/order-payments/${id}/receipt`);
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
     },
 };
