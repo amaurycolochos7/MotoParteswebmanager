@@ -36,7 +36,7 @@ import {
 } from '../lib/questions-export.js';
 
 // preHandler: valida el JWT del módulo y deja request.qauth = {role, participant}.
-async function requireQuestionsAuth(request, reply) {
+export async function requireQuestionsAuth(request, reply) {
   const authHeader = request.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return reply.status(401).send({ error: 'PIN requerido' });
@@ -48,7 +48,9 @@ async function requireQuestionsAuth(request, reply) {
   }
 }
 
-function requireAdmin(request, reply) {
+// async: un preHandler síncrono de 2 args hace que Fastify espere un callback
+// `done` que nunca se llama y la petición se cuelga. Debe devolver una promesa.
+export async function requireAdmin(request, reply) {
   if (request.qauth?.role !== 'admin') {
     return reply.status(403).send({ error: 'Acceso solo para administrador' });
   }
