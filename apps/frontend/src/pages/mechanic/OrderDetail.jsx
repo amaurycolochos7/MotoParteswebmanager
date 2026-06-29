@@ -40,13 +40,23 @@ import { generateOrderPDFBlob, downloadOrderPDF } from '../../utils/pdfGenerator
 import Toast from '../../components/ui/Toast';
 import NoChatWarning from '../../components/ui/NoChatWarning';
 import OrderPhotosDownload from '../../components/ui/OrderPhotosDownload';
+import OrderPaymentsSection from '../../components/orders/OrderPaymentsSection';
+import CommissionSection from '../../components/orders/CommissionSection';
 import './OrderDetail.css';
 
 export default function OrderDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { user, canDeleteOrders } = useAuth();
-    const { orders, clients, statuses, serviceUpdates, updateOrderStatus, updateOrder, getOrderUpdates, addServiceUpdate, deleteOrder } = useData();
+    const { user, canDeleteOrders, isMasterMechanic, isAdmin, activeWorkspace } = useAuth();
+    const { orders, clients, statuses, serviceUpdates, updateOrderStatus, updateOrder, getOrderUpdates, addServiceUpdate, deleteOrder, refreshOrders } = useData();
+
+    // ELIHU: ¿puede tocar dinero (precios, abonos, comisión)? El auxiliar NO.
+    const canManageMoney = (typeof isMasterMechanic === 'function' && isMasterMechanic()) || (typeof isAdmin === 'function' && isAdmin());
+    // Estado financiero (abonos) que la sección de Pagos bubblea hacia arriba,
+    // usado para advertir al entregar con saldo y para inyectarlo al PDF.
+    const [orderFinance, setOrderFinance] = useState(null);
+    const [savingDelivery, setSavingDelivery] = useState(false);
+    const [financeVersion, setFinanceVersion] = useState(0);
 
     // State for fetched order (when not found in context)
     const [fetchedOrder, setFetchedOrder] = useState(null);
@@ -194,7 +204,25 @@ export default function OrderDetail() {
             showToast('Error: Estado no encontrado', 'error');
             return;
         }
-        updateOrderStatus(order.id, statusObj.id, statusNote);
+
+        // ELIHU J: entregar con saldo pendiente requiere autorización del maestro/dueño.
+        let authNote = statusNote;
+        const balance = Number(orderFinance?.balance || 0);
+        const isDelivered = /entregada/i.test(newStatusName);
+        if (isDelivered && balance > 0) {
+            if (!canManageMoney) {
+                showToast('Hay saldo pendiente. Solo el maestro/dueño puede autorizar la entrega.', 'error');
+                return;
+            }
+            const reason = window.prompt(
+                `Esta orden tiene un SALDO PENDIENTE de $${balance.toLocaleString('es-MX', { minimumFractionDigits: 2 })}.\n` +
+                'Para entregar con saldo, escribe el motivo/autorización (queda registrado):'
+            );
+            if (!reason) { return; }
+            authNote = `[ENTREGA CON SALDO $${balance.toLocaleString('es-MX', { minimumFractionDigits: 2 })}] ${reason}`;
+        }
+
+        updateOrderStatus(order.id, statusObj.id, authNote);
         setShowStatusModal(false);
         setStatusNote('');
 
@@ -780,10 +808,12 @@ export default function OrderDetail() {
                     <DollarSign size={18} />
                     <span>Costos</span>
                     {!editingCosts ? (
-                        <button className="od-edit-btn" onClick={handleStartEditCosts}>
-                            <Edit2 size={14} />
-                            {(parseFloat(order.labor_total) > 0 || (order.parts || []).length > 0) ? 'Editar' : 'Agregar'}
-                        </button>
+                        canManageMoney && (
+                            <button className="od-edit-btn" onClick={handleStartEditCosts}>
+                                <Edit2 size={14} />
+                                {(parseFloat(order.labor_total) > 0 || (order.parts || []).length > 0) ? 'Editar' : 'Agregar'}
+                            </button>
+                        )
                     ) : (
                         <button className="od-edit-btn cancel" onClick={() => setEditingCosts(false)}>
                             <X size={14} /> Cancelar
@@ -888,6 +918,54 @@ export default function OrderDetail() {
                 </div>
             </div>
 
+            {/* ── ENTREGA ESTIMADA (ELIHU) ── */}
+            <div className="od-section">
+                <div className="od-section-header">
+                    <Clock size={18} />
+                    <span>Entrega estimada</span>
+                </div>
+                <div className="od-section-body" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                        type="date"
+                        defaultValue={order.estimated_delivery_at ? new Date(order.estimated_delivery_at).toISOString().slice(0, 10) : ''}
+                        disabled={savingDelivery}
+                        onChange={async (e) => {
+                            const val = e.target.value ? new Date(e.target.value + 'T12:00:00').toISOString() : null;
+                            setSavingDelivery(true);
+                            try {
+                                await updateOrder(order.id, { estimated_delivery_at: val });
+                                showToast('Fecha de entrega actualizada', 'success');
+                            } catch {
+                                showToast('No se pudo actualizar la fecha', 'error');
+                            } finally {
+                                setSavingDelivery(false);
+                            }
+                        }}
+                        style={{ padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 15 }}
+                    />
+                    {savingDelivery && <Loader2 size={16} className="spinner" />}
+                    {order.estimated_delivery_at && (
+                        <span style={{ fontSize: 13, color: '#6b7280' }}>
+                            {new Date(order.estimated_delivery_at).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            {/* ── PAGOS Y SALDO (ELIHU) ── */}
+            <OrderPaymentsSection
+                order={order}
+                client={client}
+                motorcycle={motorcycle}
+                workshopName={activeWorkspace?.name}
+                canManage={canManageMoney}
+                onFinance={setOrderFinance}
+                onChanged={() => { refreshOrders?.(); setFinanceVersion((v) => v + 1); }}
+            />
+
+            {/* ── COMISIÓN VARIABLE (ELIHU, solo maestro/dueño) ── */}
+            <CommissionSection orderId={order.id} canManage={canManageMoney} refreshKey={financeVersion} />
+
             {/* ── FOTOS DE INGRESO ── */}
             <OrderPhotosDownload order={order} />
 
@@ -900,7 +978,7 @@ export default function OrderDetail() {
                             {sendingPDF ? <Loader2 size={18} className="spinner" /> : <FileText size={18} />}
                             {sendingPDF ? 'Enviando...' : 'Enviar Resumen'}
                         </button>
-                        <button className="od-action-btn outline" onClick={async () => await downloadOrderPDF(order, client, motorcycle)}>
+                        <button className="od-action-btn outline" onClick={async () => await downloadOrderPDF({ ...order, _paid: orderFinance?.paid ?? null, _balance: orderFinance?.balance ?? null }, client, motorcycle)}>
                             <Download size={18} /> Descargar PDF
                         </button>
                     </div>
@@ -926,7 +1004,7 @@ export default function OrderDetail() {
                     <button className="od-action-btn secondary" onClick={() => setShowStatusModal(true)}>
                         <Edit2 size={16} /> Estado
                     </button>
-                    {!order.is_paid && (
+                    {!order.is_paid && canManageMoney && (
                         <button className="od-action-btn success" onClick={() => setShowPaymentModal(true)}>
                             <DollarSign size={16} /> Registrar Pago
                         </button>

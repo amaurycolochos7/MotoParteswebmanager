@@ -135,6 +135,19 @@ export async function generateOrderPDF(order, client, motorcycle) {
 
     y += 35;
 
+    // ELIHU: fecha prometida/estimada de entrega
+    if (order.estimated_delivery_at) {
+        doc.setTextColor(...RED);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text('ENTREGA ESTIMADA', marginL, y);
+        doc.setTextColor(...BLACK);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(new Date(order.estimated_delivery_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }), marginL + 40, y);
+        y += 8;
+    }
+
     // ─── CUSTOMER COMPLAINT ───
     if (order.customer_complaint) {
         doc.setTextColor(...RED);
@@ -271,6 +284,20 @@ export async function generateOrderPDF(order, client, motorcycle) {
         totalLineY += 6;
     }
 
+    // ELIHU: pagado + saldo pendiente (order._paid / _balance los inyecta OrderDetail).
+    if (order._paid != null) {
+        doc.setTextColor(...GRAY);
+        doc.text('Pagado:', totalsBoxX + 5, totalLineY);
+        doc.setTextColor(16, 185, 129);
+        doc.text(`$${(Number(order._paid) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, totalsBoxX + totalsBoxW - 5, totalLineY, { align: 'right' });
+        totalLineY += 6;
+        doc.setTextColor(...GRAY);
+        doc.text('Saldo:', totalsBoxX + 5, totalLineY);
+        doc.setTextColor(...RED);
+        doc.text(`$${(Number(order._balance) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, totalsBoxX + totalsBoxW - 5, totalLineY, { align: 'right' });
+        totalLineY += 6;
+    }
+
     // Total line separator
     doc.setDrawColor(...RED);
     doc.setLineWidth(0.5);
@@ -322,6 +349,19 @@ export async function generateOrderPDF(order, client, motorcycle) {
         totalLineY += 6;
     }
 
+    if (order._paid != null) {
+        doc.setTextColor(...GRAY);
+        doc.text('Pagado:', totalsBoxX + 5, totalLineY);
+        doc.setTextColor(16, 185, 129);
+        doc.text(`$${(Number(order._paid) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, totalsBoxX + totalsBoxW - 5, totalLineY, { align: 'right' });
+        totalLineY += 6;
+        doc.setTextColor(...GRAY);
+        doc.text('Saldo:', totalsBoxX + 5, totalLineY);
+        doc.setTextColor(...RED);
+        doc.text(`$${(Number(order._balance) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, totalsBoxX + totalsBoxW - 5, totalLineY, { align: 'right' });
+        totalLineY += 6;
+    }
+
     doc.setDrawColor(...RED);
     doc.setLineWidth(0.5);
     doc.line(totalsBoxX + 5, totalLineY - 2, totalsBoxX + totalsBoxW - 5, totalLineY - 2);
@@ -366,5 +406,98 @@ export async function downloadOrderPDF(order, client, motorcycle) {
  */
 export async function generateOrderPDFBlob(order, client, motorcycle) {
     const doc = await generateOrderPDF(order, client, motorcycle);
+    return doc.output('blob');
+}
+
+/**
+ * ELIHU: Recibo / comprobante de pago (abono) con folio.
+ * `receipt` viene de GET /api/order-payments/:id/receipt.
+ */
+export async function generatePaymentReceiptPDF(receipt) {
+    const doc = new jsPDF({ compress: true, unit: 'mm', format: 'a5' });
+    const BLACK = [25, 25, 25], RED = [220, 38, 38], GRAY = [100, 116, 139], WHITE = [255, 255, 255];
+    const pageW = 148, marginL = 14, marginR = 14, contentW = pageW - marginL - marginR;
+    const money = (n) => `$${(Number(n) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+
+    // Header
+    doc.setFillColor(...BLACK);
+    doc.rect(0, 0, pageW, 26, 'F');
+    doc.setFillColor(...RED);
+    doc.rect(0, 26, pageW, 1.5, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(receipt.workshop || 'Taller', marginL, 12);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Recibo de pago', marginL, 19);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text(receipt.receipt_number || 'S/F', pageW - marginR, 12, { align: 'right' });
+    if (receipt.cancelled) {
+        doc.setTextColor(...RED);
+        doc.text('CANCELADO', pageW - marginR, 19, { align: 'right' });
+    }
+
+    let y = 36;
+    const line = (label, value, opts = {}) => {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...GRAY);
+        doc.text(label, marginL, y);
+        doc.setTextColor(...(opts.color || BLACK));
+        doc.setFont('helvetica', opts.bold ? 'bold' : 'normal');
+        doc.text(String(value ?? '—'), pageW - marginR, y, { align: 'right' });
+        y += 6.5;
+    };
+
+    line('Fecha', new Date(receipt.payment_date).toLocaleString('es-MX', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
+    line('Cliente', receipt.client?.name || '—');
+    line('Teléfono', receipt.client?.phone || '—');
+    line('Motocicleta', receipt.motorcycle || '—');
+    line('Orden', receipt.order_number || '—');
+    line('Método de pago', ({ efectivo: 'Efectivo', transferencia: 'Transferencia', tarjeta: 'Tarjeta', otro: 'Otro' }[receipt.payment_method]) || receipt.payment_method);
+
+    y += 2;
+    doc.setDrawColor(...RED);
+    doc.setLineWidth(0.4);
+    doc.line(marginL, y, pageW - marginR, y);
+    y += 7;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...BLACK);
+    doc.text('Monto abonado', marginL, y);
+    doc.setTextColor(...RED);
+    doc.setFontSize(13);
+    doc.text(money(receipt.amount), pageW - marginR, y, { align: 'right' });
+    y += 9;
+
+    line('Total de la orden', money(receipt.order_total));
+    line('Total pagado acumulado', money(receipt.total_paid), { color: [21, 128, 61], bold: true });
+    line('Saldo pendiente', money(receipt.balance), { color: (Number(receipt.balance) > 0 ? RED : [21, 128, 61]), bold: true });
+    line('Estado de pago', receipt.payment_status, { bold: true });
+    if (receipt.note) line('Notas', receipt.note);
+
+    y += 4;
+    doc.setDrawColor(230, 230, 230);
+    doc.setLineWidth(0.3);
+    doc.line(marginL, y, pageW - marginR, y);
+    y += 6;
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Gracias por su preferencia', pageW / 2, y, { align: 'center' });
+
+    return doc;
+}
+
+export async function downloadPaymentReceiptPDF(receipt) {
+    const doc = await generatePaymentReceiptPDF(receipt);
+    doc.save(`recibo_${receipt.receipt_number || 'pago'}.pdf`);
+}
+
+export async function generatePaymentReceiptBlob(receipt) {
+    const doc = await generatePaymentReceiptPDF(receipt);
     return doc.output('blob');
 }

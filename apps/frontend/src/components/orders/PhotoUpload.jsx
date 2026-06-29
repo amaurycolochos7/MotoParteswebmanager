@@ -3,7 +3,7 @@ import { Upload, X, Image as ImageIcon } from 'lucide-react';
 
 export default function PhotoUpload({ onPhotosAdded }) {
     const [uploading, setUploading] = useState(false);
-    const [category, setCategory] = useState('before');
+    const [category, setCategory] = useState('frente');
     const [caption, setCaption] = useState('');
     const [preview, setPreview] = useState(null);
 
@@ -74,20 +74,30 @@ export default function PhotoUpload({ onPhotosAdded }) {
     };
 
     const categoryNames = {
+        frente: 'Frente',
+        trasera: 'Parte trasera',
+        tablero: 'Tablero / kilometraje',
+        danos: 'Daños visibles',
+        refaccion: 'Refacciones dañadas',
+        otra: 'Otra',
+        // Valores legacy conservados por compatibilidad con fotos existentes:
         before: 'Antes',
         after: 'Después',
-        evidence: 'Evidencia'
+        evidence: 'Evidencia',
     };
 
     return (
         <div className="photo-upload">
             <div className="upload-controls">
                 <div className="form-group">
-                    <label className="form-label">Categoría</label>
+                    <label className="form-label">Tipo de foto</label>
                     <select className="form-input" value={category} onChange={e => setCategory(e.target.value)}>
-                        <option value="before">📸 Antes (Problemas encontrados)</option>
-                        <option value="after">✅ Después (Trabajo terminado)</option>
-                        <option value="evidence">🔍 Evidencia (Garantía/Justificación)</option>
+                        <option value="frente">Frente</option>
+                        <option value="trasera">Parte trasera</option>
+                        <option value="tablero">Tablero / kilometraje</option>
+                        <option value="danos">Daños visibles</option>
+                        <option value="refaccion">Refacciones dañadas</option>
+                        <option value="otra">Otra</option>
                     </select>
                 </div>
 
@@ -124,6 +134,10 @@ export default function PhotoUpload({ onPhotosAdded }) {
                     </>
                 )}
             </label>
+
+            <p style={{ fontSize: 12, color: 'var(--text-secondary, #6b7280)', marginTop: 8, textAlign: 'center' }}>
+                Las fotos se guardan en el servidor y se conservan por 30 días como evidencia.
+            </p>
 
             <style>{`
                 .photo-upload {

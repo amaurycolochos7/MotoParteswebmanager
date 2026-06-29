@@ -163,6 +163,7 @@ export const getReadyForPickupMessage = (clientName, motorcycle, orderNumber, to
         ``,
         `*${orderNumber} - LISTA PARA ENTREGAR*`,
         ``,
+        `La moto está lista para entregar.`,
         `Moto: *${motorcycle}*`,
         `Total: *$${totalAmount.toLocaleString('es-MX')}*`,
         ``,
@@ -214,6 +215,18 @@ export const getStatusChangeMessage = (statusName, data) => {
 
         case 'En Revision':
             return getInReviewMessage(clientName, motorcycle, orderNumber, trackingLink);
+
+        case 'Autorizada':
+            return [
+                `*${clientName}*,`,
+                ``,
+                `*${orderNumber} - AUTORIZADA*`,
+                ``,
+                `Su cotización fue autorizada y abrimos la orden de servicio para su *${motorcycle}*.`,
+                `En breve comenzamos el trabajo.`,
+                ``,
+                FOOTER,
+            ].join('\n');
 
         case 'En Reparacion':
             return getInRepairMessage(clientName, motorcycle, orderNumber, trackingLink);

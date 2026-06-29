@@ -6,15 +6,31 @@ import {
   Bike,
   TrendingUp,
   ArrowRight,
-  FileText
+  FileText,
+  CheckCircle2,
+  Clock,
+  AlertTriangle
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { quotationsService } from '../../lib/api';
 
 export default function MechanicDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { orders, loading } = useData();
+
+  // ELIHU: cotizaciones por autorizar (pendiente/enviada).
+  const [pendingQuotes, setPendingQuotes] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    quotationsService.getAll().then(({ data }) => {
+      if (cancelled || !Array.isArray(data)) return;
+      const n = data.filter((q) => ['pendiente', 'enviada'].includes((q.status || '').toLowerCase())).length;
+      setPendingQuotes(n);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const myActiveOrders = useMemo(() => {
     if (!orders) return [];
@@ -25,7 +41,7 @@ export default function MechanicDashboard() {
 
   const stats = useMemo(() => {
     if (!orders || !user) {
-      return { weekEarnings: 0, prevWeekEarnings: 0, inProcess: 0, readyToDeliver: 0, finishedToday: 0 };
+      return { weekEarnings: 0, prevWeekEarnings: 0, inProcess: 0, readyToDeliver: 0, finishedToday: 0, authorized: 0, deliveryDue: 0 };
     }
 
     const now = new Date();
@@ -70,7 +86,12 @@ export default function MechanicDashboard() {
       return d >= todayStart;
     }).length;
 
-    return { weekEarnings, prevWeekEarnings, inProcess, readyToDeliver, finishedToday };
+    // ELIHU: órdenes "Autorizada" y entregas próximas/vencidas (estimated_delivery_at).
+    const authorized = myActiveOrders.filter(o => (o.status?.name || '').toLowerCase().includes('autorizada')).length;
+    const soon = new Date(now); soon.setDate(soon.getDate() + 2);
+    const deliveryDue = myActiveOrders.filter(o => o.estimated_delivery_at && new Date(o.estimated_delivery_at) <= soon).length;
+
+    return { weekEarnings, prevWeekEarnings, inProcess, readyToDeliver, finishedToday, authorized, deliveryDue };
   }, [orders, user, myActiveOrders]);
 
   const formatCurrency = (amount) => {
@@ -211,6 +232,26 @@ export default function MechanicDashboard() {
         <div className="db-stat" onClick={() => navigate('/mechanic/history')}>
           <span className="db-stat-n">{stats.finishedToday}</span>
           <span className="db-stat-l">Finalizadas</span>
+        </div>
+      </div>
+
+      {/* ===== ELIHU: AUTORIZADA / COTIZACIONES / ENTREGAS ===== */}
+      <div className="db-stats" style={{ marginTop: 10 }}>
+        <div className="db-stat" onClick={() => navigate('/mechanic/orders')}>
+          <span className="db-stat-n" style={{ color: '#0ea5e9', display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={18} />{stats.authorized}</span>
+          <span className="db-stat-l">Autorizadas</span>
+        </div>
+        <div className="db-stat-div"></div>
+        <div className="db-stat" onClick={() => navigate('/mechanic/quotations')}>
+          <span className="db-stat-n" style={{ color: '#b45309', display: 'inline-flex', alignItems: 'center', gap: 4 }}><FileText size={18} />{pendingQuotes}</span>
+          <span className="db-stat-l">Por autorizar</span>
+        </div>
+        <div className="db-stat-div"></div>
+        <div className="db-stat" onClick={() => navigate('/mechanic/orders')}>
+          <span className="db-stat-n" style={{ color: stats.deliveryDue > 0 ? '#dc2626' : '#0F172A', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {stats.deliveryDue > 0 ? <AlertTriangle size={18} /> : <Clock size={18} />}{stats.deliveryDue}
+          </span>
+          <span className="db-stat-l">Entregas próximas</span>
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -18,7 +18,8 @@ import {
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
-import { quotationsService } from '../../lib/api';
+import { quotationsService, clientsService } from '../../lib/api';
+import ClientHistoryPanel from '../../components/clients/ClientHistoryPanel';
 import './Quotations.css';
 
 function formatMXN(amount) {
@@ -47,12 +48,27 @@ export default function NewQuotation() {
     const [selectedClient, setSelectedClient] = useState(null);
     const [clientMotos, setClientMotos] = useState([]);
 
+    // ELIHU: búsqueda por nombre vía backend (acentos, placas) con fallback local.
+    const [serverMatches, setServerMatches] = useState(null); // null = sin búsqueda server aún
+    useEffect(() => {
+        const q = clientQuery.trim();
+        if (q.length < 2) { setServerMatches(null); return; }
+        let cancelled = false;
+        const t = setTimeout(async () => {
+            const { data } = await clientsService.search(q, { limit: 12 });
+            if (!cancelled) setServerMatches(Array.isArray(data) ? data : []);
+        }, 250);
+        return () => { cancelled = true; clearTimeout(t); };
+    }, [clientQuery]);
+
     const clientMatches = useMemo(() => {
         const q = clientQuery.trim();
         if (q.length === 0) return [];
+        // Prefer server results (richer + accent/plate aware); fall back to local.
+        if (serverMatches !== null) return serverMatches;
         if (q.length < 2) return (clients || []).slice(0, 8);
         return searchClients(q);
-    }, [clientQuery, clients, searchClients]);
+    }, [clientQuery, clients, searchClients, serverMatches]);
 
     // Quick client modal
     const [showQuickClient, setShowQuickClient] = useState(false);
@@ -76,10 +92,12 @@ export default function NewQuotation() {
 
     const selectClient = (c) => {
         setSelectedClient(c);
-        const motos = getClientMotorcycles(c.id);
-        setClientMotos(motos || []);
+        // Server search results carry their own motorcycles; fall back to local.
+        const motos = (c.motorcycles && c.motorcycles.length ? c.motorcycles : getClientMotorcycles(c.id)) || [];
+        setClientMotos(motos);
         setSelectedMotoId('');
         setClientQuery('');
+        setServerMatches(null);
     };
 
     const openNewClientModal = () => {
@@ -286,6 +304,16 @@ export default function NewQuotation() {
                                             }}>
                                                 <Phone size={12} /> {c.phone}
                                             </div>
+                                            {(c.motorcycles && c.motorcycles.length > 0) && (
+                                                <div style={{ fontSize: 12, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                    <Bike size={12} /> {c.motorcycles.map((m) => `${m.brand} ${m.model}${m.plates ? ' (' + m.plates + ')' : ''}`).join(', ')}
+                                                </div>
+                                            )}
+                                            {c.last_order && (
+                                                <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                                                    Última orden: {c.last_order.status || '—'} · {new Date(c.last_order.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                </div>
+                                            )}
                                         </button>
                                     </li>
                                 ))}
@@ -330,6 +358,7 @@ export default function NewQuotation() {
                         </button>
                     </div>
                 )}
+                {selectedClient && <ClientHistoryPanel clientId={selectedClient.id} />}
             </section>
 
             {/* MOTORCYCLE */}

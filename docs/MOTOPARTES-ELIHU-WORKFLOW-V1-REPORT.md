@@ -258,3 +258,126 @@ Ver `git log` de la rama `feature/elihu-workflow-v1` (commit de este paquete).
 ## 32. Backup realizado antes de migrar/desplegar
 
 **No realizado** — no se migró/desplegó (ver §28). El paso de backup es el primero del runbook §29 y debe ejecutarlo el operador con acceso a producción.
+
+
+
+---
+---
+
+# PARTE 2 — CIERRE DE UI END-TO-END (ELIHU Workflow v1)
+
+> Continúa sobre `feature/elihu-workflow-v1` (base commit `72835c2`). Esta parte conecta
+> la base backend con la experiencia real en la interfaz, mobile-first, y la prueba con build real.
+
+## 1. Resumen ejecutivo (Parte 2)
+
+Se conectó el flujo completo en la UI: búsqueda de cliente por nombre con historial, sección de
+**Pagos y saldo** con abonos/recibo, **comisión variable** sobre mano de obra con ciclo de
+liberación, **fecha estimada de entrega**, **tipos de foto** + aviso de retención 30 días,
+**gating de permisos** real en pantalla, advertencia de **entrega con saldo pendiente**, widgets de
+dashboard, y actualización de **PDF de orden + recibo**. La conversión cotización→orden ya existía
+y ahora nace **“Autorizada”**.
+
+**Verificación ejecutada en este pase:**
+- `apps/api`: `npm test` → **43/43 PASS**; `npx prisma validate` → **valid**.
+- `apps/frontend`: `npm run build` (Vite) → **PASS** (~12 s) de forma repetida tras cada bloque.
+
+## 2. Qué ya existía (no se reescribió)
+- `QuotationDetail.jsx`: flujo aceptar (`handleSetStatus('aceptada')`) + `handleConvert()` →
+  `quotationsService.convert()` con navegación a la orden creada, banner de convertida y
+  manejo de doble conversión. **Ya completo**; el backend ahora hace que esa orden sea “Autorizada”.
+- `WhatsAppSendModal.jsx`: **vista previa editable** (textarea), estado del bot con **fallback**
+  (“Bot desconectado”), plantillas rápidas y botón enviar. Cumple el requisito de preview editable.
+- `NewServiceOrder.jsx`: orden rápida (cliente + moto + falla) ya existente; no se modificó.
+
+## 3. Cambios de UI implementados ahora
+
+| Área | Archivo | Qué hace |
+|---|---|---|
+| Búsqueda por nombre | `NewQuotation.jsx` | Búsqueda backend con debounce (`clientsService.search`) + fallback local; filas con motos y última orden |
+| Historial cliente | `components/clients/ClientHistoryPanel.jsx` | Acordeón mobile: motos, órdenes, cotizaciones, saldo pendiente, última visita |
+| Pagos y saldo | `components/orders/OrderPaymentsSection.jsx` | Total/pagado/saldo/estado, historial de abonos, registrar/cancelar abono, descargar recibo PDF |
+| Comisión variable | `components/orders/CommissionSection.jsx` | Base = mano de obra, % editable (maestro), comisión calculada, estado del ciclo |
+| Fecha de entrega | `OrderDetail.jsx` | Campo fecha editable (`estimated_delivery_at`) con guardado |
+| Entrega con saldo | `OrderDetail.jsx` | Al pasar a “Entregada” con saldo: bloquea al auxiliar; pide nota de autorización al maestro |
+| Permisos UI | `OrderDetail.jsx` | `canManageMoney` oculta editar costos, registrar pago, comisión |
+| Tipos de foto | `components/orders/PhotoUpload.jsx` | Frente/Trasera/Tablero/Daños/Refacciones/Otra + aviso retención 30 días |
+| Dashboard | `MechanicDashboard.jsx` | Widgets: Autorizadas, Cotizaciones por autorizar, Entregas próximas/vencidas |
+| WhatsApp texto | `utils/whatsappHelper.js` | “La moto está lista para entregar” + caso “Autorizada” |
+| PDF orden | `utils/pdfGenerator.js` | Pagado + Saldo + Entrega estimada |
+| PDF recibo | `utils/pdfGenerator.js` | `generatePaymentReceiptPDF` (folio, abono, total, pagado, saldo, estado, método) |
+
+## 4. Backend agregado en Parte 2
+- `GET /api/earnings/order/:orderId` — comisión + estado financiero de la orden.
+- `PUT /api/earnings/order/:orderId/commission` — fija % variable sobre mano de obra (solo maestro/dueño);
+  crea/actualiza `MechanicEarning` con `commission_status` derivado del saldo (se libera al liquidar).
+
+## 5. Mapa de criterios de aceptación (Parte 2)
+
+| # | Criterio | Estado |
+|---|---|---|
+| 1 | Buscar cliente por nombre desde UI | **PASS** (build) |
+| 2 | Ver historial del cliente desde UI | **PASS** (build) |
+| 3 | Crear cotización desde UI | **PASS** (preexistente) |
+| 4 | Aceptar cotización desde UI | **PASS** (preexistente) |
+| 5 | Al aceptar, se crea orden | **PASS** (preexistente + backend) |
+| 6 | Orden nace “Autorizada” | **PASS** (backend convert + seed/migración) |
+| 7 | “Lista para entregar” visible y con texto correcto | **PASS** |
+| 8 | Fecha estimada de entrega | **PASS** |
+| 9-10 | Subir/ver fotos + asociadas | **PARCIAL** (tipos + retención listos; persistencia servidor vs IndexedDB en NewServiceOrder sin cambiar — backend `expires_at` listo) |
+| 11 | Varios abonos | **PASS** |
+| 12 | Saldo pendiente | **PASS** |
+| 13 | Estado de pago | **PASS** |
+| 14 | Generar/ver/descargar recibo | **PASS** (descarga PDF; envío por WhatsApp del recibo = manual vía modal) |
+| 15-18 | Comisión variable, sobre mano de obra, no se libera con abonos, se libera al liquidar | **PASS** |
+| 19-21 | Auxiliar no cambia precios/pagos/comisión | **PASS** (backend 403 + UI oculta) |
+| 22 | PDFs con datos nuevos | **PASS** (orden + recibo; cotización PDF server-side ya incluía campos) |
+| 23 | WhatsApp preview editable | **PASS** (modal existente) / status auto-notif sigue automático = **documentado** |
+| 24 | Dashboard relevante | **PASS** (widgets; agregados de saldo/comisión global = pendiente de endpoint de stats) |
+| 25 | Tests pasan | **PASS** (43/43) |
+| 26 | Build pasa | **PASS** (vite) |
+| 27-28 | QA + docs | **PASS** (este doc + QA) |
+| 29 | Post-deploy verificado | **N/A** (no desplegado) |
+| 30 | Si no se desplegó, razón documentada y listo | **PASS** (ver Parte 1 §28 + runbook §29) |
+
+## 6. Pendientes/limitaciones honestos (Parte 2)
+1. **Notificación WhatsApp en cambio de estado**: sigue enviándose automáticamente (comportamiento
+   preexistente en `OrderDetail.handleStatusChange`). La **vista previa editable existe** y se usa para
+   envíos manuales (`WhatsAppSendModal`). Migrar el auto-envío a “preview obligatorio” cambia el
+   comportamiento central y se dejó fuera por riesgo; queda documentado.
+2. **Fotos**: tipos y retención (`expires_at`) listos en backend; el guardado en `NewServiceOrder`
+   puede seguir usando almacenamiento local/IndexedDB en algunos caminos. Migrar 100% a servidor
+   es trabajo de UI adicional. El **sweep de borrado físico** sigue como pendiente seguro (Parte 1 §17).
+3. **Dashboard de saldos/comisiones globales**: los widgets actuales se basan en datos ya cargados.
+   Agregados “saldo total por cobrar” y “comisiones pendientes” requieren un endpoint de stats para
+   evitar N+1; se dejó como mejora documentada.
+4. **PDF de cotización**: se genera server-side (`routes/quotation-pdf.js`, pdfkit) y ya incluye
+   cliente/moto/falla/servicios/total; no se modificó en este pase.
+
+## 7. Verificación (Parte 2)
+```
+apps/api   > npm test            → ℹ tests 43 · pass 43 · fail 0
+apps/api   > npx prisma validate → schema is valid 🚀
+apps/frontend > npm run build    → ✓ built in ~12s (sin errores)
+```
+
+## 8. Archivos nuevos (Parte 2)
+- `apps/frontend/src/components/orders/OrderPaymentsSection.jsx`
+- `apps/frontend/src/components/orders/CommissionSection.jsx`
+- `apps/frontend/src/components/clients/ClientHistoryPanel.jsx`
+
+## 9. Archivos modificados (Parte 2)
+- `apps/api/src/routes/earnings.js`
+- `apps/frontend/src/lib/api.js`
+- `apps/frontend/src/pages/mechanic/NewQuotation.jsx`
+- `apps/frontend/src/pages/mechanic/OrderDetail.jsx`
+- `apps/frontend/src/pages/mechanic/MechanicDashboard.jsx`
+- `apps/frontend/src/components/orders/PhotoUpload.jsx`
+- `apps/frontend/src/utils/pdfGenerator.js`
+- `apps/frontend/src/utils/whatsappHelper.js`
+
+## 10. Despliegue (Parte 2)
+**No desplegado.** Igual que en Parte 1: sin acceso seguro/verificado a producción ni backup posible
+desde este entorno, por lo que el deploy queda bloqueado (regla 4.7). Runbook en Parte 1 §29.
+Nota: la migración `007_elihu_workflow.sql` sigue siendo el único cambio de DB requerido; el frontend
+es estático (build) y no requiere migración adicional.

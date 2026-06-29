@@ -792,6 +792,27 @@ export const earningsService = {
         }
     },
 
+    // ELIHU: comisión variable por orden (sobre mano de obra).
+    async getOrderCommission(orderId) {
+        try {
+            const data = await apiFetch(`/earnings/order/${orderId}`);
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    async setOrderCommission(orderId, commission_rate) {
+        try {
+            const data = await apiFetch(`/earnings/order/${orderId}/commission`, {
+                method: 'PUT',
+                body: JSON.stringify({ commission_rate }),
+            });
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
     async markAsPaid(earningIds) {
         try {
             const data = await apiFetch('/earnings/mark-paid', {
