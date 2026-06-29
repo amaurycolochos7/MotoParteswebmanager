@@ -47,26 +47,21 @@ test('el cuestionario tiene 15 secciones', () => {
   assert.equal(survey.SECTIONS.length, 15);
 });
 
-test('flatQuestions incluye q1..q70 + los 3 followups', () => {
+test('flatQuestions: q1 eliminada, q2..q70 + los 3 followups presentes', () => {
   const flat = survey.flatQuestions();
   const keys = flat.map((q) => q.key);
-  for (let i = 1; i <= 70; i++) assert.ok(keys.includes('q' + i), `falta q${i}`);
+  assert.ok(!keys.includes('q1'), 'q1 debe estar eliminada (la identidad viene del PIN)');
+  for (let i = 2; i <= 70; i++) assert.ok(keys.includes('q' + i), `falta q${i}`);
   assert.ok(keys.includes('q2_detail'));
   assert.ok(keys.includes('q8_detail'));
   assert.ok(keys.includes('q20_example'));
-  assert.equal(flat.length, 73);
-});
-
-test('q1 solo permite ELIHU o MACIEL', () => {
-  const q1 = survey.flatQuestions().find((q) => q.key === 'q1');
-  assert.deepEqual(q1.options, ['ELIHU', 'MACIEL']);
-  assert.equal(q1.required, true);
+  assert.equal(flat.length, 72);
 });
 
 // ── Render / comparación / export ──
 test('renderAnswer formatea cada tipo correctamente', () => {
   const idx = survey.questionIndex();
-  assert.equal(xport.renderAnswer(idx.q1, { answer_value: 'ELIHU' }), 'ELIHU');
+  assert.equal(xport.renderAnswer(idx.q3, { answer_value: 'Todos los días' }), 'Todos los días');
   assert.equal(
     xport.renderAnswer(idx.q2, { answer_value: ['Creo órdenes', 'Cobro trabajos'] }),
     'Creo órdenes; Cobro trabajos'
@@ -81,10 +76,10 @@ test('renderAnswer formatea cada tipo correctamente', () => {
 
 test('diffLabel detecta igualdad, diferencia y respuestas parciales', () => {
   const idx = survey.questionIndex();
-  const q = idx.q1;
-  assert.equal(xport.diffLabel(q, { answer_value: 'ELIHU' }, { answer_value: 'ELIHU' }), 'Ambos respondieron igual');
-  assert.ok(xport.diffLabel(q, { answer_value: 'ELIHU' }, { answer_value: 'MACIEL' }).startsWith('Difieren'));
-  assert.equal(xport.diffLabel(q, { answer_value: 'ELIHU' }, null), 'Solo respondió ELIHU');
+  const q = idx.q3;
+  assert.equal(xport.diffLabel(q, { answer_value: 'Todos los días' }, { answer_value: 'Todos los días' }), 'Ambos respondieron igual');
+  assert.ok(xport.diffLabel(q, { answer_value: 'Todos los días' }, { answer_value: 'Casi no lo uso' }).startsWith('Difieren'));
+  assert.equal(xport.diffLabel(q, { answer_value: 'Todos los días' }, null), 'Solo respondió ELIHU');
   assert.equal(xport.diffLabel(q, null, { answer_value: 'MACIEL' }), 'Solo respondió MACIEL');
   assert.equal(xport.diffLabel(q, null, null), 'Sin responder');
 });

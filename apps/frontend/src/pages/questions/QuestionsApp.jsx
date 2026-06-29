@@ -173,12 +173,21 @@ export default function QuestionsApp() {
     }
   }, [buildPayload, locked]);
 
-  // Autosave periódico (cada 45s si hay cambios).
+  // Autosave periódico (cada 45s si hay cambios) — red de seguridad.
   useEffect(() => {
     if (!token || locked) return;
     const id = setInterval(() => { if (dirty.current) save(true); }, 45000);
     return () => clearInterval(id);
   }, [token, locked, save]);
+
+  // Autosave al escribir (debounce 1.2s tras el último cambio). Esto guarda el
+  // borrador en el servidor casi en tiempo real, de modo que cerrar o
+  // actualizar la ventana nunca pierde lo contestado y se continúa al volver.
+  useEffect(() => {
+    if (!token || locked || !dirty.current) return;
+    const t = setTimeout(() => { if (dirty.current) save(true); }, 1200);
+    return () => clearTimeout(t);
+  }, [answers, token, locked, save]);
 
   // Guardar al cerrar/recargar.
   useEffect(() => {

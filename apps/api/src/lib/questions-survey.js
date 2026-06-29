@@ -17,7 +17,7 @@
 // Si cambias preguntas/keys, sube SURVEY_VERSION para mantener trazabilidad.
 // ============================================================================
 
-export const SURVEY_VERSION = '2026-06-29.1';
+export const SURVEY_VERSION = '2026-06-29.2';
 
 export const SURVEY_INTRO =
   'Contesta según cómo trabajas realmente hoy en el taller.\n\n' +
@@ -34,9 +34,6 @@ export const SECTIONS = [
     key: 'perfil',
     title: 'Perfil del participante',
     questions: [
-      { key: 'q1', type: 'SINGLE_CHOICE', required: true,
-        label: '¿Quién está contestando?',
-        options: ['ELIHU', 'MACIEL'] },
       { key: 'q2', type: 'MULTI_CHOICE', required: true, allowOther: true,
         label: '¿Cuál es tu función principal en el taller?',
         options: ['Atiendo clientes', 'Recibo motos', 'Creo órdenes', 'Hago diagnósticos', 'Hago reparaciones', 'Cobro trabajos', 'Superviso auxiliares', 'Reviso ganancias o comisiones', 'Envío mensajes al cliente', OTHER],
