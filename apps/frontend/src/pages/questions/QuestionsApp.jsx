@@ -99,6 +99,13 @@ export default function QuestionsApp() {
         }
       } catch { /* ignore */ }
       setAnswers(merged);
+      // Continuar en la misma sección donde se quedó.
+      try {
+        const savedSec = parseInt(localStorage.getItem(`motopartes_questions_section_${me.participant.key}`) || '0', 10);
+        if (!Number.isNaN(savedSec) && savedSec > 0 && savedSec < (f.sections?.length || 0)) {
+          setSectionIdx(savedSec);
+        }
+      } catch { /* ignore */ }
     } catch (e) {
       if (e.status === 401) {
         clearQAuth();
@@ -203,6 +210,9 @@ export default function QuestionsApp() {
   const goToSection = async (idx) => {
     if (!locked && dirty.current) await save(true);
     setSectionIdx(idx);
+    if (participant?.key) {
+      try { localStorage.setItem(`motopartes_questions_section_${participant.key}`, String(idx)); } catch { /* ignore */ }
+    }
     setReviewing(false);
     window.scrollTo(0, 0);
   };
@@ -315,9 +325,6 @@ export default function QuestionsApp() {
               {sectionIdx > 0 && (
                 <button className="mq-btn" onClick={() => goToSection(sectionIdx - 1)}>← Anterior</button>
               )}
-              <button className="mq-btn" onClick={() => save(false)} disabled={saving}>
-                {saving ? 'Guardando…' : 'Guardar borrador'}
-              </button>
               {!isLast ? (
                 <button className="mq-btn mq-btn-primary" onClick={() => goToSection(sectionIdx + 1)}>Siguiente →</button>
               ) : (
@@ -326,7 +333,7 @@ export default function QuestionsApp() {
                 </button>
               )}
             </div>
-            {savedAt && <div className="mq-saved">Guardado {savedAt.toLocaleTimeString('es-MX')}</div>}
+            <div className="mq-saved">{saving ? 'Guardando…' : (savedAt ? `Guardado automáticamente ${savedAt.toLocaleTimeString('es-MX')}` : 'Tus respuestas se guardan solas')}</div>
           </div>
         )}
 
