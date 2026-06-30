@@ -507,3 +507,46 @@ Buscar cliente por nombre, ver su historial, crear cotización, aceptarla y conv
 **saldo/estado de pago**, descargar **recibo PDF**, ver **comisión liberada** al liquidar, pasar a
 **“Lista para entregar”**, y (como auxiliar) ver bloqueadas las acciones de dinero. Todo esto está
 **verificado end-to-end contra una base PostgreSQL real** en este pase.
+
+
+
+---
+---
+
+# PARTE 4 — Validación backend de entrega con saldo pendiente
+
+## 1. Cambio implementado
+`PUT /api/orders/:id/status` (`apps/api/src/routes/orders.js`) ahora aplica enforcement en el
+**backend** (ya no solo en UI) cuando el nuevo estado es **“Entregada”**:
+
+- Calcula el saldo real con `computeOrderFinance(order, order_payments)`.
+- Si **saldo > 0**:
+  - **Auxiliar → 403** (nunca puede entregar con saldo).
+  - **Maestro/dueño sin nota → 400** (se exige motivo de autorización).
+  - **Maestro/dueño con nota → 200**, y la nota se guarda en `order_history` con el prefijo
+    `[ENTREGA CON SALDO $<monto>] <motivo>`.
+- Si **saldo = 0**: el cambio a “Entregada” funciona normal (sin fricción).
+- No se alteran estados existentes ni otros flujos (la validación solo aplica al nombre `Entregada`).
+
+La UI (`OrderDetail.handleStatusChange`) ya pedía la nota y bloqueaba al auxiliar; ahora **ambas
+capas** (frontend + backend) lo enforzan. Defensa en profundidad.
+
+## 2. Pruebas E2E añadidas (DB real) — todas PASS
+`apps/api/test/_elihu_e2e.mjs` (total **41/41 PASS**):
+
+| Caso | Resultado |
+|---|---|
+| Auxiliar entrega con saldo pendiente → 403 | **PASS** |
+| Maestro entrega con saldo SIN nota → 400 | **PASS** |
+| Maestro entrega con saldo CON nota → 200 | **PASS** |
+| Nota de autorización registrada en historial (`[ENTREGA CON SALDO ...]`) | **PASS** |
+| Orden sin saldo → entrega normal 200 | **PASS** |
+
+Unitarias: `npm test` → **43/43 PASS** (sin regresiones).
+
+## 3. Estado del despliegue a producción (reconfirmado)
+**No desplegado.** Sin acceso seguro/verificado a la base de datos de producción desde este entorno
+(sin URL de prod, sin `psql`/`dokploy`, el token Dokploy no otorga SSH), y por la regla 4.7 **no
+despliego sin backup**. La rama queda pusheada con este cambio; el despliegue debe ejecutarlo el
+operador con acceso (runbook en Parte 1 §29). La migración `007` ya fue probada contra una DB real
+(Parte 3) y este cambio es **solo de código** (no requiere migración adicional).

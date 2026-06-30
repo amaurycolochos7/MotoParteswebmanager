@@ -43,6 +43,11 @@ validación de abono, comisión variable, no-liberación hasta liquidar, termina
 | Comisión READY_TO_PAY al liquidar | **PASS** |
 | Recibo con folio REC- | **PASS** |
 | Estado “Lista para Entregar” | **PASS** |
+| Entrega con saldo: AUX → 403 (backend) | **PASS** |
+| Entrega con saldo: MASTER sin nota → 400 (backend) | **PASS** |
+| Entrega con saldo: MASTER con nota → 200 (backend) | **PASS** |
+| Nota de autorización registrada en historial | **PASS** |
+| Entregar orden sin saldo → 200 normal | **PASS** |
 
 ## E. Permisos en DB real (verificado — `_elihu_e2e.mjs`)
 | Caso | Estado |
@@ -68,7 +73,7 @@ advertencia de entrega con saldo, gating de botones de dinero, tipos de foto, da
 | Fotos | **Opción B**: backend `expires_at` listo; flujo de captura sigue en IndexedDB; **UI ya no promete servidor**; migración server-side fuera del release |
 | WhatsApp | **Opción B**: auto-notif en cambio de estado se conserva; preview editable manual vía `WhatsAppSendModal`; lista de mensajes automáticos en REPORT Parte 3 §7 |
 | Dashboard | **Opción B**: widgets sin N+1 implementados; agregados globales saldo/comisión fuera del release (requieren endpoint de stats) |
-| Entrega con saldo | Guard en UI (`OrderDetail`): bloquea auxiliar, pide nota al maestro; el endpoint de estado es genérico (no bloquea a nivel API) |
+| Entrega con saldo | **Backend + UI**: `PUT /orders/:id/status` valida — auxiliar 403, maestro requiere nota (400 sin nota), nota guardada en historial; UI también bloquea/pide nota. Verificado en E2E (sección D) |
 
 ## H. Despliegue / Backup
 | Caso | Estado |

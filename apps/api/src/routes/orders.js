@@ -4,6 +4,7 @@ import { resolveWorkspace } from '../middleware/workspace.js';
 import { assertWithinLimit, incrementUsageAsync, PlanLimitError } from '../lib/billing.js';
 import { fireEvent } from '../lib/events.js';
 import { generateOrderNumber } from '../lib/order-number.js';
+import { computeOrderFinance } from '../lib/payments.js';
 
 // Helper: recalculate order totals
 // price = total per service (labor + materials), cost = materials portion
@@ -269,7 +270,7 @@ export default async function ordersRoutes(fastify) {
         });
 
         // PUT /api/orders/:id/status
-        app.put('/:id/status', async (request) => {
+        app.put('/:id/status', async (request, reply) => {
             const { id } = request.params;
             const { status_id, notes } = request.body;
 
@@ -280,6 +281,33 @@ export default async function ordersRoutes(fastify) {
             });
 
             const newStatus = await prisma.orderStatus.findUnique({ where: { id: status_id } });
+
+            // ELIHU J (backend enforcement): entregar con saldo pendiente.
+            // Si el nuevo estado es "Entregada" y la orden tiene saldo > 0:
+            //   - el auxiliar NUNCA puede (403),
+            //   - el maestro/dueño puede SOLO si manda una nota de autorización (si no, 400),
+            //   - la nota queda registrada en el historial.
+            let effectiveNotes = notes;
+            const isDelivered = /entregada/i.test(newStatus?.name || '');
+            if (isDelivered) {
+                const payments = await prisma.orderPayment.findMany({ where: { order_id: id } });
+                const finance = computeOrderFinance(oldOrder || {}, payments);
+                if (finance.balance > 0) {
+                    if (!canEditMoney(request)) {
+                        return reply.status(403).send({
+                            error: 'No puedes marcar como Entregada una orden con saldo pendiente. Requiere autorización del maestro/dueño.',
+                        });
+                    }
+                    const reason = (notes || '').trim();
+                    if (!reason) {
+                        return reply.status(400).send({
+                            error: `La orden tiene saldo pendiente de $${finance.balance}. Para entregar con saldo, incluye una nota de autorización.`,
+                            balance: finance.balance,
+                        });
+                    }
+                    effectiveNotes = `[ENTREGA CON SALDO $${finance.balance}] ${reason}`;
+                }
+            }
 
             // Update order
             const order = await prisma.order.update({
@@ -298,7 +326,7 @@ export default async function ordersRoutes(fastify) {
                     changed_by: request.user.id,
                     old_status: oldOrder?.status?.name || null,
                     new_status: newStatus?.name || 'Desconocido',
-                    notes: notes || null
+                    notes: effectiveNotes || null
                 }
             });
 

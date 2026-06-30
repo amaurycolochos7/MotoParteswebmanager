@@ -188,6 +188,31 @@ async function main() {
     r = await inj('PUT', `/api/earnings/order/${orderId}/commission`, masterTok, { commission_rate: 25 });
     check('MASTER puede cambiar comisión', r.statusCode === 200, `code=${r.statusCode}`);
 
+    // ============ ENTREGA CON SALDO PENDIENTE (backend) ============
+    // Segunda orden con saldo: cotización -> convertir -> costos 400 -> abono 100 (saldo 300)
+    r = await inj('POST', '/api/quotations', masterTok, { client_id: client.id, labor: [{ name: 'Servicio 2', price: 400 }], parts: [] });
+    const q2 = j(r.payload);
+    r = await inj('POST', `/api/quotations/${q2.id}/convert`, masterTok, {});
+    const order2 = j(r.payload).order_id;
+    await inj('PUT', `/api/orders/${order2}/costs`, masterTok, { labor_total: 400, parts: [] });
+    await inj('POST', '/api/order-payments', masterTok, { order_id: order2, amount: 100 });
+    const entregada = await db.orderStatus.findFirst({ where: { workspace_id: ws.id, name: 'Entregada' } });
+
+    r = await inj('PUT', `/api/orders/${order2}/status`, auxTok, { status_id: entregada.id, notes: 'intento' });
+    check('AUX 403 entregar con saldo pendiente', r.statusCode === 403, `code=${r.statusCode}`);
+
+    r = await inj('PUT', `/api/orders/${order2}/status`, masterTok, { status_id: entregada.id });
+    check('MASTER 400 entregar con saldo SIN nota', r.statusCode === 400, `code=${r.statusCode}`);
+
+    r = await inj('PUT', `/api/orders/${order2}/status`, masterTok, { status_id: entregada.id, notes: 'Cliente paga el resto el viernes' });
+    check('MASTER entrega con saldo + nota → PASS', r.statusCode === 200 && j(r.payload).status?.name === 'Entregada', `code=${r.statusCode}`);
+    const hist = await db.orderHistory.findFirst({ where: { order_id: order2, new_status: 'Entregada' }, orderBy: { created_at: 'desc' } });
+    check('Nota de autorización registrada en historial', hist && /ENTREGA CON SALDO/.test(hist.notes || ''), `notes=${hist?.notes}`);
+
+    // Orden principal (saldo 0) entrega normal
+    r = await inj('PUT', `/api/orders/${orderId}/status`, masterTok, { status_id: entregada.id });
+    check('Entregar orden SIN saldo (normal)', r.statusCode === 200 && j(r.payload).status?.name === 'Entregada', `code=${r.statusCode}`);
+
     await app.close();
 
     console.log('\n==== RESULTADOS E2E (DB real local) ====');
