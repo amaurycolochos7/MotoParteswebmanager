@@ -377,6 +377,57 @@ export async function generateOrderPDF(order, client, motorcycle) {
 
     y = Math.max(y, totalLineY) + 15;
 
+    // ─── EVIDENCIAS DEL SERVICIO ───
+    // Sólo evidencias (evidence_type) activas (no eliminadas vía soft delete).
+    const evidences = (order.photos || []).filter(
+        (p) => p && p.evidence_type && !p.deleted_at
+    );
+    const EV_LABELS = { pieza_danada: 'Pieza dañada', pieza_nueva: 'Pieza nueva', despues_trabajo: 'Después del trabajo' };
+    if (evidences.length > 0) {
+        doc.addPage();
+        let ey = 20;
+        doc.setTextColor(...BLACK);
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.text('EVIDENCIAS DEL SERVICIO', marginL, ey);
+        doc.setFillColor(...RED);
+        doc.rect(marginL, ey + 3, contentW, 1, 'F');
+        ey += 12;
+
+        const colW = (contentW - 8) / 2;
+        const imgH = 52;
+        const cellH = imgH + 22;
+        let col = 0;
+        for (const ev of evidences) {
+            if (ey + cellH > 280) { doc.addPage(); ey = 20; col = 0; }
+            const x = marginL + col * (colW + 8);
+            try {
+                doc.addImage(ev.url, 'JPEG', x, ey, colW, imgH);
+            } catch {
+                doc.setFillColor(...LIGHT_GRAY);
+                doc.rect(x, ey, colW, imgH, 'F');
+            }
+            let ty = ey + imgH + 5;
+            doc.setTextColor(...RED);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.text(EV_LABELS[ev.evidence_type] || 'Evidencia', x, ty);
+            ty += 4;
+            doc.setTextColor(...GRAY);
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'normal');
+            doc.text(new Date(ev.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }), x, ty);
+            if (ev.caption) {
+                ty += 4;
+                doc.setTextColor(...BLACK);
+                const noteLines = doc.splitTextToSize(ev.caption, colW);
+                doc.text(noteLines.slice(0, 2), x, ty);
+            }
+            col = col === 0 ? 1 : 0;
+            if (col === 0) ey += cellH;
+        }
+    }
+
     // ─── FOOTER ───
     doc.setDrawColor(230, 230, 230);
     doc.setLineWidth(0.3);

@@ -22,6 +22,8 @@ export default function ClientPortal() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updates, setUpdates] = useState([]);
+  const [extraQuotes, setExtraQuotes] = useState([]);
+  const [authorizingId, setAuthorizingId] = useState(null);
 
   useEffect(() => {
     loadOrder();
@@ -50,12 +52,34 @@ export default function ClientPortal() {
         } catch (e) {
           console.error('Error loading updates:', e);
         }
+        // Load trabajo extra (cotizaciones adicionales)
+        try {
+          const eq = await ordersService.getExtraQuotes(token);
+          setExtraQuotes(eq?.data || []);
+        } catch (e) {
+          console.error('Error loading extra quotes:', e);
+        }
       }
     } catch (err) {
       console.error('Error loading order:', err);
       setError('Error al cargar la orden');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAuthorize = async (quotationId, authorized) => {
+    setAuthorizingId(quotationId);
+    try {
+      const { error } = await ordersService.authorizeExtraQuote(token, quotationId, authorized);
+      if (!error) {
+        const eq = await ordersService.getExtraQuotes(token);
+        setExtraQuotes(eq?.data || []);
+      }
+    } catch (e) {
+      console.error('Error authorizing extra quote:', e);
+    } finally {
+      setAuthorizingId(null);
     }
   };
 
@@ -194,6 +218,64 @@ export default function ClientPortal() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Trabajo extra: cotizaciones adicionales que el cliente autoriza */}
+      {extraQuotes.length > 0 && (
+        <div className="updates-card" style={{ borderLeftColor: '#d71920' }}>
+          <div className="updates-header">
+            <Wrench size={20} color="#d71920" />
+            <h3>Trabajo extra por autorizar</h3>
+          </div>
+          <div className="updates-list">
+            {extraQuotes.map((q) => {
+              const authorized = !!q.client_authorized_at && q.status === 'aceptada';
+              const rejected = !!q.client_authorized_at && q.status === 'rechazada';
+              return (
+                <div key={q.id} className="update-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                  <div className="update-content">
+                    <span className="update-date">{q.quotation_number} • {formatDate(q.created_at)}</span>
+                    {q.customer_complaint && <h4>{q.customer_complaint}</h4>}
+                    {(q.labor || []).map((l, i) => (
+                      <p key={`l${i}`}>{l.name} — {formatCurrency(l.price)}</p>
+                    ))}
+                    {(q.parts || []).map((p, i) => (
+                      <p key={`p${i}`}>{p.name} x{p.quantity} — {formatCurrency(p.price * (p.quantity || 1))}</p>
+                    ))}
+                    <span className="update-price">Total: {formatCurrency(q.total_amount)}</span>
+                  </div>
+                  {authorized ? (
+                    <span className="badge badge-success" style={{ marginTop: '0.75rem', alignSelf: 'flex-start' }}>
+                      <CheckCircle size={14} /> Autorizado
+                    </span>
+                  ) : rejected ? (
+                    <span className="badge badge-warning" style={{ marginTop: '0.75rem', alignSelf: 'flex-start' }}>
+                      Rechazado
+                    </span>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                      <button
+                        className="btn btn-primary"
+                        disabled={authorizingId === q.id}
+                        onClick={() => handleAuthorize(q.id, true)}
+                      >
+                        <CheckCircle size={16} /> Autorizar trabajo
+                      </button>
+                      <button
+                        className="btn"
+                        style={{ background: '#f5f5f7', color: '#1d1d1f' }}
+                        disabled={authorizingId === q.id}
+                        onClick={() => handleAuthorize(q.id, false)}
+                      >
+                        No, gracias
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

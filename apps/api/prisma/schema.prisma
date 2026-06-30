@@ -624,6 +624,8 @@ model Order {
   updates      OrderUpdate[]
   earnings     MechanicEarning[]
   payments     OrderPayment[]
+  // Cotizaciones de trabajo extra creadas desde evidencias de esta orden.
+  additional_quotations Quotation[] @relation("OrderAdditionalQuotes")
 
   @@index([workspace_id])
   @@map("orders")
@@ -689,11 +691,21 @@ model OrderPhoto {
   // antiguas. El sweep solo borra filas con expires_at < now() (ver lib/photo-retention).
   // `category` actúa como el "tipo" de foto (frente | trasera | tablero | daños | refacción | otra).
   expires_at   DateTime? @db.Timestamptz
+  // ── Evidencias del servicio (módulo migración 008) ──
+  // Una fila es "evidencia" cuando evidence_type != null. `caption` = nota opcional.
+  evidence_type     String?   // pieza_danada | pieza_nueva | despues_trabajo
+  deleted_at        DateTime? @db.Timestamptz   // soft delete (regla 6: auditado)
+  deleted_by        String?   @db.Uuid
+  delete_reason     String?   // motivo opcional de eliminación (regla 4)
+  sent_to_client_at DateTime? @db.Timestamptz   // enviado al cliente por WhatsApp
+  sent_by           String?   @db.Uuid
+  quotation_id      String?   @db.Uuid          // cotización adicional creada desde esta evidencia
   created_at   DateTime @default(now()) @db.Timestamptz
 
   workspace Workspace? @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
   order     Order      @relation(fields: [order_id], references: [id], onDelete: Cascade)
   uploader  Profile?   @relation(fields: [uploaded_by], references: [id])
+  quotation Quotation? @relation("EvidenceQuotation", fields: [quotation_id], references: [id], onDelete: SetNull)
 
   @@index([workspace_id])
   @@map("order_photos")
@@ -1010,6 +1022,10 @@ model Quotation {
   status             String    @default("pendiente") // pendiente | aceptada | rechazada | expirada | convertida
   valid_until        DateTime? @db.Timestamptz
   converted_order_id String?   @unique @db.Uuid // si se convirtió en orden
+  // ── Cotización adicional / trabajo extra (módulo Evidencias, migración 008) ──
+  order_id             String?   @db.Uuid          // orden origen del trabajo extra
+  is_additional        Boolean   @default(false)   // true = cotización de trabajo extra desde evidencia
+  client_authorized_at DateTime? @db.Timestamptz   // regla 11: cliente autorizó el trabajo extra
   created_by         String?   @db.Uuid // mechanic id
   created_at         DateTime  @default(now()) @db.Timestamptz
   updated_at         DateTime  @updatedAt
@@ -1017,8 +1033,10 @@ model Quotation {
   workspace  Workspace?       @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
   client     Client           @relation(fields: [client_id], references: [id])
   motorcycle Motorcycle?      @relation(fields: [motorcycle_id], references: [id])
+  order      Order?           @relation("OrderAdditionalQuotes", fields: [order_id], references: [id], onDelete: SetNull)
   parts      QuotationPart[]
   labor      QuotationLabor[]
+  evidence_photos OrderPhoto[] @relation("EvidenceQuotation")
 
   @@index([workspace_id])
   @@index([client_id])

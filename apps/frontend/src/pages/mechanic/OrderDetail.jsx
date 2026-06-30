@@ -41,6 +41,7 @@ import { generateOrderPDFBlob, downloadOrderPDF } from '../../utils/pdfGenerator
 import Toast from '../../components/ui/Toast';
 import NoChatWarning from '../../components/ui/NoChatWarning';
 import OrderPhotosDownload from '../../components/ui/OrderPhotosDownload';
+import ServiceEvidences from '../../components/orders/ServiceEvidences';
 import OrderPaymentsSection from '../../components/orders/OrderPaymentsSection';
 import CommissionSection from '../../components/orders/CommissionSection';
 import './OrderDetail.css';
@@ -1627,6 +1628,12 @@ export default function OrderDetail() {
 
             {/* Order Photos Download Section */}
             <OrderPhotosDownload orderId={order.id} order={order} />
+
+            {/* Evidencias del servicio */}
+            <ServiceEvidences
+                order={order}
+                onToast={(message, type = 'info') => setToast({ message, type })}
+            />
 
             {/* Toast Notifications */}
             {

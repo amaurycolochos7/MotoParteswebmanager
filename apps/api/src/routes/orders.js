@@ -5,6 +5,7 @@ import { assertWithinLimit, incrementUsageAsync, PlanLimitError } from '../lib/b
 import { fireEvent } from '../lib/events.js';
 import { generateOrderNumber } from '../lib/order-number.js';
 import { computeOrderFinance } from '../lib/payments.js';
+import { applyClientAuthorization } from '../lib/evidences.js';
 
 // Helper: recalculate order totals
 // price = total per service (labor + materials), cost = materials portion
@@ -84,6 +85,67 @@ export default async function ordersRoutes(fastify) {
         });
 
         return order;
+    });
+
+    // ── PUBLIC: trabajo extra (cotizaciones adicionales) ──────────────────
+    // El cliente ve y autoriza el trabajo extra desde el portal público, sin
+    // login. Validamos siempre contra el token de la orden.
+
+    // GET /public/:token/extra-quotes — cotizaciones adicionales de la orden.
+    fastify.get('/public/:token/extra-quotes', async (request, reply) => {
+        const order = await prisma.order.findUnique({
+            where: { public_token: request.params.token },
+            select: { id: true },
+        });
+        if (!order) return reply.status(404).send({ error: 'Orden no encontrada' });
+
+        const quotes = await prisma.quotation.findMany({
+            where: { order_id: order.id, is_additional: true },
+            include: {
+                labor: { orderBy: { created_at: 'asc' } },
+                parts: { orderBy: { created_at: 'asc' } },
+                evidence_photos: {
+                    where: { deleted_at: null },
+                    select: { id: true, url: true, evidence_type: true, caption: true },
+                },
+            },
+            orderBy: { created_at: 'desc' },
+        });
+        return quotes;
+    });
+
+    // POST /public/:token/quotes/:quotationId/authorize — el cliente autoriza
+    // o rechaza el trabajo extra. Body: { authorized: boolean }
+    fastify.post('/public/:token/quotes/:quotationId/authorize', async (request, reply) => {
+        const { token, quotationId } = request.params;
+        const { authorized } = request.body || {};
+        if (typeof authorized !== 'boolean') {
+            return reply.status(400).send({ error: 'authorized (boolean) es requerido' });
+        }
+
+        const order = await prisma.order.findUnique({
+            where: { public_token: token },
+            select: { id: true },
+        });
+        if (!order) return reply.status(404).send({ error: 'Orden no encontrada' });
+
+        const quote = await prisma.quotation.findUnique({
+            where: { id: quotationId },
+            select: { id: true, order_id: true, is_additional: true, status: true },
+        });
+        if (!quote || quote.order_id !== order.id || !quote.is_additional) {
+            return reply.status(404).send({ error: 'Cotización no encontrada' });
+        }
+        if (quote.status === 'convertida') {
+            return reply.status(400).send({ error: 'Esta cotización ya fue procesada' });
+        }
+
+        const updated = await prisma.quotation.update({
+            where: { id: quote.id },
+            data: applyClientAuthorization(authorized),
+            select: { id: true, status: true, client_authorized_at: true },
+        });
+        return updated;
     });
 
     // ── ALL ROUTES BELOW REQUIRE AUTH ──

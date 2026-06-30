@@ -387,6 +387,36 @@ export const ordersService = {
         }
     },
 
+    // PUBLIC (sin auth): trabajo extra para el portal del cliente.
+    async getExtraQuotes(token) {
+        try {
+            const res = await fetch(`${API_URL}/orders/public/${token}/extra-quotes`, {
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (!res.ok) throw new Error(`Error ${res.status}`);
+            return { data: await res.json(), error: null };
+        } catch (error) {
+            return { data: [], error };
+        }
+    },
+
+    async authorizeExtraQuote(token, quotationId, authorized) {
+        try {
+            const res = await fetch(`${API_URL}/orders/public/${token}/quotes/${quotationId}/authorize`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ authorized }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ error: 'Error' }));
+                throw new Error(err.error || `Error ${res.status}`);
+            }
+            return { data: await res.json(), error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
     async create(orderData) {
         try {
             const data = await apiFetch('/orders', {
@@ -588,6 +618,74 @@ export const photosService = {
             return { error };
         }
     }
+};
+
+// =============================================
+// EVIDENCIAS DEL SERVICIO
+// =============================================
+export const evidencesService = {
+    async getByOrder(orderId) {
+        try {
+            const data = await apiFetch(`/evidences?orderId=${orderId}`);
+            return { data, error: null };
+        } catch (error) {
+            return { data: [], error };
+        }
+    },
+
+    // url = dataURL base64 (ya redimensionada por el componente).
+    async create({ orderId, url, evidenceType, note }) {
+        try {
+            const data = await apiFetch('/evidences', {
+                method: 'POST',
+                body: JSON.stringify({
+                    order_id: orderId,
+                    url,
+                    evidence_type: evidenceType,
+                    note: note || null,
+                }),
+            });
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    async remove(id, reason) {
+        try {
+            await apiFetch(`/evidences/${id}`, {
+                method: 'DELETE',
+                body: JSON.stringify({ reason: reason || null }),
+            });
+            return { error: null };
+        } catch (error) {
+            return { error };
+        }
+    },
+
+    async send({ orderId, evidenceIds, message }) {
+        try {
+            const data = await apiFetch('/evidences/send', {
+                method: 'POST',
+                body: JSON.stringify({ order_id: orderId, evidence_ids: evidenceIds, message }),
+            });
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
+    async createQuote(evidenceId, { description, labor, parts }) {
+        try {
+            const data = await apiFetch(`/evidences/${evidenceId}/quote`, {
+                method: 'POST',
+                body: JSON.stringify({ description, labor, parts }),
+            });
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
 };
 
 // =============================================

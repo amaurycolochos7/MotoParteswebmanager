@@ -36,6 +36,7 @@ import quotationsRoutes from './routes/quotations.js';
 import orderPaymentsRoutes from './routes/order-payments.js';
 import publicRoutes from './routes/public.js';
 import questionsRoutes from './routes/questions.js';
+import evidencesRoutes from './routes/evidences.js';
 import { installWorkspaceStore } from './middleware/workspace.js';
 
 const fastify = Fastify({ logger: true });
@@ -137,6 +138,7 @@ await fastify.register(superRoutes, { prefix: '/api/super' });
 await fastify.register(ticketsRoutes, { prefix: '/api/tickets' });
 await fastify.register(quotationsRoutes, { prefix: '/api/quotations' });
 await fastify.register(orderPaymentsRoutes, { prefix: '/api/order-payments' });
+await fastify.register(evidencesRoutes, { prefix: '/api/evidences' });
 await fastify.register(publicRoutes, { prefix: '/api/public' });
 // Módulo interno "MotoPartes Questions" — cuestionario privado por PIN.
 // Aislado: no usa el middleware de workspace ni toca el auth principal.

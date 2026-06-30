@@ -2,6 +2,7 @@ import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
 import { assertWithinLimit, incrementUsageAsync, PlanLimitError } from '../lib/billing.js';
+import { filterEvidencesForPdf, evidenceTypeLabel, parseDataUrl } from '../lib/evidences.js';
 import PDFDocument from 'pdfkit';
 
 const BOT_URL = process.env.WHATSAPP_BOT_INTERNAL_URL || 'http://whatsapp-bot:3002';
@@ -216,6 +217,54 @@ function generatePDF(order, client, motorcycle, workspace) {
             doc.fillColor(RED).fontSize(14);
             doc.text(`$${totalAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, totalsX + 10, tY, { width: totalsW - 20, align: 'right' });
 
+            // ─── EVIDENCIAS DEL SERVICIO ───
+            // Excluye eliminadas (soft delete) vía filterEvidencesForPdf.
+            const evidences = filterEvidencesForPdf(order.photos || []);
+            if (evidences.length > 0) {
+                doc.addPage();
+                let ey = 50;
+                doc.fontSize(14).fillColor(BLACK).font('Helvetica-Bold');
+                doc.text('EVIDENCIAS DEL SERVICIO', marginL, ey);
+                doc.rect(marginL, ey + 20, contentW, 2).fill(RED);
+                ey += 34;
+
+                const colW = (contentW - 20) / 2; // 2 columnas
+                const imgH = 150;
+                const cellH = imgH + 46;
+                let col = 0;
+
+                for (const ev of evidences) {
+                    if (ey + cellH > 770) { doc.addPage(); ey = 50; col = 0; }
+                    const x = marginL + col * (colW + 20);
+
+                    // Imagen (base64 dataURL → Buffer). Si falla, dibuja placeholder.
+                    try {
+                        const { base64 } = parseDataUrl(ev.url);
+                        doc.image(Buffer.from(base64, 'base64'), x, ey, { fit: [colW, imgH], align: 'center' });
+                    } catch {
+                        doc.rect(x, ey, colW, imgH).fill(LIGHT_BG);
+                        doc.fillColor(GRAY).fontSize(8).font('Helvetica')
+                            .text('(imagen no disponible)', x, ey + imgH / 2, { width: colW, align: 'center' });
+                    }
+
+                    // Etiqueta de tipo + fecha + nota.
+                    let ty = ey + imgH + 4;
+                    doc.fontSize(9).fillColor(RED).font('Helvetica-Bold');
+                    doc.text(evidenceTypeLabel(ev.evidence_type), x, ty, { width: colW });
+                    ty += 12;
+                    doc.fontSize(7.5).fillColor(GRAY).font('Helvetica');
+                    doc.text(new Date(ev.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' }), x, ty, { width: colW });
+                    if (ev.caption) {
+                        ty += 10;
+                        doc.fontSize(8).fillColor(BLACK).font('Helvetica');
+                        doc.text(ev.caption, x, ty, { width: colW });
+                    }
+
+                    col = col === 0 ? 1 : 0;
+                    if (col === 0) ey += cellH;
+                }
+            }
+
             // ─── FOOTER ───
             const footerY = Math.max(tY + 40, 720);
             doc.moveTo(marginL, footerY).lineTo(marginL + contentW, footerY).strokeColor('#E0E0E0').lineWidth(0.3).stroke();
@@ -257,7 +306,7 @@ export default async function orderPdfRoutes(fastify) {
         try {
             const order = await prisma.order.findUnique({
                 where: { id },
-                include: { status: true, services: true, parts: true, mechanic: true },
+                include: { status: true, services: true, parts: true, mechanic: true, photos: true },
             });
 
             if (!order) return reply.code(404).send({ error: 'Orden no encontrada' });
@@ -324,7 +373,7 @@ export default async function orderPdfRoutes(fastify) {
         try {
             const order = await prisma.order.findUnique({
                 where: { id },
-                include: { status: true, services: true, parts: true },
+                include: { status: true, services: true, parts: true, photos: true },
             });
             if (!order) return reply.code(404).send({ error: 'Orden no encontrada' });
 
