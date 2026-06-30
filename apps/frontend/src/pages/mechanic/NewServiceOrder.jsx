@@ -31,6 +31,7 @@ import { useToast } from '../../context/ToastContext';
 import { saveOrderPhotos } from '../../services/photoStorageService';
 import { orderRequestsService } from '../../lib/api';
 import { sendDirectMessage, getOrderCreatedMessage } from '../../utils/whatsappHelper';
+import { Stepper } from '../../components/ui';
 
 const STEPS = [
     { id: 1, title: 'Cliente', icon: User },
@@ -838,9 +839,9 @@ export default function NewServiceOrder() {
                 </div>
             </div>
 
-            {/* Progress Bar */}
-            <div className="no-progress">
-                <div className="no-progress-fill" style={{ width: `${(currentStep / STEPS.length) * 100}%` }} />
+            {/* Stepper */}
+            <div className="no-stepper">
+                <Stepper steps={STEPS.map(s => s.title)} current={currentStep - 1} />
             </div>
 
             {/* Step Context */}
@@ -1932,29 +1933,16 @@ export default function NewServiceOrder() {
         }
 
         /* ===== PROGRESS BAR ===== */
-        .no-progress {
-          height: 4px;
-          background: #e8e8ed;
-          border-radius: 2px;
-          margin-bottom: 16px;
-          overflow: hidden;
-        }
-
-        .no-progress-fill {
-          height: 100%;
-          background: #111827;
-          border-radius: 2px;
-          transition: width 0.3s ease;
-        }
-
-        /* ===== STEP CONTEXT ===== */
-        .no-progress {
+        .no-stepper {
+          margin: 6px 0 16px;
+          padding: 0 4px;
           flex-shrink: 0;
         }
 
+        /* ===== STEP CONTEXT ===== */
         .no-step-context {
           font-size: 14px;
-          color: #6e6e73;
+          color: var(--text-secondary);
           margin: 0 0 12px 0;
           flex-shrink: 0;
         }
@@ -2011,12 +1999,12 @@ export default function NewServiceOrder() {
 
         .cl-search-input:focus {
           outline: none;
-          border-color: #111827;
-          box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
+          border-color: var(--brand-primary);
+          box-shadow: 0 0 0 3.5px var(--brand-primary-soft);
         }
 
         .cl-search-input::placeholder {
-          color: #86868b;
+          color: var(--text-muted);
         }
 
         .cl-search-clear {
@@ -2046,26 +2034,26 @@ export default function NewServiceOrder() {
           align-items: center;
           gap: 12px;
           width: 100%;
-          padding: 12px 16px;
-          background: #f5f5f7;
-          border: 1px solid #e8e8ed;
-          border-radius: 12px;
+          padding: 14px 16px;
+          background: var(--surface-card);
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-card);
           cursor: pointer;
-          transition: all 0.15s;
+          transition: border-color 0.15s, transform 0.15s;
           font-family: inherit;
           margin-bottom: 16px;
-          color: #474747;
+          color: var(--color-ink);
           flex-shrink: 0;
         }
 
         .cl-add-card:hover {
-          background: #f0f0f2;
           border-color: #d2d2d7;
+          transform: translateY(-1px);
         }
 
         .cl-add-card svg {
           flex-shrink: 0;
-          color: #6e6e73;
+          color: var(--brand-primary);
         }
 
         .cl-add-text {
@@ -2129,67 +2117,41 @@ export default function NewServiceOrder() {
           gap: 12px;
           width: 100%;
           padding: 14px 16px;
-          background: white;
-          border: 1px solid #e8e8ed;
-          border-radius: 12px;
+          background: var(--surface-card);
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-card);
           cursor: pointer;
-          transition: all 0.15s;
+          transition: border-color 0.15s, transform 0.15s;
           font-family: inherit;
           text-align: left;
-          box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+          box-shadow: none;
         }
 
         .cl-card:hover {
           border-color: #d2d2d7;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+          transform: translateY(-1px);
         }
 
         .cl-card:active {
           transform: scale(0.995);
-          background: #f5f5f7;
+          background: var(--surface-recessed);
         }
 
-        /* --- Card Avatar --- */
+        /* --- Card Avatar (sober, monochrome) --- */
         .cl-card-avatar {
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 40px;
-          height: 40px;
-          border-radius: 10px;
-          font-size: 14px;
-          font-weight: 700;
+          width: 42px;
+          height: 42px;
+          border-radius: 12px;
+          font-size: 15px;
+          font-weight: 600;
           flex-shrink: 0;
-          color: white;
-          background: #6e6e73;
+          color: var(--color-ink);
+          background: var(--surface-recessed);
+          border: 1px solid var(--border-color);
         }
-
-        .cl-card-avatar[data-initial="A"],
-        .cl-card-avatar[data-initial="B"] { background: #4F46E5; }
-        .cl-card-avatar[data-initial="C"],
-        .cl-card-avatar[data-initial="D"] { background: #0284C7; }
-        .cl-card-avatar[data-initial="E"],
-        .cl-card-avatar[data-initial="F"] { background: #0D9488; }
-        .cl-card-avatar[data-initial="G"],
-        .cl-card-avatar[data-initial="H"] { background: #16A34A; }
-        .cl-card-avatar[data-initial="I"],
-        .cl-card-avatar[data-initial="J"] { background: #D97706; }
-        .cl-card-avatar[data-initial="K"],
-        .cl-card-avatar[data-initial="L"] { background: #DC2626; }
-        .cl-card-avatar[data-initial="M"],
-        .cl-card-avatar[data-initial="N"] { background: #7C3AED; }
-        .cl-card-avatar[data-initial="O"],
-        .cl-card-avatar[data-initial="P"] { background: #DB2777; }
-        .cl-card-avatar[data-initial="Q"],
-        .cl-card-avatar[data-initial="R"] { background: #0891B2; }
-        .cl-card-avatar[data-initial="S"],
-        .cl-card-avatar[data-initial="T"] { background: #a90f16; }
-        .cl-card-avatar[data-initial="U"],
-        .cl-card-avatar[data-initial="V"] { background: #9333EA; }
-        .cl-card-avatar[data-initial="W"],
-        .cl-card-avatar[data-initial="X"],
-        .cl-card-avatar[data-initial="Y"],
-        .cl-card-avatar[data-initial="Z"] { background: #EA580C; }
 
         /* --- Card Body --- */
         .cl-card-body {
@@ -2851,20 +2813,21 @@ export default function NewServiceOrder() {
           justify-content: center;
           gap: 6px;
           flex: 1;
-          padding: 12px 16px;
-          border: 1px solid #e8e8ed;
-          background: white;
-          color: #474747;
-          font-size: 14px;
+          min-height: 48px;
+          padding: 0 16px;
+          border: 1px solid var(--border-color);
+          background: var(--surface-card);
+          color: var(--color-ink);
+          font-size: 15px;
           font-weight: 600;
           font-family: inherit;
-          border-radius: 10px;
+          border-radius: var(--radius-pill);
           cursor: pointer;
-          transition: all 0.15s;
+          transition: background 0.15s, border-color 0.15s;
         }
 
         .no-nav-back:hover {
-          background: #f5f5f7;
+          background: var(--surface-recessed);
           border-color: #d2d2d7;
         }
 
@@ -2874,25 +2837,30 @@ export default function NewServiceOrder() {
           justify-content: center;
           gap: 8px;
           flex: 2;
-          padding: 14px 20px;
+          min-height: 48px;
+          padding: 0 20px;
           border: none;
-          background: #111827;
+          background: var(--brand-primary);
           color: white;
           font-size: 15px;
           font-weight: 600;
+          letter-spacing: -0.01em;
           font-family: inherit;
-          border-radius: 10px;
+          border-radius: var(--radius-pill);
           cursor: pointer;
-          transition: all 0.15s;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          transition: background 0.15s, transform 0.15s;
+          box-shadow: none;
         }
 
-        .no-nav-cta:hover {
-          background: #333333;
+        .no-nav-cta:hover:not(:disabled) {
+          background: var(--brand-primary-hover);
         }
+
+        .no-nav-cta:active:not(:disabled) { transform: scale(0.99); }
 
         .no-nav-cta:disabled {
-          opacity: 0.35;
+          background: var(--border-color);
+          color: var(--text-muted);
           cursor: not-allowed;
         }
 
