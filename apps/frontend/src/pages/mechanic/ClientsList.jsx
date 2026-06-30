@@ -16,6 +16,7 @@ import {
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import WhatsAppSendModal from '../../components/ui/WhatsAppSendModal';
+import { PageHeader, EmptyState, Button } from '../../components/ui';
 
 export default function ClientsList() {
     const { user, isAdmin, canCreateClients, canEditClients } = useAuth();
@@ -205,23 +206,13 @@ export default function ClientsList() {
     return (
         <div className="clients-page">
             {/* Header */}
-            <div className="page-header">
-                <div>
-                    <h1 className="page-title">Clientes</h1>
-                    <p className="page-subtitle">
-                        {clients.length} cliente{clients.length !== 1 ? 's' : ''} registrado{clients.length !== 1 ? 's' : ''}
-                    </p>
-                </div>
-                <button
-                    className="btn btn-primary btn-sm"
-                    onClick={openAddModal}
-                    disabled={!canCreateClients()}
-                    style={{ display: canCreateClients() ? 'flex' : 'none' }}
-                >
-                    <Plus size={18} />
-                    <span className="btn-text-mobile">Nuevo Cliente</span>
-                </button>
-            </div>
+            <PageHeader
+                title="Clientes"
+                subtitle={`${clients.length} cliente${clients.length !== 1 ? 's' : ''} registrado${clients.length !== 1 ? 's' : ''}`}
+                actions={canCreateClients() ? (
+                    <Button size="sm" onClick={openAddModal} leftIcon={<Plus size={18} />}>Nuevo</Button>
+                ) : null}
+            />
 
             {/* Search */}
             <div className="search-box">
@@ -246,25 +237,14 @@ export default function ClientsList() {
             {/* Clients List */}
             <div className="clients-list">
                 {filteredClients.length === 0 ? (
-                    <div className="empty-state card">
-                        <Users size={48} style={{ opacity: 0.3 }} />
-                        <h3>No se encontraron clientes</h3>
-                        <p className="text-secondary">
-                            {searchQuery
-                                ? 'Intenta con otro término de búsqueda'
-                                : 'Agrega tu primer cliente para comenzar'
-                            }
-                        </p>
-                        {!searchQuery && (
-                            <button
-                                className="btn btn-primary mt-md"
-                                onClick={openAddModal}
-                            >
-                                <Plus size={18} />
-                                Agregar Cliente
-                            </button>
-                        )}
-                    </div>
+                    <EmptyState
+                        icon={<Users size={26} />}
+                        title="No se encontraron clientes"
+                        message={searchQuery ? 'Intenta con otro término de búsqueda' : 'Agrega tu primer cliente para comenzar'}
+                        action={!searchQuery && canCreateClients() ? (
+                            <Button size="sm" onClick={openAddModal} leftIcon={<Plus size={16} />}>Agregar cliente</Button>
+                        ) : null}
+                    />
                 ) : (
                     filteredClients.map(client => (
                         <div key={client.id} className="client-card card">

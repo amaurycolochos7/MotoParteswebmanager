@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { quotationsService } from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
+import { PageHeader, StatusChip } from '../../components/ui';
 import './Quotations.css';
 
 const STATUS_LABELS = {
@@ -395,22 +396,11 @@ export default function QuotationDetail() {
 
     return (
         <div className="qd-page">
-            {/* TOPBAR */}
-            <div className="qd-topbar">
-                <button className="qd-back" onClick={() => navigate('/mechanic/quotations')}>
-                    <ArrowLeft size={18} />
-                </button>
-                <h1 className="qd-title">
-                    <FileText size={20} />
-                    {quotation.quotation_number || `#${String(quotation.id).slice(0, 8)}`}
-                </h1>
-                <span
-                    className="qd-badge"
-                    style={{ background: chip.bg, color: chip.color, borderColor: chip.border }}
-                >
-                    {chip.label}
-                </span>
-            </div>
+            <PageHeader
+                title={quotation.quotation_number || `#${String(quotation.id).slice(0, 8)}`}
+                backTo="/mechanic/quotations"
+                actions={<StatusChip status={chip.label} />}
+            />
 
             {/* CONVERTED BANNER */}
             {isConverted && quotation.converted_order_id && (
