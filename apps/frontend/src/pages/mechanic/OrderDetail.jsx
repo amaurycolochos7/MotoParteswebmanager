@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { StatusChip } from '../../components/ui';
 import { ordersService, authService } from '../../lib/api';
 import {
     getDetailedOrderMessage,
@@ -743,20 +744,12 @@ export default function OrderDetail() {
                         })}
                     </span>
                 </div>
-                <span
-                    className="badge badge-lg"
-                    style={{
-                        background: `${currentStatus?.color}20`,
-                        color: currentStatus?.color,
-                    }}
-                >
-                    {statusName}
-                </span>
+                <StatusChip status={statusName} />
             </div>
 
             {/* Cancellation Request Alert */}
             {order.cancellation_requested_at && (canDeleteOrders() || user.role === 'admin') && (
-                <div className="alert-box mb-lg" style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: '8px', padding: '16px' }}>
+                <div className="alert-box mb-lg" style={{ background: 'var(--danger-light)', border: '1px solid transparent', borderRadius: 'var(--radius-md)', padding: '16px' }}>
                     <div className="flex items-start gap-md">
                         <AlertTriangle className="text-danger" size={24} />
                         <div style={{ flex: 1 }}>

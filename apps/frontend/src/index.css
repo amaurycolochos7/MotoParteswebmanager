@@ -3306,7 +3306,7 @@ a:hover { color: var(--primary-hover); }
   padding: 10px 16px;
 }
 
-.page-content { padding: var(--space-32); }
+.page-content { padding: var(--space-32); overflow-x: hidden; }
 
 .page-title { font-size: 28px; font-weight: 700; letter-spacing: -0.022em; }
 .page-subtitle { color: var(--text-secondary); font-size: 15px; }

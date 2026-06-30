@@ -156,7 +156,7 @@ export default function Quotations() {
             )}
 
             <style>{`
-                .qlist { padding: 20px 16px 40px; max-width: 720px; margin: 0 auto; }
+                .qlist { padding: 20px 16px 40px; max-width: 720px; width: 100%; margin: 0 auto; box-sizing: border-box; }
                 .qlist__filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 18px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
                 .qlist__filters::-webkit-scrollbar { display: none; }
                 .qlist__chip { flex-shrink: 0; padding: 8px 16px; min-height: 38px; border-radius: var(--radius-pill); border: 1px solid var(--border-color); background: var(--surface-card); color: var(--text-secondary); font-family: var(--font-text); font-size: 14px; font-weight: 500; cursor: pointer; transition: all var(--transition-fast); }
@@ -169,7 +169,7 @@ export default function Quotations() {
                 .qlist__card:hover { border-color: #d2d2d7; transform: translateY(-1px); }
                 .qlist__card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding-right: 40px; }
                 .qlist__num { font-size: 13px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.01em; }
-                .qlist__client { font-size: 16px; font-weight: 600; color: var(--color-ink); letter-spacing: -0.01em; }
+                .qlist__client { font-size: 16px; font-weight: 600; color: var(--color-ink); letter-spacing: -0.01em; overflow-wrap: anywhere; }
                 .qlist__moto { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--text-secondary); margin-top: 3px; }
                 .qlist__foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-light); }
                 .qlist__time { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); }
