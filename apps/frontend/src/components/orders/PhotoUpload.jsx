@@ -136,7 +136,7 @@ export default function PhotoUpload({ onPhotosAdded }) {
             </label>
 
             <p style={{ fontSize: 12, color: 'var(--text-secondary, #6b7280)', marginTop: 8, textAlign: 'center' }}>
-                Las fotos se guardan en el servidor y se conservan por 30 días como evidencia.
+                Selecciona el tipo de cada foto. Quedan asociadas a esta orden como evidencia.
             </p>
 
             <style>{`

@@ -1,108 +1,82 @@
 # MotoPartes — ELIHU Workflow v1 — QA (PASS / FAIL / BLOCKED)
 
-> Rama: `feature/elihu-workflow-v1`. Build/test ejecutados en local (Windows, Node 24).
-> Leyenda:
-> **PASS** = verificado en local (unit test o build). **PASS(UI)** = compila y la ruta de datos
-> está conectada; falta verificación visual en runtime con datos reales. **BLOCKED** = no verificable
-> en este entorno (requiere DB en vivo / staging / producción). **DOC** = decisión documentada.
+> Rama: `feature/elihu-workflow-v1`. Verificado en local (Node 24) y contra **PostgreSQL 16 real**
+> (`docker-compose.local.yml`, `:5434`) vía test de integración in-process `apps/api/test/_elihu_e2e.mjs`.
+>
+> Leyenda: **PASS** = verificado (unit test, build, o E2E contra DB real). **BLOCKED** = requiere acceso
+> a staging/producción que no existe en este entorno. **DOC** = decisión documentada.
 
-## A. Automatizado (verificado, `npm test` 43/43)
-
-| Caso | Estado |
-|---|---|
-| normalize quita acentos / minúsculas | PASS |
-| búsqueda nombre parcial / teléfono / placas | PASS |
-| `buildClientSearchWhere` corta < 2 chars, sin cláusula tel vacía | PASS |
-| ranking exacto > prefijo > contiene > teléfono | PASS |
-| finanzas Pendiente/Parcial/Pagada, ignora cancelados, sobrepago | PASS |
-| `validateNewPayment` bloquea 0/negativo/NaN/sobrepago | PASS |
-| comisión sobre mano de obra, % variable | PASS |
-| comisión NO se libera con abono parcial; READY_TO_PAY al liquidar | PASS |
-| `PAID`/`CANCELLED` terminales; cancelar orden cancela comisión | PASS |
+## A. Unitarias (verificado, `npm test` → 43/43)
+Búsqueda (normalize/where/match/rank), finanzas (Pendiente/Parcial/Pagada, cancelados, sobrepago),
+validación de abono, comisión variable, no-liberación hasta liquidar, terminales. **Todas PASS.**
 
 ## B. Build / esquema (verificado)
+`prisma validate` PASS · `prisma generate` PASS · `vite build` PASS · `node --check` rutas PASS.
 
+## C. Migración 007 en DB real (verificado — Parte 3)
 | Caso | Estado |
 |---|---|
-| `npx prisma validate` | PASS |
-| `npx prisma generate` | PASS |
-| `vite build` (frontend) tras cada bloque de cambios | PASS |
-| `node --check` rutas backend modificadas | PASS |
+| Migración aplica sin error sobre esquema previo con datos | **PASS** |
+| Estado “Autorizada” creado | **PASS** |
+| Orden / cliente / cotización existentes sobreviven | **PASS** |
+| `advance_payment` backfilled a `order_payments` | **PASS** |
+| Prisma Client opera contra la DB migrada | **PASS** |
 
-## C. Backend funcional (requiere DB en vivo)
-
+## D. E2E backend en DB real (verificado — `_elihu_e2e.mjs`, 36/36)
 | Caso | Estado |
 |---|---|
-| `GET /clients/search?q=` por nombre/acento/teléfono/placas | BLOCKED (lógica PASS por unit test) |
-| `GET /clients/:id/history` | BLOCKED |
-| `POST /order-payments` válido / 0 / negativo / sobrepago | BLOCKED (lógica PASS) |
-| liquidar → `payment_status: Pagada`, `is_paid` | BLOCKED (lógica PASS) |
-| comisión → `READY_TO_PAY` al liquidar | BLOCKED (lógica PASS) |
-| `POST /order-payments/:id/cancel` (no borra, recalcula) | BLOCKED (lógica PASS) |
-| `GET /order-payments/:id/receipt` (folio, saldo) | BLOCKED |
-| `PUT /earnings/order/:id/commission` (solo maestro) | BLOCKED |
-| Auxiliar 403 en paid/costs/parts/delete/commission | BLOCKED (código verificado por lectura) |
-| `convert` → orden “Autorizada” | BLOCKED (código verificado; requiere migración 007 aplicada) |
+| Crear cliente | **PASS** |
+| Buscar cliente por nombre (acento/parcial) | **PASS** |
+| Historial del cliente | **PASS** |
+| Crear cotización | **PASS** |
+| Convertir cotización → orden | **PASS** |
+| Evitar doble conversión | **PASS** |
+| Orden nace “Autorizada” | **PASS** |
+| Fijar costos (mano de obra) | **PASS** |
+| Fecha estimada de entrega | **PASS** |
+| Comisión 30% = 150 sobre mano de obra | **PASS** |
+| Comisión inicia PENDING_PAYMENT | **PASS** |
+| Primer abono → saldo parcial | **PASS** |
+| Comisión NO se libera con abono parcial | **PASS** |
+| Bloquear sobrepago / monto 0 | **PASS** |
+| Pago final → saldo 0 / Pagada | **PASS** |
+| Comisión READY_TO_PAY al liquidar | **PASS** |
+| Recibo con folio REC- | **PASS** |
+| Estado “Lista para Entregar” | **PASS** |
 
-## D. UI / móvil (compila; verificación visual pendiente en runtime)
-
+## E. Permisos en DB real (verificado — `_elihu_e2e.mjs`)
 | Caso | Estado |
 |---|---|
-| Buscador de cliente por nombre en cotización | PASS(UI) |
-| Resultados muestran motos + última orden | PASS(UI) |
-| Panel de historial del cliente (acordeón) | PASS(UI) |
-| Sección Pagos y saldo en detalle de orden | PASS(UI) |
-| Registrar abono / método / nota | PASS(UI) |
-| Ver saldo + estado de pago | PASS(UI) |
-| Cancelar abono con motivo | PASS(UI) |
-| Descargar recibo PDF (folio) | PASS(UI) |
-| Comisión variable: base/%, cálculo, estado (maestro) | PASS(UI) |
-| Campo fecha estimada de entrega | PASS(UI) |
-| Advertencia entrega con saldo + nota de autorización | PASS(UI) |
-| Botones de dinero ocultos para auxiliar | PASS(UI) |
-| Tipos de foto ELIHU + aviso 30 días | PASS(UI) |
-| Dashboard: Autorizadas / Por autorizar / Entregas próximas | PASS(UI) |
-| Estado “Lista para entregar” en modal de estado | PASS(UI) |
+| AUX 403: registrar pago | **PASS** |
+| AUX 403: cambiar costos | **PASS** |
+| AUX 403: marcar pagada | **PASS** |
+| AUX 403: cambiar comisión | **PASS** |
+| AUX 403: borrar orden | **PASS** |
+| AUX 403: borrar cliente | **PASS** |
+| AUX: crear cliente (permitido) | **PASS** |
+| AUX: `total_amount` vía PUT genérico ignorado | **PASS** |
+| MASTER: cambiar comisión | **PASS** |
 
-## E. Flujo E2E completo (manual, requiere staging)
-
-| Paso | Estado |
-|---|---|
-| 1 Crear cliente + 2 moto | BLOCKED |
-| 3 Cotización (falla/diagnóstico/mano de obra/refacciones) | BLOCKED |
-| 4-6 Aceptar → convertir → orden Autorizada | BLOCKED |
-| 7 Comisión 30% | BLOCKED |
-| 8-10 Primer abono, saldo > 0, comisión NO liberada | BLOCKED |
-| 11-13 Pago final, saldo 0, comisión READY_TO_PAY | BLOCKED |
-| 14 “Lista para entregar” | BLOCKED |
-| 15-16 Recibo + PDF orden con total/pagado/saldo | BLOCKED |
-| 17 Sin errores consola/backend | BLOCKED |
-
-## F. Permisos (manual, requiere staging)
-
-| Como auxiliar (espera 403/bloqueo) | Estado |
-|---|---|
-| Cambiar precio / costos | BLOCKED (backend 403 implementado) |
-| Registrar / editar / cancelar pago | BLOCKED (backend 403 implementado) |
-| Marcar pagada | BLOCKED (backend 403 implementado) |
-| Cambiar comisión | BLOCKED (backend 403 implementado) |
-| Borrar orden / cliente | BLOCKED (backend 403 implementado) |
-| Crear orden (permitido) | BLOCKED |
+## F. UI (compila; verificación visual en navegador pendiente de despliegue)
+Buscador por nombre + historial en cotización, sección Pagos y saldo, comisión, fecha de entrega,
+advertencia de entrega con saldo, gating de botones de dinero, tipos de foto, dashboard, recibo PDF.
+**Build PASS**; la verificación visual con navegador requiere el frontend desplegado (ver H).
 
 ## G. Decisiones documentadas (DOC)
-
-| Tema | Estado |
+| Tema | Decisión |
 |---|---|
-| WhatsApp: preview editable existe (WhatsAppSendModal); auto-notif de cambio de estado sigue automática | DOC |
-| Fotos: tipos + `expires_at` listos; persistencia 100% servidor en NewServiceOrder y sweep de borrado | DOC (pendiente seguro) |
-| PDF cotización server-side (pdfkit) ya incluía campos; no modificado | DOC |
-| Dashboard agregados saldo/comisión global requieren endpoint de stats | DOC |
+| Fotos | **Opción B**: backend `expires_at` listo; flujo de captura sigue en IndexedDB; **UI ya no promete servidor**; migración server-side fuera del release |
+| WhatsApp | **Opción B**: auto-notif en cambio de estado se conserva; preview editable manual vía `WhatsAppSendModal`; lista de mensajes automáticos en REPORT Parte 3 §7 |
+| Dashboard | **Opción B**: widgets sin N+1 implementados; agregados globales saldo/comisión fuera del release (requieren endpoint de stats) |
+| Entrega con saldo | Guard en UI (`OrderDetail`): bloquea auxiliar, pide nota al maestro; el endpoint de estado es genérico (no bloquea a nivel API) |
 
 ## H. Despliegue / Backup
-
 | Caso | Estado |
 |---|---|
-| Backup producción | BLOCKED (sin acceso seguro; regla 4.7) |
-| Deploy staging/prod | BLOCKED (depende de backup) |
-| Smoke tests post-deploy | BLOCKED |
-| Runbook de despliegue entregado | PASS (REPORT §29) |
+| Push de la rama | **PASS** (origin) |
+| Crear PR vía `gh` | **BLOCKED** (token `gh` 401; abrir manual con la URL — REPORT Parte 3 §2) |
+| Staging del proyecto | **BLOCKED** (no existe/accesible; se usó Postgres local real como sustituto) |
+| Backup producción | **BLOCKED** (sin acceso seguro; regla 4.7) |
+| Deploy producción + smoke tests | **BLOCKED** (depende de backup/acceso) |
+| Runbook de despliegue | **PASS** (REPORT Parte 1 §29) |
+| Verificación visual en navegador | **BLOCKED** (requiere frontend desplegado) |

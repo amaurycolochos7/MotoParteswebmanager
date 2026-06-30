@@ -381,3 +381,129 @@ apps/frontend > npm run build    → ✓ built in ~12s (sin errores)
 desde este entorno, por lo que el deploy queda bloqueado (regla 4.7). Runbook en Parte 1 §29.
 Nota: la migración `007_elihu_workflow.sql` sigue siendo el único cambio de DB requerido; el frontend
 es estático (build) y no requiere migración adicional.
+
+
+
+---
+---
+
+# PARTE 3 — CIERRE OPERATIVO (push, migración real, E2E real, permisos reales)
+
+## 1. Push
+- **Rama pusheada:** `feature/elihu-workflow-v1` → `origin`
+  (`https://github.com/amaurycolochos7/MotoParteswebmanager`).
+- Commits en remoto: `72835c2`, `5ca0bb4`, y el commit de esta parte.
+- Verificado: `git push -u` exitoso, tracking configurado.
+
+## 2. Pull Request
+- **BLOCKED (motivo exacto):** el token de `gh` CLI está **inválido** (`HTTP 401: Requires authentication`,
+  cuenta `amaurycolochos-cpu`). `git push` sí funciona porque usa el credential helper de Git, pero
+  `gh` usa su propio token caducado. No puedo crear el PR por API.
+- **Acción requerida (1 clic):** abrir el PR aquí →
+  `https://github.com/amaurycolochos7/MotoParteswebmanager/pull/new/feature/elihu-workflow-v1`
+  La descripción lista para pegar está en `docs/PR_ELIHU_WORKFLOW_V1.md` (base sugerida: `main`).
+
+## 3. Migración 007 aplicada en una base de datos REAL
+No hay staging del proyecto accesible desde este entorno (producción corre en Dokploy; sin URL/credenciales
+de staging, sin `psql` ni `dokploy` CLI). Para no quedar en BLOCKED, levanté **PostgreSQL 16 real** vía
+`docker-compose.local.yml` y probé la migración como en producción:
+
+```
+docker compose -f docker-compose.local.yml up -d          # Postgres 16 :5434 (healthy)
+# 1) Reproduje el esquema PREVIO (schema.prisma de main, SIN mis cambios):
+npx prisma db push --schema prisma/_old_schema.prisma
+# 2) Inserté datos "existentes" (cliente, orden OLD-0001 con anticipo 200, cotización)
+npx prisma db execute --file prisma/_test_existing.sql --schema prisma/_old_schema.prisma
+# 3) Apliqué la migración real:
+npx prisma db execute --file ../../migrations/007_elihu_workflow.sql --schema prisma/_old_schema.prisma
+#    → "Script executed successfully."
+```
+
+Resultado verificado por el test de integración (sección 4):
+- ✅ La migración corre **sin error** sobre un esquema previo con datos.
+- ✅ Estado **“Autorizada”** creado.
+- ✅ Cliente, orden y cotización **existentes sobreviven** (no se borró nada).
+- ✅ `advance_payment = 200` **backfilled** correctamente a `order_payments`.
+- ✅ Prisma Client sigue operando (todas las rutas funcionan contra esa DB).
+
+(Los archivos temporales `_old_schema.prisma` y `_test_existing.sql` se eliminaron tras la prueba.)
+
+## 4. QA E2E REAL — 36/36 PASS contra Postgres real
+Test de integración in-process (Fastify `app.inject` + rutas + auth + scoping + permisos reales):
+`apps/api/test/_elihu_e2e.mjs`. Ejecutar:
+```
+docker compose -f docker-compose.local.yml up -d
+cd apps/api && node test/_elihu_e2e.mjs      # → PASS=36 FAIL=0
+```
+
+| Caso (real) | Resultado |
+|---|---|
+| Migración 007: Autorizada / datos existentes / backfill anticipo | PASS |
+| Crear cliente | PASS |
+| Buscar cliente por nombre (sin acento, parcial) | PASS |
+| Historial del cliente | PASS |
+| Crear cotización | PASS |
+| Convertir cotización → orden | PASS |
+| Evitar doble conversión | PASS |
+| Orden nace “Autorizada” | PASS |
+| Maestro fija costos (mano de obra 500) | PASS |
+| Fecha estimada de entrega se guarda | PASS |
+| Comisión 30% = 150 sobre mano de obra | PASS |
+| Comisión inicia PENDING_PAYMENT | PASS |
+| Primer abono 200 → saldo 300, Parcial | PASS |
+| Comisión NO se libera con abono parcial | PASS |
+| Bloquear sobrepago / monto 0 | PASS |
+| Pago final 300 → saldo 0, Pagada | PASS |
+| Comisión READY_TO_PAY al liquidar | PASS |
+| Recibo con folio REC- | PASS |
+| Estado “Lista para Entregar” | PASS |
+
+## 5. QA de permisos REAL — PASS
+| Auxiliar intenta | Resultado |
+|---|---|
+| Registrar pago | **403** PASS |
+| Cambiar costos | **403** PASS |
+| Marcar pagada | **403** PASS |
+| Cambiar comisión | **403** PASS |
+| Borrar orden | **403** PASS |
+| Borrar cliente | **403** PASS |
+| Crear cliente (permitido) | 200 PASS |
+| Alterar `total_amount` vía PUT genérico | campo ignorado, total intacto — PASS |
+| Maestro cambia comisión | 200 PASS |
+
+## 6. Bugs encontrados y corregidos en esta parte
+- **Artefacto de test (no de producto):** el arnés enviaba `content-type: application/json` en DELETE
+  sin cuerpo, provocando 400 de Fastify antes del guard. Se corrigió el arnés (omitir content-type sin
+  body, igual que `api.js`); los guards 403 quedaron confirmados. No hubo bug de producto.
+
+## 7. Pendientes resueltos por decisión (sin ambigüedad)
+- **Fotos → Opción B.** El backend (`POST /api/photos` con `expires_at`) está listo, pero el flujo de
+  captura en `NewServiceOrder`/`OrderPhotosDownload` **sigue usando IndexedDB** (almacenamiento del
+  dispositivo). Para no prometer algo falso, **corregí el texto del UI** (`PhotoUpload`) para que NO
+  diga “se guardan en el servidor”. La migración server-side completa de fotos queda **explícitamente
+  fuera de este release** y documentada. Tipos de foto (frente/trasera/tablero/daños/refacción/otra) sí
+  quedaron en UI.
+- **WhatsApp → Opción B.** Comportamiento preexistente conservado. **Mensajes que siguen siendo
+  automáticos** (vía `OrderDetail.handleStatusChange` → `sendDirectMessage`): notificación en **cada
+  cambio de estado** (Registrada, En Revisión, Esperando Refacciones, Lista para Entregar, Entregada,
+  Cancelada, Autorizada). **Editable/preview manual** disponible vía `WhatsAppSendModal` (textarea
+  editable + estado del bot + fallback “Bot desconectado”). Texto de “Lista para Entregar” ahora dice
+  “La moto está lista para entregar”.
+- **Dashboard → Opción B.** Widgets que **no** requieren N+1 implementados (Autorizadas, Cotizaciones
+  por autorizar, Entregas próximas/vencidas). Agregados globales de **saldo por cobrar** y **comisiones
+  pendientes** quedan **fuera de este release** (requieren un endpoint de stats con agregación SQL para
+  evitar N+1). Documentado.
+
+## 8. Producción
+- **NO desplegada.** No hay acceso seguro/verificado a la base de datos de producción desde este
+  entorno (sin URL de prod, sin `psql`/`dokploy`, el token Dokploy no da acceso SSH directo), y por la
+  regla 4.7 **no despliego sin backup**. Backup de producción: **no realizado** (bloqueado).
+- Todo lo necesario para que tú o tu pipeline lo cierren está listo: rama pusheada, descripción de PR,
+  migración probada en DB real, runbook exacto (Parte 1 §29), y checklist QA.
+
+## 9. Qué puede probar ELIHU ya (una vez aplicada 007 + desplegado el build)
+Buscar cliente por nombre, ver su historial, crear cotización, aceptarla y convertirla (la orden nace
+**Autorizada**), fijar fecha de entrega, fijar **comisión variable**, registrar **abonos** y ver
+**saldo/estado de pago**, descargar **recibo PDF**, ver **comisión liberada** al liquidar, pasar a
+**“Lista para entregar”**, y (como auxiliar) ver bloqueadas las acciones de dinero. Todo esto está
+**verificado end-to-end contra una base PostgreSQL real** en este pase.
