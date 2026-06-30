@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { DollarSign, Plus, X, Loader2, Download, Ban, CheckCircle2 } from 'lucide-react';
 import { orderPaymentsService } from '../../lib/api';
 import { downloadPaymentReceiptPDF } from '../../utils/pdfGenerator';
+import { SectionCard, Button, Input, Select } from '../ui';
 
 // ELIHU: sección "Pagos y saldo" del detalle de orden.
 // Varios abonos, saldo pendiente, estado de pago, recibo con folio.
@@ -11,11 +12,7 @@ const fmt = (n) =>
     new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 }).format(Number(n) || 0);
 
 const METHOD_LABELS = { efectivo: 'Efectivo', transferencia: 'Transferencia', tarjeta: 'Tarjeta', otro: 'Otro' };
-const STATUS_STYLE = {
-    Pendiente: { bg: '#fef2f2', fg: '#b91c1c' },
-    Parcial: { bg: '#fffbeb', fg: '#b45309' },
-    Pagada: { bg: '#f0fdf4', fg: '#15803d' },
-};
+const STATUS_TONE = { Pendiente: 'warning', Parcial: 'brand', Pagada: 'success' };
 
 export default function OrderPaymentsSection({ order, client, motorcycle, workshopName, canManage, onChanged, onFinance }) {
     const [finance, setFinance] = useState(null);
@@ -74,57 +71,48 @@ export default function OrderPaymentsSection({ order, client, motorcycle, worksh
         await downloadPaymentReceiptPDF({ ...data, workshop: data.workshop || workshopName });
     };
 
-    const st = finance ? (STATUS_STYLE[finance.payment_status] || STATUS_STYLE.Pendiente) : STATUS_STYLE.Pendiente;
-    const box = { border: '1px solid #e8e8ed', borderRadius: 12, background: '#fff', margin: '12px 0', overflow: 'hidden' };
-    const head = { display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderBottom: '1px solid #f5f5f7', fontWeight: 700, color: '#111827' };
-    const rowS = { display: 'flex', justifyContent: 'space-between', padding: '6px 14px', fontSize: 14 };
+    const tone = finance ? (STATUS_TONE[finance.payment_status] || 'warning') : 'warning';
+    const balancePositive = (finance?.balance || 0) > 0;
 
     return (
-        <div style={box} className="od-payments">
-            <div style={head}><DollarSign size={18} /> Pagos y saldo</div>
-
+        <SectionCard title="Pagos y saldo" icon={<DollarSign size={18} />} className="odpay">
             {loading ? (
-                <div style={{ padding: 16, textAlign: 'center', color: '#6e6e73' }}><Loader2 size={18} className="spinner" /></div>
+                <div className="odpay__loading"><Loader2 size={18} className="spinner" /></div>
             ) : (
                 <>
-                    <div style={{ padding: '8px 0' }}>
-                        <div style={rowS}><span style={{ color: '#6e6e73' }}>Total de la orden</span><strong>{fmt(finance?.total)}</strong></div>
-                        <div style={rowS}><span style={{ color: '#6e6e73' }}>Total pagado</span><span style={{ color: '#15803d', fontWeight: 600 }}>{fmt(finance?.paid)}</span></div>
-                        <div style={{ ...rowS, fontSize: 16 }}>
-                            <span style={{ fontWeight: 700 }}>Saldo pendiente</span>
-                            <strong style={{ color: (finance?.balance || 0) > 0 ? '#b91c1c' : '#15803d' }}>{fmt(finance?.balance)}</strong>
+                    <div className="odpay__summary">
+                        <div className="odpay__row"><span>Total de la orden</span><strong>{fmt(finance?.total)}</strong></div>
+                        <div className="odpay__row"><span>Total pagado</span><span className="odpay__paid">{fmt(finance?.paid)}</span></div>
+                        <div className="odpay__row odpay__row--balance">
+                            <span>Saldo pendiente</span>
+                            <strong className={balancePositive ? 'odpay__bal-due' : 'odpay__bal-ok'}>{fmt(finance?.balance)}</strong>
                         </div>
-                        <div style={{ padding: '6px 14px' }}>
-                            <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, background: st.bg, color: st.fg }}>
-                                {finance?.payment_status || 'Pendiente'}
-                            </span>
-                            {finance?.overpaid > 0 && (
-                                <span style={{ marginLeft: 8, fontSize: 12, color: '#b45309' }}>Sobrepago: {fmt(finance.overpaid)}</span>
-                            )}
+                        <div className="odpay__status">
+                            <span className={`mp-badge mp-badge--${tone}`}>{finance?.payment_status || 'Pendiente'}</span>
+                            {finance?.overpaid > 0 && <span className="odpay__over">Sobrepago: {fmt(finance.overpaid)}</span>}
                         </div>
                     </div>
 
-                    {/* Historial de abonos */}
                     {activePayments.length === 0 ? (
-                        <p style={{ padding: '0 14px 12px', color: '#86868b', fontSize: 13 }}>Sin abonos registrados.</p>
+                        <p className="odpay__empty">Sin abonos registrados.</p>
                     ) : (
-                        <div style={{ borderTop: '1px solid #f5f5f7' }}>
+                        <div className="odpay__list">
                             {payments.map((p) => (
-                                <div key={p.id} style={{ padding: '10px 14px', borderBottom: '1px solid #f5f5f7', opacity: p.cancelled_at ? 0.5 : 1 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                        <strong style={{ textDecoration: p.cancelled_at ? 'line-through' : 'none' }}>{fmt(p.amount)}</strong>
-                                        <span style={{ fontSize: 12, color: '#6e6e73' }}>{METHOD_LABELS[p.payment_method] || p.payment_method}</span>
+                                <div key={p.id} className={`odpay__item${p.cancelled_at ? ' is-cancelled' : ''}`}>
+                                    <div className="odpay__item-top">
+                                        <strong>{fmt(p.amount)}</strong>
+                                        <span className="odpay__method">{METHOD_LABELS[p.payment_method] || p.payment_method}</span>
                                     </div>
-                                    <div style={{ fontSize: 12, color: '#86868b', display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+                                    <div className="odpay__item-meta">
                                         <span>{new Date(p.payment_date).toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                                         <span>{p.receipt_number}</span>
                                     </div>
-                                    {p.note && <div style={{ fontSize: 12, color: '#6e6e73', marginTop: 2 }}>{p.note}</div>}
-                                    {p.cancelled_at && <div style={{ fontSize: 11, color: '#b91c1c', marginTop: 2 }}>Cancelado: {p.cancellation_reason}</div>}
+                                    {p.note && <div className="odpay__note">{p.note}</div>}
+                                    {p.cancelled_at && <div className="odpay__cancelled">Cancelado: {p.cancellation_reason}</div>}
                                     {!p.cancelled_at && (
-                                        <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
-                                            <button onClick={() => handleReceipt(p)} style={linkBtn}><Download size={13} /> Recibo</button>
-                                            {canManage && <button onClick={() => handleCancel(p)} style={{ ...linkBtn, color: '#b91c1c' }}><Ban size={13} /> Cancelar</button>}
+                                        <div className="odpay__actions">
+                                            <button onClick={() => handleReceipt(p)} className="odpay__link"><Download size={13} /> Recibo</button>
+                                            {canManage && <button onClick={() => handleCancel(p)} className="odpay__link odpay__link--danger"><Ban size={13} /> Cancelar</button>}
                                         </div>
                                     )}
                                 </div>
@@ -132,45 +120,68 @@ export default function OrderPaymentsSection({ order, client, motorcycle, worksh
                         </div>
                     )}
 
-                    {/* Registrar abono */}
                     {canManage && (
-                        <div style={{ padding: 14, borderTop: '1px solid #f5f5f7' }}>
+                        <div className="odpay__register">
                             {!showForm ? (
-                                <button onClick={() => setShowForm(true)} disabled={(finance?.balance || 0) <= 0}
-                                    style={{ ...primaryBtn, opacity: (finance?.balance || 0) <= 0 ? 0.5 : 1 }}>
-                                    <Plus size={16} /> Registrar abono
-                                </button>
+                                <Button variant="success" block leftIcon={<Plus size={16} />} disabled={!balancePositive} onClick={() => setShowForm(true)}>
+                                    Registrar abono
+                                </Button>
                             ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                    <input type="number" min="0" step="0.01" placeholder="Monto del abono" value={amount}
-                                        onChange={(e) => setAmount(e.target.value)} style={input} autoFocus />
-                                    <select value={method} onChange={(e) => setMethod(e.target.value)} style={input}>
+                                <div className="odpay__form">
+                                    <Input type="number" min="0" step="0.01" placeholder="Monto del abono" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
+                                    <Select value={method} onChange={(e) => setMethod(e.target.value)}>
                                         <option value="efectivo">Efectivo</option>
                                         <option value="transferencia">Transferencia</option>
                                         <option value="tarjeta">Tarjeta</option>
                                         <option value="otro">Otro</option>
-                                    </select>
-                                    <input type="text" placeholder="Nota (opcional)" value={note} onChange={(e) => setNote(e.target.value)} style={input} />
-                                    {err && <div style={{ color: '#b91c1c', fontSize: 13 }}>{err}</div>}
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                        <button onClick={handleRegister} disabled={saving} style={primaryBtn}>
-                                            {saving ? <Loader2 size={16} className="spinner" /> : <CheckCircle2 size={16} />} Guardar abono
-                                        </button>
-                                        <button onClick={() => { setShowForm(false); setErr(null); }} style={outlineBtn}><X size={16} /> Cancelar</button>
+                                    </Select>
+                                    <Input type="text" placeholder="Nota (opcional)" value={note} onChange={(e) => setNote(e.target.value)} />
+                                    {err && <div className="odpay__err">{err}</div>}
+                                    <div className="odpay__form-actions">
+                                        <Button variant="success" block loading={saving} leftIcon={!saving ? <CheckCircle2 size={16} /> : null} onClick={handleRegister}>Guardar abono</Button>
+                                        <Button variant="secondary" leftIcon={<X size={16} />} onClick={() => { setShowForm(false); setErr(null); }}>Cancelar</Button>
                                     </div>
-                                    <p style={{ fontSize: 12, color: '#86868b', margin: 0 }}>Saldo disponible: {fmt(finance?.balance)}. No se permite sobrepago.</p>
+                                    <p className="odpay__hint">Saldo disponible: {fmt(finance?.balance)}. No se permite sobrepago.</p>
                                 </div>
                             )}
                         </div>
                     )}
-                    {err && !showForm && <div style={{ color: '#b91c1c', fontSize: 13, padding: '0 14px 12px' }}>{err}</div>}
+                    {err && !showForm && <div className="odpay__err" style={{ marginTop: 8 }}>{err}</div>}
                 </>
             )}
-        </div>
+
+            <style>{`
+                .odpay__loading { padding: 16px; text-align: center; color: var(--text-secondary); }
+                .odpay__summary { display: flex; flex-direction: column; gap: 2px; }
+                .odpay__row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 14px; color: var(--text-primary); }
+                .odpay__row span:first-child { color: var(--text-secondary); }
+                .odpay__paid { color: var(--success); font-weight: 600; }
+                .odpay__row--balance { font-size: 17px; padding-top: 10px; margin-top: 4px; border-top: 1px solid var(--border-light); }
+                .odpay__row--balance span:first-child { color: var(--text-primary); font-weight: 600; }
+                .odpay__bal-due { color: var(--danger); }
+                .odpay__bal-ok { color: var(--success); }
+                .odpay__status { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+                .odpay__over { font-size: 12px; color: var(--warning-hover); }
+                .odpay__empty { color: var(--text-muted); font-size: 13px; margin: 12px 0 0; }
+                .odpay__list { margin-top: 14px; border-top: 1px solid var(--border-light); }
+                .odpay__item { padding: 12px 0; border-bottom: 1px solid var(--border-light); }
+                .odpay__item.is-cancelled { opacity: 0.5; }
+                .odpay__item.is-cancelled strong { text-decoration: line-through; }
+                .odpay__item-top { display: flex; justify-content: space-between; align-items: baseline; }
+                .odpay__item-top strong { font-size: 16px; color: var(--color-ink); }
+                .odpay__method { font-size: 12px; color: var(--text-secondary); }
+                .odpay__item-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+                .odpay__note { font-size: 12px; color: var(--text-secondary); margin-top: 3px; }
+                .odpay__cancelled { font-size: 11px; color: var(--danger); margin-top: 3px; }
+                .odpay__actions { display: flex; gap: 14px; margin-top: 8px; }
+                .odpay__link { display: inline-flex; align-items: center; gap: 4px; background: none; border: none; color: var(--brand-primary); font-size: 12px; font-weight: 500; cursor: pointer; padding: 0; font-family: var(--font-text); }
+                .odpay__link--danger { color: var(--danger); }
+                .odpay__register { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-light); }
+                .odpay__form { display: flex; flex-direction: column; gap: 10px; }
+                .odpay__form-actions { display: flex; gap: 10px; }
+                .odpay__err { color: var(--danger); font-size: 13px; }
+                .odpay__hint { font-size: 12px; color: var(--text-muted); margin: 0; }
+            `}</style>
+        </SectionCard>
     );
 }
-
-const linkBtn = { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#d71920', fontSize: 12, cursor: 'pointer', padding: 0 };
-const input = { width: '100%', padding: '10px 12px', border: '1px solid #d2d2d7', borderRadius: 8, fontSize: 15, boxSizing: 'border-box' };
-const primaryBtn = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', flex: 1 };
-const outlineBtn = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', background: '#fff', color: '#474747', border: '1px solid #d2d2d7', borderRadius: 8, fontWeight: 600, cursor: 'pointer' };
