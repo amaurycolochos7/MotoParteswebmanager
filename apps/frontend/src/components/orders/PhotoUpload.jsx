@@ -135,7 +135,7 @@ export default function PhotoUpload({ onPhotosAdded }) {
                 )}
             </label>
 
-            <p style={{ fontSize: 12, color: 'var(--text-secondary, #6b7280)', marginTop: 8, textAlign: 'center' }}>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary, #6e6e73)', marginTop: 8, textAlign: 'center' }}>
                 Selecciona el tipo de cada foto. Quedan asociadas a esta orden como evidencia.
             </p>
 

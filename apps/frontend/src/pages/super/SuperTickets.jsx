@@ -118,15 +118,15 @@ export default function SuperTickets() {
                                                 {t.workspace?.is_partner && <Award size={12} style={{ color: '#a855f7' }} />}
                                                 <span>{t.workspace?.name || 'Sin taller'}</span>
                                             </div>
-                                            <div style={{ fontSize: '0.76rem', color: '#64748b' }}>{t.creator?.full_name || t.creator?.email}</div>
+                                            <div style={{ fontSize: '0.76rem', color: '#6e6e73' }}>{t.creator?.full_name || t.creator?.email}</div>
                                         </td>
                                         <td><Link to={`/super/tickets/${t.id}`}>{t.subject}</Link>
                                             {t.admin_unread > 0 && <span className="sp-pill sp-pill-red" style={{ marginLeft: 6, fontSize: '0.7rem' }}>{t.admin_unread} nuevo</span>}
                                         </td>
-                                        <td style={{ color: '#94a3b8', fontSize: '0.82rem' }}>{t.category}</td>
+                                        <td style={{ color: '#86868b', fontSize: '0.82rem' }}>{t.category}</td>
                                         <td><span className={`sp-pill ${statusPill(t.status)}`}>{t.status}</span></td>
                                         <td><span className={`sp-pill ${priorityPill(t.priority)}`}>{t.priority}</span></td>
-                                        <td style={{ color: '#64748b', fontSize: '0.82rem' }}>
+                                        <td style={{ color: '#6e6e73', fontSize: '0.82rem' }}>
                                             <Clock size={12} style={{ verticalAlign: -1, marginRight: 4 }} />
                                             {fmtDate(t.last_message_at)}
                                         </td>

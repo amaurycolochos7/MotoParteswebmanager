@@ -177,11 +177,11 @@ function Toast({ message, type, onClose }) {
                 }
 
                 .toast-info {
-                    border-left-color: #3b82f6;
+                    border-left-color: #d71920;
                 }
 
                 .toast-info .toast-icon {
-                    color: #3b82f6;
+                    color: #d71920;
                 }
 
                 .toast-icon {
@@ -194,7 +194,7 @@ function Toast({ message, type, onClose }) {
                 .toast-message {
                     flex: 1;
                     font-size: 0.9375rem;
-                    color: #1e293b;
+                    color: #1d1d1f;
                     line-height: 1.4;
                 }
 
@@ -202,7 +202,7 @@ function Toast({ message, type, onClose }) {
                     flex-shrink: 0;
                     background: none;
                     border: none;
-                    color: #94a3b8;
+                    color: #86868b;
                     cursor: pointer;
                     padding: 4px;
                     border-radius: 6px;
@@ -213,8 +213,8 @@ function Toast({ message, type, onClose }) {
                 }
 
                 .toast-close:hover {
-                    background: #f1f5f9;
-                    color: #64748b;
+                    background: #f5f5f7;
+                    color: #6e6e73;
                 }
 
                 @media (max-width: 480px) {

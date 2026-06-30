@@ -68,7 +68,7 @@ export default function SuperBilling() {
                                     <td>${s.plan?.price_mxn_monthly || 0}</td>
                                     <td><span className={`sp-pill ${s.status === 'active' ? 'sp-pill-green' : s.status === 'trialing' ? 'sp-pill-blue' : 'sp-pill-gray'}`}>{s.status}</span></td>
                                     <td><span className={`sp-pill ${s.source === 'manual' ? 'sp-pill-purple' : 'sp-pill-gray'}`}>{s.source}</span></td>
-                                    <td style={{ color: '#64748b', fontSize: '0.82rem' }}>{fmtDate(s.current_period_end || s.manual_expires_at)}</td>
+                                    <td style={{ color: '#6e6e73', fontSize: '0.82rem' }}>{fmtDate(s.current_period_end || s.manual_expires_at)}</td>
                                 </tr>
                             ))}
                         </tbody>

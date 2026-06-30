@@ -530,63 +530,63 @@ function SortableList({ q, ans, setAnswer }) {
 function Styles() {
   return (
     <style>{`
-      .mq-screen { min-height: 100vh; background: #0f172a; display: flex; align-items: center; justify-content: center; padding: 20px; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-      .mq-screen-form { align-items: flex-start; background: #f1f5f9; }
+      .mq-screen { min-height: 100vh; background: #1d1d1f; display: flex; align-items: center; justify-content: center; padding: 20px; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+      .mq-screen-form { align-items: flex-start; background: #f5f5f7; }
       .mq-card { background: #fff; border-radius: 16px; padding: 32px 24px; width: 100%; max-width: 380px; box-shadow: 0 10px 40px rgba(0,0,0,.25); text-align: center; }
-      .mq-logo { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 8px; }
+      .mq-logo { font-size: 22px; font-weight: 800; color: #1d1d1f; margin: 0 0 8px; }
       .mq-logo span { color: #ef4444; }
-      .mq-sub { color: #475569; font-size: 14px; line-height: 1.5; margin: 8px 0; }
-      .mq-input { width: 100%; padding: 14px 16px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 16px; margin: 10px 0; box-sizing: border-box; }
+      .mq-sub { color: #474747; font-size: 14px; line-height: 1.5; margin: 8px 0; }
+      .mq-input { width: 100%; padding: 14px 16px; border: 2px solid #e8e8ed; border-radius: 10px; font-size: 16px; margin: 10px 0; box-sizing: border-box; }
       .mq-input:focus { outline: none; border-color: #ef4444; }
-      .mq-textarea { width: 100%; padding: 12px 14px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 15px; box-sizing: border-box; font-family: inherit; }
+      .mq-textarea { width: 100%; padding: 12px 14px; border: 2px solid #e8e8ed; border-radius: 10px; font-size: 15px; box-sizing: border-box; font-family: inherit; }
       .mq-textarea:focus { outline: none; border-color: #ef4444; }
       .mq-error { color: #dc2626; font-size: 13px; margin: 6px 0; }
-      .mq-btn { padding: 12px 18px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+      .mq-btn { padding: 12px 18px; border: 1px solid #d2d2d7; background: #fff; color: #1d1d1f; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
       .mq-btn:disabled { opacity: .5; cursor: not-allowed; }
       .mq-btn-primary { background: #111827; color: #fff; border-color: #111827; }
       .mq-badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; margin: 8px 0; }
       .mq-badge-ok { background: #dcfce7; color: #15803d; }
 
       .mq-form-wrap { width: 100%; max-width: 640px; margin: 0 auto; padding-bottom: 60px; }
-      .mq-head { position: sticky; top: 0; background: #f1f5f9; padding: 16px 0 10px; z-index: 5; }
+      .mq-head { position: sticky; top: 0; background: #f5f5f7; padding: 16px 0 10px; z-index: 5; }
       .mq-head-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-      .mq-participant { font-weight: 800; color: #0f172a; font-size: 16px; }
-      .mq-link { background: none; border: none; color: #64748b; cursor: pointer; font-size: 13px; text-decoration: underline; }
-      .mq-progress { height: 8px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
+      .mq-participant { font-weight: 800; color: #1d1d1f; font-size: 16px; }
+      .mq-link { background: none; border: none; color: #6e6e73; cursor: pointer; font-size: 13px; text-decoration: underline; }
+      .mq-progress { height: 8px; background: #e8e8ed; border-radius: 999px; overflow: hidden; }
       .mq-progress-bar { height: 100%; background: #ef4444; transition: width .3s; }
-      .mq-progress-label { font-size: 12px; color: #64748b; margin-top: 4px; }
+      .mq-progress-label { font-size: 12px; color: #6e6e73; margin-top: 4px; }
       .mq-instruction { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; padding: 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; margin-bottom: 16px; }
-      .mq-toast { background: #0f172a; color: #fff; padding: 12px 16px; border-radius: 10px; font-size: 14px; margin-bottom: 12px; cursor: pointer; }
+      .mq-toast { background: #1d1d1f; color: #fff; padding: 12px 16px; border-radius: 10px; font-size: 14px; margin-bottom: 12px; cursor: pointer; }
       .mq-section { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-      .mq-section-title { font-size: 18px; font-weight: 800; color: #0f172a; margin: 0 0 16px; }
-      .mq-q { padding: 16px 0; border-bottom: 1px solid #f1f5f9; }
+      .mq-section-title { font-size: 18px; font-weight: 800; color: #1d1d1f; margin: 0 0 16px; }
+      .mq-q { padding: 16px 0; border-bottom: 1px solid #f5f5f7; }
       .mq-q:last-of-type { border-bottom: none; }
-      .mq-q-label { display: block; font-weight: 600; color: #1e293b; font-size: 15px; margin-bottom: 10px; line-height: 1.4; }
+      .mq-q-label { display: block; font-weight: 600; color: #1d1d1f; font-size: 15px; margin-bottom: 10px; line-height: 1.4; }
       .mq-req { color: #ef4444; }
-      .mq-help { font-size: 13px; color: #64748b; margin-bottom: 8px; }
+      .mq-help { font-size: 13px; color: #6e6e73; margin-bottom: 8px; }
       .mq-opts { display: flex; flex-direction: column; gap: 8px; }
-      .mq-opt { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 2px solid #e2e8f0; border-radius: 10px; cursor: pointer; font-size: 15px; }
-      .mq-opt.sel { border-color: #111827; background: #f8fafc; }
+      .mq-opt { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 2px solid #e8e8ed; border-radius: 10px; cursor: pointer; font-size: 15px; }
+      .mq-opt.sel { border-color: #111827; background: #f5f5f7; }
       .mq-opt input { width: 18px; height: 18px; flex-shrink: 0; }
       .mq-other { margin-top: 4px; }
       .mq-bool { display: flex; gap: 10px; }
       .mq-followup { margin-top: 12px; }
-      .mq-flabel { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+      .mq-flabel { display: block; font-size: 13px; font-weight: 600; color: #474747; margin-bottom: 6px; }
       .mq-sortable { display: flex; flex-direction: column; gap: 6px; }
-      .mq-sort-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
+      .mq-sort-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e8e8ed; border-radius: 10px; background: #f5f5f7; }
       .mq-sort-num { width: 24px; height: 24px; background: #111827; color: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
       .mq-sort-label { flex: 1; font-size: 14px; }
-      .mq-sort-ctrls button { width: 30px; height: 30px; border: 1px solid #cbd5e1; background: #fff; border-radius: 6px; cursor: pointer; margin-left: 4px; }
+      .mq-sort-ctrls button { width: 30px; height: 30px; border: 1px solid #d2d2d7; background: #fff; border-radius: 6px; cursor: pointer; margin-left: 4px; }
       .mq-sort-ctrls button:disabled { opacity: .35; }
       .mq-nav { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
       .mq-nav .mq-btn-primary { margin-left: auto; }
-      .mq-saved { font-size: 12px; color: #94a3b8; margin-top: 8px; text-align: right; }
+      .mq-saved { font-size: 12px; color: #86868b; margin-top: 8px; text-align: right; }
       .mq-review-sec { margin-bottom: 18px; }
       .mq-review-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-      .mq-review-row { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid #f8fafc; }
-      .mq-review-q { font-size: 13px; color: #64748b; }
-      .mq-review-a { font-size: 15px; color: #0f172a; font-weight: 500; }
-      .mq-review-a-empty { color: #cbd5e1; font-style: italic; font-weight: 400; }
+      .mq-review-row { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 1px solid #f5f5f7; }
+      .mq-review-q { font-size: 13px; color: #6e6e73; }
+      .mq-review-a { font-size: 15px; color: #1d1d1f; font-weight: 500; }
+      .mq-review-a-empty { color: #d2d2d7; font-style: italic; font-weight: 400; }
       @media (max-width: 480px) { .mq-nav .mq-btn-primary { margin-left: 0; width: 100%; } }
     `}</style>
   );

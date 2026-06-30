@@ -31,7 +31,6 @@ import { useToast } from '../../context/ToastContext';
 import { saveOrderPhotos } from '../../services/photoStorageService';
 import { orderRequestsService } from '../../lib/api';
 import { sendDirectMessage, getOrderCreatedMessage } from '../../utils/whatsappHelper';
-import { Stepper } from '../../components/ui';
 
 const STEPS = [
     { id: 1, title: 'Cliente', icon: User },
@@ -326,7 +325,7 @@ export default function NewServiceOrder() {
                     </div>
                 </div>
 
-                <div style="padding: 30px 40px; background: #fafafa;">
+                <div style="padding: 30px 40px; background: #f5f5f7;">
                     <!-- Info Cards -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
                         <div style="background: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
@@ -377,16 +376,16 @@ export default function NewServiceOrder() {
                             <p style="margin: 0; font-size: 14px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: white;">Servicios a Realizar</p>
                         </div>
                         <div style="padding: 20px 24px;">
-                            ${formData.customService ? `<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0;"><span style="color: #444; font-size: 15px;">${formData.customService}</span><span style="font-weight: 700; color: #1a1a2e;">${formatMXN((parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0))}</span></div>` : '<div style="padding: 12px 0; color: #94a3b8; font-size: 14px;">Sin descripción de servicio</div>'}
+                            ${formData.customService ? `<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0;"><span style="color: #444; font-size: 15px;">${formData.customService}</span><span style="font-weight: 700; color: #1a1a2e;">${formatMXN((parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0))}</span></div>` : '<div style="padding: 12px 0; color: #86868b; font-size: 14px;">Sin descripción de servicio</div>'}
                             ${downloadPartsTotal > 0 ? `
-                                <div style="margin-top: 12px; padding: 12px 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                <div style="margin-top: 12px; padding: 12px 16px; background: #f5f5f7; border-radius: 8px; border: 1px solid #e8e8ed;">
                                     <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px;">
-                                        <span style="color: #64748b;">Mano de Obra</span>
-                                        <span style="font-weight: 600; color: #334155;">${formatMXN(downloadLaborTotal)}</span>
+                                        <span style="color: #6e6e73;">Mano de Obra</span>
+                                        <span style="font-weight: 600; color: #474747;">${formatMXN(downloadLaborTotal)}</span>
                                     </div>
                                     <div style="display: flex; justify-content: space-between; font-size: 14px;">
-                                        <span style="color: #64748b;">Refacciones</span>
-                                        <span style="font-weight: 600; color: #334155;">${formatMXN(downloadPartsTotal)}</span>
+                                        <span style="color: #6e6e73;">Refacciones</span>
+                                        <span style="font-weight: 600; color: #474747;">${formatMXN(downloadPartsTotal)}</span>
                                     </div>
                                 </div>
                             ` : ''}
@@ -819,12 +818,12 @@ export default function NewServiceOrder() {
                     font-size: 1.5rem;
                     font-weight: 700;
                     margin: 0 0 8px 0;
-                    color: #1e293b;
+                    color: var(--text-primary);
                 }
 
                 .status-message {
                     font-size: 1rem;
-                    color: #64748b;
+                    color: var(--text-secondary);
                     margin: 0;
                 }
             `}</style>
@@ -839,9 +838,9 @@ export default function NewServiceOrder() {
                 </div>
             </div>
 
-            {/* Stepper */}
-            <div className="no-stepper">
-                <Stepper steps={STEPS.map(s => s.title)} current={currentStep - 1} />
+            {/* Progress Bar */}
+            <div className="no-progress">
+                <div className="no-progress-fill" style={{ width: `${(currentStep / STEPS.length) * 100}%` }} />
             </div>
 
             {/* Step Context */}
@@ -1348,20 +1347,20 @@ export default function NewServiceOrder() {
                                                 justifyContent: 'space-between',
                                                 alignItems: 'center',
                                                 padding: '12px 0',
-                                                borderBottom: '1px solid #f3f4f6'
+                                                borderBottom: '1px solid #f0f0f2'
                                             }}>
-                                                <span style={{ fontSize: '0.95rem', color: '#374151' }}>Mano de obra</span>
-                                                <span style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937' }}>{formatMXN(totalLabor)}</span>
+                                                <span style={{ fontSize: '0.95rem', color: '#474747' }}>Mano de obra</span>
+                                                <span style={{ fontSize: '1rem', fontWeight: '600', color: '#333333' }}>{formatMXN(totalLabor)}</span>
                                             </div>
                                             <div style={{
                                                 display: 'flex',
                                                 justifyContent: 'space-between',
                                                 alignItems: 'center',
                                                 padding: '12px 0',
-                                                borderBottom: '1px solid #f3f4f6'
+                                                borderBottom: '1px solid #f0f0f2'
                                             }}>
-                                                <span style={{ fontSize: '0.95rem', color: '#374151' }}>Refacciones</span>
-                                                <span style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937' }}>{formatMXN(totalMaterials)}</span>
+                                                <span style={{ fontSize: '0.95rem', color: '#474747' }}>Refacciones</span>
+                                                <span style={{ fontSize: '1rem', fontWeight: '600', color: '#333333' }}>{formatMXN(totalMaterials)}</span>
                                             </div>
                                             <div style={{
                                                 display: 'flex',
@@ -1369,8 +1368,8 @@ export default function NewServiceOrder() {
                                                 alignItems: 'center',
                                                 padding: '16px 0 4px 0'
                                             }}>
-                                                <span style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1f2937' }}>TOTAL A PAGAR</span>
-                                                <span style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0071e3' }}>{formatMXN(grandTotal)}</span>
+                                                <span style={{ fontSize: '1.1rem', fontWeight: '700', color: '#333333' }}>TOTAL A PAGAR</span>
+                                                <span style={{ fontSize: '1.4rem', fontWeight: '800', color: '#d71920' }}>{formatMXN(grandTotal)}</span>
                                             </div>
                                         </div>
                                     );
@@ -1879,7 +1878,7 @@ export default function NewServiceOrder() {
           flex: 1;
           min-height: 0;
           overflow: hidden;
-          background: #F3F4F6;
+          background: #f0f0f2;
           padding: 16px 16px 0 16px;
         }
 
@@ -1898,18 +1897,18 @@ export default function NewServiceOrder() {
           justify-content: center;
           width: 36px;
           height: 36px;
-          border: 1px solid #E5E7EB;
+          border: 1px solid #e8e8ed;
           background: white;
           border-radius: 10px;
           cursor: pointer;
-          color: #374151;
+          color: #474747;
           transition: all 0.15s;
           flex-shrink: 0;
         }
 
         .no-back-btn:hover {
-          background: #F9FAFB;
-          border-color: #D1D5DB;
+          background: #f5f5f7;
+          border-color: #d2d2d7;
         }
 
         .no-header-text {
@@ -1928,21 +1927,34 @@ export default function NewServiceOrder() {
         .no-step-indicator {
           font-size: 12px;
           font-weight: 500;
-          color: #9CA3AF;
+          color: #86868b;
           letter-spacing: 0.02em;
         }
 
         /* ===== PROGRESS BAR ===== */
-        .no-stepper {
-          margin: 6px 0 16px;
-          padding: 0 4px;
-          flex-shrink: 0;
+        .no-progress {
+          height: 4px;
+          background: #e8e8ed;
+          border-radius: 2px;
+          margin-bottom: 16px;
+          overflow: hidden;
+        }
+
+        .no-progress-fill {
+          height: 100%;
+          background: #111827;
+          border-radius: 2px;
+          transition: width 0.3s ease;
         }
 
         /* ===== STEP CONTEXT ===== */
+        .no-progress {
+          flex-shrink: 0;
+        }
+
         .no-step-context {
           font-size: 14px;
-          color: var(--text-secondary);
+          color: #6e6e73;
           margin: 0 0 12px 0;
           flex-shrink: 0;
         }
@@ -1979,32 +1991,32 @@ export default function NewServiceOrder() {
         .cl-search-icon {
           position: absolute;
           left: 16px;
-          color: #9CA3AF;
+          color: #86868b;
           pointer-events: none;
           z-index: 1;
         }
 
         .cl-search-input {
           width: 100%;
-          height: 52px;
+          height: 56px;
           padding: 0 48px 0 48px;
-          font-size: 16px;
+          font-size: 15px;
           font-family: inherit;
-          color: var(--color-ink);
-          background: var(--surface-card);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-input);
+          color: #111827;
+          background: white;
+          border: 1px solid #e8e8ed;
+          border-radius: 12px;
           transition: border-color 0.15s, box-shadow 0.15s;
         }
 
         .cl-search-input:focus {
           outline: none;
-          border-color: var(--brand-primary);
-          box-shadow: 0 0 0 3.5px var(--brand-primary-soft);
+          border-color: #111827;
+          box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
         }
 
         .cl-search-input::placeholder {
-          color: var(--text-muted);
+          color: #86868b;
         }
 
         .cl-search-clear {
@@ -2016,16 +2028,16 @@ export default function NewServiceOrder() {
           width: 28px;
           height: 28px;
           border: none;
-          background: var(--surface-recessed);
-          color: var(--text-secondary);
-          border-radius: var(--radius-pill);
+          background: #f0f0f2;
+          color: #6e6e73;
+          border-radius: 8px;
           cursor: pointer;
           transition: all 0.15s;
         }
 
         .cl-search-clear:hover {
-          background: var(--border-color);
-          color: var(--color-ink);
+          background: #e8e8ed;
+          color: #111827;
         }
 
         /* --- Add Client Card --- */
@@ -2034,27 +2046,26 @@ export default function NewServiceOrder() {
           align-items: center;
           gap: 12px;
           width: 100%;
-          padding: 14px 16px;
-          background: var(--surface-card);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-card);
+          padding: 12px 16px;
+          background: #f5f5f7;
+          border: 1px solid #e8e8ed;
+          border-radius: 12px;
           cursor: pointer;
-          transition: border-color 0.15s, transform 0.15s;
+          transition: all 0.15s;
           font-family: inherit;
           margin-bottom: 16px;
-          color: var(--color-ink);
+          color: #474747;
           flex-shrink: 0;
         }
 
         .cl-add-card:hover {
-          background: var(--surface-card);
+          background: #f0f0f2;
           border-color: #d2d2d7;
-          transform: translateY(-1px);
         }
 
         .cl-add-card svg {
           flex-shrink: 0;
-          color: var(--brand-primary);
+          color: #6e6e73;
         }
 
         .cl-add-text {
@@ -2071,14 +2082,14 @@ export default function NewServiceOrder() {
 
         .cl-add-text small {
           font-size: 12px;
-          color: #9CA3AF;
+          color: #86868b;
         }
 
         /* --- Results Count --- */
         .cl-count {
           font-size: 12px;
           font-weight: 500;
-          color: #9CA3AF;
+          color: #86868b;
           text-transform: uppercase;
           letter-spacing: 0.04em;
           padding: 0 4px 8px;
@@ -2103,7 +2114,7 @@ export default function NewServiceOrder() {
         }
 
         .cl-cards::-webkit-scrollbar-thumb {
-          background: #D1D5DB;
+          background: #d2d2d7;
           border-radius: 3px;
         }
 
@@ -2118,41 +2129,67 @@ export default function NewServiceOrder() {
           gap: 12px;
           width: 100%;
           padding: 14px 16px;
-          background: var(--surface-card);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-card);
+          background: white;
+          border: 1px solid #e8e8ed;
+          border-radius: 12px;
           cursor: pointer;
-          transition: border-color 0.15s, transform 0.15s;
+          transition: all 0.15s;
           font-family: inherit;
           text-align: left;
-          box-shadow: none;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
 
         .cl-card:hover {
           border-color: #d2d2d7;
-          transform: translateY(-1px);
+          box-shadow: 0 2px 6px rgba(0,0,0,0.08);
         }
 
         .cl-card:active {
           transform: scale(0.995);
-          background: var(--surface-recessed);
+          background: #f5f5f7;
         }
 
-        /* --- Card Avatar (sober, monochrome) --- */
+        /* --- Card Avatar --- */
         .cl-card-avatar {
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 42px;
-          height: 42px;
-          border-radius: 12px;
-          font-size: 15px;
-          font-weight: 600;
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          font-size: 14px;
+          font-weight: 700;
           flex-shrink: 0;
-          color: var(--color-ink);
-          background: var(--surface-recessed);
-          border: 1px solid var(--border-color);
+          color: white;
+          background: #6e6e73;
         }
+
+        .cl-card-avatar[data-initial="A"],
+        .cl-card-avatar[data-initial="B"] { background: #4F46E5; }
+        .cl-card-avatar[data-initial="C"],
+        .cl-card-avatar[data-initial="D"] { background: #0284C7; }
+        .cl-card-avatar[data-initial="E"],
+        .cl-card-avatar[data-initial="F"] { background: #0D9488; }
+        .cl-card-avatar[data-initial="G"],
+        .cl-card-avatar[data-initial="H"] { background: #16A34A; }
+        .cl-card-avatar[data-initial="I"],
+        .cl-card-avatar[data-initial="J"] { background: #D97706; }
+        .cl-card-avatar[data-initial="K"],
+        .cl-card-avatar[data-initial="L"] { background: #DC2626; }
+        .cl-card-avatar[data-initial="M"],
+        .cl-card-avatar[data-initial="N"] { background: #7C3AED; }
+        .cl-card-avatar[data-initial="O"],
+        .cl-card-avatar[data-initial="P"] { background: #DB2777; }
+        .cl-card-avatar[data-initial="Q"],
+        .cl-card-avatar[data-initial="R"] { background: #0891B2; }
+        .cl-card-avatar[data-initial="S"],
+        .cl-card-avatar[data-initial="T"] { background: #a90f16; }
+        .cl-card-avatar[data-initial="U"],
+        .cl-card-avatar[data-initial="V"] { background: #9333EA; }
+        .cl-card-avatar[data-initial="W"],
+        .cl-card-avatar[data-initial="X"],
+        .cl-card-avatar[data-initial="Y"],
+        .cl-card-avatar[data-initial="Z"] { background: #EA580C; }
 
         /* --- Card Body --- */
         .cl-card-body {
@@ -2181,7 +2218,7 @@ export default function NewServiceOrder() {
 
         .cl-card-phone {
           font-size: 12px;
-          color: #6B7280;
+          color: #6e6e73;
           font-variant-numeric: tabular-nums;
         }
 
@@ -2194,17 +2231,17 @@ export default function NewServiceOrder() {
 
         .cl-card-meta span {
           font-size: 11px;
-          color: #9CA3AF;
+          color: #86868b;
         }
 
         .cl-card-arrow {
-          color: #D1D5DB;
+          color: #d2d2d7;
           flex-shrink: 0;
           transition: transform 0.15s;
         }
 
         .cl-card:hover .cl-card-arrow {
-          color: #9CA3AF;
+          color: #86868b;
           transform: translateX(2px);
         }
 
@@ -2225,8 +2262,8 @@ export default function NewServiceOrder() {
         }
 
         .cl-badge-new {
-          background: #F3F4F6;
-          color: #9CA3AF;
+          background: #f0f0f2;
+          color: #86868b;
         }
 
         /* --- Selected Client --- */
@@ -2273,19 +2310,19 @@ export default function NewServiceOrder() {
 
         .cl-selected-info > span {
           font-size: 13px;
-          color: #6B7280;
+          color: #6e6e73;
         }
 
         .cl-selected-meta {
           font-size: 12px;
-          color: #9CA3AF;
+          color: #86868b;
         }
 
         .cl-change-btn {
           padding: 6px 14px;
-          border: 1px solid #E5E7EB;
-          background: #F9FAFB;
-          color: #374151;
+          border: 1px solid #e8e8ed;
+          background: #f5f5f7;
+          color: #474747;
           font-size: 12px;
           font-weight: 600;
           font-family: inherit;
@@ -2297,15 +2334,15 @@ export default function NewServiceOrder() {
         }
 
         .cl-change-btn:hover {
-          background: #F3F4F6;
-          border-color: #D1D5DB;
+          background: #f0f0f2;
+          border-color: #d2d2d7;
           color: #111827;
         }
 
         /* --- New Client Form --- */
         .cl-newform {
           background: white;
-          border: 1px solid #E5E7EB;
+          border: 1px solid #e8e8ed;
           border-radius: 12px;
           padding: 16px;
           box-shadow: 0 1px 3px rgba(0,0,0,0.04);
@@ -2316,10 +2353,10 @@ export default function NewServiceOrder() {
           align-items: center;
           gap: 8px;
           padding: 10px 12px;
-          background: #F3F4F6;
+          background: #f0f0f2;
           border-radius: 8px;
           margin-bottom: 16px;
-          color: #374151;
+          color: #474747;
           font-weight: 600;
           font-size: 14px;
         }
@@ -2335,14 +2372,14 @@ export default function NewServiceOrder() {
           align-items: center;
           gap: 10px;
           padding: 40px 20px;
-          color: #9CA3AF;
+          color: #86868b;
           text-align: center;
         }
 
         .cl-empty p {
           font-size: 14px;
           margin: 0;
-          color: #6B7280;
+          color: #6e6e73;
         }
 
         .cl-empty-btn {
@@ -2362,7 +2399,7 @@ export default function NewServiceOrder() {
         }
 
         .cl-empty-btn:hover {
-          background: #1F2937;
+          background: #333333;
         }
 
         /* Legacy styles kept for other steps */
@@ -2373,11 +2410,11 @@ export default function NewServiceOrder() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #E5E7EB;
+          background: #e8e8ed;
           border: none;
           border-radius: 8px;
           cursor: pointer;
-          color: #6B7280;
+          color: #6e6e73;
           transition: all 0.15s;
         }
 
@@ -2399,7 +2436,7 @@ export default function NewServiceOrder() {
           left: 16px;
           top: 50%;
           transform: translateY(-50%);
-          color: #9CA3AF;
+          color: #86868b;
         }
 
         /* Moto Step */
@@ -2507,7 +2544,7 @@ export default function NewServiceOrder() {
         .service-name {
           font-weight: 600;
           font-size: 0.9375rem;
-          color: #1f2937;
+          color: #333333;
         }
 
         .service-price {
@@ -2521,7 +2558,7 @@ export default function NewServiceOrder() {
           display: flex;
           gap: 16px;
           font-size: 0.75rem;
-          color: #6b7280;
+          color: #6e6e73;
         }
 
         .checkbox-indicator {
@@ -2705,11 +2742,11 @@ export default function NewServiceOrder() {
 
         /* Services Summary - Premium Design */
         .services-summary {
-          background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+          background: var(--surface-card);
           border: 1px solid var(--border-color);
           border-radius: var(--radius-xl);
           overflow: visible;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+          box-shadow: none;
         }
 
         .summary-title {
@@ -2719,8 +2756,9 @@ export default function NewServiceOrder() {
           font-size: 1rem;
           font-weight: 700;
           padding: 1rem 1.25rem;
-          background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-          color: white;
+          background: var(--surface-recessed);
+          color: var(--text-primary);
+          border-bottom: 1px solid var(--border-color);
           margin: 0;
         }
 
@@ -2774,7 +2812,7 @@ export default function NewServiceOrder() {
         }
 
         .summary-total-section {
-          background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+          background: var(--primary);
           padding: 1.25rem;
           text-align: center;
         }
@@ -2802,7 +2840,7 @@ export default function NewServiceOrder() {
           padding: 12px 16px;
           padding-bottom: max(12px, env(safe-area-inset-bottom));
           background: white;
-          border-top: 1px solid #E5E7EB;
+          border-top: 1px solid #e8e8ed;
           z-index: 100;
           box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
         }
@@ -2813,21 +2851,20 @@ export default function NewServiceOrder() {
           justify-content: center;
           gap: 6px;
           flex: 1;
-          min-height: 48px;
-          padding: 0 16px;
-          border: 1px solid var(--border-color);
-          background: var(--surface-card);
-          color: var(--color-ink);
-          font-size: 15px;
+          padding: 12px 16px;
+          border: 1px solid #e8e8ed;
+          background: white;
+          color: #474747;
+          font-size: 14px;
           font-weight: 600;
           font-family: inherit;
-          border-radius: var(--radius-pill);
+          border-radius: 10px;
           cursor: pointer;
-          transition: background 0.15s, border-color 0.15s;
+          transition: all 0.15s;
         }
 
         .no-nav-back:hover {
-          background: var(--surface-recessed);
+          background: #f5f5f7;
           border-color: #d2d2d7;
         }
 
@@ -2837,30 +2874,25 @@ export default function NewServiceOrder() {
           justify-content: center;
           gap: 8px;
           flex: 2;
-          min-height: 48px;
-          padding: 0 20px;
+          padding: 14px 20px;
           border: none;
-          background: var(--brand-primary);
+          background: #111827;
           color: white;
           font-size: 15px;
           font-weight: 600;
-          letter-spacing: -0.01em;
           font-family: inherit;
-          border-radius: var(--radius-pill);
+          border-radius: 10px;
           cursor: pointer;
-          transition: background 0.15s, transform 0.15s;
-          box-shadow: none;
+          transition: all 0.15s;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
-        .no-nav-cta:hover:not(:disabled) {
-          background: var(--brand-primary-hover);
+        .no-nav-cta:hover {
+          background: #333333;
         }
-
-        .no-nav-cta:active:not(:disabled) { transform: scale(0.99); }
 
         .no-nav-cta:disabled {
-          background: var(--border-color);
-          color: var(--text-muted);
+          opacity: 0.35;
           cursor: not-allowed;
         }
 

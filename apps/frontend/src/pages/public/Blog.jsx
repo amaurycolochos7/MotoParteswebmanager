@@ -75,35 +75,35 @@ export default function Blog() {
 }
 
 const styles = `
-.bl-page { min-height: 100vh; background: #ffffff; color: #0f172a; font-family: inherit; }
-.bl-header { max-width: 1100px; margin: 0 auto; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
+.bl-page { min-height: 100vh; background: #ffffff; color: #1d1d1f; font-family: inherit; }
+.bl-header { max-width: 1100px; margin: 0 auto; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e8e8ed; }
 .bl-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
 .bl-brand img { width: 36px; height: 36px; }
 .bl-brand-word { font-weight: 800; letter-spacing: -0.3px; }
-.bl-moto { color: #1e293b; } .bl-partes { color: #ef4444; }
+.bl-moto { color: #1d1d1f; } .bl-partes { color: #ef4444; }
 .bl-nav { display: flex; gap: 20px; align-items: center; }
-.bl-nav a { color: #475569; text-decoration: none; font-weight: 500; font-size: 0.92rem; }
+.bl-nav a { color: #474747; text-decoration: none; font-weight: 500; font-size: 0.92rem; }
 .bl-nav a:hover { color: #ef4444; }
 .bl-nav .bl-cta { background: linear-gradient(135deg,#ef4444,#dc2626); color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600; }
 .bl-nav .bl-cta:hover { color: white; transform: translateY(-1px); }
 .bl-hero { background: linear-gradient(135deg, #fef2f2 0%, #fff 100%); padding: 60px 24px; text-align: center; border-bottom: 1px solid #fecaca; }
 .bl-hero-inner svg { color: #ef4444; margin-bottom: 8px; }
-.bl-hero h1 { font-size: 2.4rem; font-weight: 800; margin: 0 0 10px; color: #0f172a; letter-spacing: -1px; }
-.bl-hero p { color: #475569; font-size: 1.05rem; max-width: 600px; margin: 0 auto; line-height: 1.5; }
+.bl-hero h1 { font-size: 2.4rem; font-weight: 800; margin: 0 0 10px; color: #1d1d1f; letter-spacing: -1px; }
+.bl-hero p { color: #474747; font-size: 1.05rem; max-width: 600px; margin: 0 auto; line-height: 1.5; }
 .bl-list { max-width: 900px; margin: 50px auto; padding: 0 24px; display: flex; flex-direction: column; gap: 24px; }
-.bl-card { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; transition: all 0.2s ease; }
+.bl-card { background: white; border: 1px solid #e8e8ed; border-radius: 16px; padding: 28px; transition: all 0.2s ease; }
 .bl-card:hover { border-color: #ef4444; transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,0.06); }
-.bl-card-meta { display: flex; gap: 16px; color: #94a3b8; font-size: 0.85rem; margin-bottom: 10px; }
+.bl-card-meta { display: flex; gap: 16px; color: #86868b; font-size: 0.85rem; margin-bottom: 10px; }
 .bl-card-meta span { display: inline-flex; align-items: center; gap: 4px; }
 .bl-card h2 { margin: 0 0 10px; font-size: 1.3rem; line-height: 1.35; }
-.bl-card h2 a { color: #0f172a; text-decoration: none; }
+.bl-card h2 a { color: #1d1d1f; text-decoration: none; }
 .bl-card h2 a:hover { color: #ef4444; }
-.bl-card-excerpt { color: #475569; line-height: 1.55; margin: 0 0 18px; font-size: 0.95rem; }
+.bl-card-excerpt { color: #474747; line-height: 1.55; margin: 0 0 18px; font-size: 0.95rem; }
 .bl-card-foot { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 .bl-tags { display: flex; gap: 6px; flex-wrap: wrap; }
-.bl-tag { background: #f1f5f9; color: #475569; padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 500; }
+.bl-tag { background: #f5f5f7; color: #474747; padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 500; }
 .bl-read { display: inline-flex; align-items: center; gap: 4px; color: #ef4444; font-weight: 700; text-decoration: none; font-size: 0.92rem; }
 .bl-read:hover { text-decoration: underline; }
-.bl-footer { text-align: center; padding: 40px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; color: #475569; }
+.bl-footer { text-align: center; padding: 40px 24px; background: #f5f5f7; border-top: 1px solid #e8e8ed; color: #474747; }
 .bl-footer a { color: #ef4444; font-weight: 600; }
 `;

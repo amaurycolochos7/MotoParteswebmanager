@@ -31,10 +31,10 @@ const STATUS_LABELS = {
     aceptada: { label: 'Aceptada', bg: '#DCFCE7', color: '#15803D', border: '#BBF7D0' },
     rejected: { label: 'Rechazada', bg: '#FEE2E2', color: '#DC2626', border: '#FECACA' },
     rechazada: { label: 'Rechazada', bg: '#FEE2E2', color: '#DC2626', border: '#FECACA' },
-    expired: { label: 'Expirada', bg: '#F3F4F6', color: '#6B7280', border: '#E5E7EB' },
-    expirada: { label: 'Expirada', bg: '#F3F4F6', color: '#6B7280', border: '#E5E7EB' },
-    converted: { label: 'Convertida', bg: '#DBEAFE', color: '#1D4ED8', border: '#BFDBFE' },
-    convertida: { label: 'Convertida', bg: '#DBEAFE', color: '#1D4ED8', border: '#BFDBFE' },
+    expired: { label: 'Expirada', bg: '#f0f0f2', color: '#6e6e73', border: '#e8e8ed' },
+    expirada: { label: 'Expirada', bg: '#f0f0f2', color: '#6e6e73', border: '#e8e8ed' },
+    converted: { label: 'Convertida', bg: '#fde7e8', color: '#a90f16', border: '#f6cdd0' },
+    convertida: { label: 'Convertida', bg: '#fde7e8', color: '#a90f16', border: '#f6cdd0' },
 };
 
 function formatMXN(amount) {

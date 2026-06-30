@@ -12,7 +12,7 @@ const fmt = (n) =>
 const STATUS_LABEL = {
     PENDING_PAYMENT: { t: 'Pendiente (cliente no ha liquidado)', bg: '#fffbeb', fg: '#b45309' },
     READY_TO_PAY: { t: 'Lista para pagar', bg: '#f0fdf4', fg: '#15803d' },
-    PAID: { t: 'Pagada', bg: '#eff6ff', fg: '#1d4ed8' },
+    PAID: { t: 'Pagada', bg: '#fde7e8', fg: '#a90f16' },
     CANCELLED: { t: 'Cancelada', bg: '#fef2f2', fg: '#b91c1c' },
 };
 
@@ -53,8 +53,8 @@ export default function CommissionSection({ orderId, canManage, refreshKey }) {
         await load();
     };
 
-    const box = { border: '1px solid #e5e7eb', borderRadius: 12, background: '#fff', margin: '12px 0', overflow: 'hidden' };
-    const head = { display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderBottom: '1px solid #f1f5f9', fontWeight: 700, color: '#111827' };
+    const box = { border: '1px solid #e8e8ed', borderRadius: 12, background: '#fff', margin: '12px 0', overflow: 'hidden' };
+    const head = { display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderBottom: '1px solid #f5f5f7', fontWeight: 700, color: '#111827' };
     const row = { display: 'flex', justifyContent: 'space-between', padding: '6px 14px', fontSize: 14 };
     const st = earning ? (STATUS_LABEL[earning.commission_status] || STATUS_LABEL.PENDING_PAYMENT) : null;
 
@@ -64,21 +64,21 @@ export default function CommissionSection({ orderId, canManage, refreshKey }) {
         <div style={box}>
             <div style={head}><Percent size={18} /> Comisión (sobre mano de obra)</div>
             {loading ? (
-                <div style={{ padding: 16, textAlign: 'center', color: '#6b7280' }}><Loader2 size={18} className="spinner" /></div>
+                <div style={{ padding: 16, textAlign: 'center', color: '#6e6e73' }}><Loader2 size={18} className="spinner" /></div>
             ) : (
                 <div style={{ padding: '8px 0 14px' }}>
-                    <div style={row}><span style={{ color: '#6b7280' }}>Base (mano de obra)</span><strong>{fmt(labor)}</strong></div>
+                    <div style={row}><span style={{ color: '#6e6e73' }}>Base (mano de obra)</span><strong>{fmt(labor)}</strong></div>
                     <div style={{ padding: '8px 14px', display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <span style={{ color: '#6b7280', fontSize: 14 }}>Porcentaje</span>
+                        <span style={{ color: '#6e6e73', fontSize: 14 }}>Porcentaje</span>
                         <input type="number" min="0" max="100" step="0.5" value={rate} onChange={(e) => setRate(e.target.value)}
-                            style={{ width: 90, padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 15 }} placeholder="%" />
-                        <span style={{ color: '#6b7280' }}>%</span>
+                            style={{ width: 90, padding: '8px 10px', border: '1px solid #d2d2d7', borderRadius: 8, fontSize: 15 }} placeholder="%" />
+                        <span style={{ color: '#6e6e73' }}>%</span>
                         <button onClick={handleSave} disabled={saving}
                             style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: '#111827', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
                             {saving ? <Loader2 size={15} className="spinner" /> : <Save size={15} />} Guardar
                         </button>
                     </div>
-                    <div style={row}><span style={{ color: '#6b7280' }}>Comisión calculada</span><strong>{fmt(earning ? earning.commission_amount : previewAmount)}</strong></div>
+                    <div style={row}><span style={{ color: '#6e6e73' }}>Comisión calculada</span><strong>{fmt(earning ? earning.commission_amount : previewAmount)}</strong></div>
                     {st && (
                         <div style={{ padding: '6px 14px' }}>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, background: st.bg, color: st.fg }}>
@@ -87,7 +87,7 @@ export default function CommissionSection({ orderId, canManage, refreshKey }) {
                         </div>
                     )}
                     {err && <div style={{ color: '#b91c1c', fontSize: 13, padding: '0 14px' }}>{err}</div>}
-                    <p style={{ fontSize: 12, color: '#9ca3af', margin: '4px 14px 0' }}>
+                    <p style={{ fontSize: 12, color: '#86868b', margin: '4px 14px 0' }}>
                         La comisión se libera solo cuando el cliente liquida todo el saldo.
                     </p>
                 </div>

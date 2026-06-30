@@ -260,7 +260,7 @@ export default function NewQuotation() {
                                 margin: '12px 0 0 0',
                                 maxHeight: 320,
                                 overflowY: 'auto',
-                                border: '1px solid #e5e7eb',
+                                border: '1px solid #e8e8ed',
                                 borderRadius: 8,
                                 background: '#fff',
                             }}>
@@ -275,13 +275,13 @@ export default function NewQuotation() {
                                                 padding: '10px 14px',
                                                 background: 'transparent',
                                                 border: 'none',
-                                                borderTop: idx === 0 ? 'none' : '1px solid #f3f4f6',
+                                                borderTop: idx === 0 ? 'none' : '1px solid #f0f0f2',
                                                 cursor: 'pointer',
                                                 display: 'flex',
                                                 flexDirection: 'column',
                                                 gap: 4,
                                             }}
-                                            onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
+                                            onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f7'}
                                             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                         >
                                             <div style={{ fontWeight: 600, color: '#111827', fontSize: 14 }}>
@@ -292,17 +292,17 @@ export default function NewQuotation() {
                                                 alignItems: 'center',
                                                 gap: 4,
                                                 fontSize: 12,
-                                                color: '#6b7280',
+                                                color: '#6e6e73',
                                             }}>
                                                 <Phone size={12} /> {c.phone}
                                             </div>
                                             {(c.motorcycles && c.motorcycles.length > 0) && (
-                                                <div style={{ fontSize: 12, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                <div style={{ fontSize: 12, color: '#6e6e73', display: 'flex', alignItems: 'center', gap: 4 }}>
                                                     <Bike size={12} /> {c.motorcycles.map((m) => `${m.brand} ${m.model}${m.plates ? ' (' + m.plates + ')' : ''}`).join(', ')}
                                                 </div>
                                             )}
                                             {c.last_order && (
-                                                <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                                                <div style={{ fontSize: 11, color: '#86868b' }}>
                                                     Última orden: {c.last_order.status || '—'} · {new Date(c.last_order.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
                                                 </div>
                                             )}

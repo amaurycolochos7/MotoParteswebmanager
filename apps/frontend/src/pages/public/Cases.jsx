@@ -70,37 +70,37 @@ export default function Cases() {
 }
 
 const styles = `
-.cs-page { min-height: 100vh; background: #ffffff; color: #0f172a; font-family: inherit; }
-.cs-header { max-width: 1100px; margin: 0 auto; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
+.cs-page { min-height: 100vh; background: #ffffff; color: #1d1d1f; font-family: inherit; }
+.cs-header { max-width: 1100px; margin: 0 auto; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e8e8ed; }
 .cs-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
 .cs-brand img { width: 36px; height: 36px; }
 .cs-brand-word { font-weight: 800; letter-spacing: -0.3px; }
-.cs-moto { color: #1e293b; } .cs-partes { color: #ef4444; }
+.cs-moto { color: #1d1d1f; } .cs-partes { color: #ef4444; }
 .cs-nav { display: flex; gap: 20px; align-items: center; }
-.cs-nav a { color: #475569; text-decoration: none; font-weight: 500; font-size: 0.92rem; }
+.cs-nav a { color: #474747; text-decoration: none; font-weight: 500; font-size: 0.92rem; }
 .cs-nav a:hover { color: #ef4444; }
 .cs-nav .cs-cta { background: linear-gradient(135deg,#ef4444,#dc2626); color: white; padding: 8px 16px; border-radius: 8px; font-weight: 600; }
-.cs-hero { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 70px 24px; text-align: center; }
+.cs-hero { background: linear-gradient(135deg, #1d1d1f 0%, #1d1d1f 100%); color: white; padding: 70px 24px; text-align: center; }
 .cs-hero-inner svg { color: #ef4444; margin-bottom: 8px; }
 .cs-hero h1 { font-size: 2.4rem; font-weight: 800; margin: 0 0 10px; letter-spacing: -1px; }
-.cs-hero p { color: #cbd5e1; font-size: 1.05rem; max-width: 600px; margin: 0 auto; line-height: 1.5; }
+.cs-hero p { color: #d2d2d7; font-size: 1.05rem; max-width: 600px; margin: 0 auto; line-height: 1.5; }
 .cs-list { max-width: 900px; margin: 50px auto; padding: 0 24px; display: flex; flex-direction: column; gap: 30px; }
-.cs-card { background: white; border: 1px solid #e2e8f0; border-radius: 20px; padding: 32px; }
-.cs-shop-pill { display: inline-flex; align-items: center; gap: 4px; background: #f1f5f9; color: #475569; padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; margin-bottom: 12px; }
+.cs-card { background: white; border: 1px solid #e8e8ed; border-radius: 20px; padding: 32px; }
+.cs-shop-pill { display: inline-flex; align-items: center; gap: 4px; background: #f5f5f7; color: #474747; padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; margin-bottom: 12px; }
 .cs-card h2 { margin: 0 0 8px; font-size: 1.6rem; letter-spacing: -0.3px; }
-.cs-card h2 a { color: #0f172a; text-decoration: none; }
+.cs-card h2 a { color: #1d1d1f; text-decoration: none; }
 .cs-card h2 a:hover { color: #ef4444; }
 .cs-hero-text { color: #ef4444; font-weight: 600; margin: 0 0 14px; font-size: 1.02rem; font-style: italic; }
-.cs-summary { color: #475569; line-height: 1.55; margin: 0 0 24px; }
-.cs-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; padding: 20px; background: #f8fafc; border-radius: 14px; margin-bottom: 22px; }
+.cs-summary { color: #474747; line-height: 1.55; margin: 0 0 24px; }
+.cs-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; padding: 20px; background: #f5f5f7; border-radius: 14px; margin-bottom: 22px; }
 .cs-metric { text-align: center; }
-.cs-metric-label { display: block; color: #64748b; font-size: 0.82rem; margin-bottom: 4px; }
+.cs-metric-label { display: block; color: #6e6e73; font-size: 0.82rem; margin-bottom: 4px; }
 .cs-metric-vals { display: flex; align-items: center; justify-content: center; gap: 8px; }
-.cs-metric-before { color: #94a3b8; text-decoration: line-through; font-size: 0.92rem; }
+.cs-metric-before { color: #86868b; text-decoration: line-through; font-size: 0.92rem; }
 .cs-metric-after { color: #16a34a; font-weight: 800; font-size: 1.2rem; }
 .cs-metrics .cs-metric svg { color: #16a34a; }
 .cs-read { display: inline-flex; align-items: center; gap: 4px; color: #ef4444; font-weight: 700; text-decoration: none; font-size: 0.95rem; }
 .cs-read:hover { text-decoration: underline; }
-.cs-footer { text-align: center; padding: 40px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; color: #475569; }
+.cs-footer { text-align: center; padding: 40px 24px; background: #f5f5f7; border-top: 1px solid #e8e8ed; color: #474747; }
 .cs-footer a { color: #ef4444; font-weight: 600; }
 `;

@@ -78,15 +78,15 @@ export default function AdminAutomations() {
         <div style={{ maxWidth: 1040, margin: '0 auto', padding: '24px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, marginBottom: 24, flexWrap: 'wrap' }}>
                 <div>
-                    <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800, color: '#0f172a' }}>
+                    <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800, color: '#1d1d1f' }}>
                         <Zap size={22} style={{ verticalAlign: '-4px' }} /> Automatizaciones
                     </h1>
-                    <p style={{ margin: '4px 0 0', color: '#64748b' }}>
+                    <p style={{ margin: '4px 0 0', color: '#6e6e73' }}>
                         Reglas que disparan acciones cuando suceden eventos en tu taller.
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#6e6e73' }}>
                         {enabledCount} activas{planLimit && planLimit !== null ? ` / ${planLimit === null ? '∞' : planLimit}` : ''}
                     </span>
                     <Link to="/admin/templates" className="btn-ghost">
@@ -105,8 +105,8 @@ export default function AdminAutomations() {
                             padding: 16,
                             background: 'white',
                             border: '1px solid',
-                            borderColor: auto.enabled ? '#86efac' : '#e2e8f0',
-                            borderLeft: auto.enabled ? '4px solid #16a34a' : '4px solid #cbd5e1',
+                            borderColor: auto.enabled ? '#86efac' : '#e8e8ed',
+                            borderLeft: auto.enabled ? '4px solid #16a34a' : '4px solid #d2d2d7',
                             borderRadius: 12,
                             alignItems: 'center',
                             flexWrap: 'wrap',
@@ -114,20 +114,20 @@ export default function AdminAutomations() {
                     >
                         <div style={{ flex: 1, minWidth: 260 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                <strong style={{ color: '#0f172a', fontSize: '1rem' }}>{auto.name}</strong>
+                                <strong style={{ color: '#1d1d1f', fontSize: '1rem' }}>{auto.name}</strong>
                                 {auto.is_default && (
-                                    <span style={{ fontSize: '0.7rem', padding: '2px 8px', background: '#f1f5f9', borderRadius: 999, color: '#475569' }}>
+                                    <span style={{ fontSize: '0.7rem', padding: '2px 8px', background: '#f5f5f7', borderRadius: 999, color: '#474747' }}>
                                         default
                                     </span>
                                 )}
                                 {auto.enabled
                                     ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: '#16a34a' }}><CheckCircle2 size={13} />Activa</span>
-                                    : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: '#94a3b8' }}><Pause size={13} />Pausada</span>}
+                                    : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: '#86868b' }}><Pause size={13} />Pausada</span>}
                             </div>
-                            <div style={{ fontSize: '0.86rem', color: '#64748b', marginTop: 4 }}>
+                            <div style={{ fontSize: '0.86rem', color: '#6e6e73', marginTop: 4 }}>
                                 {auto.description || ''}
                             </div>
-                            <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: '0.8rem', color: '#475569', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: '0.8rem', color: '#474747', flexWrap: 'wrap' }}>
                                 <span>⚡ {TRIGGER_LABELS[auto.trigger] || auto.trigger}</span>
                                 <span>→ {ACTION_LABELS[auto.action] || auto.action}</span>
                                 {auto.delay_minutes > 0 && (
@@ -167,7 +167,7 @@ export default function AdminAutomations() {
             </div>
 
             {automations.length === 0 && (
-                <div style={{ padding: 40, textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: 12 }}>
+                <div style={{ padding: 40, textAlign: 'center', color: '#6e6e73', background: '#f5f5f7', borderRadius: 12 }}>
                     Aún no tienes automatizaciones configuradas.
                 </div>
             )}
@@ -176,8 +176,8 @@ export default function AdminAutomations() {
                 .btn-primary, .btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; border: none; cursor: pointer; transition: all 0.15s; text-decoration: none; white-space: nowrap; }
                 .btn-primary { background: linear-gradient(135deg, #16a34a, #15803d); color: white; }
                 .btn-primary:hover { transform: translateY(-1px); }
-                .btn-ghost { background: white; color: #1e293b; border: 1px solid #e2e8f0; }
-                .btn-ghost:hover { background: #f8fafc; }
+                .btn-ghost { background: white; color: #1d1d1f; border: 1px solid #e8e8ed; }
+                .btn-ghost:hover { background: #f5f5f7; }
             `}</style>
         </div>
     );

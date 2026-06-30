@@ -44,13 +44,13 @@ export default function AdminSupportDetail() {
 
     return (
         <div style={{ padding: 24, maxWidth: 820, margin: '0 auto' }}>
-            <Link to="/admin/support" style={{ color: '#64748b', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+            <Link to="/admin/support" style={{ color: '#6e6e73', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 12 }}>
                 <ArrowLeft size={14} /> Volver
             </Link>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
                 <div>
-                    <div style={{ color: '#94a3b8', fontSize: '0.82rem' }}>Ticket #{ticket.ticket_number} · {ticket.category}</div>
+                    <div style={{ color: '#86868b', fontSize: '0.82rem' }}>Ticket #{ticket.ticket_number} · {ticket.category}</div>
                     <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '4px 0 0' }}>{ticket.subject}</h1>
                 </div>
                 {ticket.status === 'resolved' ? (
@@ -58,20 +58,20 @@ export default function AdminSupportDetail() {
                         <CheckCircle2 size={14} /> Resuelto
                     </span>
                 ) : !isClosed && (
-                    <button onClick={resolve} style={{ padding: '8px 14px', border: '1.5px solid #cbd5e1', background: 'white', borderRadius: 10, cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#16a34a' }}>
+                    <button onClick={resolve} style={{ padding: '8px 14px', border: '1.5px solid #d2d2d7', background: 'white', borderRadius: 10, cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: '#16a34a' }}>
                         <CheckCircle2 size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> Ya quedó resuelto
                     </button>
                 )}
             </div>
 
-            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 16, padding: 20, marginBottom: 14, maxHeight: '65vh', overflowY: 'auto' }}>
+            <div style={{ background: 'white', border: '1px solid #e8e8ed', borderRadius: 16, padding: 20, marginBottom: 14, maxHeight: '65vh', overflowY: 'auto' }}>
                 {ticket.messages.map((m) => {
                     const isCustomer = m.author_type === 'customer';
                     return (
                         <div key={m.id} style={{
                             marginBottom: 14,
-                            background: isCustomer ? '#eff6ff' : '#fef2f2',
-                            border: `1px solid ${isCustomer ? '#bfdbfe' : '#fecaca'}`,
+                            background: isCustomer ? '#fde7e8' : '#fef2f2',
+                            border: `1px solid ${isCustomer ? '#f6cdd0' : '#fecaca'}`,
                             borderRadius: 12, padding: 14,
                         }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.82rem' }}>
@@ -79,9 +79,9 @@ export default function AdminSupportDetail() {
                                     {!isCustomer && <ShieldCheck size={12} style={{ color: '#ef4444' }} />}
                                     {m.author?.full_name || (isCustomer ? 'Tú' : 'Soporte MotoPartes')}
                                 </strong>
-                                <span style={{ color: '#94a3b8' }}>{fmtDateTime(m.created_at)}</span>
+                                <span style={{ color: '#86868b' }}>{fmtDateTime(m.created_at)}</span>
                             </div>
-                            <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.95rem', lineHeight: 1.55, color: '#1e293b' }}>{m.body_md}</div>
+                            <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.95rem', lineHeight: 1.55, color: '#1d1d1f' }}>{m.body_md}</div>
                         </div>
                     );
                 })}
@@ -89,13 +89,13 @@ export default function AdminSupportDetail() {
             </div>
 
             {!isClosed && (
-                <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 16, padding: 16 }}>
+                <div style={{ background: 'white', border: '1px solid #e8e8ed', borderRadius: 16, padding: 16 }}>
                     <textarea
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
                         placeholder="Escribe tu respuesta..."
                         rows={4}
-                        style={{ width: '100%', padding: 12, border: '1.5px solid #cbd5e1', borderRadius: 10, resize: 'vertical', fontFamily: 'inherit' }}
+                        style={{ width: '100%', padding: 12, border: '1.5px solid #d2d2d7', borderRadius: 10, resize: 'vertical', fontFamily: 'inherit' }}
                     />
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
                         <button onClick={send} disabled={sending || !body.trim()} style={{

@@ -14,7 +14,7 @@ export default function OrderCard({ order, statuses, baseUrl = '/mechanic/order'
   // Intentar obtener el objeto status completo para el color
   // Si order.status es objeto, usalo. Si es string, búscalo en props.statuses
   const statusObj = typeof order.status === 'object' ? order.status : statuses?.find(s => s.name === statusName);
-  const statusColor = statusObj?.color || '#64748b'; // Fallback color
+  const statusColor = statusObj?.color || '#6e6e73'; // Fallback color
 
   // Calculate time elapsed
   const timeElapsed = useMemo(() => {

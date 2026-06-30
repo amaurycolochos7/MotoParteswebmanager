@@ -148,7 +148,7 @@ export default function Login() {
                       margin: 0,
                       fontSize: '14px',
                       lineHeight: '1.5',
-                      color: '#475569'
+                      color: '#474747'
                     }}>
                       {error}
                     </p>
@@ -355,7 +355,7 @@ export default function Login() {
         .login-input-wrapper:focus-within {
           border-color: var(--primary);
           background: var(--surface-card);
-          box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.12);
+          box-shadow: 0 0 0 4px rgba(215, 25, 32, 0.12);
         }
 
         .login-input-wrapper .form-input {
@@ -420,13 +420,13 @@ export default function Login() {
         }
 
         .login-error-box.empty {
-          background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-          border: 2px solid #bae6fd;
+          background: linear-gradient(135deg, #eef1f4, #fde7e8);
+          border: 2px solid #f6cdd0;
         }
 
         .login-error-box.empty .error-icon {
           color: #0284c7;
-          background: #e0f2fe;
+          background: #fde7e8;
         }
 
         .error-icon {
@@ -448,14 +448,14 @@ export default function Login() {
           font-size: 0.9375rem;
           font-weight: 700;
           margin-bottom: 4px;
-          color: #1e293b;
+          color: #1d1d1f;
         }
 
         .error-message {
           margin: 0;
           font-size: 0.8125rem;
           line-height: 1.5;
-          color: #475569;
+          color: #474747;
         }
 
         .password-toggle {
@@ -465,7 +465,7 @@ export default function Login() {
           transform: translateY(-50%);
           background: none;
           border: none;
-          color: #94a3b8;
+          color: #86868b;
           cursor: pointer;
           padding: 0;
           display: flex;
@@ -475,7 +475,7 @@ export default function Login() {
         }
 
         .password-toggle:hover {
-          color: #1e293b;
+          color: #1d1d1f;
         }
 
         .login-submit-btn {
@@ -515,8 +515,8 @@ export default function Login() {
         .login-demo-info {
           margin-top: 28px;
           padding: 16px;
-          background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-          border: 1px solid #bae6fd;
+          background: linear-gradient(135deg, #eef1f4 0%, #fde7e8 100%);
+          border: 1px solid #f6cdd0;
           border-radius: 12px;
           text-align: center;
           font-size: 0.875rem;
@@ -540,7 +540,7 @@ export default function Login() {
         .login-footer {
           text-align: center;
           margin-top: 24px;
-          color: #64748b;
+          color: #6e6e73;
           font-size: 0.8rem;
         }
 

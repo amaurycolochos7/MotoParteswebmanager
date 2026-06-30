@@ -89,7 +89,7 @@ export default function AdminIntegrations() {
                 {/* Google Calendar */}
                 <div className="int-card">
                     <div className="int-card-head">
-                        <div className="int-icon" style={{ background: '#e0f2fe', color: '#0369a1' }}>
+                        <div className="int-icon" style={{ background: '#fde7e8', color: '#0369a1' }}>
                             <Calendar size={24} />
                         </div>
                         <div>
@@ -134,7 +134,7 @@ export default function AdminIntegrations() {
 
                 {/* Próximas integraciones (placeholder) */}
                 <div className="int-card int-card-coming">
-                    <div className="int-icon" style={{ background: '#f1f5f9', color: '#64748b' }}>
+                    <div className="int-icon" style={{ background: '#f5f5f7', color: '#6e6e73' }}>
                         <Plug size={24} />
                     </div>
                     <h3>Próximamente</h3>
@@ -153,14 +153,14 @@ export default function AdminIntegrations() {
 
 const styles = `
 .int-page { padding: 24px; max-width: 1200px; margin: 0 auto; }
-.int-header h1 { display: flex; align-items: center; gap: 10px; font-size: 1.8rem; font-weight: 800; margin: 0 0 6px; color: #0f172a; }
-.int-header p { color: #64748b; margin: 0 0 28px; max-width: 640px; line-height: 1.5; }
+.int-header h1 { display: flex; align-items: center; gap: 10px; font-size: 1.8rem; font-weight: 800; margin: 0 0 6px; color: #1d1d1f; }
+.int-header p { color: #6e6e73; margin: 0 0 28px; max-width: 640px; line-height: 1.5; }
 .int-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 20px; }
-.int-card { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; }
+.int-card { background: white; border: 1px solid #e8e8ed; border-radius: 16px; padding: 24px; }
 .int-card-head { display: flex; gap: 14px; margin-bottom: 18px; }
 .int-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.int-card h2 { font-size: 1.2rem; font-weight: 800; margin: 0 0 4px; color: #0f172a; }
-.int-sub { color: #64748b; margin: 0; font-size: 0.92rem; line-height: 1.45; }
+.int-card h2 { font-size: 1.2rem; font-weight: 800; margin: 0 0 4px; color: #1d1d1f; }
+.int-sub { color: #6e6e73; margin: 0; font-size: 0.92rem; line-height: 1.45; }
 .int-warn { display: flex; gap: 10px; padding: 14px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 10px; color: #78350f; font-size: 0.88rem; line-height: 1.5; margin-bottom: 18px; }
 .int-warn svg { flex-shrink: 0; margin-top: 2px; }
 .int-warn strong { display: block; color: #7c2d12; }
@@ -168,19 +168,19 @@ const styles = `
 .int-warn a { color: #7c2d12; font-weight: 600; }
 .int-status-ok { display: inline-flex; align-items: center; gap: 6px; color: #166534; background: #dcfce7; padding: 8px 14px; border-radius: 10px; font-weight: 600; font-size: 0.9rem; margin-bottom: 14px; }
 .int-connected { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
-.int-disconnected p { color: #475569; margin: 0 0 16px; line-height: 1.55; font-size: 0.95rem; }
+.int-disconnected p { color: #474747; margin: 0 0 16px; line-height: 1.55; font-size: 0.95rem; }
 .int-btn-primary, .int-btn-ghost { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 10px; font-weight: 600; font-size: 0.92rem; cursor: pointer; border: none; transition: all 0.2s; }
-.int-btn-primary { background: linear-gradient(135deg,#3b82f6,#2563eb); color: white; }
+.int-btn-primary { background: linear-gradient(135deg,#d71920,#d71920); color: white; }
 .int-btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(37,99,235,0.25); }
 .int-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.int-btn-ghost { background: white; color: #1e293b; border: 1.5px solid #cbd5e1; align-self: flex-start; }
-.int-btn-ghost:hover { background: #f8fafc; }
-.int-features { list-style: none; padding: 0; margin: 18px 0 0; border-top: 1px solid #e2e8f0; padding-top: 14px; }
-.int-features li { padding: 4px 0; color: #64748b; font-size: 0.85rem; position: relative; padding-left: 18px; }
+.int-btn-ghost { background: white; color: #1d1d1f; border: 1.5px solid #d2d2d7; align-self: flex-start; }
+.int-btn-ghost:hover { background: #f5f5f7; }
+.int-features { list-style: none; padding: 0; margin: 18px 0 0; border-top: 1px solid #e8e8ed; padding-top: 14px; }
+.int-features li { padding: 4px 0; color: #6e6e73; font-size: 0.85rem; position: relative; padding-left: 18px; }
 .int-features li:before { content: '✓'; position: absolute; left: 0; color: #16a34a; font-weight: 700; }
-.int-card-coming { background: #f8fafc; border-style: dashed; }
-.int-card-coming h3 { font-size: 1rem; font-weight: 700; margin: 12px 0 8px; color: #475569; }
-.int-card-coming ul { margin: 0; padding-left: 20px; color: #64748b; font-size: 0.9rem; line-height: 1.7; }
+.int-card-coming { background: #f5f5f7; border-style: dashed; }
+.int-card-coming h3 { font-size: 1rem; font-weight: 700; margin: 12px 0 8px; color: #474747; }
+.int-card-coming ul { margin: 0; padding-left: 20px; color: #6e6e73; font-size: 0.9rem; line-height: 1.7; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 `;

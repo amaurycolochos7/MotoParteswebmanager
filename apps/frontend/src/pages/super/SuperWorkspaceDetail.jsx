@@ -108,7 +108,7 @@ export default function SuperWorkspaceDetail() {
                 <div className="sp-card" style={{ marginBottom: 16, borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.08)' }}>
                     <AlertTriangle size={16} style={{ color: '#ef4444', verticalAlign: -3, marginRight: 6 }} />
                     <strong style={{ color: '#fca5a5' }}>Suspendido</strong> — {ws.suspended_reason}
-                    <div style={{ color: '#64748b', fontSize: '0.8rem', marginTop: 4 }}>desde {fmtDate(ws.suspended_at)}</div>
+                    <div style={{ color: '#6e6e73', fontSize: '0.8rem', marginTop: 4 }}>desde {fmtDate(ws.suspended_at)}</div>
                 </div>
             )}
 
@@ -117,17 +117,17 @@ export default function SuperWorkspaceDetail() {
                 <div className="sp-card">
                     <h2>Suscripción</h2>
                     <div style={{ display: 'grid', gap: 8, fontSize: '0.9rem' }}>
-                        <div><span style={{ color: '#64748b' }}>Plan actual:</span> <strong>{ws.plan?.name || 'Sin plan'}</strong> {ws.plan?.price_mxn_monthly > 0 && `($${ws.plan.price_mxn_monthly}/mes)`}</div>
-                        <div><span style={{ color: '#64748b' }}>Status:</span> {ws.subscription_status}</div>
-                        <div><span style={{ color: '#64748b' }}>Fuente:</span> {ws.subscription?.source || 'stripe'}</div>
+                        <div><span style={{ color: '#6e6e73' }}>Plan actual:</span> <strong>{ws.plan?.name || 'Sin plan'}</strong> {ws.plan?.price_mxn_monthly > 0 && `($${ws.plan.price_mxn_monthly}/mes)`}</div>
+                        <div><span style={{ color: '#6e6e73' }}>Status:</span> {ws.subscription_status}</div>
+                        <div><span style={{ color: '#6e6e73' }}>Fuente:</span> {ws.subscription?.source || 'stripe'}</div>
                         {ws.subscription?.manual_expires_at && (
-                            <div><span style={{ color: '#64748b' }}>Vence (manual):</span> {fmtDate(ws.subscription.manual_expires_at)}</div>
+                            <div><span style={{ color: '#6e6e73' }}>Vence (manual):</span> {fmtDate(ws.subscription.manual_expires_at)}</div>
                         )}
                         {ws.trial_ends_at && (
-                            <div><span style={{ color: '#64748b' }}>Trial termina:</span> {fmtDate(ws.trial_ends_at)}</div>
+                            <div><span style={{ color: '#6e6e73' }}>Trial termina:</span> {fmtDate(ws.trial_ends_at)}</div>
                         )}
                         {ws.subscription?.manual_note && (
-                            <div style={{ color: '#94a3b8', fontSize: '0.82rem', marginTop: 6 }}>Nota: {ws.subscription.manual_note}</div>
+                            <div style={{ color: '#86868b', fontSize: '0.82rem', marginTop: 6 }}>Nota: {ws.subscription.manual_note}</div>
                         )}
                     </div>
                 </div>
@@ -136,10 +136,10 @@ export default function SuperWorkspaceDetail() {
                 <div className="sp-card">
                     <h2>Uso & métricas</h2>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: '0.9rem' }}>
-                        <div><div style={{ color: '#64748b', fontSize: '0.78rem' }}>Clientes</div><strong style={{ fontSize: '1.2rem' }}>{ws._count.clients}</strong></div>
-                        <div><div style={{ color: '#64748b', fontSize: '0.78rem' }}>Motos</div><strong style={{ fontSize: '1.2rem' }}>{ws._count.motorcycles}</strong></div>
-                        <div><div style={{ color: '#64748b', fontSize: '0.78rem' }}>Órdenes</div><strong style={{ fontSize: '1.2rem' }}>{ws._count.orders}</strong></div>
-                        <div><div style={{ color: '#64748b', fontSize: '0.78rem' }}>Citas</div><strong style={{ fontSize: '1.2rem' }}>{ws._count.appointments}</strong></div>
+                        <div><div style={{ color: '#6e6e73', fontSize: '0.78rem' }}>Clientes</div><strong style={{ fontSize: '1.2rem' }}>{ws._count.clients}</strong></div>
+                        <div><div style={{ color: '#6e6e73', fontSize: '0.78rem' }}>Motos</div><strong style={{ fontSize: '1.2rem' }}>{ws._count.motorcycles}</strong></div>
+                        <div><div style={{ color: '#6e6e73', fontSize: '0.78rem' }}>Órdenes</div><strong style={{ fontSize: '1.2rem' }}>{ws._count.orders}</strong></div>
+                        <div><div style={{ color: '#6e6e73', fontSize: '0.78rem' }}>Citas</div><strong style={{ fontSize: '1.2rem' }}>{ws._count.appointments}</strong></div>
                     </div>
                 </div>
             </div>
@@ -154,7 +154,7 @@ export default function SuperWorkspaceDetail() {
                             {ws.memberships.map((m) => (
                                 <tr key={m.id}>
                                     <td><strong>{m.profile?.full_name || '—'}</strong></td>
-                                    <td style={{ color: '#64748b' }}>{m.profile?.email}</td>
+                                    <td style={{ color: '#6e6e73' }}>{m.profile?.email}</td>
                                     <td><span className="sp-pill sp-pill-blue">{m.role}</span></td>
                                     <td>{m.profile?.is_active ? <span className="sp-pill sp-pill-green">Activo</span> : <span className="sp-pill sp-pill-red">Inactivo</span>}</td>
                                 </tr>
@@ -180,7 +180,7 @@ export default function SuperWorkspaceDetail() {
                                             <td><strong>{o.order_number}</strong></td>
                                             <td>{o.status}</td>
                                             <td>${Number(o.total || 0).toLocaleString('es-MX')}</td>
-                                            <td style={{ color: '#64748b', fontSize: '0.82rem' }}>{fmtDate(o.created_at)}</td>
+                                            <td style={{ color: '#6e6e73', fontSize: '0.82rem' }}>{fmtDate(o.created_at)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -268,7 +268,7 @@ function ModalAssignPlan({ ws, plans, onClose, onDone }) {
 
     return (
         <ModalShell title="Asignar plan manual" onClose={onClose}>
-            <p style={{ color: '#94a3b8', fontSize: '0.88rem' }}>Este plan NO pasa por Stripe. Útil para cortesías.</p>
+            <p style={{ color: '#86868b', fontSize: '0.88rem' }}>Este plan NO pasa por Stripe. Útil para cortesías.</p>
             <label className="sp-label">Plan</label>
             <select value={planCode} onChange={(e) => setPlanCode(e.target.value)} className="sp-input">
                 {plans.map((p) => <option key={p.code} value={p.code}>{p.name} — ${p.price_mxn_monthly}/mes</option>)}
@@ -367,7 +367,7 @@ function ModalImpersonate({ ws, onClose }) {
     };
     return (
         <ModalShell title="Impersonar taller" onClose={onClose}>
-            <p style={{ color: '#94a3b8', fontSize: '0.88rem' }}>
+            <p style={{ color: '#86868b', fontSize: '0.88rem' }}>
                 Entrarás como el owner de <strong>{ws.name}</strong> por 1 hora. Todo lo que hagas queda auditado.
             </p>
             <label className="sp-label">Razón (requerida)</label>

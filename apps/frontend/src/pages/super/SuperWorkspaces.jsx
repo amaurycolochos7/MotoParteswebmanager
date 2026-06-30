@@ -62,7 +62,7 @@ export default function SuperWorkspaces() {
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                     <form onSubmit={onSearch} style={{ display: 'flex', gap: 8, flex: 1, minWidth: 250 }}>
                         <div style={{ position: 'relative', flex: 1 }}>
-                            <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+                            <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#6e6e73' }} />
                             <input
                                 name="q"
                                 defaultValue={q}
@@ -110,11 +110,11 @@ export default function SuperWorkspaces() {
                                                 {w.is_flagship && <Crown size={14} style={{ color: '#facc15' }} />}
                                                 <span>
                                                     <strong>{w.name}</strong>
-                                                    <div style={{ fontSize: '0.78rem', color: '#64748b' }}>/{w.slug}</div>
+                                                    <div style={{ fontSize: '0.78rem', color: '#6e6e73' }}>/{w.slug}</div>
                                                 </span>
                                             </Link>
                                         </td>
-                                        <td>{w.plan?.name || '—'} {w.plan?.price_mxn_monthly > 0 && <span style={{ color: '#64748b', fontSize: '0.78rem' }}>${w.plan.price_mxn_monthly}/mes</span>}</td>
+                                        <td>{w.plan?.name || '—'} {w.plan?.price_mxn_monthly > 0 && <span style={{ color: '#6e6e73', fontSize: '0.78rem' }}>${w.plan.price_mxn_monthly}/mes</span>}</td>
                                         <td><span className={`sp-pill ${statusPill(w.subscription_status)}`}>{w.subscription_status}</span></td>
                                         <td>
                                             <span className={`sp-pill ${w.subscription?.source === 'manual' ? 'sp-pill-purple' : 'sp-pill-gray'}`}>
@@ -123,7 +123,7 @@ export default function SuperWorkspaces() {
                                         </td>
                                         <td>{w._count.orders}</td>
                                         <td>{w._count.memberships}</td>
-                                        <td style={{ color: '#64748b', fontSize: '0.82rem' }}>{fmtDate(w.created_at)}</td>
+                                        <td style={{ color: '#6e6e73', fontSize: '0.82rem' }}>{fmtDate(w.created_at)}</td>
                                     </tr>
                                 ))}
                             </tbody>

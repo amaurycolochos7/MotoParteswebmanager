@@ -22,7 +22,7 @@ export default function Toast({ message, type = 'success', onClose, duration = 4
         success: { bg: '#10b981', light: '#d1fae5' },
         error: { bg: '#ef4444', light: '#fee2e2' },
         warning: { bg: '#f59e0b', light: '#fef3c7' },
-        info: { bg: '#3b82f6', light: '#dbeafe' }
+        info: { bg: '#d71920', light: '#fde7e8' }
     };
 
     return (

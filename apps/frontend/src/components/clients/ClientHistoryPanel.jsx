@@ -30,8 +30,8 @@ export default function ClientHistoryPanel({ clientId, defaultOpen = false }) {
         if (open && clientId) load();
     }, [clientId, open, load]);
 
-    const card = { border: '1px solid #e5e7eb', borderRadius: 12, background: '#fff', margin: '10px 0', overflow: 'hidden' };
-    const headBtn = { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: '#f9fafb', border: 'none', cursor: 'pointer', fontWeight: 600, color: '#111827', fontSize: 14 };
+    const card = { border: '1px solid #e8e8ed', borderRadius: 12, background: '#fff', margin: '10px 0', overflow: 'hidden' };
+    const headBtn = { width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: '#f5f5f7', border: 'none', cursor: 'pointer', fontWeight: 600, color: '#111827', fontSize: 14 };
 
     return (
         <div style={card}>
@@ -43,9 +43,9 @@ export default function ClientHistoryPanel({ clientId, defaultOpen = false }) {
             {open && (
                 <div style={{ padding: 14 }}>
                     {loading || !loaded ? (
-                        <div style={{ textAlign: 'center', color: '#6b7280', padding: 8 }}><Loader2 size={18} className="spinner" /></div>
+                        <div style={{ textAlign: 'center', color: '#6e6e73', padding: 8 }}><Loader2 size={18} className="spinner" /></div>
                     ) : !data ? (
-                        <p style={{ color: '#9ca3af', fontSize: 13, margin: 0 }}>No se pudo cargar el historial.</p>
+                        <p style={{ color: '#86868b', fontSize: 13, margin: 0 }}>No se pudo cargar el historial.</p>
                     ) : (
                         <>
                             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -109,17 +109,17 @@ export default function ClientHistoryPanel({ clientId, defaultOpen = false }) {
 
 function Stat({ label, value, danger }) {
     return (
-        <div style={{ flex: '1 1 calc(50% - 4px)', background: '#f9fafb', borderRadius: 8, padding: '8px 10px' }}>
-            <div style={{ fontSize: 11, color: '#6b7280' }}>{label}</div>
+        <div style={{ flex: '1 1 calc(50% - 4px)', background: '#f5f5f7', borderRadius: 8, padding: '8px 10px' }}>
+            <div style={{ fontSize: 11, color: '#6e6e73' }}>{label}</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: danger ? '#b91c1c' : '#111827' }}>{value}</div>
         </div>
     );
 }
 const SubHead = ({ icon, label }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: '#374151', margin: '10px 0 4px' }}>{icon} {label}</div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: '#474747', margin: '10px 0 4px' }}>{icon} {label}</div>
 );
-const Empty = () => <p style={{ color: '#9ca3af', fontSize: 12, margin: '0 0 4px' }}>—</p>;
+const Empty = () => <p style={{ color: '#86868b', fontSize: 12, margin: '0 0 4px' }}>—</p>;
 const listStyle = { listStyle: 'none', padding: 0, margin: 0 };
-const liStyle = { fontSize: 13, color: '#374151', padding: '4px 0', borderBottom: '1px solid #f3f4f6' };
+const liStyle = { fontSize: 13, color: '#474747', padding: '4px 0', borderBottom: '1px solid #f0f0f2' };
 const liRow = { ...liStyle, display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' };
 const chip = { fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#eef2ff', color: '#3730a3', fontWeight: 600 };

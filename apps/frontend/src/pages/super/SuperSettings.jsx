@@ -57,7 +57,7 @@ export default function SuperSettings() {
                                 autoComplete="current-password"
                                 required
                             />
-                            <button type="button" onClick={() => setShow((v) => !v)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>
+                            <button type="button" onClick={() => setShow((v) => !v)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6e6e73', cursor: 'pointer' }}>
                                 {show ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
                         </div>
@@ -87,7 +87,7 @@ export default function SuperSettings() {
                         <button type="submit" className="sp-btn-primary" disabled={busy} style={{ marginTop: 16, width: '100%' }}>
                             {busy ? <Loader2 className="spin" size={14} /> : <CheckCircle2 size={14} />} Actualizar
                         </button>
-                        <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 10 }}>
+                        <p style={{ fontSize: '0.78rem', color: '#6e6e73', marginTop: 10 }}>
                             Mínimo 8 caracteres. Al cambiarla queda registrada en audit_logs.
                         </p>
                     </form>
@@ -96,7 +96,7 @@ export default function SuperSettings() {
                 {/* Exports CSV */}
                 <div className="sp-card">
                     <h2><Download size={16} style={{ verticalAlign: -3, marginRight: 6 }} /> Exports CSV</h2>
-                    <p style={{ color: '#94a3b8', fontSize: '0.88rem', margin: '0 0 14px' }}>
+                    <p style={{ color: '#86868b', fontSize: '0.88rem', margin: '0 0 14px' }}>
                         Descarga datos operativos para análisis externo o contabilidad.
                     </p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -122,7 +122,7 @@ export default function SuperSettings() {
                         <EnvRow label="2FA super-admin" envVar="SUPER_REQUIRE_2FA" />
                         <EnvRow label="IP allowlist super" envVar="SUPER_IP_ALLOWLIST" />
                     </div>
-                    <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 14 }}>
+                    <p style={{ fontSize: '0.78rem', color: '#6e6e73', marginTop: 14 }}>
                         Se configuran en Dokploy → API → Environment. Redeploy requerido.
                     </p>
                 </div>
@@ -138,9 +138,9 @@ export default function SuperSettings() {
 // configura desde Dokploy). En Fase 8 se puede agregar un /api/super/env-status.
 function EnvRow({ label, envVar }) {
     return (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #1e293b' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #1d1d1f' }}>
             <span>{label}</span>
-            <code style={{ fontSize: '0.78rem', color: '#64748b' }}>{envVar}</code>
+            <code style={{ fontSize: '0.78rem', color: '#6e6e73' }}>{envVar}</code>
         </div>
     );
 }

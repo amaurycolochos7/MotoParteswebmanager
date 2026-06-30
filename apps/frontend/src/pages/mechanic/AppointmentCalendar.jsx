@@ -18,11 +18,11 @@ const STATUS_LABELS = {
 };
 
 const STATUS_COLORS = {
-    scheduled: '#0071e3',
+    scheduled: '#d71920',
     pending_external: '#f59e0b',
     confirmed: '#22c55e',
     rejected: '#ef4444',
-    cancelled: '#94a3b8',
+    cancelled: '#86868b',
     completed: '#10b981',
 };
 
@@ -302,7 +302,7 @@ export default function AppointmentCalendar() {
                                             {moto && (
                                                 <div className="apt-meta">🏍️ {moto.brand} {moto.model}</div>
                                             )}
-                                            <div className="apt-status-chip" style={{ background: (STATUS_COLORS[apt.status] || '#64748b') + '22', color: STATUS_COLORS[apt.status] || '#64748b' }}>
+                                            <div className="apt-status-chip" style={{ background: (STATUS_COLORS[apt.status] || '#6e6e73') + '22', color: STATUS_COLORS[apt.status] || '#6e6e73' }}>
                                                 {STATUS_LABELS[apt.status] || apt.status}
                                             </div>
 
@@ -438,7 +438,7 @@ export default function AppointmentCalendar() {
                 .welcome-icon { color: var(--primary); margin-bottom: var(--spacing-md); filter: drop-shadow(0 4px 12px rgba(59,130,246,.3)); }
                 .welcome-title {
                     font-size: 2.25rem; font-weight: 800; margin-bottom: var(--spacing-sm);
-                    background: linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%);
+                    background: linear-gradient(135deg,#d71920 0%,#8b5cf6 100%);
                     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
                 }
                 .welcome-subtitle { color: var(--text-secondary); font-size: 1.125rem; font-weight: 500; }
@@ -455,7 +455,7 @@ export default function AppointmentCalendar() {
                 .btn-main {
                     position: relative; display: flex; align-items: center; justify-content: center;
                     gap: var(--spacing-sm); padding: var(--spacing-lg) var(--spacing-xl);
-                    background: linear-gradient(135deg, var(--primary) 0%, #0071e3 100%);
+                    background: linear-gradient(135deg, var(--primary) 0%, #d71920 100%);
                     color: white; border: none; border-radius: var(--radius-lg);
                     font-size: 1.0625rem; font-weight: 600; cursor: pointer;
                     transition: all 0.2s; box-shadow: 0 4px 16px rgba(59,130,246,.25);
@@ -496,7 +496,7 @@ export default function AppointmentCalendar() {
                 .appointment-card.is-pending { border-color: #f59e0b; box-shadow: 0 0 0 2px #fef3c7; }
                 .appointment-card:hover { box-shadow: var(--shadow-md); }
 
-                .apt-date-badge { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; padding: var(--spacing-md) var(--spacing-sm); background: linear-gradient(135deg,#0071e3,#0066cc); color: white; flex-shrink: 0; text-align: center; }
+                .apt-date-badge { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; padding: var(--spacing-md) var(--spacing-sm); background: linear-gradient(135deg,#d71920,#a90f16); color: white; flex-shrink: 0; text-align: center; }
                 .badge-day { font-size: 1.875rem; font-weight: 800; line-height: 1; }
                 .badge-month-year { font-size: 0.7rem; text-transform: uppercase; font-weight: 700; opacity: 0.9; margin-top: 2px; }
                 .badge-time { font-size: 0.75rem; font-weight: 600; margin-top: 4px; opacity: 0.85; }

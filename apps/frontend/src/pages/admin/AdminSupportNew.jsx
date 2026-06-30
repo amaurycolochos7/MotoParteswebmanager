@@ -34,15 +34,15 @@ export default function AdminSupportNew() {
 
     return (
         <div style={{ padding: 24, maxWidth: 720, margin: '0 auto' }}>
-            <Link to="/admin/support" style={{ color: '#64748b', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 16 }}>
+            <Link to="/admin/support" style={{ color: '#6e6e73', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 16 }}>
                 <ArrowLeft size={14} /> Volver
             </Link>
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: '0 0 24px' }}>Nuevo ticket de soporte</h1>
 
-            <form onSubmit={submit} style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 16, padding: 24 }}>
+            <form onSubmit={submit} style={{ background: 'white', border: '1px solid #e8e8ed', borderRadius: 16, padding: 24 }}>
                 <div style={{ marginBottom: 16 }}>
                     <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: 6 }}>Categoría</label>
-                    <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ width: '100%', padding: 10, border: '1.5px solid #cbd5e1', borderRadius: 10 }}>
+                    <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ width: '100%', padding: 10, border: '1.5px solid #d2d2d7', borderRadius: 10 }}>
                         {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
                 </div>
@@ -53,7 +53,7 @@ export default function AdminSupportNew() {
                         value={form.subject}
                         onChange={(e) => setForm({ ...form, subject: e.target.value })}
                         placeholder="Breve descripción del problema"
-                        style={{ width: '100%', padding: 10, border: '1.5px solid #cbd5e1', borderRadius: 10 }}
+                        style={{ width: '100%', padding: 10, border: '1.5px solid #d2d2d7', borderRadius: 10 }}
                         maxLength={200}
                         required
                     />
@@ -61,7 +61,7 @@ export default function AdminSupportNew() {
 
                 <div style={{ marginBottom: 16 }}>
                     <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: 6 }}>Prioridad</label>
-                    <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} style={{ width: '100%', padding: 10, border: '1.5px solid #cbd5e1', borderRadius: 10 }}>
+                    <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} style={{ width: '100%', padding: 10, border: '1.5px solid #d2d2d7', borderRadius: 10 }}>
                         <option value="low">Baja — no urgente</option>
                         <option value="normal">Normal</option>
                         <option value="high">Alta — afecta operación</option>
@@ -75,7 +75,7 @@ export default function AdminSupportNew() {
                         onChange={(e) => setForm({ ...form, body_md: e.target.value })}
                         rows={8}
                         placeholder="Cuéntanos con detalle. Si es un error, incluye pasos para reproducirlo y capturas si tienes."
-                        style={{ width: '100%', padding: 12, border: '1.5px solid #cbd5e1', borderRadius: 10, resize: 'vertical', fontFamily: 'inherit', fontSize: '0.95rem' }}
+                        style={{ width: '100%', padding: 12, border: '1.5px solid #d2d2d7', borderRadius: 10, resize: 'vertical', fontFamily: 'inherit', fontSize: '0.95rem' }}
                         required
                     />
                 </div>
@@ -88,7 +88,7 @@ export default function AdminSupportNew() {
                     {busy ? <Loader2 size={16} className="spin" /> : <Send size={16} />} Enviar ticket
                 </button>
 
-                <p style={{ color: '#64748b', fontSize: '0.82rem', marginTop: 14, textAlign: 'center' }}>
+                <p style={{ color: '#6e6e73', fontSize: '0.82rem', marginTop: 14, textAlign: 'center' }}>
                     Respondemos en menos de 24h hábiles. Urgencias reales por WhatsApp directo.
                 </p>
             </form>

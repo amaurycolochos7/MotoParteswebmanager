@@ -11,7 +11,7 @@
      the new visual language automatically.
      ========================================================= */
 
-  /* ---- Brand / spec palette (new canonical names) ---- */
+  /* ---- MotoPartes brand palette (from logo: black badge + red "PARTES") ---- */
   --color-ink: #1d1d1f;
   --color-graphite: #6e6e73;
   --color-slate: #474747;
@@ -20,8 +20,11 @@
   --color-snow: #ffffff;
   --color-obsidian: #000000;
   --color-silver-mist: #e8e8ed;
-  --color-azure: #0071e3;
-  --color-cobalt-link: #0066cc;
+  --color-brand: #d71920;          /* MotoPartes red (refined) */
+  --color-brand-dark: #a90f16;
+  --color-brand-soft: #fde7e8;
+  --color-azure: #d71920;          /* legacy alias → now brand red */
+  --color-cobalt-link: #a90f16;    /* legacy alias → brand red dark */
   --color-caution: #b64400;
 
   --surface-canvas: #f5f5f7;
@@ -29,11 +32,23 @@
   --surface-recessed: #f5f5f7;
   --surface-dark: #1d1d1f;
 
-  /* ---- Primary / accent (azure, used only for primary actions) ---- */
-  --primary: #0071e3;
-  --primary-hover: #0077ed;
-  --primary-light: #eaf2fd;
-  --primary-dark: #0066cc;
+  /* ---- Brand tokens (spec names) ---- */
+  --brand-primary: #d71920;
+  --brand-primary-hover: #b3141a;
+  --brand-primary-dark: #a90f16;
+  --brand-primary-soft: #fde7e8;
+  --brand-primary-contrast: #ffffff;
+  --brand-ink: #1d1d1f;
+  --brand-graphite: #6e6e73;
+  --brand-fog: #f5f5f7;
+  --brand-snow: #ffffff;
+  --brand-border: #e8e8ed;
+
+  /* ---- Primary / accent = MotoPartes red (only for primary actions/active) ---- */
+  --primary: #d71920;
+  --primary-hover: #b3141a;
+  --primary-light: #fde7e8;
+  --primary-dark: #a90f16;
 
   /* ---- Neutral secondary ---- */
   --secondary: #6e6e73;
@@ -53,8 +68,8 @@
   --danger-light: #fbe9e7;
   --danger-hover: #a3170b;
 
-  --info: #0071e3;
-  --info-light: #eaf2fd;
+  --info: #475467;
+  --info-light: #eef1f4;
 
   /* ---- Backgrounds (clean light theme) ---- */
   --bg-body: #f5f5f7;
@@ -62,7 +77,7 @@
   --bg-sidebar: #ffffff;
   --bg-input: #ffffff;
   --bg-hover: #f5f5f7;
-  --bg-selected: #eaf2fd;
+  --bg-selected: #fde7e8;
 
   /* ---- Text ---- */
   --text-primary: #1d1d1f;
@@ -74,7 +89,7 @@
   /* ---- Borders / dividers (soft) ---- */
   --border-color: #e8e8ed;
   --border-light: #f0f0f2;
-  --border-focus: #0071e3;
+  --border-focus: #d71920;
 
   /* ---- Shadows (soft, premium — no heavy drop shadows) ---- */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -83,7 +98,7 @@
   --shadow-xl: 0 24px 56px rgba(0, 0, 0, 0.12);
 
   /* ---- Order status colors (muted, legible) ---- */
-  --status-registered: #0071e3;
+  --status-registered: #475467;
   --status-reviewing: #b25e00;
   --status-repairing: #6e56cf;
   --status-ready: #248a3d;
@@ -3199,7 +3214,7 @@ a:hover { color: var(--primary-hover); }
   border-radius: 6px;
 }
 
-::selection { background: rgba(0, 113, 227, 0.16); }
+::selection { background: rgba(215, 25, 32, 0.16); }
 
 /* Refined scrollbars */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -3394,7 +3409,7 @@ a:hover { color: var(--primary-hover); }
 .form-textarea:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.12);
+  box-shadow: 0 0 0 4px rgba(215, 25, 32, 0.12);
 }
 
 .form-textarea { min-height: 112px; }

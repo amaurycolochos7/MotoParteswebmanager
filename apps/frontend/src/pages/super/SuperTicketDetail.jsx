@@ -85,7 +85,7 @@ export default function SuperTicketDetail() {
             <div className="sp-header">
                 <div>
                     <h1 className="sp-title">
-                        Ticket <span style={{ color: '#64748b' }}>#{ticket.ticket_number}</span>
+                        Ticket <span style={{ color: '#6e6e73' }}>#{ticket.ticket_number}</span>
                     </h1>
                     <p className="sp-subtitle">{ticket.subject}</p>
                 </div>
@@ -122,14 +122,14 @@ export default function SuperTicketDetail() {
                                     padding: 14,
                                 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, fontSize: '0.82rem' }}>
-                                        <strong style={{ color: '#f1f5f9' }}>
+                                        <strong style={{ color: '#f5f5f7' }}>
                                             {m.is_internal && <Lock size={12} style={{ verticalAlign: -1, color: '#facc15', marginRight: 4 }} />}
                                             {m.author?.full_name || (isAdmin ? 'Admin' : 'Cliente')}
                                             {m.is_internal && <span style={{ marginLeft: 8, color: '#facc15', fontSize: '0.72rem' }}>NOTA INTERNA</span>}
                                         </strong>
-                                        <span style={{ color: '#64748b', fontSize: '0.78rem' }}>{fmtDateTime(m.created_at)}</span>
+                                        <span style={{ color: '#6e6e73', fontSize: '0.78rem' }}>{fmtDateTime(m.created_at)}</span>
                                     </div>
-                                    <div style={{ whiteSpace: 'pre-wrap', color: '#cbd5e1', fontSize: '0.92rem', lineHeight: 1.55 }}>
+                                    <div style={{ whiteSpace: 'pre-wrap', color: '#d2d2d7', fontSize: '0.92rem', lineHeight: 1.55 }}>
                                         {m.body_md}
                                     </div>
                                 </div>
@@ -139,7 +139,7 @@ export default function SuperTicketDetail() {
                     </div>
 
                     {/* Composer */}
-                    <div style={{ borderTop: '1px solid #1e293b', paddingTop: 12, marginTop: 12 }}>
+                    <div style={{ borderTop: '1px solid #1d1d1f', paddingTop: 12, marginTop: 12 }}>
                         {canned.length > 0 && (
                             <div style={{ marginBottom: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                 {canned.slice(0, 5).map((c) => (
@@ -158,7 +158,7 @@ export default function SuperTicketDetail() {
                             style={{ marginBottom: 8, resize: 'vertical' }}
                         />
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#94a3b8', fontSize: '0.86rem', cursor: 'pointer' }}>
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#86868b', fontSize: '0.86rem', cursor: 'pointer' }}>
                                 <input type="checkbox" checked={isInternal} onChange={(e) => setIsInternal(e.target.checked)} />
                                 <Lock size={12} /> Nota interna
                             </label>
@@ -174,12 +174,12 @@ export default function SuperTicketDetail() {
                     <div className="sp-card">
                         <h2>Ticket</h2>
                         <div style={{ display: 'grid', gap: 8, fontSize: '0.88rem' }}>
-                            <div><span style={{ color: '#64748b' }}>Estado:</span> {ticket.status}</div>
-                            <div><span style={{ color: '#64748b' }}>Prioridad:</span> {ticket.priority}</div>
-                            <div><span style={{ color: '#64748b' }}>Categoría:</span> {ticket.category}</div>
-                            <div><span style={{ color: '#64748b' }}>Creado:</span> {fmtDateTime(ticket.created_at)}</div>
-                            {ticket.first_response_at && <div><span style={{ color: '#64748b' }}>1ª respuesta:</span> {fmtDateTime(ticket.first_response_at)}</div>}
-                            {ticket.resolved_at && <div><span style={{ color: '#64748b' }}>Resuelto:</span> {fmtDateTime(ticket.resolved_at)}</div>}
+                            <div><span style={{ color: '#6e6e73' }}>Estado:</span> {ticket.status}</div>
+                            <div><span style={{ color: '#6e6e73' }}>Prioridad:</span> {ticket.priority}</div>
+                            <div><span style={{ color: '#6e6e73' }}>Categoría:</span> {ticket.category}</div>
+                            <div><span style={{ color: '#6e6e73' }}>Creado:</span> {fmtDateTime(ticket.created_at)}</div>
+                            {ticket.first_response_at && <div><span style={{ color: '#6e6e73' }}>1ª respuesta:</span> {fmtDateTime(ticket.first_response_at)}</div>}
+                            {ticket.resolved_at && <div><span style={{ color: '#6e6e73' }}>Resuelto:</span> {fmtDateTime(ticket.resolved_at)}</div>}
                         </div>
                     </div>
 
@@ -191,7 +191,7 @@ export default function SuperTicketDetail() {
                                     {ticket.workspace.is_flagship && <Crown size={14} style={{ color: '#facc15', verticalAlign: -2, marginRight: 4 }} />}
                                     {ticket.workspace.name}
                                 </Link>
-                                <div style={{ color: '#64748b', fontSize: '0.82rem', marginTop: 2 }}>/{ticket.workspace.slug}</div>
+                                <div style={{ color: '#6e6e73', fontSize: '0.82rem', marginTop: 2 }}>/{ticket.workspace.slug}</div>
                             </div>
                         </div>
                     )}
@@ -202,8 +202,8 @@ export default function SuperTicketDetail() {
                             <div style={{ fontSize: '0.9rem' }}>
                                 <User size={14} style={{ verticalAlign: -2, marginRight: 4 }} />
                                 <strong>{ticket.creator.full_name}</strong>
-                                <div style={{ color: '#64748b', fontSize: '0.82rem' }}>{ticket.creator.email}</div>
-                                {ticket.creator.phone && <div style={{ color: '#64748b', fontSize: '0.82rem' }}>{ticket.creator.phone}</div>}
+                                <div style={{ color: '#6e6e73', fontSize: '0.82rem' }}>{ticket.creator.email}</div>
+                                {ticket.creator.phone && <div style={{ color: '#6e6e73', fontSize: '0.82rem' }}>{ticket.creator.phone}</div>}
                             </div>
                         </div>
                     )}

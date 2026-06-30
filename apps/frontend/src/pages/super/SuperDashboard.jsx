@@ -64,7 +64,7 @@ export default function SuperDashboard() {
 
     const cards = [
         { label: 'MRR mensual', value: money(m.mrr_mxn), icon: <DollarSign size={22} />, tint: '#22c55e' },
-        { label: 'Talleres activos', value: m.counts.active_workspaces, icon: <Building2 size={22} />, tint: '#3b82f6', extra: `${m.counts.trialing} en trial · ${m.counts.past_due} past due` },
+        { label: 'Talleres activos', value: m.counts.active_workspaces, icon: <Building2 size={22} />, tint: '#d71920', extra: `${m.counts.trialing} en trial · ${m.counts.past_due} past due` },
         { label: 'Signups 7d', value: m.counts.signups_last_7d, icon: <TrendingUp size={22} />, tint: '#a855f7' },
         { label: 'Tickets abiertos', value: m.tickets.open, icon: <Ticket size={22} />, tint: m.tickets.urgent > 0 ? '#ef4444' : '#f59e0b', extra: m.tickets.urgent > 0 ? `⚠ ${m.tickets.urgent} urgentes` : null },
         { label: 'Pagos pendientes', value: money(m.payouts.pending_mxn), icon: <Gift size={22} />, tint: '#ec4899', extra: `${m.payouts.pending_count} payout(s)` },
@@ -86,9 +86,9 @@ export default function SuperDashboard() {
                     <div key={c.label} className="sp-card" style={{ padding: 18 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                             <div>
-                                <div style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{c.label}</div>
-                                <div style={{ color: '#f1f5f9', fontSize: '1.75rem', fontWeight: 800, marginTop: 4 }}>{c.value}</div>
-                                {c.extra && <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: 4 }}>{c.extra}</div>}
+                                <div style={{ color: '#6e6e73', fontSize: '0.78rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{c.label}</div>
+                                <div style={{ color: '#f5f5f7', fontSize: '1.75rem', fontWeight: 800, marginTop: 4 }}>{c.value}</div>
+                                {c.extra && <div style={{ color: '#6e6e73', fontSize: '0.78rem', marginTop: 4 }}>{c.extra}</div>}
                             </div>
                             <div style={{ background: `${c.tint}22`, color: c.tint, padding: 10, borderRadius: 10 }}>{c.icon}</div>
                         </div>
@@ -101,21 +101,21 @@ export default function SuperDashboard() {
                 <div className="sp-card" style={{ marginBottom: 16 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                         <h2 style={{ margin: 0 }}><BarChart3 size={16} style={{ verticalAlign: -3, marginRight: 6 }} /> Últimos 90 días</h2>
-                        <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                        <span style={{ fontSize: '0.78rem', color: '#6e6e73' }}>
                             {timeseries.series[0].date} → {timeseries.series[timeseries.series.length - 1].date}
                         </span>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
                         <div>
-                            <div style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>MRR (MXN)</div>
+                            <div style={{ color: '#6e6e73', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>MRR (MXN)</div>
                             <Sparkline data={timeseries.series.map((d) => d.mrr_mxn)} color="#22c55e" label="mrr" />
                         </div>
                         <div>
-                            <div style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Signups</div>
-                            <Sparkline data={timeseries.series.map((d) => d.signups)} color="#3b82f6" label="signups" />
+                            <div style={{ color: '#6e6e73', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Signups</div>
+                            <Sparkline data={timeseries.series.map((d) => d.signups)} color="#d71920" label="signups" />
                         </div>
                         <div>
-                            <div style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Churn</div>
+                            <div style={{ color: '#6e6e73', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Churn</div>
                             <Sparkline data={timeseries.series.map((d) => d.churn)} color="#ef4444" label="churn" />
                         </div>
                     </div>
