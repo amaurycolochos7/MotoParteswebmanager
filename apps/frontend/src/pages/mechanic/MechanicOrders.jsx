@@ -1,11 +1,13 @@
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { ClipboardList, Filter } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ClipboardList, Plus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import OrderCard from '../../components/ui/OrderCard';
+import { PageHeader, EmptyState, Button } from '../../components/ui';
 
 export default function MechanicOrders() {
+    const navigate = useNavigate();
     const { user } = useAuth();
     const { getActiveOrders, statuses } = useData();
 
@@ -13,60 +15,34 @@ export default function MechanicOrders() {
         return getActiveOrders(user?.id) || [];
     }, [getActiveOrders, user?.id]);
 
-    return (
-        <div className="mechanic-orders">
-            <div className="page-header">
-                <h1 className="page-title">
-                    <ClipboardList size={24} />
-                    Mis Servicios
-                </h1>
-                <p className="page-subtitle">{activeOrders.length} servicios activos</p>
-            </div>
+    const n = activeOrders.length;
 
-            {activeOrders.length === 0 ? (
-                <div className="empty-state card">
-                    <ClipboardList size={48} className="empty-state-icon" />
-                    <h3>Sin servicios activos</h3>
-                    <p className="text-secondary">Cuando crees órdenes de servicio aparecerán aquí</p>
-                    <Link to="/mechanic/new-order" className="btn btn-primary mt-md">
-                        Nueva Orden
-                    </Link>
-                </div>
+    return (
+        <div className="morders">
+            <PageHeader
+                title="Mis servicios"
+                subtitle={`${n} servicio${n === 1 ? '' : 's'} activo${n === 1 ? '' : 's'}`}
+            />
+
+            {n === 0 ? (
+                <EmptyState
+                    icon={<ClipboardList size={26} />}
+                    title="Sin servicios activos"
+                    message="Cuando crees órdenes de servicio aparecerán aquí."
+                    action={<Button onClick={() => navigate('/mechanic/new-order')} leftIcon={<Plus size={16} />} size="sm">Nueva orden</Button>}
+                />
             ) : (
-                <div className="orders-list">
+                <div className="morders__list">
                     {activeOrders.map(order => (
-                        <OrderCard
-                            key={order.id}
-                            order={order}
-                            statuses={statuses}
-                        />
+                        <OrderCard key={order.id} order={order} statuses={statuses} />
                     ))}
                 </div>
             )}
 
             <style>{`
-        .mechanic-orders {
-          padding-bottom: 100px;
-        }
-
-        .page-header {
-          margin-bottom: var(--spacing-xl);
-        }
-
-        .page-title {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-sm);
-          font-size: 1.5rem;
-          margin-bottom: var(--spacing-xs);
-        }
-
-        .orders-list {
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-md);
-        }
-      `}</style>
+                .morders { padding: 20px 16px 100px; max-width: 720px; margin: 0 auto; }
+                .morders__list { display: flex; flex-direction: column; gap: 12px; }
+            `}</style>
         </div>
     );
 }

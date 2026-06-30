@@ -7,7 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useMemo, useState, useEffect } from 'react';
 import { quotationsService } from '../../lib/api';
-import { ActionCard, MetricCard, StatusChip, EmptyState, Button } from '../../components/ui';
+import { ActionCard, StatusChip, EmptyState, Button } from '../../components/ui';
 
 export default function MechanicDashboard() {
   const navigate = useNavigate();
@@ -173,24 +173,42 @@ export default function MechanicDashboard() {
         )}
       </section>
 
-      {/* Quick metrics */}
-      <div className="mdash__metrics">
-        <MetricCard value={stats.inProcess} label="En proceso" onClick={() => navigate('/mechanic/orders')} />
-        <MetricCard value={stats.readyToDeliver} label="Listas" tone="success" onClick={() => navigate('/mechanic/orders')} />
-        <MetricCard value={stats.finishedToday} label="Finalizadas" onClick={() => navigate('/mechanic/history')} />
+      {/* Quick metrics — unified strip */}
+      <div className="mdash__stats">
+        <button className="mdash__stat" onClick={() => navigate('/mechanic/orders')}>
+          <span className="mdash__stat-val">{stats.inProcess}</span>
+          <span className="mdash__stat-lbl">En proceso</span>
+        </button>
+        <span className="mdash__stat-sep" />
+        <button className="mdash__stat" onClick={() => navigate('/mechanic/orders')}>
+          <span className="mdash__stat-val mdash__stat-val--success">{stats.readyToDeliver}</span>
+          <span className="mdash__stat-lbl">Listas</span>
+        </button>
+        <span className="mdash__stat-sep" />
+        <button className="mdash__stat" onClick={() => navigate('/mechanic/history')}>
+          <span className="mdash__stat-val">{stats.finishedToday}</span>
+          <span className="mdash__stat-lbl">Finalizadas</span>
+        </button>
       </div>
 
-      {/* ELIHU metrics */}
-      <div className="mdash__metrics">
-        <MetricCard value={stats.authorized} label="Autorizadas" tone="brand" icon={<CheckCircle2 size={16} />} onClick={() => navigate('/mechanic/orders')} />
-        <MetricCard value={pendingQuotes} label="Por autorizar" tone="warning" icon={<FileText size={16} />} onClick={() => navigate('/mechanic/quotations')} />
-        <MetricCard
-          value={stats.deliveryDue}
-          label="Entregas próximas"
-          tone={stats.deliveryDue > 0 ? 'warning' : 'ink'}
-          icon={stats.deliveryDue > 0 ? <AlertTriangle size={16} /> : <Clock size={16} />}
-          onClick={() => navigate('/mechanic/orders')}
-        />
+      {/* ELIHU metrics — unified strip */}
+      <div className="mdash__stats">
+        <button className="mdash__stat" onClick={() => navigate('/mechanic/orders')}>
+          <span className="mdash__stat-val mdash__stat-val--brand"><CheckCircle2 size={15} />{stats.authorized}</span>
+          <span className="mdash__stat-lbl">Autorizadas</span>
+        </button>
+        <span className="mdash__stat-sep" />
+        <button className="mdash__stat" onClick={() => navigate('/mechanic/quotations')}>
+          <span className="mdash__stat-val mdash__stat-val--warning"><FileText size={15} />{pendingQuotes}</span>
+          <span className="mdash__stat-lbl">Por autorizar</span>
+        </button>
+        <span className="mdash__stat-sep" />
+        <button className="mdash__stat" onClick={() => navigate('/mechanic/orders')}>
+          <span className={`mdash__stat-val ${stats.deliveryDue > 0 ? 'mdash__stat-val--warning' : ''}`}>
+            {stats.deliveryDue > 0 ? <AlertTriangle size={15} /> : <Clock size={15} />}{stats.deliveryDue}
+          </span>
+          <span className="mdash__stat-lbl">Entregas</span>
+        </button>
       </div>
 
       {/* Earnings */}
@@ -233,9 +251,15 @@ export default function MechanicDashboard() {
         .mdash__order-code { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
         .mdash__order-arrow { color: var(--text-muted); flex-shrink: 0; }
 
-        .mdash__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
-        .mdash__metrics .mp-metric { min-height: 86px; justify-content: center; }
-        .mdash__metrics .mp-metric__label { line-height: 1.25; }
+        .mdash__stats { display: flex; align-items: stretch; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 4px 0; margin-bottom: 10px; }
+        .mdash__stat { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 14px 6px; background: none; border: none; cursor: pointer; font-family: var(--font-text); transition: background var(--transition-fast); border-radius: 12px; }
+        .mdash__stat:hover { background: var(--surface-recessed); }
+        .mdash__stat-val { display: inline-flex; align-items: center; gap: 5px; font-size: 25px; font-weight: 700; color: var(--color-ink); line-height: 1; letter-spacing: -0.02em; }
+        .mdash__stat-val--success { color: var(--success); }
+        .mdash__stat-val--brand { color: var(--brand-primary); }
+        .mdash__stat-val--warning { color: var(--warning); }
+        .mdash__stat-lbl { font-size: 11.5px; color: var(--text-secondary); font-weight: 500; text-align: center; line-height: 1.2; }
+        .mdash__stat-sep { width: 1px; background: var(--border-color); margin: 12px 0; flex-shrink: 0; }
 
         .mdash__earn { display: block; width: 100%; text-align: left; margin-top: 12px; padding: 18px 20px; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: var(--radius-card); cursor: pointer; font-family: var(--font-text); transition: border-color var(--transition-fast); }
         .mdash__earn:hover { border-color: #d2d2d7; }
