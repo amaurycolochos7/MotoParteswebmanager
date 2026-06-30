@@ -233,7 +233,9 @@ export default function MechanicDashboard() {
         .mdash__order-code { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
         .mdash__order-arrow { color: var(--text-muted); flex-shrink: 0; }
 
-        .mdash__metrics { display: flex; gap: 8px; margin-bottom: 10px; }
+        .mdash__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+        .mdash__metrics .mp-metric { min-height: 86px; justify-content: center; }
+        .mdash__metrics .mp-metric__label { line-height: 1.25; }
 
         .mdash__earn { display: block; width: 100%; text-align: left; margin-top: 12px; padding: 18px 20px; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: var(--radius-card); cursor: pointer; font-family: var(--font-text); transition: border-color var(--transition-fast); }
         .mdash__earn:hover { border-color: #d2d2d7; }
