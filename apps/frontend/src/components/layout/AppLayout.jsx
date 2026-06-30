@@ -339,31 +339,31 @@ export default function AppLayout() {
                     display: inline-flex;
                     align-items: center;
                     gap: 4px;
-                    padding: 2px 8px;
-                    border-radius: 4px;
+                    padding: 2px 9px;
+                    border-radius: 999px;
                     font-size: 0.625rem;
                     font-weight: 600;
-                    letter-spacing: 0.04em;
+                    letter-spacing: 0.02em;
                     text-transform: uppercase;
-                    background: rgba(255, 255, 255, 0.06);
-                    color: #9CA3AF;
-                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    background: var(--surface-recessed);
+                    color: var(--text-secondary);
+                    border: 1px solid var(--border-color);
                 }
 
                 .role-chip.master {
-                    background: rgba(234, 179, 8, 0.12);
-                    color: #D97706;
-                    border-color: rgba(234, 179, 8, 0.2);
+                    background: var(--warning-light);
+                    color: var(--warning-hover);
+                    border-color: transparent;
                 }
 
                 .role-chip.master svg {
-                    color: #D97706;
+                    color: var(--warning-hover);
                 }
 
                 .role-chip.auxiliary {
-                    background: rgba(16, 185, 129, 0.12);
-                    color: #059669;
-                    border-color: rgba(16, 185, 129, 0.2);
+                    background: var(--success-light);
+                    color: var(--success-hover);
+                    border-color: transparent;
                 }
             `}</style>
         </div>

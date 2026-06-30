@@ -1369,7 +1369,7 @@ export default function NewServiceOrder() {
                                                 padding: '16px 0 4px 0'
                                             }}>
                                                 <span style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1f2937' }}>TOTAL A PAGAR</span>
-                                                <span style={{ fontSize: '1.4rem', fontWeight: '800', color: '#2563eb' }}>{formatMXN(grandTotal)}</span>
+                                                <span style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0071e3' }}>{formatMXN(grandTotal)}</span>
                                             </div>
                                         </div>
                                     );

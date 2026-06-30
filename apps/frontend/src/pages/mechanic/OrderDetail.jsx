@@ -784,7 +784,7 @@ export default function OrderDetail() {
                 </div>
                 <div className="od-info-divider" />
                 <div className="od-info-row">
-                    <div className="od-info-icon" style={{ background: '#dbeafe', color: '#2563eb' }}>
+                    <div className="od-info-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}>
                         <Bike size={16} />
                     </div>
                     <div className="od-info-text">

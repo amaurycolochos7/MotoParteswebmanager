@@ -18,7 +18,7 @@ const STATUS_LABELS = {
 };
 
 const STATUS_COLORS = {
-    scheduled: '#2563eb',
+    scheduled: '#0071e3',
     pending_external: '#f59e0b',
     confirmed: '#22c55e',
     rejected: '#ef4444',
@@ -455,7 +455,7 @@ export default function AppointmentCalendar() {
                 .btn-main {
                     position: relative; display: flex; align-items: center; justify-content: center;
                     gap: var(--spacing-sm); padding: var(--spacing-lg) var(--spacing-xl);
-                    background: linear-gradient(135deg, var(--primary) 0%, #2563eb 100%);
+                    background: linear-gradient(135deg, var(--primary) 0%, #0071e3 100%);
                     color: white; border: none; border-radius: var(--radius-lg);
                     font-size: 1.0625rem; font-weight: 600; cursor: pointer;
                     transition: all 0.2s; box-shadow: 0 4px 16px rgba(59,130,246,.25);
@@ -496,7 +496,7 @@ export default function AppointmentCalendar() {
                 .appointment-card.is-pending { border-color: #f59e0b; box-shadow: 0 0 0 2px #fef3c7; }
                 .appointment-card:hover { box-shadow: var(--shadow-md); }
 
-                .apt-date-badge { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; padding: var(--spacing-md) var(--spacing-sm); background: linear-gradient(135deg,#2563eb,#1d4ed8); color: white; flex-shrink: 0; text-align: center; }
+                .apt-date-badge { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; padding: var(--spacing-md) var(--spacing-sm); background: linear-gradient(135deg,#0071e3,#0066cc); color: white; flex-shrink: 0; text-align: center; }
                 .badge-day { font-size: 1.875rem; font-weight: 800; line-height: 1; }
                 .badge-month-year { font-size: 0.7rem; text-transform: uppercase; font-weight: 700; opacity: 0.9; margin-top: 2px; }
                 .badge-time { font-size: 0.75rem; font-weight: 600; margin-top: 4px; opacity: 0.85; }

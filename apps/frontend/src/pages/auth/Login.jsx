@@ -108,14 +108,13 @@ export default function Login() {
               <div
                 key={errorKey}
                 style={{
-                  padding: '16px 18px',
+                  padding: '14px 16px',
                   marginBottom: '16px',
                   borderRadius: '14px',
                   background: errorType === 'inactive'
-                    ? 'linear-gradient(135deg, #fffbeb, #fef3c7)'
-                    : 'linear-gradient(135deg, #fef2f2, #fee2e2)',
-                  border: `2px solid ${errorType === 'inactive' ? '#fcd34d' : '#fca5a5'}`,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    ? 'var(--warning-light)'
+                    : 'var(--danger-light)',
+                  border: '1px solid transparent',
                   animation: 'errorSlideIn 0.4s ease-out',
                 }}
               >
@@ -232,62 +231,15 @@ export default function Login() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #ffffff;
-          padding: var(--spacing-lg);
+          background: var(--surface-canvas);
+          padding: var(--space-24);
           position: relative;
           overflow: hidden;
         }
 
-        .login-bg-decor {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          overflow: hidden;
-        }
+        .login-bg-decor { display: none; }
 
-        .bg-circle {
-          position: absolute;
-          border-radius: 50%;
-          opacity: 0.1;
-        }
-
-        .bg-circle-1 {
-          width: 600px;
-          height: 600px;
-          background: linear-gradient(135deg, #ef4444, #dc2626);
-          top: -200px;
-          right: -200px;
-          animation: float 20s ease-in-out infinite;
-        }
-
-        .bg-circle-2 {
-          width: 400px;
-          height: 400px;
-          background: linear-gradient(135deg, #3b82f6, #2563eb);
-          bottom: -100px;
-          left: -100px;
-          animation: float 15s ease-in-out infinite reverse;
-        }
-
-        .bg-circle-3 {
-          width: 300px;
-          height: 300px;
-          background: linear-gradient(135deg, #f59e0b, #d97706);
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          animation: pulse 10s ease-in-out infinite;
-        }
-
-        @keyframes float {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(30px, 30px); }
-        }
-
-        @keyframes pulse {
-          0%, 100% { opacity: 0.05; transform: translate(-50%, -50%) scale(1); }
-          50% { opacity: 0.15; transform: translate(-50%, -50%) scale(1.1); }
-        }
+        .bg-circle { display: none; }
 
         @keyframes errorSlideIn {
           0% { 
@@ -324,13 +276,11 @@ export default function Login() {
         }
 
         .login-card {
-          background: rgba(255, 255, 255, 0.98);
-          border-radius: 24px;
-          box-shadow: 
-            0 25px 50px -12px rgba(0, 0, 0, 0.5),
-            0 0 0 1px rgba(255, 255, 255, 0.1);
+          background: var(--surface-card);
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-xl);
+          box-shadow: var(--shadow-lg);
           padding: 40px 36px;
-          backdrop-filter: blur(20px);
         }
 
         .login-header {
@@ -367,26 +317,26 @@ export default function Login() {
 
         .login-title {
           font-size: 2rem;
-          font-weight: 800;
+          font-weight: 700;
           margin-bottom: 8px;
-          letter-spacing: -0.5px;
+          letter-spacing: -0.022em;
           display: flex;
           justify-content: center;
           gap: 6px;
         }
 
         .title-moto {
-          color: #1e293b;
+          color: var(--text-primary);
         }
 
         .title-partes {
-          color: #ef4444;
+          color: var(--text-primary);
         }
 
         .login-subtitle {
-          color: #64748b;
+          color: var(--text-secondary);
           font-size: 1rem;
-          font-weight: 500;
+          font-weight: 400;
         }
 
         .login-form {
@@ -396,16 +346,16 @@ export default function Login() {
         }
 
         .login-input-wrapper {
-          background: #f8fafc;
-          border: 2px solid #e2e8f0;
-          border-radius: 12px;
+          background: var(--bg-input);
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-md);
           transition: all 0.2s ease;
         }
 
         .login-input-wrapper:focus-within {
-          border-color: #ef4444;
-          background: white;
-          box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+          border-color: var(--primary);
+          background: var(--surface-card);
+          box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.12);
         }
 
         .login-input-wrapper .form-input {
@@ -534,27 +484,27 @@ export default function Login() {
           justify-content: center;
           gap: 10px;
           width: 100%;
-          padding: 16px 24px;
-          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+          padding: 15px 24px;
+          min-height: 50px;
+          background: var(--primary);
           color: white;
           border: none;
-          border-radius: 12px;
+          border-radius: var(--radius-pill);
           font-size: 1rem;
           font-weight: 600;
+          letter-spacing: -0.01em;
           cursor: pointer;
-          transition: all 0.3s ease;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+          transition: background 0.2s ease, transform 0.1s ease;
+          box-shadow: none;
           margin-top: 8px;
         }
 
         .login-submit-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-          background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+          background: var(--primary-hover);
         }
 
         .login-submit-btn:active:not(:disabled) {
-          transform: translateY(0);
+          transform: scale(0.99);
         }
 
         .login-submit-btn:disabled {
