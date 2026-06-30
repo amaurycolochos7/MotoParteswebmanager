@@ -197,33 +197,109 @@ de alto impacto. Las credenciales de VPS/Dokploy se compartieron por chat; por
 seguridad **no ejecuté cambios en producción sin confirmación explícita** y
 recomiendo **rotar esas credenciales**. La rama quedó pusheada y lista para PR.
 
+### Mecanismo real de aplicación del esquema en producción
+
+El `CMD` del Dockerfile de la API ejecuta en cada arranque:
+
+```
+npx prisma db push --accept-data-loss && node prisma/seed-super-admin.js; node src/index.js
+```
+
+Es decir, **producción sincroniza el esquema desde `schema.prisma` con
+`prisma db push`**, NO desde los `.sql` de `migrations/`. Por eso `schema.prisma`
+es la fuente de verdad. Se declararon los índices nuevos como `@@index` en el
+schema (`order_photos[order_id, evidence_type]`, `order_photos[quotation_id]`,
+`quotations[order_id]`) para que `db push` los cree. El archivo
+`008_service_evidences.sql` queda como **equivalente manual** (para staging o
+aplicación fuera de Dokploy); ambos caminos producen columnas + FKs + índices
+equivalentes (validado en Postgres real: `db push` sincroniza en ~450 ms sin
+pérdida de datos; el `.sql` corre idempotente sin pérdida de datos).
+
+> Observación de riesgo (preexistente, no introducida por este cambio): el flag
+> `--accept-data-loss` en el arranque es seguro para cambios **aditivos** como
+> este, pero si `schema.prisma` llegara a divergir de forma destructiva de la BD
+> viva, ese flag aplicaría la pérdida. Para este módulo el diff es 100% aditivo.
+
 ### Runbook de deploy (ejecutar con confirmación + backup)
 
 ```
-# 1. BACKUP de la BD de producción ANTES de migrar
+# 1. BACKUP de la BD de producción ANTES de nada
 pg_dump "$DATABASE_URL_PROD" -Fc -f motopartes_pre008_$(date +%F).dump
-# validar el backup (que el archivo exista y pg_restore --list lo lea)
-pg_restore --list motopartes_pre008_*.dump | head
+pg_restore --list motopartes_pre008_*.dump | head   # validar el backup
 
-# 2. Aplicar migración 008 (idempotente, additiva, validada en Postgres real)
-psql "$DATABASE_URL_PROD" -v ON_ERROR_STOP=1 -f migrations/008_service_evidences.sql
+# 2. (RECOMENDADO) Pre-aplicar el esquema aditivo ANTES de desplegar el código
+#    nuevo, para que la app vieja siga sana y la nueva no encuentre columnas
+#    faltantes. Opción A (igual que prod) o B (SQL manual) — equivalentes:
+#    A)  cd apps/api && DATABASE_URL="$DATABASE_URL_PROD" npx prisma db push
+#    B)  psql "$DATABASE_URL_PROD" -v ON_ERROR_STOP=1 -f migrations/008_service_evidences.sql
 
-# 3. Regenerar Prisma Client y desplegar API + frontend
-cd apps/api && npx prisma generate
-# (Dokploy: redeploy de las apps api y frontend desde la rama)
+# 3. Merge del PR a main → Dokploy reconstruye y redepliega API + frontend.
+#    El contenedor de la API corre `prisma db push` al arrancar (idempotente si
+#    el paso 2 ya aplicó el esquema). `prisma generate` ocurre en el build.
 
-# 4. Smoke test en vivo
-curl https://motopartes.cloud/api/health
-# Login como maestro → abrir una orden → sección "Evidencias del servicio"
-# Subir 1 evidencia, enviar por WhatsApp, crear cotización adicional.
-# Revisar logs de la API por errores.
+# 4. Smoke test en vivo (ver checklist abajo).
 ```
+
+> **Orden importante**: como el contenedor API hace `db push` al arrancar, el
+> esquema queda aplicado sí o sí en el deploy. El paso 2 es una salvaguarda para
+> evitar la ventana en que el código viejo conviva con el nuevo; con un solo
+> servicio API es opcional, pero recomendado.
+
+### Variables de entorno
+
+**No requiere variables nuevas.** Usa las existentes: `DATABASE_URL`,
+`WHATSAPP_API_KEY`, `WHATSAPP_BOT_INTERNAL_URL`, y `PHOTO_RETENTION_DAYS`
+(opcional, default 30). El bot de WhatsApp **no requiere ajuste**: el envío de
+evidencias reutiliza el endpoint existente `/send-document`.
+
+### Reinicios
+
+- **API**: redeploy (código nuevo + rutas `/api/evidences` + cliente Prisma).
+- **Frontend**: rebuild/redeploy (componente `ServiceEvidences` nuevo).
+- **whatsapp-bot (worker)**: **sin cambios, no requiere reinicio**.
+
+### Rollback
+
+1. **Código**: en Dokploy, redeploy de la imagen anterior (o `git revert` del
+   merge y push). El módulo es aditivo; revertir el código no rompe datos.
+2. **Esquema**: las columnas/índices/FKs nuevos son **aditivos y nullable** —
+   dejarlos NO afecta al código viejo (los ignora). **Rollback de BD = no hacer
+   nada** (recomendado). Si se exige revertir, restaurar el `pg_dump` del paso 1,
+   o ejecutar el down manual:
+   ```
+   ALTER TABLE order_photos DROP CONSTRAINT IF EXISTS order_photos_quotation_id_fkey;
+   ALTER TABLE quotations  DROP CONSTRAINT IF EXISTS quotations_order_id_fkey;
+   DROP INDEX IF EXISTS order_photos_order_id_evidence_type_idx, order_photos_quotation_id_idx,
+     quotations_order_id_idx, idx_order_photos_evidence, idx_order_photos_quotation, idx_quotations_order;
+   ALTER TABLE order_photos DROP COLUMN IF EXISTS evidence_type, DROP COLUMN IF EXISTS deleted_at,
+     DROP COLUMN IF EXISTS deleted_by, DROP COLUMN IF EXISTS delete_reason,
+     DROP COLUMN IF EXISTS sent_to_client_at, DROP COLUMN IF EXISTS sent_by, DROP COLUMN IF EXISTS quotation_id;
+   ALTER TABLE quotations DROP COLUMN IF EXISTS order_id, DROP COLUMN IF EXISTS is_additional,
+     DROP COLUMN IF EXISTS client_authorized_at;
+   ```
+   (Borrar columnas elimina cualquier evidencia/cotización adicional ya capturada;
+   por eso el rollback preferido es "no tocar la BD" + rollback de código.)
+
+### Checklist de deploy + smoke tests
+
+- [ ] Backup `pg_dump` hecho y validado (`pg_restore --list`).
+- [ ] (Opcional) Esquema pre-aplicado (paso 2).
+- [ ] PR `feat/service-evidences-elihu` revisado y mergeado a `main`.
+- [ ] Dokploy redeploy API + frontend OK; logs sin errores de Prisma.
+- [ ] `curl https://motopartes.cloud/api/health` → `{"status":"ok"}`.
+- [ ] Login maestro → abrir orden → ver sección "Evidencias del servicio".
+- [ ] Subir 1 evidencia (tipo + nota) → aparece en el listado.
+- [ ] Auxiliar NO ve "Agregar evidencia" (gating UI).
+- [ ] Enviar evidencia por WhatsApp (bot pareado) → llega al cliente, queda "enviada".
+- [ ] Crear cotización adicional desde evidencia → cliente la ve y autoriza en su enlace.
+- [ ] Descargar comprobante/PDF → incluye sección "Evidencias del servicio".
+- [ ] Eliminar evidencia (maestro) con motivo → desaparece del listado y del PDF.
 
 ### Pendientes reales
 
-- Ejecutar el runbook de deploy en producción (requiere tu confirmación + backup).
+- Ejecutar este runbook en producción (requiere tu confirmación + backup).
 - Revisión visual manual mobile/desktop (NEEDS_REVIEW).
-- Envío WhatsApp **real** a un número de prueba (aquí se validó con mock; el bot
+- Envío WhatsApp **real** a un número de prueba (aquí validado con mock; el bot
   real depende de sesión pareada).
 - Nota: `apps/api/.env` local se ajustó a `127.0.0.1:5434` para validar en
   Windows (IPv6); es un archivo local/gitignored, no afecta producción ni el

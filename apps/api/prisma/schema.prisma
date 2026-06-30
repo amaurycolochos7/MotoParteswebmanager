@@ -708,6 +708,8 @@ model OrderPhoto {
   quotation Quotation? @relation("EvidenceQuotation", fields: [quotation_id], references: [id], onDelete: SetNull)
 
   @@index([workspace_id])
+  @@index([order_id, evidence_type])
+  @@index([quotation_id])
   @@map("order_photos")
 }
 
@@ -1041,6 +1043,7 @@ model Quotation {
   @@index([workspace_id])
   @@index([client_id])
   @@index([status])
+  @@index([order_id])
   @@map("quotations")
 }
 
