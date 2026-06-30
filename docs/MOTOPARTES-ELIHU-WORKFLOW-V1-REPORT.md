@@ -550,3 +550,70 @@ Unitarias: `npm test` → **43/43 PASS** (sin regresiones).
 despliego sin backup**. La rama queda pusheada con este cambio; el despliegue debe ejecutarlo el
 operador con acceso (runbook en Parte 1 §29). La migración `007` ya fue probada contra una DB real
 (Parte 3) y este cambio es **solo de código** (no requiere migración adicional).
+
+
+
+---
+---
+
+# PARTE 5 — PRODUCCIÓN DESPLEGADA Y VERIFICADA
+
+**Fecha/hora:** 2026-06-30 ~01:05 UTC · **Commit desplegado:** `db1509e` (rama `main`).
+
+## 1. Backup de producción (antes de tocar nada)
+- Contenedor DB: `postgres-index-virtual-system-t2hbwn` (Postgres 16, db `motopartes`).
+- **Ruta del backup:** `/root/motopartes_backups/motopartes_pre007_20260630_005534.dump` (en el VPS).
+- Tamaño: **186 443 bytes** (>0). **Restaurable/listable:** `pg_restore -l` -> 45 tablas, incluyendo
+  `clients`, `orders`, `quotations`, `order_statuses`. Validado antes de migrar.
+
+## 2. Migración 007 aplicada en PRODUCCIÓN
+- Aplicada con `psql -v ON_ERROR_STOP=1 -f 007.sql` dentro del contenedor de Postgres. Exit 0.
+- Antes -> Después (sin pérdida de datos):
+
+| Métrica | Antes | Después |
+|---|---|---|
+| clients | 117 | 117 |
+| orders | 80 | 80 |
+| quotations | 3 | 3 |
+| order_statuses | 8 | 10 (+ "Autorizada" workspace + global) |
+| order_payments (tabla) | no existe | creada, 2 filas backfilled de advance_payment ($1 100) |
+| orders.estimated_delivery_at | no | sí |
+| mechanic_earnings.commission_status | no | sí |
+| order_photos.expires_at | no | sí |
+| índice búsqueda por nombre en clients | no | sí |
+
+- Único NOTICE: `DROP TRIGGER IF EXISTS` (inofensivo). Cero errores.
+
+## 3. Despliegue de código
+- `main` actualizada por fast-forward a `db1509e`.
+- Deploy disparado vía Dokploy API (`POST /api/application.deploy`, HTTP 200) para:
+  - `motopartes-api` (`app-reboot-neural-alarm-2wz9br`, id `ELFE1JRABBmYk3SwTXl3J`)
+  - `motopartes-frontend` (`app-input-virtual-array-jtzxvv`, id `FqqKFeBMC7ViF-C8Hb0vi`)
+- Build nixpacks (npm install -> `prisma generate` con el nuevo esquema -> start). Contenedores
+  recreados (~01:02 UTC), Up.
+
+## 4. Smoke tests en producción (https://motopartes.cloud)
+| Prueba | Resultado |
+|---|---|
+| GET /api/health | 200 `{"status":"ok"}` |
+| Frontend `/` carga (sin pantalla blanca) | 200, `<title>MotoPartes ...</title>` + `id="root"` |
+| GET /api/clients/search?q=ana | 401 (ruta nueva viva; el código viejo daría 404) |
+| GET /api/order-payments/order/x | 401 (ruta nueva viva) |
+| GET /api/earnings/order/x | 401 (ruta nueva viva) |
+| Logs API al arrancar | `MotoPartes API running` + `Server listening`, sin errores Prisma |
+| 500s en logs | 0 |
+| Tráfico real de usuarios | sí (`/api/questions/answers` -> 200) — sistema vivo y sano |
+| Login / órdenes / clientes existentes | sin afectación (datos intactos, API arriba) |
+
+## 5. Estado final
+PRODUCCIÓN DESPLEGADA Y VERIFICADA. Migración aplicada con backup previo validado, código nuevo
+en vivo, endpoints nuevos respondiendo, frontend cargando, sin 500s, datos existentes intactos.
+
+## 6. Acción de seguridad requerida (IMPORTANTE)
+Las credenciales usadas en esta sesión deben rotarse ahora:
+- Contraseña SSH de `root@187.77.11.79`.
+- Token de API de Dokploy.
+- (Recomendado) contraseña de la DB `motopartes`.
+Además, los logs muestran que `WHATSAPP_API_KEY` y `JWT_SECRET` siguen en su fallback legacy en
+Dokploy (warnings al arrancar) — conviene fijarlos en Dokploy -> app -> Environment (rotar `JWT_SECRET`
+cierra todas las sesiones una vez, por diseño).
