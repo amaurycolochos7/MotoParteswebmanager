@@ -199,26 +199,47 @@ recomiendo **rotar esas credenciales**. La rama quedó pusheada y lista para PR.
 
 ### Mecanismo real de aplicación del esquema en producción
 
-El `CMD` del Dockerfile de la API ejecuta en cada arranque:
-
-```
-npx prisma db push --accept-data-loss && node prisma/seed-super-admin.js; node src/index.js
-```
-
-Es decir, **producción sincroniza el esquema desde `schema.prisma` con
-`prisma db push`**, NO desde los `.sql` de `migrations/`. Por eso `schema.prisma`
-es la fuente de verdad. Se declararon los índices nuevos como `@@index` en el
-schema (`order_photos[order_id, evidence_type]`, `order_photos[quotation_id]`,
-`quotations[order_id]`) para que `db push` los cree. El archivo
-`008_service_evidences.sql` queda como **equivalente manual** (para staging o
+El `CMD` del Dockerfile de la API sincroniza el esquema desde `schema.prisma` al
+arrancar. Por eso `schema.prisma` es la fuente de verdad. Se declararon los
+índices nuevos como `@@index` en el schema (`order_photos[order_id, evidence_type]`,
+`order_photos[quotation_id]`, `quotations[order_id]`) para que `db push` los cree.
+El archivo `008_service_evidences.sql` queda como **equivalente manual** (para staging o
 aplicación fuera de Dokploy); ambos caminos producen columnas + FKs + índices
-equivalentes (validado en Postgres real: `db push` sincroniza en ~450 ms sin
+equivalentes (validado en Postgres real: `db push` sincroniza en ~290 ms sin
 pérdida de datos; el `.sql` corre idempotente sin pérdida de datos).
 
-> Observación de riesgo (preexistente, no introducida por este cambio): el flag
-> `--accept-data-loss` en el arranque es seguro para cambios **aditivos** como
-> este, pero si `schema.prisma` llegara a divergir de forma destructiva de la BD
-> viva, ese flag aplicaría la pérdida. Para este módulo el diff es 100% aditivo.
+### 6.1 CORRECCIÓN DE SEGURIDAD — eliminado `--accept-data-loss` del arranque
+
+**Riesgo corregido**: el contenedor de la API arrancaba ejecutando
+`prisma db push` con el flag `--accept-data-loss`. Aunque la migración 008 es
+100% aditiva, ese flag haría que, ante cualquier divergencia destructiva futura
+entre `schema.prisma` y la BD viva, el arranque **borrara datos reales** sin
+preguntar.
+
+| | Comando |
+|---|---|
+| **Antes** (riesgoso) | `npx prisma db push --accept-data-loss && node prisma/seed-super-admin.js; node src/index.js` |
+| **Ahora** (seguro) | `npx prisma db push && node prisma/seed-super-admin.js; node src/index.js` |
+
+Sin el flag, `prisma db push`:
+- Aplica automáticamente cambios **aditivos** (como el 008) → el deploy actual no se rompe.
+- **Aborta con exit ≠ 0** si detectara un cambio **destructivo** (drop de
+  columna/tabla, recreate con pérdida) en lugar de ejecutarlo → los datos quedan intactos.
+
+**Migración segura en producción** (para cambios destructivos o como práctica
+recomendada): aplicar el SQL manualmente ANTES del deploy y dejar que el arranque
+solo confirme la sincronía:
+```
+psql "$DATABASE_URL_PROD" -v ON_ERROR_STOP=1 -f migrations/008_service_evidences.sql
+# (equivalente: cd apps/api && DATABASE_URL="$DATABASE_URL_PROD" npx prisma db push)
+```
+
+**Validado en PostgreSQL real** (orden exacto solicitado):
+1. Simulado estado pre-008 (drop de objetos 008) → 0 columnas de evidencia.
+2. `008_service_evidences.sql` aplicado **manualmente** vía psql → 2 columnas de control presentes, sin error.
+3. `npx prisma db push` **sin `--accept-data-loss`** → exit 0, "in sync" en 292 ms, sin prompt de data-loss, datos intactos (5 órdenes / 5 cotizaciones).
+4. API arrancó (`node src/index.js`) → `/api/health` OK.
+5. Prisma Client operativo y **E2E de evidencias 19/19 PASS**.
 
 ### Runbook de deploy (ejecutar con confirmación + backup)
 

@@ -14,7 +14,11 @@ COPY apps/api/src ./src/
 
 EXPOSE 3000
 
-# Run migrations, seed super-admin, then start. `&&` hace fail-fast si db push
-# falla — evitamos arrancar con Prisma Client nuevo contra schema viejo (bug
-# histórico 2026-04-19). El seed es idempotente y no bloqueante.
-CMD npx prisma db push --accept-data-loss && node prisma/seed-super-admin.js; node src/index.js
+# Sincroniza el schema al arrancar SIN `--accept-data-loss` (seguridad de datos).
+# Sin ese flag, `prisma db push` aplica cambios ADITIVOS automáticamente, pero
+# ABORTA (exit != 0) si detectara un cambio destructivo (drop de columna/tabla,
+# recreate con pérdida), en vez de borrar datos reales. El `&&` mantiene el
+# fail-fast: si el push aborta, no seguimos al seed. Las migraciones DESTRUCTIVAS
+# deben aplicarse MANUALMENTE antes del deploy (ver migrations/ y docs).
+# El seed es idempotente; con `;` la API arranca aunque el seed falle.
+CMD npx prisma db push && node prisma/seed-super-admin.js; node src/index.js
