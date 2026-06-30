@@ -8,34 +8,34 @@
 .quotations-page,
 .nq-page,
 .qd-page {
-    --q-rojo: #dc2626;
-    --q-rojo-dark: #b91c1c;
-    --q-rojo-soft: #fee2e2;
-    --q-rojo-border: #fecaca;
-    --q-verde: #15803d;
-    --q-verde-soft: #dcfce7;
-    --q-verde-border: #bbf7d0;
-    --q-azul: #2563eb;
-    --q-azul-soft: #dbeafe;
-    --q-azul-border: #bfdbfe;
-    --q-amarillo: #a16207;
-    --q-amarillo-soft: #fef9c3;
-    --q-amarillo-border: #fde68a;
-    --q-ink: #0f172a;
-    --q-ink-2: #374151;
-    --q-muted: #6b7280;
-    --q-muted-2: #9ca3af;
-    --q-line: #e5e7eb;
-    --q-line-soft: #f3f4f6;
-    --q-bg: #fafafa;
-    --q-bg-card: #ffffff;
-    --q-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
-    --q-shadow-md: 0 4px 14px rgba(15, 23, 42, 0.06);
-    --q-shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.10);
-    --q-radius-sm: 8px;
-    --q-radius: 12px;
-    --q-radius-lg: 16px;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --q-rojo: var(--primary);
+    --q-rojo-dark: var(--primary-dark);
+    --q-rojo-soft: var(--primary-light);
+    --q-rojo-border: #f6cdd0;
+    --q-verde: var(--success);
+    --q-verde-soft: var(--success-light);
+    --q-verde-border: #bbe6c6;
+    --q-azul: var(--color-ink);
+    --q-azul-soft: var(--surface-recessed);
+    --q-azul-border: var(--border-color);
+    --q-amarillo: var(--warning);
+    --q-amarillo-soft: var(--warning-light);
+    --q-amarillo-border: #f3e2c2;
+    --q-ink: var(--text-primary);
+    --q-ink-2: var(--color-slate);
+    --q-muted: var(--text-secondary);
+    --q-muted-2: var(--text-muted);
+    --q-line: var(--border-color);
+    --q-line-soft: var(--border-light);
+    --q-bg: var(--surface-canvas);
+    --q-bg-card: var(--surface-card);
+    --q-shadow-sm: var(--shadow-sm);
+    --q-shadow-md: var(--shadow-md);
+    --q-shadow-lg: var(--shadow-lg);
+    --q-radius-sm: 12px;
+    --q-radius: 16px;
+    --q-radius-lg: 22px;
+    font-family: var(--font-text);
 }
 
 /* ============ ANIMACIONES COMPARTIDAS ============ */

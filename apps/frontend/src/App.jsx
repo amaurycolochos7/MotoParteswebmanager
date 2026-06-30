@@ -77,6 +77,7 @@ import {
 // Public Pages
 import ClientPortal from './pages/public/ClientPortal';
 import Landing from './pages/public/Landing';
+import NotFound from './pages/public/NotFound';
 import Blog from './pages/public/Blog';
 import BlogPost from './pages/public/BlogPost';
 import Cases from './pages/public/Cases';
@@ -251,17 +252,8 @@ function AppRoutes() {
         }
       />
 
-      {/* 404 → dashboard si autenticado, landing si no */}
-      <Route
-        path="*"
-        element={
-          isAuthenticated ? (
-            <Navigate to={getDefaultRoute()} replace />
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
+      {/* 404 → página diseñada de "no encontrado" */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

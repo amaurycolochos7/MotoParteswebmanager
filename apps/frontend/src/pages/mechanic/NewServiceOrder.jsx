@@ -818,12 +818,12 @@ export default function NewServiceOrder() {
                     font-size: 1.5rem;
                     font-weight: 700;
                     margin: 0 0 8px 0;
-                    color: #1e293b;
+                    color: var(--text-primary);
                 }
 
                 .status-message {
                     font-size: 1rem;
-                    color: #64748b;
+                    color: var(--text-secondary);
                     margin: 0;
                 }
             `}</style>
@@ -1369,7 +1369,7 @@ export default function NewServiceOrder() {
                                                 padding: '16px 0 4px 0'
                                             }}>
                                                 <span style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1f2937' }}>TOTAL A PAGAR</span>
-                                                <span style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0071e3' }}>{formatMXN(grandTotal)}</span>
+                                                <span style={{ fontSize: '1.4rem', fontWeight: '800', color: '#d71920' }}>{formatMXN(grandTotal)}</span>
                                             </div>
                                         </div>
                                     );
@@ -2742,11 +2742,11 @@ export default function NewServiceOrder() {
 
         /* Services Summary - Premium Design */
         .services-summary {
-          background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+          background: var(--surface-card);
           border: 1px solid var(--border-color);
           border-radius: var(--radius-xl);
           overflow: visible;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+          box-shadow: none;
         }
 
         .summary-title {
@@ -2756,8 +2756,9 @@ export default function NewServiceOrder() {
           font-size: 1rem;
           font-weight: 700;
           padding: 1rem 1.25rem;
-          background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-          color: white;
+          background: var(--surface-recessed);
+          color: var(--text-primary);
+          border-bottom: 1px solid var(--border-color);
           margin: 0;
         }
 
@@ -2811,7 +2812,7 @@ export default function NewServiceOrder() {
         }
 
         .summary-total-section {
-          background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+          background: var(--primary);
           padding: 1.25rem;
           text-align: center;
         }

@@ -355,7 +355,7 @@ export default function Login() {
         .login-input-wrapper:focus-within {
           border-color: var(--primary);
           background: var(--surface-card);
-          box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.12);
+          box-shadow: 0 0 0 4px rgba(215, 25, 32, 0.12);
         }
 
         .login-input-wrapper .form-input {
