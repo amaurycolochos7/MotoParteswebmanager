@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    ArrowLeft,
     Search,
     Phone,
     User,
@@ -11,7 +10,6 @@ import {
     Trash2,
     Wrench,
     Package,
-    FileText,
     Save,
     Loader2,
     X,
@@ -20,6 +18,7 @@ import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
 import { quotationsService, clientsService } from '../../lib/api';
 import ClientHistoryPanel from '../../components/clients/ClientHistoryPanel';
+import { PageHeader, Button } from '../../components/ui';
 import './Quotations.css';
 
 function formatMXN(amount) {
@@ -235,14 +234,7 @@ export default function NewQuotation() {
 
     return (
         <div className="nq-page">
-            <div className="nq-topbar">
-                <button className="nq-back" onClick={() => navigate('/mechanic/quotations')}>
-                    <ArrowLeft size={18} />
-                </button>
-                <h1 className="nq-title">
-                    <FileText size={20} /> Nueva cotización
-                </h1>
-            </div>
+            <PageHeader title="Nueva cotización" subtitle="Presupuesto antes de abrir orden" backTo="/mechanic/quotations" />
 
             {/* CLIENT */}
             <section className="nq-section">

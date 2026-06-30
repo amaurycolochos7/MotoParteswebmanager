@@ -31,6 +31,7 @@ import { useToast } from '../../context/ToastContext';
 import { saveOrderPhotos } from '../../services/photoStorageService';
 import { orderRequestsService } from '../../lib/api';
 import { sendDirectMessage, getOrderCreatedMessage } from '../../utils/whatsappHelper';
+import { Stepper } from '../../components/ui';
 
 const STEPS = [
     { id: 1, title: 'Cliente', icon: User },
@@ -838,9 +839,9 @@ export default function NewServiceOrder() {
                 </div>
             </div>
 
-            {/* Progress Bar */}
-            <div className="no-progress">
-                <div className="no-progress-fill" style={{ width: `${(currentStep / STEPS.length) * 100}%` }} />
+            {/* Stepper */}
+            <div className="no-stepper">
+                <Stepper steps={STEPS.map(s => s.title)} current={currentStep - 1} />
             </div>
 
             {/* Step Context */}
@@ -1932,29 +1933,16 @@ export default function NewServiceOrder() {
         }
 
         /* ===== PROGRESS BAR ===== */
-        .no-progress {
-          height: 4px;
-          background: #E5E7EB;
-          border-radius: 2px;
-          margin-bottom: 16px;
-          overflow: hidden;
-        }
-
-        .no-progress-fill {
-          height: 100%;
-          background: #111827;
-          border-radius: 2px;
-          transition: width 0.3s ease;
-        }
-
-        /* ===== STEP CONTEXT ===== */
-        .no-progress {
+        .no-stepper {
+          margin: 6px 0 16px;
+          padding: 0 4px;
           flex-shrink: 0;
         }
 
+        /* ===== STEP CONTEXT ===== */
         .no-step-context {
           font-size: 14px;
-          color: #6B7280;
+          color: var(--text-secondary);
           margin: 0 0 12px 0;
           flex-shrink: 0;
         }

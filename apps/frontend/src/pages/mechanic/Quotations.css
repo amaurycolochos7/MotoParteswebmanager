@@ -359,23 +359,22 @@
 .nq-section {
     background: var(--q-bg-card);
     border: 1px solid var(--q-line);
-    border-radius: var(--q-radius);
-    padding: 16px;
-    margin-bottom: 12px;
-    box-shadow: var(--q-shadow-sm);
+    border-radius: var(--radius-card);
+    padding: 18px 20px;
+    margin-bottom: 14px;
+    box-shadow: none;
     animation: q-fade-in 200ms ease;
 }
 
 .nq-section-title {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    font-weight: 800;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
     color: var(--q-ink);
-    margin: 0 0 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    margin: 0 0 14px;
+    letter-spacing: -0.01em;
 }
 .nq-section-title svg { color: var(--q-rojo); }
 
@@ -392,10 +391,10 @@
 }
 .nq-input {
     width: 100%;
-    padding: 11px 14px;
+    padding: 12px 14px;
     border: 1px solid var(--q-line);
-    border-radius: var(--q-radius-sm);
-    font-size: 14px;
+    border-radius: var(--radius-input);
+    font-size: 16px;
     font-family: inherit;
     background: #fff;
     color: var(--q-ink);
@@ -406,7 +405,7 @@
 .nq-input:focus {
     outline: none;
     border-color: var(--q-rojo);
-    box-shadow: 0 0 0 3px var(--q-rojo-soft);
+    box-shadow: 0 0 0 3.5px var(--q-rojo-soft);
 }
 .nq-input-small { width: 110px; }
 
@@ -434,18 +433,21 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 10px 16px;
-    border-radius: var(--q-radius-sm);
-    font-size: 13px;
-    font-weight: 700;
-    border: none;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: var(--radius-pill);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    border: 1px solid transparent;
     cursor: pointer;
     font-family: inherit;
-    transition: all 120ms ease;
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
     text-decoration: none;
 }
-.nq-btn-primary { background: var(--q-rojo); color: #fff; }
+.nq-btn:active { transform: scale(0.98); }
+.nq-btn-primary { background: var(--q-rojo); color: #fff; border-color: var(--q-rojo); }
 .nq-btn-primary:hover { background: var(--q-rojo-dark); }
 .nq-btn-secondary { background: var(--q-ink); color: #fff; }
 .nq-btn-outline {
@@ -454,7 +456,7 @@
     color: var(--q-ink);
 }
 .nq-btn-outline:hover { background: var(--q-bg); border-color: var(--q-muted-2); }
-.nq-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.nq-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .nq-mt { margin-top: 12px; }
 
 .nq-hint {
@@ -610,26 +612,28 @@
 
 .nq-submit {
     width: 100%;
-    padding: 16px;
+    min-height: 52px;
+    padding: 0 16px;
     background: var(--q-rojo);
     color: #fff;
     border: none;
-    border-radius: var(--q-radius);
+    border-radius: var(--radius-pill);
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 600;
+    letter-spacing: -0.01em;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     font-family: inherit;
-    box-shadow: var(--q-shadow-md);
-    transition: all 120ms ease;
+    box-shadow: none;
+    transition: background 120ms ease, transform 120ms ease;
 }
 .nq-submit:hover:not(:disabled) {
     background: var(--q-rojo-dark);
     transform: translateY(-1px);
-    box-shadow: var(--q-shadow-lg);
+    box-shadow: none;
 }
 .nq-submit:disabled {
     opacity: 0.55;

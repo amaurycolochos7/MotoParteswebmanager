@@ -1,19 +1,13 @@
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import {
-  Plus,
-  ChevronRight,
-  Bike,
-  TrendingUp,
-  ArrowRight,
-  FileText,
-  CheckCircle2,
-  Clock,
-  AlertTriangle
+  Plus, ChevronRight, Bike, TrendingUp, ArrowRight, FileText,
+  CheckCircle2, Clock, AlertTriangle, ClipboardList,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useMemo, useState, useEffect } from 'react';
 import { quotationsService } from '../../lib/api';
+import { ActionCard, MetricCard, StatusChip, EmptyState, Button } from '../../components/ui';
 
 export default function MechanicDashboard() {
   const navigate = useNavigate();
@@ -34,34 +28,26 @@ export default function MechanicDashboard() {
 
   const myActiveOrders = useMemo(() => {
     if (!orders) return [];
-    return orders.filter(o =>
-      o.mechanic_id === user?.id && !o.status?.is_terminal
-    );
+    return orders.filter(o => o.mechanic_id === user?.id && !o.status?.is_terminal);
   }, [orders, user]);
 
   const stats = useMemo(() => {
     if (!orders || !user) {
       return { weekEarnings: 0, prevWeekEarnings: 0, inProcess: 0, readyToDeliver: 0, finishedToday: 0, authorized: 0, deliveryDue: 0 };
     }
-
     const now = new Date();
-
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
     weekStart.setHours(0, 0, 0, 0);
-
     const prevWeekStart = new Date(weekStart);
     prevWeekStart.setDate(prevWeekStart.getDate() - 7);
-
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
 
     const myOrders = orders.filter(o => o.mechanic_id === user.id);
     const myPaidOrders = myOrders.filter(o => o.is_paid);
 
-    const weekOrders = myPaidOrders.filter(o =>
-      new Date(o.paid_at || o.created_at) >= weekStart
-    );
+    const weekOrders = myPaidOrders.filter(o => new Date(o.paid_at || o.created_at) >= weekStart);
     const weekEarnings = weekOrders.reduce((sum, o) => sum + (parseFloat(o.labor_total) || 0), 0);
 
     const prevWeekOrders = myPaidOrders.filter(o => {
@@ -71,22 +57,17 @@ export default function MechanicDashboard() {
     const prevWeekEarnings = prevWeekOrders.reduce((sum, o) => sum + (parseFloat(o.labor_total) || 0), 0);
 
     const inProcess = myActiveOrders.filter(o => {
-      const statusName = (o.status?.name || '').toLowerCase();
-      return !statusName.includes('lista') && !statusName.includes('entregar');
+      const s = (o.status?.name || '').toLowerCase();
+      return !s.includes('lista') && !s.includes('entregar');
     }).length;
-
     const readyToDeliver = myActiveOrders.filter(o => {
-      const statusName = (o.status?.name || '').toLowerCase();
-      return statusName.includes('lista') || statusName.includes('entregar');
+      const s = (o.status?.name || '').toLowerCase();
+      return s.includes('lista') || s.includes('entregar');
     }).length;
-
     const finishedToday = myOrders.filter(o => {
       if (!o.status?.is_terminal) return false;
-      const d = new Date(o.updated_at || o.created_at);
-      return d >= todayStart;
+      return new Date(o.updated_at || o.created_at) >= todayStart;
     }).length;
-
-    // ELIHU: órdenes "Autorizada" y entregas próximas/vencidas (estimated_delivery_at).
     const authorized = myActiveOrders.filter(o => (o.status?.name || '').toLowerCase().includes('autorizada')).length;
     const soon = new Date(now); soon.setDate(soon.getDate() + 2);
     const deliveryDue = myActiveOrders.filter(o => o.estimated_delivery_at && new Date(o.estimated_delivery_at) <= soon).length;
@@ -94,14 +75,8 @@ export default function MechanicDashboard() {
     return { weekEarnings, prevWeekEarnings, inProcess, readyToDeliver, finishedToday, authorized, deliveryDue };
   }, [orders, user, myActiveOrders]);
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount || 0);
-  };
+  const formatCurrency = (amount) =>
+    new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount || 0);
 
   const todayFormatted = useMemo(() => {
     const now = new Date();
@@ -115,488 +90,160 @@ export default function MechanicDashboard() {
     return Math.round(((stats.weekEarnings - stats.prevWeekEarnings) / stats.prevWeekEarnings) * 100);
   }, [stats]);
 
-  const getStatusChip = (statusName) => {
-    const name = (statusName || '').toLowerCase();
-    if (name.includes('lista') || name.includes('entregar')) {
-      return { bg: '#DCFCE7', color: '#15803D', border: '#BBF7D0' };
-    }
-    if (name.includes('diagnóstico') || name.includes('diagnostico')) {
-      return { bg: '#FEF9C3', color: '#A16207', border: '#FDE68A' };
-    }
-    return { bg: '#F3F4F6', color: '#374151', border: '#E5E7EB' };
-  };
-
   if (loading) {
     return (
-      <div className="db">
-        <div style={{ height: 20, width: '30%', background: '#E5E7EB', borderRadius: 4, marginBottom: 4 }}></div>
-        <div style={{ height: 14, width: '25%', background: '#F3F4F6', borderRadius: 3, marginBottom: 20 }}></div>
-        <div style={{ height: 60, background: '#E5E7EB', borderRadius: 10, marginBottom: 28 }}></div>
-        <div style={{ height: 14, width: '35%', background: '#E5E7EB', borderRadius: 3, marginBottom: 12 }}></div>
-        {[1, 2].map(i => <div key={i} style={{ height: 72, background: '#F3F4F6', borderRadius: 10, marginBottom: 8 }}></div>)}
-        <div style={{ height: 80, background: '#F3F4F6', borderRadius: 10, marginTop: 20, marginBottom: 8 }}></div>
-        <div style={{ height: 80, background: '#F3F4F6', borderRadius: 10 }}></div>
+      <div className="mdash">
+        <div className="mdash__skel" style={{ width: '40%', height: 26 }} />
+        <div className="mdash__skel" style={{ width: '30%', height: 14, marginBottom: 22 }} />
+        <div className="mdash__skel" style={{ height: 78, borderRadius: 22, marginBottom: 12 }} />
+        <div className="mdash__skel" style={{ height: 78, borderRadius: 22, marginBottom: 24 }} />
+        <div className="mdash__skel" style={{ height: 72, borderRadius: 22, marginBottom: 8 }} />
+        <div className="mdash__skel" style={{ height: 72, borderRadius: 22 }} />
       </div>
     );
   }
 
   return (
-    <div className="db">
-      {/* ===== HEADER ===== */}
-      <div className="db-h">
-        <h1 className="db-name">{user?.full_name?.split(' ')[0]}</h1>
-        <span className="db-status">
+    <div className="mdash">
+      {/* Greeting */}
+      <header className="mdash__greet">
+        <h1 className="mdash__name">Hola, {user?.full_name?.split(' ')[0] || 'mecánico'}</h1>
+        <p className="mdash__status">
           {myActiveOrders.length > 0
             ? `${myActiveOrders.length} orden${myActiveOrders.length > 1 ? 'es' : ''} activa${myActiveOrders.length > 1 ? 's' : ''}`
-            : 'Sin órdenes activas'}
-        </span>
-        <span className="db-date">{todayFormatted}</span>
+            : 'Sin órdenes activas hoy'}
+          <span className="mdash__date"> · {todayFormatted}</span>
+        </p>
+      </header>
+
+      {/* Primary actions */}
+      <div className="mdash__actions">
+        <ActionCard
+          to="/mechanic/new-order"
+          tone="brand"
+          icon={<Plus size={22} strokeWidth={2.4} />}
+          title="Crear nueva orden"
+          subtitle="Recibe una moto al taller"
+        />
+        <ActionCard
+          to="/mechanic/quotations/new"
+          tone="neutral"
+          icon={<FileText size={20} strokeWidth={2.2} />}
+          title="Nueva cotización"
+          subtitle="Cotiza antes de autorizar"
+        />
       </div>
 
-      {/* ===== CTA ===== */}
-      <Link to="/mechanic/new-order" className="db-cta">
-        <Plus size={22} strokeWidth={2.5} />
-        Crear nueva orden
-      </Link>
-
-      {/* ===== CTA SECUNDARIA: COTIZACIÓN ===== */}
-      <Link to="/mechanic/quotations/new" className="db-cta-secondary">
-        <FileText size={18} strokeWidth={2.2} />
-        Nueva cotización
-      </Link>
-
-      {/* ===== ÓRDENES ACTIVAS (PROTAGONISTA) ===== */}
-      <div className="db-block">
-        <div className="db-block-head">
-          <h2 className="db-block-title">Órdenes activas</h2>
+      {/* Active orders */}
+      <section className="mdash__block">
+        <div className="mdash__block-head">
+          <h2 className="mdash__block-title">Órdenes activas</h2>
           {myActiveOrders.length > 0 && (
-            <Link to="/mechanic/orders" className="db-link">
-              Todo <ChevronRight size={15} />
-            </Link>
+            <button className="mdash__link" onClick={() => navigate('/mechanic/orders')}>
+              Ver todas <ChevronRight size={15} />
+            </button>
           )}
         </div>
 
         {myActiveOrders.length === 0 ? (
-          <div className="db-empty">
-            <p>Sin órdenes activas</p>
-            <Link to="/mechanic/new-order" className="db-empty-btn">
-              <Plus size={15} /> Nueva orden
-            </Link>
-          </div>
+          <EmptyState
+            icon={<ClipboardList size={26} />}
+            title="Sin órdenes activas"
+            message="Cuando recibas una moto, aparecerá aquí."
+            action={<Button onClick={() => navigate('/mechanic/new-order')} variant="primary" size="sm" leftIcon={<Plus size={16} />}>Nueva orden</Button>}
+          />
         ) : (
-          <div className="db-list">
-            {myActiveOrders.slice(0, 5).map(order => {
-              const chip = getStatusChip(order.status?.name);
-              return (
-                <button
-                  key={order.id}
-                  className="db-ord"
-                  onClick={() => navigate(`/mechanic/order/${order.id}`)}
-                >
-                  <div className="db-ord-main">
-                    <div className="db-ord-client">{order.client?.full_name}</div>
-                    {order.motorcycle && (
-                      <div className="db-ord-moto">
-                        <Bike size={12} />
-                        {order.motorcycle?.brand} {order.motorcycle?.model}
-                      </div>
-                    )}
-                    <div className="db-ord-code">#{order.order_number}</div>
-                  </div>
-                  <span
-                    className="db-chip"
-                    style={{ background: chip.bg, color: chip.color, borderColor: chip.border }}
-                  >
-                    {order.status?.name}
-                  </span>
-                  <ArrowRight size={15} className="db-arrow" />
-                </button>
-              );
-            })}
+          <div className="mdash__orders">
+            {myActiveOrders.slice(0, 5).map(order => (
+              <button key={order.id} className="mdash__order" onClick={() => navigate(`/mechanic/order/${order.id}`)}>
+                <div className="mdash__order-main">
+                  <div className="mdash__order-client">{order.client?.full_name}</div>
+                  {order.motorcycle && (
+                    <div className="mdash__order-moto">
+                      <Bike size={12} /> {order.motorcycle?.brand} {order.motorcycle?.model}
+                    </div>
+                  )}
+                  <div className="mdash__order-code">#{order.order_number}</div>
+                </div>
+                <StatusChip status={order.status?.name} />
+                <ArrowRight size={15} className="mdash__order-arrow" />
+              </button>
+            ))}
           </div>
         )}
+      </section>
+
+      {/* Quick metrics */}
+      <div className="mdash__metrics">
+        <MetricCard value={stats.inProcess} label="En proceso" onClick={() => navigate('/mechanic/orders')} />
+        <MetricCard value={stats.readyToDeliver} label="Listas" tone="success" onClick={() => navigate('/mechanic/orders')} />
+        <MetricCard value={stats.finishedToday} label="Finalizadas" onClick={() => navigate('/mechanic/history')} />
       </div>
 
-      {/* ===== RESUMEN RÁPIDO ===== */}
-      <div className="db-stats">
-        <div className="db-stat" onClick={() => navigate('/mechanic/orders')}>
-          <span className="db-stat-n">{stats.inProcess}</span>
-          <span className="db-stat-l">En proceso</span>
-        </div>
-        <div className="db-stat-div"></div>
-        <div className="db-stat" onClick={() => navigate('/mechanic/orders')}>
-          <span className="db-stat-n db-stat-n--g">{stats.readyToDeliver}</span>
-          <span className="db-stat-l">Listas</span>
-        </div>
-        <div className="db-stat-div"></div>
-        <div className="db-stat" onClick={() => navigate('/mechanic/history')}>
-          <span className="db-stat-n">{stats.finishedToday}</span>
-          <span className="db-stat-l">Finalizadas</span>
-        </div>
+      {/* ELIHU metrics */}
+      <div className="mdash__metrics">
+        <MetricCard value={stats.authorized} label="Autorizadas" tone="brand" icon={<CheckCircle2 size={16} />} onClick={() => navigate('/mechanic/orders')} />
+        <MetricCard value={pendingQuotes} label="Por autorizar" tone="warning" icon={<FileText size={16} />} onClick={() => navigate('/mechanic/quotations')} />
+        <MetricCard
+          value={stats.deliveryDue}
+          label="Entregas próximas"
+          tone={stats.deliveryDue > 0 ? 'warning' : 'ink'}
+          icon={stats.deliveryDue > 0 ? <AlertTriangle size={16} /> : <Clock size={16} />}
+          onClick={() => navigate('/mechanic/orders')}
+        />
       </div>
 
-      {/* ===== ELIHU: AUTORIZADA / COTIZACIONES / ENTREGAS ===== */}
-      <div className="db-stats" style={{ marginTop: 10 }}>
-        <div className="db-stat" onClick={() => navigate('/mechanic/orders')}>
-          <span className="db-stat-n" style={{ color: '#0ea5e9', display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={18} />{stats.authorized}</span>
-          <span className="db-stat-l">Autorizadas</span>
-        </div>
-        <div className="db-stat-div"></div>
-        <div className="db-stat" onClick={() => navigate('/mechanic/quotations')}>
-          <span className="db-stat-n" style={{ color: '#b45309', display: 'inline-flex', alignItems: 'center', gap: 4 }}><FileText size={18} />{pendingQuotes}</span>
-          <span className="db-stat-l">Por autorizar</span>
-        </div>
-        <div className="db-stat-div"></div>
-        <div className="db-stat" onClick={() => navigate('/mechanic/orders')}>
-          <span className="db-stat-n" style={{ color: stats.deliveryDue > 0 ? '#dc2626' : '#0F172A', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            {stats.deliveryDue > 0 ? <AlertTriangle size={18} /> : <Clock size={18} />}{stats.deliveryDue}
-          </span>
-          <span className="db-stat-l">Entregas próximas</span>
-        </div>
-      </div>
-
-      {/* ===== INGRESOS ===== */}
-      <div className="db-earn" onClick={() => navigate('/mechanic/earnings?period=week')}>
-        <div className="db-earn-top">
-          <span className="db-earn-label">Ingresos semana</span>
+      {/* Earnings */}
+      <button className="mdash__earn" onClick={() => navigate('/mechanic/earnings?period=week')}>
+        <div className="mdash__earn-top">
+          <span className="mdash__earn-label">Ingresos de la semana</span>
           {weekGrowth !== null && (
-            <span className={`db-earn-badge ${weekGrowth >= 0 ? 'up' : 'down'}`}>
-              <TrendingUp size={12} />
-              {weekGrowth >= 0 ? '+' : ''}{weekGrowth}%
+            <span className={`mdash__earn-badge ${weekGrowth >= 0 ? 'up' : 'down'}`}>
+              <TrendingUp size={12} />{weekGrowth >= 0 ? '+' : ''}{weekGrowth}%
             </span>
           )}
         </div>
-        <span className="db-earn-amount">{formatCurrency(stats.weekEarnings)}</span>
-      </div>
+        <span className="mdash__earn-amount">{formatCurrency(stats.weekEarnings)}</span>
+      </button>
 
       <style>{`
-        .db {
-          background: #F4F5F7;
-          min-height: 100%;
-          padding: 20px 18px 40px;
-        }
+        .mdash { padding: 20px 16px 40px; max-width: 720px; margin: 0 auto; }
+        .mdash__skel { background: var(--surface-recessed); border-radius: 8px; margin-bottom: 8px; animation: mp-skel 1.4s infinite; }
+        @keyframes mp-skel { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
 
-        /* ===== HEADER ===== */
-        .db-h {
-          margin-bottom: 20px;
-        }
+        .mdash__greet { margin-bottom: 20px; }
+        .mdash__name { font-size: 26px; font-weight: 700; letter-spacing: -0.022em; color: var(--color-ink); margin: 0; line-height: 1.1; }
+        .mdash__status { font-size: 14px; color: var(--text-secondary); margin: 4px 0 0; font-weight: 400; }
+        .mdash__date { color: var(--text-muted); }
 
-        .db-name {
-          font-size: 24px;
-          font-weight: 800;
-          color: #0F172A;
-          margin: 0;
-          line-height: 1.1;
-          letter-spacing: -0.02em;
-        }
+        .mdash__actions { display: flex; flex-direction: column; gap: 10px; margin-bottom: 26px; }
 
-        .db-status {
-          display: block;
-          font-size: 14px;
-          font-weight: 600;
-          color: #374151;
-          margin-top: 3px;
-        }
+        .mdash__block { margin-bottom: 22px; }
+        .mdash__block-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .mdash__block-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--color-ink); margin: 0; }
+        .mdash__link { display: inline-flex; align-items: center; gap: 2px; font-size: 13px; font-weight: 500; color: var(--text-secondary); background: none; border: none; cursor: pointer; }
+        .mdash__link:hover { color: var(--color-ink); }
 
-        .db-date {
-          display: block;
-          font-size: 11px;
-          color: #9CA3AF;
-          font-weight: 500;
-          margin-top: 2px;
-          letter-spacing: 0.02em;
-        }
+        .mdash__orders { display: flex; flex-direction: column; gap: 8px; }
+        .mdash__order { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 16px; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: var(--radius-card); cursor: pointer; font-family: var(--font-text); text-align: left; transition: border-color var(--transition-fast), transform var(--transition-fast); }
+        .mdash__order:hover { border-color: #d2d2d7; transform: translateY(-1px); }
+        .mdash__order-main { flex: 1; min-width: 0; }
+        .mdash__order-client { font-size: 15px; font-weight: 600; color: var(--color-ink); line-height: 1.2; }
+        .mdash__order-moto { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+        .mdash__order-code { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+        .mdash__order-arrow { color: var(--text-muted); flex-shrink: 0; }
 
-        /* ===== CTA ===== */
-        .db-cta {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          width: 100%;
-          height: 60px;
-          background: #111827;
-          color: #F9FAFB;
-          border: none;
-          border-radius: 10px;
-          font-size: 17px;
-          font-weight: 700;
-          font-family: inherit;
-          text-decoration: none;
-          cursor: pointer;
-          transition: background 0.12s;
-          margin-bottom: 28px;
-          letter-spacing: -0.01em;
-        }
+        .mdash__metrics { display: flex; gap: 8px; margin-bottom: 10px; }
 
-        .db-cta:hover { background: #000; }
-        .db-cta:active { transform: scale(0.995); }
-
-        /* CTA secundaria: cotización */
-        .db-cta-secondary {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          width: 100%;
-          height: 48px;
-          background: white;
-          color: #111827;
-          border: 1px solid #D1D5DB;
-          border-radius: 10px;
-          font-size: 14px;
-          font-weight: 700;
-          font-family: inherit;
-          text-decoration: none;
-          cursor: pointer;
-          transition: background 0.12s, border-color 0.12s;
-          margin-top: -16px;
-          margin-bottom: 28px;
-          letter-spacing: -0.005em;
-        }
-        .db-cta-secondary:hover {
-          background: #F9FAFB;
-          border-color: #9CA3AF;
-        }
-        .db-cta-secondary:active { transform: scale(0.995); }
-
-        /* ===== BLOCK ===== */
-        .db-block {
-          margin-bottom: 20px;
-        }
-
-        .db-block-head {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 10px;
-        }
-
-        .db-block-title {
-          font-size: 13px;
-          font-weight: 700;
-          color: #0F172A;
-          margin: 0;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .db-link {
-          display: flex;
-          align-items: center;
-          gap: 1px;
-          font-size: 12px;
-          font-weight: 600;
-          color: #9CA3AF;
-          text-decoration: none;
-        }
-        .db-link:hover { color: #374151; }
-
-        /* ===== EMPTY ===== */
-        .db-empty {
-          background: white;
-          border: 1px solid #E5E7EB;
-          border-radius: 10px;
-          padding: 28px 16px;
-          text-align: center;
-        }
-
-        .db-empty p {
-          font-size: 13px;
-          color: #9CA3AF;
-          margin: 0 0 10px;
-        }
-
-        .db-empty-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          padding: 8px 16px;
-          background: #111827;
-          color: white;
-          font-size: 12px;
-          font-weight: 700;
-          border-radius: 8px;
-          text-decoration: none;
-        }
-
-        /* ===== ORDERS ===== */
-        .db-list {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .db-ord {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          width: 100%;
-          padding: 12px 14px;
-          background: white;
-          border: 1px solid #E5E7EB;
-          border-radius: 10px;
-          cursor: pointer;
-          font-family: inherit;
-          text-align: left;
-          transition: border-color 0.12s;
-        }
-
-        .db-ord:hover {
-          border-color: #D1D5DB;
-        }
-
-        .db-ord:active {
-          background: #FAFAFA;
-        }
-
-        .db-ord-main {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .db-ord-client {
-          font-size: 15px;
-          font-weight: 700;
-          color: #0F172A;
-          line-height: 1.2;
-        }
-
-        .db-ord-moto {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 12px;
-          color: #9CA3AF;
-          margin-top: 1px;
-        }
-
-        .db-ord-code {
-          font-size: 11px;
-          color: #D1D5DB;
-          margin-top: 2px;
-          font-weight: 500;
-        }
-
-        .db-chip {
-          display: inline-block;
-          padding: 4px 10px;
-          border-radius: 6px;
-          font-size: 11px;
-          font-weight: 700;
-          white-space: nowrap;
-          border: 1px solid;
-          flex-shrink: 0;
-          letter-spacing: 0.01em;
-        }
-
-        .db-arrow {
-          color: #D1D5DB;
-          flex-shrink: 0;
-        }
-
-        /* ===== STATS ===== */
-        .db-stats {
-          display: flex;
-          align-items: center;
-          background: white;
-          border: 1px solid #E5E7EB;
-          border-radius: 10px;
-          padding: 14px 0;
-          margin-bottom: 10px;
-        }
-
-        .db-stat {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 2px;
-          cursor: pointer;
-        }
-
-        .db-stat-n {
-          font-size: 26px;
-          font-weight: 800;
-          color: #0F172A;
-          line-height: 1;
-        }
-
-        .db-stat-n--g { color: #15803D; }
-
-        .db-stat-l {
-          font-size: 10px;
-          color: #9CA3AF;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-        }
-
-        .db-stat-div {
-          width: 1px;
-          height: 32px;
-          background: #E5E7EB;
-          flex-shrink: 0;
-        }
-
-        /* ===== EARNINGS ===== */
-        .db-earn {
-          background: white;
-          border: 1px solid #E5E7EB;
-          border-radius: 10px;
-          padding: 16px 18px;
-          cursor: pointer;
-          transition: border-color 0.12s;
-        }
-
-        .db-earn:hover { border-color: #D1D5DB; }
-
-        .db-earn-top {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 4px;
-        }
-
-        .db-earn-label {
-          font-size: 11px;
-          font-weight: 700;
-          color: #9CA3AF;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-        }
-
-        .db-earn-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 3px;
-          font-size: 11px;
-          font-weight: 700;
-          padding: 2px 8px;
-          border-radius: 4px;
-        }
-
-        .db-earn-badge.up {
-          background: #DCFCE7;
-          color: #15803D;
-        }
-
-        .db-earn-badge.down {
-          background: #FEE2E2;
-          color: #DC2626;
-        }
-
-        .db-earn-badge.down svg {
-          transform: rotate(180deg);
-        }
-
-        .db-earn-amount {
-          font-size: 32px;
-          font-weight: 800;
-          color: #0F172A;
-          line-height: 1;
-          letter-spacing: -0.02em;
-        }
+        .mdash__earn { display: block; width: 100%; text-align: left; margin-top: 12px; padding: 18px 20px; background: var(--surface-card); border: 1px solid var(--border-color); border-radius: var(--radius-card); cursor: pointer; font-family: var(--font-text); transition: border-color var(--transition-fast); }
+        .mdash__earn:hover { border-color: #d2d2d7; }
+        .mdash__earn-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .mdash__earn-label { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+        .mdash__earn-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: var(--radius-pill); }
+        .mdash__earn-badge.up { background: var(--success-light); color: var(--success-hover); }
+        .mdash__earn-badge.down { background: var(--danger-light); color: var(--danger-hover); }
+        .mdash__earn-badge.down svg { transform: rotate(180deg); }
+        .mdash__earn-amount { font-size: 32px; font-weight: 700; color: var(--color-ink); line-height: 1; letter-spacing: -0.022em; }
       `}</style>
     </div>
   );
