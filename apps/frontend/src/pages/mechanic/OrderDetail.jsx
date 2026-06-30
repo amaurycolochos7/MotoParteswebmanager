@@ -941,11 +941,11 @@ export default function OrderDetail() {
                                 setSavingDelivery(false);
                             }
                         }}
-                        style={{ padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 15 }}
+                        style={{ padding: '8px 10px', border: '1px solid #d2d2d7', borderRadius: 8, fontSize: 15 }}
                     />
                     {savingDelivery && <Loader2 size={16} className="spinner" />}
                     {order.estimated_delivery_at && (
-                        <span style={{ fontSize: 13, color: '#6b7280' }}>
+                        <span style={{ fontSize: 13, color: '#6e6e73' }}>
                             {new Date(order.estimated_delivery_at).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
                         </span>
                     )}
@@ -1527,7 +1527,7 @@ export default function OrderDetail() {
           top: 0;
           bottom: 0;
           width: 2px;
-          background: var(--border-color, #e5e7eb);
+          background: var(--border-color, #e8e8ed);
         }
         .order-detail .timeline-item {
           position: relative;
@@ -1550,11 +1550,11 @@ export default function OrderDetail() {
         }
         .order-detail .timeline-time {
           font-size: 12px;
-          color: #9ca3af;
+          color: #86868b;
         }
         .order-detail .timeline-note {
           font-size: 13px;
-          color: #6b7280;
+          color: #6e6e73;
           margin: 4px 0 0;
         }
 
@@ -1568,10 +1568,10 @@ export default function OrderDetail() {
           align-items: center;
           gap: 12px;
           padding: 12px 14px;
-          background: #fafafa;
-          border: 2px solid #e5e7eb;
+          background: #f5f5f7;
+          border: 2px solid #e8e8ed;
           border-radius: 10px;
-          color: #1f2937;
+          color: #333333;
           cursor: pointer;
           font-family: inherit;
           font-size: 14px;
@@ -1612,7 +1612,7 @@ export default function OrderDetail() {
           gap: 8px;
           cursor: pointer;
           font-size: 14px;
-          color: #1f2937;
+          color: #333333;
         }
         .order-detail .checkbox-label input[type="checkbox"] {
           width: 18px;

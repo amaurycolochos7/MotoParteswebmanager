@@ -844,7 +844,7 @@ export default function MechanicHistory() {
           align-items: center;
           gap: var(--spacing-md);
           padding: var(--spacing-md);
-          background: linear-gradient(135deg, #3b82f6 0%, #d71920 100%);
+          background: linear-gradient(135deg, #d71920 0%, #d71920 100%);
           border-radius: var(--radius-md);
           box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
         }
@@ -1128,7 +1128,7 @@ export default function MechanicHistory() {
         }
 
         .mechanic-section {
-          background: linear-gradient(135deg, #3b82f6 0%, #d71920 100%);
+          background: linear-gradient(135deg, #d71920 0%, #d71920 100%);
           border: none;
         }
 

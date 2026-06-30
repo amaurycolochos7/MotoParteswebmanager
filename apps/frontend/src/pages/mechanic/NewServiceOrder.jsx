@@ -325,7 +325,7 @@ export default function NewServiceOrder() {
                     </div>
                 </div>
 
-                <div style="padding: 30px 40px; background: #fafafa;">
+                <div style="padding: 30px 40px; background: #f5f5f7;">
                     <!-- Info Cards -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
                         <div style="background: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
@@ -376,16 +376,16 @@ export default function NewServiceOrder() {
                             <p style="margin: 0; font-size: 14px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: white;">Servicios a Realizar</p>
                         </div>
                         <div style="padding: 20px 24px;">
-                            ${formData.customService ? `<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0;"><span style="color: #444; font-size: 15px;">${formData.customService}</span><span style="font-weight: 700; color: #1a1a2e;">${formatMXN((parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0))}</span></div>` : '<div style="padding: 12px 0; color: #94a3b8; font-size: 14px;">Sin descripción de servicio</div>'}
+                            ${formData.customService ? `<div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0;"><span style="color: #444; font-size: 15px;">${formData.customService}</span><span style="font-weight: 700; color: #1a1a2e;">${formatMXN((parseFloat(formData.customServiceLabor) || 0) + (parseFloat(formData.customServiceMaterials) || 0))}</span></div>` : '<div style="padding: 12px 0; color: #86868b; font-size: 14px;">Sin descripción de servicio</div>'}
                             ${downloadPartsTotal > 0 ? `
-                                <div style="margin-top: 12px; padding: 12px 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                <div style="margin-top: 12px; padding: 12px 16px; background: #f5f5f7; border-radius: 8px; border: 1px solid #e8e8ed;">
                                     <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px;">
-                                        <span style="color: #64748b;">Mano de Obra</span>
-                                        <span style="font-weight: 600; color: #334155;">${formatMXN(downloadLaborTotal)}</span>
+                                        <span style="color: #6e6e73;">Mano de Obra</span>
+                                        <span style="font-weight: 600; color: #474747;">${formatMXN(downloadLaborTotal)}</span>
                                     </div>
                                     <div style="display: flex; justify-content: space-between; font-size: 14px;">
-                                        <span style="color: #64748b;">Refacciones</span>
-                                        <span style="font-weight: 600; color: #334155;">${formatMXN(downloadPartsTotal)}</span>
+                                        <span style="color: #6e6e73;">Refacciones</span>
+                                        <span style="font-weight: 600; color: #474747;">${formatMXN(downloadPartsTotal)}</span>
                                     </div>
                                 </div>
                             ` : ''}
@@ -1347,20 +1347,20 @@ export default function NewServiceOrder() {
                                                 justifyContent: 'space-between',
                                                 alignItems: 'center',
                                                 padding: '12px 0',
-                                                borderBottom: '1px solid #f3f4f6'
+                                                borderBottom: '1px solid #f0f0f2'
                                             }}>
-                                                <span style={{ fontSize: '0.95rem', color: '#374151' }}>Mano de obra</span>
-                                                <span style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937' }}>{formatMXN(totalLabor)}</span>
+                                                <span style={{ fontSize: '0.95rem', color: '#474747' }}>Mano de obra</span>
+                                                <span style={{ fontSize: '1rem', fontWeight: '600', color: '#333333' }}>{formatMXN(totalLabor)}</span>
                                             </div>
                                             <div style={{
                                                 display: 'flex',
                                                 justifyContent: 'space-between',
                                                 alignItems: 'center',
                                                 padding: '12px 0',
-                                                borderBottom: '1px solid #f3f4f6'
+                                                borderBottom: '1px solid #f0f0f2'
                                             }}>
-                                                <span style={{ fontSize: '0.95rem', color: '#374151' }}>Refacciones</span>
-                                                <span style={{ fontSize: '1rem', fontWeight: '600', color: '#1f2937' }}>{formatMXN(totalMaterials)}</span>
+                                                <span style={{ fontSize: '0.95rem', color: '#474747' }}>Refacciones</span>
+                                                <span style={{ fontSize: '1rem', fontWeight: '600', color: '#333333' }}>{formatMXN(totalMaterials)}</span>
                                             </div>
                                             <div style={{
                                                 display: 'flex',
@@ -1368,7 +1368,7 @@ export default function NewServiceOrder() {
                                                 alignItems: 'center',
                                                 padding: '16px 0 4px 0'
                                             }}>
-                                                <span style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1f2937' }}>TOTAL A PAGAR</span>
+                                                <span style={{ fontSize: '1.1rem', fontWeight: '700', color: '#333333' }}>TOTAL A PAGAR</span>
                                                 <span style={{ fontSize: '1.4rem', fontWeight: '800', color: '#d71920' }}>{formatMXN(grandTotal)}</span>
                                             </div>
                                         </div>
@@ -1878,7 +1878,7 @@ export default function NewServiceOrder() {
           flex: 1;
           min-height: 0;
           overflow: hidden;
-          background: #F3F4F6;
+          background: #f0f0f2;
           padding: 16px 16px 0 16px;
         }
 
@@ -1897,18 +1897,18 @@ export default function NewServiceOrder() {
           justify-content: center;
           width: 36px;
           height: 36px;
-          border: 1px solid #E5E7EB;
+          border: 1px solid #e8e8ed;
           background: white;
           border-radius: 10px;
           cursor: pointer;
-          color: #374151;
+          color: #474747;
           transition: all 0.15s;
           flex-shrink: 0;
         }
 
         .no-back-btn:hover {
-          background: #F9FAFB;
-          border-color: #D1D5DB;
+          background: #f5f5f7;
+          border-color: #d2d2d7;
         }
 
         .no-header-text {
@@ -1927,14 +1927,14 @@ export default function NewServiceOrder() {
         .no-step-indicator {
           font-size: 12px;
           font-weight: 500;
-          color: #9CA3AF;
+          color: #86868b;
           letter-spacing: 0.02em;
         }
 
         /* ===== PROGRESS BAR ===== */
         .no-progress {
           height: 4px;
-          background: #E5E7EB;
+          background: #e8e8ed;
           border-radius: 2px;
           margin-bottom: 16px;
           overflow: hidden;
@@ -1954,7 +1954,7 @@ export default function NewServiceOrder() {
 
         .no-step-context {
           font-size: 14px;
-          color: #6B7280;
+          color: #6e6e73;
           margin: 0 0 12px 0;
           flex-shrink: 0;
         }
@@ -1991,7 +1991,7 @@ export default function NewServiceOrder() {
         .cl-search-icon {
           position: absolute;
           left: 16px;
-          color: #9CA3AF;
+          color: #86868b;
           pointer-events: none;
           z-index: 1;
         }
@@ -2004,7 +2004,7 @@ export default function NewServiceOrder() {
           font-family: inherit;
           color: #111827;
           background: white;
-          border: 1px solid #E5E7EB;
+          border: 1px solid #e8e8ed;
           border-radius: 12px;
           transition: border-color 0.15s, box-shadow 0.15s;
         }
@@ -2016,7 +2016,7 @@ export default function NewServiceOrder() {
         }
 
         .cl-search-input::placeholder {
-          color: #9CA3AF;
+          color: #86868b;
         }
 
         .cl-search-clear {
@@ -2028,15 +2028,15 @@ export default function NewServiceOrder() {
           width: 28px;
           height: 28px;
           border: none;
-          background: #F3F4F6;
-          color: #6B7280;
+          background: #f0f0f2;
+          color: #6e6e73;
           border-radius: 8px;
           cursor: pointer;
           transition: all 0.15s;
         }
 
         .cl-search-clear:hover {
-          background: #E5E7EB;
+          background: #e8e8ed;
           color: #111827;
         }
 
@@ -2047,25 +2047,25 @@ export default function NewServiceOrder() {
           gap: 12px;
           width: 100%;
           padding: 12px 16px;
-          background: #F9FAFB;
-          border: 1px solid #E5E7EB;
+          background: #f5f5f7;
+          border: 1px solid #e8e8ed;
           border-radius: 12px;
           cursor: pointer;
           transition: all 0.15s;
           font-family: inherit;
           margin-bottom: 16px;
-          color: #374151;
+          color: #474747;
           flex-shrink: 0;
         }
 
         .cl-add-card:hover {
-          background: #F3F4F6;
-          border-color: #D1D5DB;
+          background: #f0f0f2;
+          border-color: #d2d2d7;
         }
 
         .cl-add-card svg {
           flex-shrink: 0;
-          color: #6B7280;
+          color: #6e6e73;
         }
 
         .cl-add-text {
@@ -2082,14 +2082,14 @@ export default function NewServiceOrder() {
 
         .cl-add-text small {
           font-size: 12px;
-          color: #9CA3AF;
+          color: #86868b;
         }
 
         /* --- Results Count --- */
         .cl-count {
           font-size: 12px;
           font-weight: 500;
-          color: #9CA3AF;
+          color: #86868b;
           text-transform: uppercase;
           letter-spacing: 0.04em;
           padding: 0 4px 8px;
@@ -2114,7 +2114,7 @@ export default function NewServiceOrder() {
         }
 
         .cl-cards::-webkit-scrollbar-thumb {
-          background: #D1D5DB;
+          background: #d2d2d7;
           border-radius: 3px;
         }
 
@@ -2130,7 +2130,7 @@ export default function NewServiceOrder() {
           width: 100%;
           padding: 14px 16px;
           background: white;
-          border: 1px solid #E5E7EB;
+          border: 1px solid #e8e8ed;
           border-radius: 12px;
           cursor: pointer;
           transition: all 0.15s;
@@ -2140,13 +2140,13 @@ export default function NewServiceOrder() {
         }
 
         .cl-card:hover {
-          border-color: #D1D5DB;
+          border-color: #d2d2d7;
           box-shadow: 0 2px 6px rgba(0,0,0,0.08);
         }
 
         .cl-card:active {
           transform: scale(0.995);
-          background: #FAFAFA;
+          background: #f5f5f7;
         }
 
         /* --- Card Avatar --- */
@@ -2161,7 +2161,7 @@ export default function NewServiceOrder() {
           font-weight: 700;
           flex-shrink: 0;
           color: white;
-          background: #6B7280;
+          background: #6e6e73;
         }
 
         .cl-card-avatar[data-initial="A"],
@@ -2183,7 +2183,7 @@ export default function NewServiceOrder() {
         .cl-card-avatar[data-initial="Q"],
         .cl-card-avatar[data-initial="R"] { background: #0891B2; }
         .cl-card-avatar[data-initial="S"],
-        .cl-card-avatar[data-initial="T"] { background: #1D4ED8; }
+        .cl-card-avatar[data-initial="T"] { background: #a90f16; }
         .cl-card-avatar[data-initial="U"],
         .cl-card-avatar[data-initial="V"] { background: #9333EA; }
         .cl-card-avatar[data-initial="W"],
@@ -2218,7 +2218,7 @@ export default function NewServiceOrder() {
 
         .cl-card-phone {
           font-size: 12px;
-          color: #6B7280;
+          color: #6e6e73;
           font-variant-numeric: tabular-nums;
         }
 
@@ -2231,17 +2231,17 @@ export default function NewServiceOrder() {
 
         .cl-card-meta span {
           font-size: 11px;
-          color: #9CA3AF;
+          color: #86868b;
         }
 
         .cl-card-arrow {
-          color: #D1D5DB;
+          color: #d2d2d7;
           flex-shrink: 0;
           transition: transform 0.15s;
         }
 
         .cl-card:hover .cl-card-arrow {
-          color: #9CA3AF;
+          color: #86868b;
           transform: translateX(2px);
         }
 
@@ -2262,8 +2262,8 @@ export default function NewServiceOrder() {
         }
 
         .cl-badge-new {
-          background: #F3F4F6;
-          color: #9CA3AF;
+          background: #f0f0f2;
+          color: #86868b;
         }
 
         /* --- Selected Client --- */
@@ -2310,19 +2310,19 @@ export default function NewServiceOrder() {
 
         .cl-selected-info > span {
           font-size: 13px;
-          color: #6B7280;
+          color: #6e6e73;
         }
 
         .cl-selected-meta {
           font-size: 12px;
-          color: #9CA3AF;
+          color: #86868b;
         }
 
         .cl-change-btn {
           padding: 6px 14px;
-          border: 1px solid #E5E7EB;
-          background: #F9FAFB;
-          color: #374151;
+          border: 1px solid #e8e8ed;
+          background: #f5f5f7;
+          color: #474747;
           font-size: 12px;
           font-weight: 600;
           font-family: inherit;
@@ -2334,15 +2334,15 @@ export default function NewServiceOrder() {
         }
 
         .cl-change-btn:hover {
-          background: #F3F4F6;
-          border-color: #D1D5DB;
+          background: #f0f0f2;
+          border-color: #d2d2d7;
           color: #111827;
         }
 
         /* --- New Client Form --- */
         .cl-newform {
           background: white;
-          border: 1px solid #E5E7EB;
+          border: 1px solid #e8e8ed;
           border-radius: 12px;
           padding: 16px;
           box-shadow: 0 1px 3px rgba(0,0,0,0.04);
@@ -2353,10 +2353,10 @@ export default function NewServiceOrder() {
           align-items: center;
           gap: 8px;
           padding: 10px 12px;
-          background: #F3F4F6;
+          background: #f0f0f2;
           border-radius: 8px;
           margin-bottom: 16px;
-          color: #374151;
+          color: #474747;
           font-weight: 600;
           font-size: 14px;
         }
@@ -2372,14 +2372,14 @@ export default function NewServiceOrder() {
           align-items: center;
           gap: 10px;
           padding: 40px 20px;
-          color: #9CA3AF;
+          color: #86868b;
           text-align: center;
         }
 
         .cl-empty p {
           font-size: 14px;
           margin: 0;
-          color: #6B7280;
+          color: #6e6e73;
         }
 
         .cl-empty-btn {
@@ -2399,7 +2399,7 @@ export default function NewServiceOrder() {
         }
 
         .cl-empty-btn:hover {
-          background: #1F2937;
+          background: #333333;
         }
 
         /* Legacy styles kept for other steps */
@@ -2410,11 +2410,11 @@ export default function NewServiceOrder() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #E5E7EB;
+          background: #e8e8ed;
           border: none;
           border-radius: 8px;
           cursor: pointer;
-          color: #6B7280;
+          color: #6e6e73;
           transition: all 0.15s;
         }
 
@@ -2436,7 +2436,7 @@ export default function NewServiceOrder() {
           left: 16px;
           top: 50%;
           transform: translateY(-50%);
-          color: #9CA3AF;
+          color: #86868b;
         }
 
         /* Moto Step */
@@ -2544,7 +2544,7 @@ export default function NewServiceOrder() {
         .service-name {
           font-weight: 600;
           font-size: 0.9375rem;
-          color: #1f2937;
+          color: #333333;
         }
 
         .service-price {
@@ -2558,7 +2558,7 @@ export default function NewServiceOrder() {
           display: flex;
           gap: 16px;
           font-size: 0.75rem;
-          color: #6b7280;
+          color: #6e6e73;
         }
 
         .checkbox-indicator {
@@ -2840,7 +2840,7 @@ export default function NewServiceOrder() {
           padding: 12px 16px;
           padding-bottom: max(12px, env(safe-area-inset-bottom));
           background: white;
-          border-top: 1px solid #E5E7EB;
+          border-top: 1px solid #e8e8ed;
           z-index: 100;
           box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
         }
@@ -2852,9 +2852,9 @@ export default function NewServiceOrder() {
           gap: 6px;
           flex: 1;
           padding: 12px 16px;
-          border: 1px solid #E5E7EB;
+          border: 1px solid #e8e8ed;
           background: white;
-          color: #374151;
+          color: #474747;
           font-size: 14px;
           font-weight: 600;
           font-family: inherit;
@@ -2864,8 +2864,8 @@ export default function NewServiceOrder() {
         }
 
         .no-nav-back:hover {
-          background: #F9FAFB;
-          border-color: #D1D5DB;
+          background: #f5f5f7;
+          border-color: #d2d2d7;
         }
 
         .no-nav-cta {
@@ -2888,7 +2888,7 @@ export default function NewServiceOrder() {
         }
 
         .no-nav-cta:hover {
-          background: #1F2937;
+          background: #333333;
         }
 
         .no-nav-cta:disabled {

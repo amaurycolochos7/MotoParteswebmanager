@@ -133,8 +133,8 @@ export default function AdminBilling() {
         <div style={{ maxWidth: 980, margin: '0 auto', padding: '24px 20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20, marginBottom: 24, flexWrap: 'wrap' }}>
                 <div>
-                    <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800, color: '#0f172a' }}>Facturación y plan</h1>
-                    <p style={{ margin: '4px 0 0', color: '#64748b' }}>Consulta tu plan, uso y cambia de plan cuando quieras.</p>
+                    <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800, color: '#1d1d1f' }}>Facturación y plan</h1>
+                    <p style={{ margin: '4px 0 0', color: '#6e6e73' }}>Consulta tu plan, uso y cambia de plan cuando quieras.</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: '#fef2f2', borderRadius: 999, border: '1px solid #fecaca' }}>
                     <Sparkles size={16} color="#ef4444" />
@@ -146,12 +146,12 @@ export default function AdminBilling() {
 
             {/* Trial banner */}
             {isTrialing && !isFlagship && (
-                <div style={{ padding: 16, borderRadius: 12, background: 'linear-gradient(135deg, #eff6ff, #dbeafe)', border: '1px solid #bfdbfe', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                <div style={{ padding: 16, borderRadius: 12, background: 'linear-gradient(135deg, #fde7e8, #fde7e8)', border: '1px solid #f6cdd0', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                     <div>
-                        <strong style={{ color: '#1e40af', display: 'block', marginBottom: 4 }}>
+                        <strong style={{ color: '#a90f16', display: 'block', marginBottom: 4 }}>
                             Estás probando el plan Pro gratis
                         </strong>
-                        <span style={{ color: '#1e40af', fontSize: '0.9rem' }}>
+                        <span style={{ color: '#a90f16', fontSize: '0.9rem' }}>
                             {trialLeft > 0 ? `Quedan ${trialLeft} días de prueba.` : 'La prueba terminó. Elige un plan para no perder las funciones Pro.'}
                         </span>
                     </div>
@@ -238,8 +238,8 @@ export default function AdminBilling() {
                     {/* Plans */}
                     <div id="plans-section">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 12 }}>
-                            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>Elige tu plan</h2>
-                            <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: 10, padding: 4 }}>
+                            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#1d1d1f' }}>Elige tu plan</h2>
+                            <div style={{ display: 'flex', background: '#f5f5f7', borderRadius: 10, padding: 4 }}>
                                 <button
                                     onClick={() => setInterval('month')}
                                     className={`tab ${interval === 'month' ? 'active' : ''}`}
@@ -299,23 +299,23 @@ export default function AdminBilling() {
                 .bill-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
                 @media (max-width: 720px) { .bill-grid { grid-template-columns: 1fr; } }
                 .bill-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
-                .bill-plan { background: white; border: 2px solid #e2e8f0; border-radius: 14px; padding: 22px 18px; display: flex; flex-direction: column; gap: 8px; }
+                .bill-plan { background: white; border: 2px solid #e8e8ed; border-radius: 14px; padding: 22px 18px; display: flex; flex-direction: column; gap: 8px; }
                 .bill-plan.hl { border-color: #ef4444; box-shadow: 0 12px 28px rgba(239,68,68,0.12); }
-                .bill-plan h3 { margin: 0 0 4px; font-size: 1.15rem; color: #0f172a; }
-                .bill-price .amount { font-size: 1.8rem; font-weight: 800; color: #0f172a; }
-                .bill-price .per { font-size: 0.85rem; color: #64748b; margin-left: 4px; }
-                .bill-plan ul { list-style: none; padding: 0; margin: 10px 0; display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: #475569; }
+                .bill-plan h3 { margin: 0 0 4px; font-size: 1.15rem; color: #1d1d1f; }
+                .bill-price .amount { font-size: 1.8rem; font-weight: 800; color: #1d1d1f; }
+                .bill-price .per { font-size: 0.85rem; color: #6e6e73; margin-left: 4px; }
+                .bill-plan ul { list-style: none; padding: 0; margin: 10px 0; display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: #474747; }
                 .bill-plan ul li:before { content: '✓ '; color: #16a34a; font-weight: 700; }
-                .tab { border: none; background: transparent; padding: 6px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #64748b; cursor: pointer; }
-                .tab.active { background: white; color: #0f172a; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+                .tab { border: none; background: transparent; padding: 6px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #6e6e73; cursor: pointer; }
+                .tab.active { background: white; color: #1d1d1f; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
                 .spin { animation: spin 1s linear infinite; }
                 @keyframes spin { to { transform: rotate(360deg); } }
                 .btn-primary, .btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer; transition: all 0.2s; }
                 .btn-primary { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 4px 12px rgba(239,68,68,0.22); }
                 .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(239,68,68,0.3); }
                 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-                .btn-ghost { background: white; color: #1e293b; border: 2px solid #e2e8f0; }
-                .btn-ghost:hover:not(:disabled) { background: #f8fafc; }
+                .btn-ghost { background: white; color: #1d1d1f; border: 2px solid #e8e8ed; }
+                .btn-ghost:hover:not(:disabled) { background: #f5f5f7; }
                 .btn-ghost:disabled { opacity: 0.55; cursor: default; }
             `}</style>
         </div>
@@ -331,19 +331,19 @@ function UsageCard({ label, used, limit, raw }) {
             : `${Number(used).toLocaleString('es-MX')} / ${Number(limit).toLocaleString('es-MX')}`;
     const near = pct >= 80;
     return (
-        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 14, padding: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748b', fontSize: '0.85rem', marginBottom: 8 }}>
+        <div style={{ background: 'white', border: '1px solid #e8e8ed', borderRadius: 14, padding: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6e6e73', fontSize: '0.85rem', marginBottom: 8 }}>
                 <TrendingUp size={14} />
                 {label}
             </div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: near ? '#dc2626' : '#0f172a' }}>{text}</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: near ? '#dc2626' : '#1d1d1f' }}>{text}</div>
             {!raw && limit !== null && limit !== undefined && (
-                <div style={{ height: 6, background: '#f1f5f9', borderRadius: 999, marginTop: 10, overflow: 'hidden' }}>
+                <div style={{ height: 6, background: '#f5f5f7', borderRadius: 999, marginTop: 10, overflow: 'hidden' }}>
                     <div style={{ width: `${pct}%`, height: '100%', background: near ? '#ef4444' : '#10b981', transition: 'width 0.3s' }}></div>
                 </div>
             )}
             {raw && limit && (
-                <div style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: 6 }}>de {limit}</div>
+                <div style={{ color: '#86868b', fontSize: '0.8rem', marginTop: 6 }}>de {limit}</div>
             )}
         </div>
     );

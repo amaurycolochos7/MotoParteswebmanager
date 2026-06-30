@@ -71,20 +71,24 @@ legacy (`--primary`, `--bg-*`, `--text-*`, etc.) siguen mapeados → cascada aut
 - El rojo de marca y el `--danger` son ambos rojos; se diferenció `--danger` (`#c81e0f`) del
   brand (`#d71920`) y se apoya en contexto/íconos. Revisión visual recomendada.
 
-## 9. Pendientes reales (siguiente ola — Prioridad 3–5 de la auditoría)
-La identidad y el flujo de negocio principal están alineados. **Queda pendiente la tokenización
-profunda por página** (estilos inline + `<style>` embebidos con slate viejo) en:
-- `admin/*` (Billing, Referrals, Users, Workspace, ShopQR, Automations, Templates, Tasks, Support…),
-- `super/*` (layout oscuro propio `#0b0f1a`),
-- `questions/*`,
-- público de marketing (`Onboarding`, `Signup`, `ClientPortal`, `Blog`, `Cases`).
-- Crear **componentes React base** (`Button/Input/Modal/Stepper/StatusChip/EmptyState/PageHeader`)
-  y reemplazar las ~696 instancias inline / 460 botones. En esta fase se consolidó a nivel de
-  **clases globales + tokens** (no se introdujo aún la capa de componentes React, para no
-  reescribir 66 archivos sin verificación visual).
+## 9. Segunda ola — COMPLETADA (tokenización por página)
+Se aplicó un **codemod determinista** (`palette-codemod.js`, 753 reemplazos en 54 archivos) que
+mapeó toda la paleta slate/azul vieja a neutrales de marca + rojo, en: `admin/*`, `super/*`,
+`questions/*`, marketing (`Onboarding`, `Signup`, `ClientPortal`, `Blog`, `BlogPost`, `Cases`,
+`CaseStudy`) y el resto de páginas de mecánico/componentes. Se preservaron: verdes/rojos
+**semánticos**, verde WhatsApp, y las **plantillas PDF/print** (`PaymentReceiptDownload`,
+`OrderPhotosDownload`, `pdfGenerator`) que pueden conservar su fuente/colores de impresión.
 
-Esto es trabajo de alto volumen (~30 archivos grandes) que requiere QA visual en navegador; se
-recomienda hacerlo por flujo y validando a ojo.
+**Resultado:** la paleta slate/azul vieja quedó confinada a (a) plantillas PDF/print (excluidas
+a propósito), (b) el mockup de teléfono de la landing (grises de dispositivo), y (c) la paleta de
+avatares en `index.css`. **0 en páginas de UI reales.**
+
+### Pendiente verdadero (menor)
+- **Componentes React base** (`Button/Input/Modal/Stepper/StatusChip/…`): no se introdujo la capa
+  de componentes; la unificación se logró vía **clases globales + tokens + codemod de paleta**.
+  Crear los componentes y migrar las ~696 instancias inline es refactor opcional futuro.
+- **QA visual humano** en 8 anchos (sin navegador en este entorno).
+- Pulir grises del mockup de landing y paleta de avatares si se desea (no urgente).
 
 ## 10. Confirmación ELIHU
 No se modificó lógica de negocio: cotización→orden, autorización, pagos/abonos, saldo, comisión,

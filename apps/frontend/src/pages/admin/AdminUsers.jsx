@@ -842,16 +842,16 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                 }
 
                 .action-edit {
-                    background: #dbeafe;
-                    color: #2563eb;
+                    background: #fde7e8;
+                    color: #d71920;
                 }
                 
                 .action-edit:hover {
-                    background: #bfdbfe;
+                    background: #f6cdd0;
                 }
 
                 .action-share {
-                    background: #dbeafe;
+                    background: #fde7e8;
                     color: #0891b2; /* cyan-600 */
                 }
                 .action-share:hover {
@@ -1062,7 +1062,7 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
 
                 .user-card-new.inactive {
                     opacity: 0.7;
-                    background: #f8fafc;
+                    background: #f5f5f7;
                 }
 
                 .user-header-new {
@@ -1075,7 +1075,7 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                     width: 52px;
                     height: 52px;
                     min-width: 52px;
-                    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+                    background: linear-gradient(135deg, #d71920, #a90f16);
                     color: white;
                     border-radius: 12px;
                     display: flex;
@@ -1095,7 +1095,7 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                     margin: 0 0 4px 0;
                     font-size: 1.125rem;
                     font-weight: 600;
-                    color: #1e293b;
+                    color: #1d1d1f;
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
@@ -1115,8 +1115,8 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                 }
 
                 .status-indicator.inactive {
-                    background: #f1f5f9;
-                    color: #64748b;
+                    background: #f5f5f7;
+                    color: #6e6e73;
                 }
 
                 .user-contact-new {
@@ -1124,7 +1124,7 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                     flex-direction: column;
                     gap: 8px;
                     padding: 12px 16px;
-                    background: #f8fafc;
+                    background: #f5f5f7;
                     border-radius: 10px;
                 }
 
@@ -1133,11 +1133,11 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                     align-items: center;
                     gap: 10px;
                     font-size: 0.9rem;
-                    color: #475569;
+                    color: #474747;
                 }
 
                 .contact-row svg {
-                    color: #94a3b8;
+                    color: #86868b;
                     flex-shrink: 0;
                 }
 
@@ -1169,11 +1169,11 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                 }
 
                 .action-btn-new.edit {
-                    background: #dbeafe;
-                    color: #2563eb;
+                    background: #fde7e8;
+                    color: #d71920;
                 }
                 .action-btn-new.edit:hover {
-                    background: #bfdbfe;
+                    background: #f6cdd0;
                 }
 
                 .action-btn-new.whatsapp {
@@ -1196,7 +1196,7 @@ Hola *${user.full_name}*, aquí tienes tus datos para ingresar a la plataforma:
                     display: flex;
                     gap: 8px;
                     padding-top: 12px;
-                    border-top: 1px solid #e2e8f0;
+                    border-top: 1px solid #e8e8ed;
                 }
 
                 .danger-btn {

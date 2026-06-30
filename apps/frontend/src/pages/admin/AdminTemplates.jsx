@@ -65,7 +65,7 @@ export default function AdminTemplates() {
                     <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800 }}>
                         <FileText size={22} style={{ verticalAlign: '-4px' }} /> Plantillas de mensaje
                     </h1>
-                    <p style={{ margin: '4px 0 0', color: '#64748b' }}>
+                    <p style={{ margin: '4px 0 0', color: '#6e6e73' }}>
                         Textos reutilizables con placeholders como <code>{'{cliente}'}</code>, <code>{'{folio}'}</code>, <code>{'{total}'}</code>.
                     </p>
                 </div>
@@ -78,14 +78,14 @@ export default function AdminTemplates() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
                 {templates.map((t) => (
-                    <div key={t.id} style={{ padding: 16, background: 'white', border: '1px solid #e2e8f0', borderRadius: 12 }}>
+                    <div key={t.id} style={{ padding: 16, background: 'white', border: '1px solid #e8e8ed', borderRadius: 12 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                             <strong style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <MessageCircle size={14} color="#16a34a" /> {t.name}
                             </strong>
-                            {t.is_default && <span style={{ fontSize: '0.7rem', padding: '2px 8px', background: '#f1f5f9', borderRadius: 999, color: '#475569' }}>default</span>}
+                            {t.is_default && <span style={{ fontSize: '0.7rem', padding: '2px 8px', background: '#f5f5f7', borderRadius: 999, color: '#474747' }}>default</span>}
                         </div>
-                        <div style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5, background: '#f8fafc', padding: 10, borderRadius: 8, marginBottom: 8, whiteSpace: 'pre-wrap' }}>
+                        <div style={{ fontSize: '0.85rem', color: '#474747', lineHeight: 1.5, background: '#f5f5f7', padding: 10, borderRadius: 8, marginBottom: 8, whiteSpace: 'pre-wrap' }}>
                             {preview(t.body)}
                         </div>
                         {canEdit && (
@@ -106,11 +106,11 @@ export default function AdminTemplates() {
                         <input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} style={inp} placeholder="Ej. Confirmación de ingreso" />
                         <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginTop: 14, marginBottom: 4 }}>Mensaje</label>
                         <textarea value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} rows={5} style={{ ...inp, fontFamily: 'inherit', resize: 'vertical' }} placeholder="Hola {cliente}, tu {marca} {modelo} está lista. Folio: {folio}." />
-                        <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 4 }}>
+                        <div style={{ fontSize: '0.75rem', color: '#6e6e73', marginTop: 4 }}>
                             Variables: <code>{'{cliente}'}</code> <code>{'{marca}'}</code> <code>{'{modelo}'}</code> <code>{'{folio}'}</code> <code>{'{total}'}</code> <code>{'{taller}'}</code> <code>{'{portal_link}'}</code> <code>{'{google_reviews}'}</code> <code>{'{hora}'}</code>
                         </div>
-                        <div style={{ marginTop: 14, padding: 12, background: '#f1f5f9', borderRadius: 10 }}>
-                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', marginBottom: 6 }}>VISTA PREVIA</div>
+                        <div style={{ marginTop: 14, padding: 12, background: '#f5f5f7', borderRadius: 10 }}>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6e6e73', marginBottom: 6 }}>VISTA PREVIA</div>
                             <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem' }}>{preview(editing.body)}</div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
@@ -124,10 +124,10 @@ export default function AdminTemplates() {
             <style>{`
                 .btn-primary, .btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; border: none; cursor: pointer; }
                 .btn-primary { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
-                .btn-ghost { background: white; color: #1e293b; border: 1px solid #e2e8f0; }
-                .btn-ghost:hover { background: #f8fafc; }
+                .btn-ghost { background: white; color: #1d1d1f; border: 1px solid #e8e8ed; }
+                .btn-ghost:hover { background: #f5f5f7; }
             `}</style>
         </div>
     );
 }
-const inp = { width: '100%', padding: 10, border: '2px solid #e2e8f0', borderRadius: 8, fontSize: '0.92rem', background: '#f8fafc', outline: 'none' };
+const inp = { width: '100%', padding: 10, border: '2px solid #e8e8ed', borderRadius: 8, fontSize: '0.92rem', background: '#f5f5f7', outline: 'none' };

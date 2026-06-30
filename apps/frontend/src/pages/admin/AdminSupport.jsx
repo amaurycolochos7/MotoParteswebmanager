@@ -23,12 +23,12 @@ function statusLabel(s) {
 
 function statusColor(s) {
     return {
-        open: '#3b82f6',
+        open: '#d71920',
         waiting_admin: '#f59e0b',
         waiting_customer: '#a855f7',
         resolved: '#16a34a',
-        closed: '#64748b',
-    }[s] || '#64748b';
+        closed: '#6e6e73',
+    }[s] || '#6e6e73';
 }
 
 export default function AdminSupport() {
@@ -49,20 +49,20 @@ export default function AdminSupport() {
                     <h1 style={{ fontSize: '1.6rem', fontWeight: 800, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
                         <LifeBuoy size={22} /> Soporte
                     </h1>
-                    <p style={{ color: '#64748b', margin: 0 }}>Abre un ticket y te respondemos personalmente.</p>
+                    <p style={{ color: '#6e6e73', margin: 0 }}>Abre un ticket y te respondemos personalmente.</p>
                 </div>
                 <Link to="/admin/support/new" className="btn btn-primary" style={{ background: '#ef4444', color: 'white', padding: '10px 18px', borderRadius: 10, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <Plus size={16} /> Nuevo ticket
                 </Link>
             </div>
 
-            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 16, overflow: 'hidden' }}>
+            <div style={{ background: 'white', border: '1px solid #e8e8ed', borderRadius: 16, overflow: 'hidden' }}>
                 {loading ? (
-                    <div style={{ padding: 50, textAlign: 'center', color: '#94a3b8' }}>
+                    <div style={{ padding: 50, textAlign: 'center', color: '#86868b' }}>
                         <Loader2 className="spin" size={28} />
                     </div>
                 ) : items.length === 0 ? (
-                    <div style={{ padding: 50, textAlign: 'center', color: '#94a3b8' }}>
+                    <div style={{ padding: 50, textAlign: 'center', color: '#86868b' }}>
                         <AlertCircle size={36} style={{ marginBottom: 10 }} />
                         <p>Todavía no tienes tickets.</p>
                         <p style={{ fontSize: '0.88rem' }}>Crea uno cuando necesites ayuda.</p>
@@ -75,15 +75,15 @@ export default function AdminSupport() {
                                 to={`/admin/support/${t.id}`}
                                 style={{
                                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                    padding: 16, borderBottom: '1px solid #f1f5f9', textDecoration: 'none', color: '#0f172a',
+                                    padding: 16, borderBottom: '1px solid #f5f5f7', textDecoration: 'none', color: '#1d1d1f',
                                     transition: 'background 0.15s',
                                 }}
-                                onMouseOver={(e) => e.currentTarget.style.background = '#f8fafc'}
+                                onMouseOver={(e) => e.currentTarget.style.background = '#f5f5f7'}
                                 onMouseOut={(e) => e.currentTarget.style.background = 'white'}
                             >
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                        <span style={{ color: '#94a3b8', fontSize: '0.82rem' }}>#{t.ticket_number}</span>
+                                        <span style={{ color: '#86868b', fontSize: '0.82rem' }}>#{t.ticket_number}</span>
                                         <span style={{
                                             padding: '2px 8px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 600,
                                             color: statusColor(t.status),
@@ -94,9 +94,9 @@ export default function AdminSupport() {
                                         {t.customer_unread > 0 && <span style={{ background: '#ef4444', color: 'white', padding: '1px 8px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700 }}>NUEVO</span>}
                                     </div>
                                     <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.subject}</div>
-                                    <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginTop: 2 }}>{t.category}</div>
+                                    <div style={{ color: '#86868b', fontSize: '0.78rem', marginTop: 2 }}>{t.category}</div>
                                 </div>
-                                <div style={{ color: '#94a3b8', fontSize: '0.78rem', marginLeft: 12, whiteSpace: 'nowrap' }}>
+                                <div style={{ color: '#86868b', fontSize: '0.78rem', marginLeft: 12, whiteSpace: 'nowrap' }}>
                                     <Clock size={12} style={{ verticalAlign: -1, marginRight: 2 }} />
                                     {fmtDate(t.last_message_at)}
                                 </div>

@@ -60,9 +60,9 @@ export default function SuperUsers() {
                                         <strong>{u.full_name}</strong>
                                         {u.is_super_admin && <span className="sp-pill sp-pill-purple" style={{ marginLeft: 6, fontSize: '0.7rem' }}><ShieldCheck size={10} style={{ verticalAlign: -1 }} /> SUPER</span>}
                                     </td>
-                                    <td style={{ color: '#94a3b8' }}>{u.email}</td>
+                                    <td style={{ color: '#86868b' }}>{u.email}</td>
                                     <td>{u.memberships.length}</td>
-                                    <td style={{ color: '#64748b', fontSize: '0.82rem' }}>{fmtDate(u.created_at)}</td>
+                                    <td style={{ color: '#6e6e73', fontSize: '0.82rem' }}>{fmtDate(u.created_at)}</td>
                                     <td>{u.is_active ? <span className="sp-pill sp-pill-green">Activo</span> : <span className="sp-pill sp-pill-red">Inactivo</span>}</td>
                                     <td>
                                         {u.is_active ? (

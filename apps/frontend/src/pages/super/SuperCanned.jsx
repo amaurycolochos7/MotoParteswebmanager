@@ -70,7 +70,7 @@ export default function SuperCanned() {
                         <tbody>
                             {items.map((c) => (
                                 <tr key={c.id}>
-                                    <td><code style={{ background: '#1e293b', padding: '2px 8px', borderRadius: 4 }}>/{c.shortcut}</code></td>
+                                    <td><code style={{ background: '#1d1d1f', padding: '2px 8px', borderRadius: 4 }}>/{c.shortcut}</code></td>
                                     <td><strong>{c.title}</strong></td>
                                     <td>{c.category || '—'}</td>
                                     <td>{c.use_count}</td>

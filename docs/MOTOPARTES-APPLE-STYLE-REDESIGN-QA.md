@@ -38,6 +38,11 @@ Estados: PASS · FAIL · BLOCKED · NEEDS_REVIEW.
 - Identidad de color: rojo de marca aplicado a tokens globales + landing + login + flujo orden.
 - `Inter` eliminado de CSS de UI (0). Los 3 CSS por pantalla migrados a tokens.
 
+## Segunda ola aplicada (codemod de paleta)
+Las filas marcadas antes como **Viejo (pendiente)** (admin/*, super/*, questions/*, Onboarding,
+Signup, ClientPortal, Blog, Cases) recibieron el codemod de paleta (753 reemplazos, 54 archivos):
+slate/azul viejo → neutrales de marca + rojo. Su estado pasa de **Viejo** a **Parcial/Nuevo**
+(tono de marca correcto; quedan estilos inline estructurales menores). Build re-verificado: PASS.
+
 ## Pendiente de QA humano (8 anchos: 320/360/390/430/768/1024/1280/1440)
 Foco: crear orden, crear cotización, registrar pago, buscar cliente, cambiar estado (móvil).
-Páginas marcadas **Viejo (pendiente)** son la siguiente ola (Prioridad 3–5).

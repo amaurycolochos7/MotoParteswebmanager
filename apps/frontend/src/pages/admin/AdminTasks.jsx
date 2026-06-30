@@ -28,18 +28,18 @@ export default function AdminTasks() {
     return (
         <div style={{ maxWidth: 880, margin: '0 auto', padding: '24px 20px' }}>
             <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800 }}>Tareas</h1>
-            <p style={{ color: '#64748b', margin: '4px 0 20px' }}>
+            <p style={{ color: '#6e6e73', margin: '4px 0 20px' }}>
                 Recordatorios internos — incluyen los creados por automatizaciones.
             </p>
 
-            <div style={{ display: 'flex', gap: 4, padding: 4, background: '#f1f5f9', borderRadius: 10, marginBottom: 20, width: 'fit-content' }}>
+            <div style={{ display: 'flex', gap: 4, padding: 4, background: '#f5f5f7', borderRadius: 10, marginBottom: 20, width: 'fit-content' }}>
                 {['pending', 'completed'].map((t) => (
                     <button key={t}
                         onClick={() => setTab(t)}
                         style={{
                             padding: '6px 18px', borderRadius: 8, border: 'none', cursor: 'pointer',
                             background: tab === t ? 'white' : 'transparent',
-                            color: tab === t ? '#0f172a' : '#64748b',
+                            color: tab === t ? '#1d1d1f' : '#6e6e73',
                             fontWeight: 600, fontSize: '0.85rem',
                             boxShadow: tab === t ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
                         }}>
@@ -54,20 +54,20 @@ export default function AdminTasks() {
                     return (
                         <div key={t.id} style={{
                             display: 'flex', alignItems: 'flex-start', gap: 12, padding: 14,
-                            background: 'white', border: '1px solid', borderColor: overdue ? '#fecaca' : '#e2e8f0',
+                            background: 'white', border: '1px solid', borderColor: overdue ? '#fecaca' : '#e8e8ed',
                             borderRadius: 10,
                         }}>
                             <button onClick={() => tab === 'pending' ? complete(t) : taskService.reopen(t.id).then(refresh)}
                                 style={{ border: 'none', background: 'transparent', cursor: 'pointer', paddingTop: 2 }}>
-                                {t.completed_at ? <CheckCircle2 size={22} color="#16a34a" /> : <Circle size={22} color="#94a3b8" />}
+                                {t.completed_at ? <CheckCircle2 size={22} color="#16a34a" /> : <Circle size={22} color="#86868b" />}
                             </button>
                             <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 600, color: '#0f172a', textDecoration: t.completed_at ? 'line-through' : 'none' }}>{t.title}</div>
-                                {t.description && <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 4 }}>{t.description}</div>}
-                                <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: '0.75rem', color: '#94a3b8' }}>
+                                <div style={{ fontWeight: 600, color: '#1d1d1f', textDecoration: t.completed_at ? 'line-through' : 'none' }}>{t.title}</div>
+                                {t.description && <div style={{ fontSize: '0.85rem', color: '#6e6e73', marginTop: 4 }}>{t.description}</div>}
+                                <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: '0.75rem', color: '#86868b' }}>
                                     {t.source === 'automation' && <span style={{ color: '#8b5cf6' }}><Zap size={11} /> automatización</span>}
                                     {t.due_at && (
-                                        <span style={{ color: overdue ? '#dc2626' : '#64748b' }}>
+                                        <span style={{ color: overdue ? '#dc2626' : '#6e6e73' }}>
                                             <Clock size={11} /> Vence {new Date(t.due_at).toLocaleString('es-MX')}
                                         </span>
                                     )}
@@ -78,7 +78,7 @@ export default function AdminTasks() {
                     );
                 })}
                 {tasks.length === 0 && (
-                    <div style={{ padding: 40, textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: 12 }}>
+                    <div style={{ padding: 40, textAlign: 'center', color: '#6e6e73', background: '#f5f5f7', borderRadius: 12 }}>
                         {tab === 'pending' ? 'No hay tareas pendientes 🎉' : 'No hay tareas completadas aún.'}
                     </div>
                 )}

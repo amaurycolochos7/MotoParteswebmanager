@@ -44,7 +44,7 @@ export default function AdminBotHealth() {
                     <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800 }}>
                         <Activity size={22} style={{ verticalAlign: '-4px' }} /> Salud del bot WhatsApp
                     </h1>
-                    <p style={{ color: '#64748b', margin: '4px 0 0' }}>
+                    <p style={{ color: '#6e6e73', margin: '4px 0 0' }}>
                         Sesiones conectadas, memoria y últimos errores del bot.
                     </p>
                 </div>
@@ -63,16 +63,16 @@ export default function AdminBotHealth() {
                 {sessions.map((s) => (
                     <div key={s.mechanicId || s.id} style={{
                         display: 'flex', alignItems: 'center', gap: 14, padding: 14,
-                        background: 'white', border: '1px solid', borderColor: s.isConnected ? '#86efac' : '#e2e8f0',
-                        borderLeft: s.isConnected ? '4px solid #16a34a' : '4px solid #cbd5e1',
+                        background: 'white', border: '1px solid', borderColor: s.isConnected ? '#86efac' : '#e8e8ed',
+                        borderLeft: s.isConnected ? '4px solid #16a34a' : '4px solid #d2d2d7',
                         borderRadius: 10,
                     }}>
                         <div>
-                            {s.isConnected ? <Wifi size={22} color="#16a34a" /> : <WifiOff size={22} color="#94a3b8" />}
+                            {s.isConnected ? <Wifi size={22} color="#16a34a" /> : <WifiOff size={22} color="#86868b" />}
                         </div>
                         <div style={{ flex: 1 }}>
-                            <div style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#64748b' }}>mecánico: {s.mechanicId?.slice(0, 13)}…</div>
-                            <div style={{ fontWeight: 600, color: s.isConnected ? '#15803d' : '#475569' }}>
+                            <div style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#6e6e73' }}>mecánico: {s.mechanicId?.slice(0, 13)}…</div>
+                            <div style={{ fontWeight: 600, color: s.isConnected ? '#15803d' : '#474747' }}>
                                 {s.isConnected ? `Conectado (${s.phoneNumber || 'sin número'})` : (s.initializing ? 'Inicializando…' : 'Desconectado')}
                             </div>
                             {s.lastError && (
@@ -84,7 +84,7 @@ export default function AdminBotHealth() {
                     </div>
                 ))}
                 {sessions.length === 0 && (
-                    <div style={{ padding: 32, textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: 10 }}>
+                    <div style={{ padding: 32, textAlign: 'center', color: '#6e6e73', background: '#f5f5f7', borderRadius: 10 }}>
                         No hay sesiones. Ve a <code>/mechanic/whatsapp</code> para conectar.
                     </div>
                 )}
@@ -93,9 +93,9 @@ export default function AdminBotHealth() {
             {debug?.logs && debug.logs.length > 0 && (
                 <>
                     <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '24px 0 10px' }}>Últimos 20 logs</h2>
-                    <div style={{ background: '#0f172a', color: '#cbd5e1', borderRadius: 10, padding: 14, fontFamily: 'monospace', fontSize: '0.75rem', maxHeight: 300, overflow: 'auto' }}>
+                    <div style={{ background: '#1d1d1f', color: '#d2d2d7', borderRadius: 10, padding: 14, fontFamily: 'monospace', fontSize: '0.75rem', maxHeight: 300, overflow: 'auto' }}>
                         {debug.logs.slice(-20).map((l, i) => (
-                            <div key={i} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: l.l === 'ERR' ? '#fca5a5' : l.l === 'WRN' ? '#fde68a' : '#cbd5e1' }}>
+                            <div key={i} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: l.l === 'ERR' ? '#fca5a5' : l.l === 'WRN' ? '#fde68a' : '#d2d2d7' }}>
                                 [{new Date(l.t).toLocaleTimeString('es-MX')}] {l.m}
                             </div>
                         ))}
@@ -104,17 +104,17 @@ export default function AdminBotHealth() {
             )}
 
             <style>{`
-                .btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; border: 1px solid #e2e8f0; background: white; color: #1e293b; cursor: pointer; }
-                .btn-ghost:hover { background: #f8fafc; }
+                .btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; border: 1px solid #e8e8ed; background: white; color: #1d1d1f; cursor: pointer; }
+                .btn-ghost:hover { background: #f5f5f7; }
             `}</style>
         </div>
     );
 }
 
-function Stat({ label, value, color = '#0f172a' }) {
+function Stat({ label, value, color = '#1d1d1f' }) {
     return (
-        <div style={{ padding: 14, background: 'white', border: '1px solid #e2e8f0', borderRadius: 10 }}>
-            <div style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.5px' }}>{label}</div>
+        <div style={{ padding: 14, background: 'white', border: '1px solid #e8e8ed', borderRadius: 10 }}>
+            <div style={{ fontSize: '0.78rem', color: '#6e6e73', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.5px' }}>{label}</div>
             <div style={{ fontSize: '1.5rem', fontWeight: 800, color, marginTop: 4 }}>{value}</div>
         </div>
     );

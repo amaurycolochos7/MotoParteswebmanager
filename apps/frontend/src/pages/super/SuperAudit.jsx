@@ -55,11 +55,11 @@ export default function SuperAudit() {
                         <tbody>
                             {items.map((a) => (
                                 <tr key={a.id}>
-                                    <td style={{ color: '#64748b', fontSize: '0.8rem' }}>{fmtDateTime(a.created_at)}</td>
+                                    <td style={{ color: '#6e6e73', fontSize: '0.8rem' }}>{fmtDateTime(a.created_at)}</td>
                                     <td>{a.super_admin?.email}</td>
-                                    <td><code style={{ background: '#1e293b', padding: '2px 6px', borderRadius: 4 }}>{a.action}</code></td>
-                                    <td style={{ fontSize: '0.82rem', color: '#94a3b8' }}>{a.target_type}{a.target_id ? `:${a.target_id.slice(0, 8)}` : ''}</td>
-                                    <td style={{ color: '#cbd5e1', fontSize: '0.82rem' }}>{a.reason || '—'}</td>
+                                    <td><code style={{ background: '#1d1d1f', padding: '2px 6px', borderRadius: 4 }}>{a.action}</code></td>
+                                    <td style={{ fontSize: '0.82rem', color: '#86868b' }}>{a.target_type}{a.target_id ? `:${a.target_id.slice(0, 8)}` : ''}</td>
+                                    <td style={{ color: '#d2d2d7', fontSize: '0.82rem' }}>{a.reason || '—'}</td>
                                 </tr>
                             ))}
                         </tbody>

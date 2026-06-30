@@ -75,12 +75,12 @@ export default function SuperLogin() {
 
 const styles = {
     page: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0b0f1a', padding: 20 },
-    card: { background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 40, maxWidth: 420, width: '100%', color: '#e5e7eb' },
+    card: { background: '#1d1d1f', border: '1px solid #1d1d1f', borderRadius: 20, padding: 40, maxWidth: 420, width: '100%', color: '#e8e8ed' },
     logo: { width: 60, height: 60, borderRadius: 16, background: 'linear-gradient(135deg,#ef4444,#dc2626)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: 'white' },
     title: { fontSize: '1.5rem', fontWeight: 800, textAlign: 'center', margin: '0 0 4px' },
-    subtitle: { color: '#64748b', fontSize: '0.88rem', textAlign: 'center', margin: '0 0 24px' },
+    subtitle: { color: '#6e6e73', fontSize: '0.88rem', textAlign: 'center', margin: '0 0 24px' },
     err: { background: 'rgba(239,68,68,0.15)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', padding: 12, borderRadius: 10, fontSize: '0.86rem', marginBottom: 14, display: 'flex', alignItems: 'center' },
-    input: { width: '100%', background: '#0b0f1a', color: '#e5e7eb', border: '1px solid #334155', borderRadius: 10, padding: '12px 14px', fontSize: '0.92rem' },
+    input: { width: '100%', background: '#0b0f1a', color: '#e8e8ed', border: '1px solid #474747', borderRadius: 10, padding: '12px 14px', fontSize: '0.92rem' },
     btn: { width: '100%', marginTop: 14, padding: 14, borderRadius: 10, background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: 'white', border: 'none', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    note: { color: '#64748b', fontSize: '0.78rem', textAlign: 'center', marginTop: 20 },
+    note: { color: '#6e6e73', fontSize: '0.78rem', textAlign: 'center', marginTop: 20 },
 };

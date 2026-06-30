@@ -70,7 +70,7 @@ export default function ConnectionStatus() {
                 }
 
                 .status-offline {
-                    background-color: #1f2937;
+                    background-color: #333333;
                     color: #f87171;
                     border: 1px solid #7f1d1d;
                 }

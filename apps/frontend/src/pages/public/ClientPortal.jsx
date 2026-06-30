@@ -287,7 +287,7 @@ export default function ClientPortal() {
                     max-width: 500px;
                     margin: 0 auto;
                     padding: 1.5rem;
-                    background: #f8fafc;
+                    background: #f5f5f7;
                     min-height: 100vh;
                 }
 
@@ -303,7 +303,7 @@ export default function ClientPortal() {
                 }
 
                 .error-screen h2 {
-                    color: #1e293b;
+                    color: #1d1d1f;
                     margin-top: 1rem;
                 }
 
@@ -323,12 +323,12 @@ export default function ClientPortal() {
 
                 .portal-header h1 {
                     font-size: 1.5rem;
-                    color: #1e293b;
+                    color: #1d1d1f;
                     margin: 0.5rem 0 0.25rem;
                 }
 
                 .portal-header p {
-                    color: #64748b;
+                    color: #6e6e73;
                     font-size: 0.875rem;
                 }
 
@@ -339,7 +339,7 @@ export default function ClientPortal() {
                     border-radius: 12px;
                     padding: 1.25rem;
                     margin-bottom: 1rem;
-                    border: 1px solid #e2e8f0;
+                    border: 1px solid #e8e8ed;
                 }
 
                 .status-header {
@@ -366,13 +366,13 @@ export default function ClientPortal() {
 
                 .status-header p {
                     font-size: 0.8125rem;
-                    color: #64748b;
+                    color: #6e6e73;
                     margin: 0;
                 }
 
                 .progress-container {
                     height: 8px;
-                    background: #f1f5f9;
+                    background: #f5f5f7;
                     border-radius: 99px;
                     overflow: hidden;
                     margin-bottom: 1rem;
@@ -404,17 +404,17 @@ export default function ClientPortal() {
                 .step-dot {
                     width: 32px;
                     height: 32px;
-                    background: #f1f5f9;
+                    background: #f5f5f7;
                     border-radius: 50%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    color: #94a3b8;
+                    color: #86868b;
                 }
 
                 .step span {
                     font-size: 0.6875rem;
-                    color: #64748b;
+                    color: #6e6e73;
                 }
 
                 .order-header {
@@ -425,12 +425,12 @@ export default function ClientPortal() {
                     flex-wrap: wrap;
                     margin-bottom: 1.25rem;
                     padding-bottom: 1rem;
-                    border-bottom: 1px solid #e2e8f0;
+                    border-bottom: 1px solid #e8e8ed;
                 }
 
                 .order-header h2 {
                     font-size: 1.25rem;
-                    color: #2563eb;
+                    color: #d71920;
                     margin: 0;
                     font-weight: 700;
                 }
@@ -457,7 +457,7 @@ export default function ClientPortal() {
                 }
 
                 .detail-item > svg {
-                    color: #2563eb;
+                    color: #d71920;
                     margin-top: 2px;
                     flex-shrink: 0;
                 }
@@ -469,26 +469,26 @@ export default function ClientPortal() {
 
                 .detail-label {
                     font-size: 0.6875rem;
-                    color: #94a3b8;
+                    color: #86868b;
                     text-transform: uppercase;
                     letter-spacing: 0.5px;
                 }
 
                 .detail-sub {
                     font-size: 0.8125rem;
-                    color: #64748b;
+                    color: #6e6e73;
                 }
 
                 .services-section {
                     margin-top: 1rem;
                     padding-top: 1rem;
-                    border-top: 1px solid #e2e8f0;
+                    border-top: 1px solid #e8e8ed;
                 }
 
                 .services-section h4 {
                     font-size: 0.875rem;
                     margin-bottom: 0.75rem;
-                    color: #1e293b;
+                    color: #1d1d1f;
                 }
 
                 .service-row {
@@ -497,7 +497,7 @@ export default function ClientPortal() {
                     align-items: center;
                     gap: 1rem;
                     padding: 0.75rem 0;
-                    border-bottom: 1px solid #f1f5f9;
+                    border-bottom: 1px solid #f5f5f7;
                 }
 
                 .service-row:last-child {
@@ -510,7 +510,7 @@ export default function ClientPortal() {
 
                 .service-price {
                     font-weight: 600;
-                    color: #2563eb;
+                    color: #d71920;
                     white-space: nowrap;
                     text-align: right;
                 }
@@ -533,7 +533,7 @@ export default function ClientPortal() {
                 .total-row.balance {
                     padding-top: 1rem;
                     margin-top: 0.75rem;
-                    border-top: 2px solid #e2e8f0;
+                    border-top: 2px solid #e8e8ed;
                     flex-direction: column;
                     align-items: center;
                     gap: 0.5rem;
@@ -548,14 +548,14 @@ export default function ClientPortal() {
                 .balance-amount {
                     font-weight: 700;
                     font-size: 1.5rem;
-                    color: #2563eb;
+                    color: #d71920;
                 }
 
                 .payment-status {
                     text-align: center;
                     margin-top: 1rem;
                     padding-top: 0.75rem;
-                    border-top: 1px solid #e2e8f0;
+                    border-top: 1px solid #e8e8ed;
                 }
 
                 .badge {
@@ -582,7 +582,7 @@ export default function ClientPortal() {
                 }
 
                 .portal-footer p {
-                    color: #64748b;
+                    color: #6e6e73;
                     margin-bottom: 0.75rem;
                 }
 
@@ -595,7 +595,7 @@ export default function ClientPortal() {
                     border-radius: 12px;
                     padding: 1.25rem;
                     margin-bottom: 1rem;
-                    border: 1px solid #e2e8f0;
+                    border: 1px solid #e8e8ed;
                     border-left: 4px solid #f59e0b;
                 }
 
@@ -609,7 +609,7 @@ export default function ClientPortal() {
                 .updates-header h3 {
                     font-size: 1rem;
                     margin: 0;
-                    color: #1e293b;
+                    color: #1d1d1f;
                 }
 
                 .updates-list {
@@ -622,7 +622,7 @@ export default function ClientPortal() {
                     display: flex;
                     gap: 0.75rem;
                     padding-bottom: 1rem;
-                    border-bottom: 1px dashed #e2e8f0;
+                    border-bottom: 1px dashed #e8e8ed;
                 }
 
                 .update-item:last-child {
@@ -645,19 +645,19 @@ export default function ClientPortal() {
                 .update-content h4 {
                     font-size: 0.875rem;
                     margin: 0 0 0.25rem 0;
-                    color: #1e293b;
+                    color: #1d1d1f;
                 }
 
                 .update-content p {
                     font-size: 0.8125rem;
-                    color: #64748b;
+                    color: #6e6e73;
                     margin: 0 0 0.5rem 0;
                     line-height: 1.4;
                 }
 
                 .update-date {
                     font-size: 0.6875rem;
-                    color: #94a3b8;
+                    color: #86868b;
                     display: block;
                     margin-bottom: 0.25rem;
                 }

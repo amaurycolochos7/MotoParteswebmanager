@@ -75,8 +75,8 @@ export default function OrderPaymentsSection({ order, client, motorcycle, worksh
     };
 
     const st = finance ? (STATUS_STYLE[finance.payment_status] || STATUS_STYLE.Pendiente) : STATUS_STYLE.Pendiente;
-    const box = { border: '1px solid #e5e7eb', borderRadius: 12, background: '#fff', margin: '12px 0', overflow: 'hidden' };
-    const head = { display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderBottom: '1px solid #f1f5f9', fontWeight: 700, color: '#111827' };
+    const box = { border: '1px solid #e8e8ed', borderRadius: 12, background: '#fff', margin: '12px 0', overflow: 'hidden' };
+    const head = { display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderBottom: '1px solid #f5f5f7', fontWeight: 700, color: '#111827' };
     const rowS = { display: 'flex', justifyContent: 'space-between', padding: '6px 14px', fontSize: 14 };
 
     return (
@@ -84,12 +84,12 @@ export default function OrderPaymentsSection({ order, client, motorcycle, worksh
             <div style={head}><DollarSign size={18} /> Pagos y saldo</div>
 
             {loading ? (
-                <div style={{ padding: 16, textAlign: 'center', color: '#6b7280' }}><Loader2 size={18} className="spinner" /></div>
+                <div style={{ padding: 16, textAlign: 'center', color: '#6e6e73' }}><Loader2 size={18} className="spinner" /></div>
             ) : (
                 <>
                     <div style={{ padding: '8px 0' }}>
-                        <div style={rowS}><span style={{ color: '#6b7280' }}>Total de la orden</span><strong>{fmt(finance?.total)}</strong></div>
-                        <div style={rowS}><span style={{ color: '#6b7280' }}>Total pagado</span><span style={{ color: '#15803d', fontWeight: 600 }}>{fmt(finance?.paid)}</span></div>
+                        <div style={rowS}><span style={{ color: '#6e6e73' }}>Total de la orden</span><strong>{fmt(finance?.total)}</strong></div>
+                        <div style={rowS}><span style={{ color: '#6e6e73' }}>Total pagado</span><span style={{ color: '#15803d', fontWeight: 600 }}>{fmt(finance?.paid)}</span></div>
                         <div style={{ ...rowS, fontSize: 16 }}>
                             <span style={{ fontWeight: 700 }}>Saldo pendiente</span>
                             <strong style={{ color: (finance?.balance || 0) > 0 ? '#b91c1c' : '#15803d' }}>{fmt(finance?.balance)}</strong>
@@ -106,20 +106,20 @@ export default function OrderPaymentsSection({ order, client, motorcycle, worksh
 
                     {/* Historial de abonos */}
                     {activePayments.length === 0 ? (
-                        <p style={{ padding: '0 14px 12px', color: '#9ca3af', fontSize: 13 }}>Sin abonos registrados.</p>
+                        <p style={{ padding: '0 14px 12px', color: '#86868b', fontSize: 13 }}>Sin abonos registrados.</p>
                     ) : (
-                        <div style={{ borderTop: '1px solid #f1f5f9' }}>
+                        <div style={{ borderTop: '1px solid #f5f5f7' }}>
                             {payments.map((p) => (
-                                <div key={p.id} style={{ padding: '10px 14px', borderBottom: '1px solid #f8fafc', opacity: p.cancelled_at ? 0.5 : 1 }}>
+                                <div key={p.id} style={{ padding: '10px 14px', borderBottom: '1px solid #f5f5f7', opacity: p.cancelled_at ? 0.5 : 1 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                                         <strong style={{ textDecoration: p.cancelled_at ? 'line-through' : 'none' }}>{fmt(p.amount)}</strong>
-                                        <span style={{ fontSize: 12, color: '#6b7280' }}>{METHOD_LABELS[p.payment_method] || p.payment_method}</span>
+                                        <span style={{ fontSize: 12, color: '#6e6e73' }}>{METHOD_LABELS[p.payment_method] || p.payment_method}</span>
                                     </div>
-                                    <div style={{ fontSize: 12, color: '#9ca3af', display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+                                    <div style={{ fontSize: 12, color: '#86868b', display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
                                         <span>{new Date(p.payment_date).toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                                         <span>{p.receipt_number}</span>
                                     </div>
-                                    {p.note && <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{p.note}</div>}
+                                    {p.note && <div style={{ fontSize: 12, color: '#6e6e73', marginTop: 2 }}>{p.note}</div>}
                                     {p.cancelled_at && <div style={{ fontSize: 11, color: '#b91c1c', marginTop: 2 }}>Cancelado: {p.cancellation_reason}</div>}
                                     {!p.cancelled_at && (
                                         <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
@@ -134,7 +134,7 @@ export default function OrderPaymentsSection({ order, client, motorcycle, worksh
 
                     {/* Registrar abono */}
                     {canManage && (
-                        <div style={{ padding: 14, borderTop: '1px solid #f1f5f9' }}>
+                        <div style={{ padding: 14, borderTop: '1px solid #f5f5f7' }}>
                             {!showForm ? (
                                 <button onClick={() => setShowForm(true)} disabled={(finance?.balance || 0) <= 0}
                                     style={{ ...primaryBtn, opacity: (finance?.balance || 0) <= 0 ? 0.5 : 1 }}>
@@ -158,7 +158,7 @@ export default function OrderPaymentsSection({ order, client, motorcycle, worksh
                                         </button>
                                         <button onClick={() => { setShowForm(false); setErr(null); }} style={outlineBtn}><X size={16} /> Cancelar</button>
                                     </div>
-                                    <p style={{ fontSize: 12, color: '#9ca3af', margin: 0 }}>Saldo disponible: {fmt(finance?.balance)}. No se permite sobrepago.</p>
+                                    <p style={{ fontSize: 12, color: '#86868b', margin: 0 }}>Saldo disponible: {fmt(finance?.balance)}. No se permite sobrepago.</p>
                                 </div>
                             )}
                         </div>
@@ -170,7 +170,7 @@ export default function OrderPaymentsSection({ order, client, motorcycle, worksh
     );
 }
 
-const linkBtn = { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#2563eb', fontSize: 12, cursor: 'pointer', padding: 0 };
-const input = { width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 15, boxSizing: 'border-box' };
+const linkBtn = { display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#d71920', fontSize: 12, cursor: 'pointer', padding: 0 };
+const input = { width: '100%', padding: '10px 12px', border: '1px solid #d2d2d7', borderRadius: 8, fontSize: 15, boxSizing: 'border-box' };
 const primaryBtn = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', flex: 1 };
-const outlineBtn = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', background: '#fff', color: '#374151', border: '1px solid #d1d5db', borderRadius: 8, fontWeight: 600, cursor: 'pointer' };
+const outlineBtn = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', background: '#fff', color: '#474747', border: '1px solid #d2d2d7', borderRadius: 8, fontWeight: 600, cursor: 'pointer' };

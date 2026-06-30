@@ -169,7 +169,7 @@ export default function TopBar() {
         }
 
         .admin-button:hover {
-          background: #2563eb;
+          background: #d71920;
           transform: translateY(-1px);
           box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
         }

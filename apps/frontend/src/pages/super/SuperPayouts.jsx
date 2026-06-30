@@ -60,7 +60,7 @@ export default function SuperPayouts() {
                                             {p.status}
                                         </span>
                                     </td>
-                                    <td style={{ color: '#64748b', fontSize: '0.82rem' }}>{fmtDate(p.paid_at)}</td>
+                                    <td style={{ color: '#6e6e73', fontSize: '0.82rem' }}>{fmtDate(p.paid_at)}</td>
                                     <td>
                                         {p.status === 'pending' && (
                                             <button className="sp-btn-primary" onClick={() => setModal(p)} style={{ padding: '4px 10px', fontSize: '0.78rem' }}>
@@ -99,7 +99,7 @@ function PayModal({ payout, onClose, onDone }) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
             <div className="sp-card" style={{ maxWidth: 480, width: '100%', padding: 28 }}>
                 <h2 style={{ marginTop: 0 }}>Registrar pago</h2>
-                <p style={{ color: '#94a3b8', fontSize: '0.88rem' }}>
+                <p style={{ color: '#86868b', fontSize: '0.88rem' }}>
                     {payout.referrer?.name} · {payout.period} · ${Math.round(payout.commission_cents / 100).toLocaleString('es-MX')}
                 </p>
                 <label className="sp-label">Método</label>
