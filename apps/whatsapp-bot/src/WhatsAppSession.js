@@ -467,7 +467,19 @@ class WhatsAppSession extends EventEmitter {
             throw new Error(`Session ${this.mechanicId} not connected`);
         }
 
-        const media = await MessageMedia.fromUrl(mediaUrl, { unsafeMime: true });
+        // Soporta tanto URLs http(s) como data URLs base64 (evidencias del taller,
+        // que viven en el cliente y no tienen URL pública). fromUrl no resuelve
+        // data: en Node, así que construimos el MessageMedia manualmente.
+        let media;
+        const dataMatch = typeof mediaUrl === 'string' && mediaUrl.match(/^data:(.+?);base64,(.*)$/s);
+        if (dataMatch) {
+            const [, mimetype, base64Data] = dataMatch;
+            const ext = (mimetype.split('/')[1] || 'jpg').split('+')[0];
+            media = new MessageMedia(mimetype, base64Data, `evidencia.${ext}`);
+        } else {
+            media = await MessageMedia.fromUrl(mediaUrl, { unsafeMime: true });
+        }
+
         const formatted = this._formatPhone(phone);
         const result = await this.client.sendMessage(formatted, media, { caption: message || '' });
         return { success: true, messageId: result.id._serialized };

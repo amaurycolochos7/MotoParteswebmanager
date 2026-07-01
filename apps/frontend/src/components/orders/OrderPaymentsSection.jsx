@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { DollarSign, Plus, X, Loader2, Download, Ban, CheckCircle2 } from 'lucide-react';
 import { orderPaymentsService } from '../../lib/api';
 import { downloadPaymentReceiptPDF } from '../../utils/pdfGenerator';
@@ -14,7 +14,7 @@ const fmt = (n) =>
 const METHOD_LABELS = { efectivo: 'Efectivo', transferencia: 'Transferencia', tarjeta: 'Tarjeta', otro: 'Otro' };
 const STATUS_TONE = { Pendiente: 'warning', Parcial: 'brand', Pagada: 'success' };
 
-export default function OrderPaymentsSection({ order, client, motorcycle, workshopName, canManage, onChanged, onFinance }) {
+export default function OrderPaymentsSection({ order, workshopName, canManage, onChanged, onFinance, embedded = false }) {
     const [finance, setFinance] = useState(null);
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -25,19 +25,37 @@ export default function OrderPaymentsSection({ order, client, motorcycle, worksh
     const [saving, setSaving] = useState(false);
     const [err, setErr] = useState(null);
 
-    const load = useCallback(async () => {
+    // Recarga puntual usada por los handlers (registrar/cancelar abono).
+    const reload = async () => {
         if (!order?.id) return;
-        setLoading(true);
         const { data, error } = await orderPaymentsService.listByOrder(order.id);
         if (!error && data) {
             setFinance(data.finance);
             setPayments(data.payments || []);
             onFinance?.(data.finance);
         }
-        setLoading(false);
-    }, [order?.id]);
+    };
 
-    useEffect(() => { load(); }, [load]);
+    // Carga inicial: el setState ocurre tras el await (no síncrono en el efecto).
+    useEffect(() => {
+        if (!order?.id) return;
+        let alive = true;
+        (async () => {
+            const { data, error } = await orderPaymentsService.listByOrder(order.id);
+            if (!alive) return;
+            if (!error && data) {
+                setFinance(data.finance);
+                setPayments(data.payments || []);
+                onFinance?.(data.finance);
+            }
+            setLoading(false);
+        })();
+        return () => {
+            alive = false;
+        };
+        // onFinance es estable en la práctica; dep [order?.id] evita recargas en bucle.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [order?.id]);
 
     const activePayments = payments.filter((p) => !p.cancelled_at);
 
@@ -52,7 +70,7 @@ export default function OrderPaymentsSection({ order, client, motorcycle, worksh
         setSaving(false);
         if (error) { setErr(error.message || 'No se pudo registrar el abono'); return; }
         setAmount(''); setNote(''); setMethod('efectivo'); setShowForm(false);
-        await load();
+        await reload();
         onChanged?.();
     };
 
@@ -61,7 +79,7 @@ export default function OrderPaymentsSection({ order, client, motorcycle, worksh
         if (reason === null) return;
         const { error } = await orderPaymentsService.cancel(p.id, reason || 'Sin motivo');
         if (error) { setErr(error.message); return; }
-        await load();
+        await reload();
         onChanged?.();
     };
 
@@ -73,25 +91,30 @@ export default function OrderPaymentsSection({ order, client, motorcycle, worksh
 
     const tone = finance ? (STATUS_TONE[finance.payment_status] || 'warning') : 'warning';
     const balancePositive = (finance?.balance || 0) > 0;
+    // ¿Hay algo monetario que valga la pena mostrar? Si no hay abonos ni total,
+    // no tiene sentido saturar con "$0.00 / Saldo $0.00" — solo confunde al mecánico.
+    const hasActivity = activePayments.length > 0 || (Number(finance?.total) || 0) > 0;
 
-    return (
-        <SectionCard title="Pagos y saldo" icon={<DollarSign size={18} />} className="odpay">
+    const body = (
+        <>
             {loading ? (
                 <div className="odpay__loading"><Loader2 size={18} className="spinner" /></div>
             ) : (
                 <>
-                    <div className="odpay__summary">
-                        <div className="odpay__row"><span>Total de la orden</span><strong>{fmt(finance?.total)}</strong></div>
-                        <div className="odpay__row"><span>Total pagado</span><span className="odpay__paid">{fmt(finance?.paid)}</span></div>
-                        <div className="odpay__row odpay__row--balance">
-                            <span>Saldo pendiente</span>
-                            <strong className={balancePositive ? 'odpay__bal-due' : 'odpay__bal-ok'}>{fmt(finance?.balance)}</strong>
+                    {hasActivity && (
+                        <div className="odpay__summary">
+                            <div className="odpay__row"><span>Total de la orden</span><strong>{fmt(finance?.total)}</strong></div>
+                            <div className="odpay__row"><span>Total pagado</span><span className="odpay__paid">{fmt(finance?.paid)}</span></div>
+                            <div className="odpay__row odpay__row--balance">
+                                <span>Saldo pendiente</span>
+                                <strong className={balancePositive ? 'odpay__bal-due' : 'odpay__bal-ok'}>{fmt(finance?.balance)}</strong>
+                            </div>
+                            <div className="odpay__status">
+                                <span className={`mp-badge mp-badge--${tone}`}>{finance?.payment_status || 'Pendiente'}</span>
+                                {finance?.overpaid > 0 && <span className="odpay__over">Sobrepago: {fmt(finance.overpaid)}</span>}
+                            </div>
                         </div>
-                        <div className="odpay__status">
-                            <span className={`mp-badge mp-badge--${tone}`}>{finance?.payment_status || 'Pendiente'}</span>
-                            {finance?.overpaid > 0 && <span className="odpay__over">Sobrepago: {fmt(finance.overpaid)}</span>}
-                        </div>
-                    </div>
+                    )}
 
                     {activePayments.length === 0 ? (
                         <p className="odpay__empty">Sin abonos registrados.</p>
@@ -182,6 +205,14 @@ export default function OrderPaymentsSection({ order, client, motorcycle, worksh
                 .odpay__err { color: var(--danger); font-size: 13px; }
                 .odpay__hint { font-size: 12px; color: var(--text-muted); margin: 0; }
             `}</style>
+        </>
+    );
+
+    if (embedded) return <div className="odpay odpay--embedded">{body}</div>;
+
+    return (
+        <SectionCard title="Pagos y saldo" icon={<DollarSign size={18} />} className="odpay">
+            {body}
         </SectionCard>
     );
 }

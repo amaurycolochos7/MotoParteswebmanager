@@ -556,7 +556,7 @@ export const statusesService = {
 // PHOTOS SERVICE
 // =============================================
 export const photosService = {
-    async upload(file, orderId, category, caption, uploadedBy) {
+    async upload(file, orderId, category, caption) {
         // Convert file to base64 URL (store in DB)
         return new Promise((resolve) => {
             const reader = new FileReader();
@@ -842,7 +842,7 @@ export const paymentRequestsService = {
         }
     },
 
-    async accept(paymentId, auxiliaryId) {
+    async accept(paymentId) {
         try {
             const data = await apiFetch(`/payment-requests/${paymentId}/accept`, {
                 method: 'PUT',
@@ -959,6 +959,20 @@ export const whatsappBotService = {
             const res = await waBotFetch('/send-for-order', {
                 method: 'POST',
                 body: JSON.stringify({ orderId, phone, message })
+            });
+            if (res.ok) return { success: true, automated: true };
+            return { success: false, fallback: true };
+        } catch {
+            return { success: false, fallback: true };
+        }
+    },
+
+    // Envía una imagen (URL pública o data URL base64) con caption opcional.
+    async sendMedia(mechanicId, phone, mediaUrl, caption = '') {
+        try {
+            const res = await waBotFetch('/send-media', {
+                method: 'POST',
+                body: JSON.stringify({ mechanicId, phone, message: caption, mediaUrl })
             });
             if (res.ok) return { success: true, automated: true };
             return { success: false, fallback: true };

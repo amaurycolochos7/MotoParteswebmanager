@@ -115,7 +115,7 @@ export const sendAutomatedMessage = async (phone, message) => {
 // PLANTILLAS DE MENSAJES - Profesional y limpio
 // ============================================================
 
-const FOOTER = `*Motopartes* - V.Carranza`;
+const FOOTER = `*MotoPartes* · Taller V. Carranza`;
 
 /**
  * Mensaje de bienvenida cuando se crea una orden (legacy)
@@ -158,23 +158,29 @@ export const getUpdateNotificationMessage = (clientName, updateTitle, link) => {
  * Moto lista para recoger
  */
 export const getReadyForPickupMessage = (clientName, motorcycle, orderNumber, totalAmount) => {
-    return [
-        `*${clientName}*,`,
+    const lines = [
+        `Hola *${clientName}* 🎉`,
         ``,
-        `*${orderNumber} - LISTA PARA ENTREGAR*`,
+        `🏁 *Orden ${orderNumber} · Lista para entregar*`,
         ``,
-        `La moto está lista para entregar.`,
-        `Moto: *${motorcycle}*`,
-        `Total: *$${totalAmount.toLocaleString('es-MX')}*`,
-        ``,
-        `Horario de atencion:`,
-        `Lun - Vie: 9:00 AM - 6:00 PM`,
-        `Sabados: 9:00 AM - 2:00 PM`,
-        ``,
-        `Le esperamos para la entrega.`,
-        ``,
-        FOOTER,
-    ].join('\n');
+        `¡Buenas noticias! Su *${motorcycle}* ya está lista y le espera en el taller.`,
+    ];
+
+    if (totalAmount > 0) {
+        lines.push(``);
+        lines.push(`Total del servicio: *$${totalAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}*`);
+    }
+
+    lines.push(``);
+    lines.push(`*Horario de entrega*`);
+    lines.push(`Lun a Vie · 9:00 a 18:00`);
+    lines.push(`Sábados · 9:00 a 14:00`);
+    lines.push(``);
+    lines.push(`Le esperamos. Cualquier duda, quedamos a sus órdenes. 🙌`);
+    lines.push(``);
+    lines.push(FOOTER);
+
+    return lines.join('\n');
 };
 
 /**
@@ -182,16 +188,81 @@ export const getReadyForPickupMessage = (clientName, motorcycle, orderNumber, to
  */
 export const getDeliveryNotificationMessage = (clientName, motorcycle, orderNumber) => {
     return [
-        `*${clientName}*,`,
+        `Hola *${clientName}* 🙏`,
         ``,
-        `*${orderNumber} - ENTREGADA*`,
+        `📦 *Orden ${orderNumber} · Entregada*`,
         ``,
-        `Su motocicleta *${motorcycle}* ha sido entregada satisfactoriamente.`,
+        `Su *${motorcycle}* fue entregada. Fue un gusto atenderle.`,
         ``,
-        `Agradecemos su confianza. Estamos a sus ordenes para cualquier necesidad futura.`,
+        `Si más adelante necesita mantenimiento o cualquier ajuste, estamos a sus órdenes. ¡Buen camino! 🏍️`,
         ``,
         FOOTER,
     ].join('\n');
+};
+
+/**
+ * Evidencia (foto de pieza/falla) enviada al cliente durante el servicio.
+ * El texto acompaña a la imagen como caption.
+ */
+export const getEvidenceMessage = (clientName, motorcycle, orderNumber, note) => {
+    const lines = [
+        `Hola *${clientName}* 👋`,
+        ``,
+        `📸 *Orden ${orderNumber} · Evidencia del servicio*`,
+        ``,
+        `Le compartimos una imagen del estado de su *${motorcycle}*:`,
+    ];
+
+    if (note && note.trim()) {
+        lines.push(``);
+        lines.push(`_${note.trim()}_`);
+    }
+
+    lines.push(``);
+    lines.push(`Quedamos atentos a cualquier autorización o duda. 🙌`);
+    lines.push(``);
+    lines.push(FOOTER);
+
+    return lines.join('\n');
+};
+
+/**
+ * Envía una evidencia (imagen data URL o URL pública) al cliente vía el bot.
+ * Reutiliza la misma estrategia de resolución de sesión que sendDirectMessage.
+ */
+export const sendEvidence = async (mechanicId, phone, mediaUrl, caption) => {
+    if (!phone) {
+        return { success: false, automated: false, error: 'El cliente no tiene número de teléfono registrado' };
+    }
+    if (!mediaUrl) {
+        return { success: false, automated: false, error: 'No hay imagen para enviar' };
+    }
+
+    try {
+        if (mechanicId) {
+            const status = await whatsappBotService.getSessionStatus(mechanicId);
+            if (status.isConnected) {
+                const result = await whatsappBotService.sendMedia(mechanicId, phone, mediaUrl, caption);
+                if (result.success) return { success: true, automated: true };
+            }
+        }
+
+        const sessions = await whatsappBotService.getBotSessions();
+        const activeSessions = (Array.isArray(sessions) ? sessions : []).filter(s => s.isConnected);
+        if (activeSessions.length > 0) {
+            const result = await whatsappBotService.sendMedia(activeSessions[0].mechanicId, phone, mediaUrl, caption);
+            if (result.success) return { success: true, automated: true };
+        }
+
+        return {
+            success: false,
+            automated: false,
+            error: 'El bot de WhatsApp no está activo. Conéctalo desde la sección WhatsApp para enviar evidencias.'
+        };
+    } catch (err) {
+        console.error('[WhatsApp] Error al enviar evidencia:', err);
+        return { success: false, automated: false, error: 'Error de conexión con el bot de WhatsApp.' };
+    }
 };
 
 /**
@@ -256,11 +327,11 @@ export const getStatusChangeMessage = (statusName, data) => {
  */
 export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trackingLink, orderDetails = null) => {
     const lines = [
-        `*${clientName}*,`,
+        `Hola *${clientName}* 👋`,
         ``,
-        `*${orderNumber} - REGISTRADA*`,
+        `✅ *Orden ${orderNumber} · Registrada*`,
         ``,
-        `Su motocicleta *${motorcycle}* ha sido recibida en nuestro taller.`,
+        `Recibimos su *${motorcycle}* en el taller y ya quedó registrada. A partir de aquí le mantendremos al tanto de cada avance por este medio.`,
     ];
 
     // Add service details if provided
@@ -318,12 +389,12 @@ export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trac
         } else {
             // No costs defined yet — inform client costs will be sent later
             lines.push(``);
-            lines.push(`Se le enviará el resumen del costo total (mano de obra y refacciones) conforme se revise y avance el servicio.`);
+            lines.push(`En cuanto revisemos su motocicleta le enviaremos el presupuesto detallado (mano de obra y refacciones) para su autorización.`);
         }
     }
 
     lines.push(``);
-    lines.push(`Le informaremos cada avance de su servicio por este medio.`);
+    lines.push(`Cualquier duda, con gusto le atendemos por aquí. 🙌`);
 
     if (trackingLink) {
         lines.push(``);
@@ -360,13 +431,13 @@ export const getInReviewMessage = (clientName, motorcycle, orderNumber, tracking
  */
 export const getInRepairMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
     return [
-        `*${clientName}*,`,
+        `Hola *${clientName}* 👋`,
         ``,
-        `*${orderNumber} - EN REPARACION*`,
+        `🔧 *Orden ${orderNumber} · En reparación*`,
         ``,
-        `Su motocicleta *${motorcycle}* se encuentra en reparacion.`,
+        `Ya estamos trabajando en su *${motorcycle}*. Nuestro equipo la está atendiendo para dejarla en óptimas condiciones.`,
         ``,
-        `Nuestro equipo esta trabajando para dejarla en optimas condiciones.`,
+        `Le avisaremos en cuanto esté lista.`,
         ``,
         trackingLink ? `Seguimiento: ${trackingLink}` : null,
         ``,
@@ -379,13 +450,11 @@ export const getInRepairMessage = (clientName, motorcycle, orderNumber, tracking
  */
 export const getInProgressMessage = (clientName, motorcycle, orderNumber, trackingLink) => {
     return [
-        `*${clientName}*,`,
+        `Hola *${clientName}* 👋`,
         ``,
-        `*${orderNumber} - EN PROCESO*`,
+        `🔧 *Orden ${orderNumber} · En proceso*`,
         ``,
-        `Su motocicleta *${motorcycle}* continua en proceso de servicio.`,
-        ``,
-        `Le notificaremos cuando haya novedades.`,
+        `Seguimos trabajando en su *${motorcycle}*. Avanza según lo previsto y le avisaremos en cuanto haya novedades.`,
         ``,
         trackingLink ? `Seguimiento: ${trackingLink}` : null,
         ``,
