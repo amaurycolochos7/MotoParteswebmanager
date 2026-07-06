@@ -975,7 +975,10 @@ export const whatsappBotService = {
                 body: JSON.stringify({ mechanicId, phone, message: caption, mediaUrl })
             });
             if (res.ok) return { success: true, automated: true };
-            return { success: false, fallback: true };
+            // La sesión existe pero el envío falló (número inválido, error de WA, etc.).
+            // Distinguir de "sin sesión" para no mostrar un mensaje engañoso.
+            const body = await res.json().catch(() => ({}));
+            return { success: false, sendFailed: res.status !== 503, error: body.error };
         } catch {
             return { success: false, fallback: true };
         }

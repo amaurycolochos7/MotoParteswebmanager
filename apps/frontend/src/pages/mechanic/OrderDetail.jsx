@@ -804,7 +804,7 @@ export default function OrderDetail() {
                             </div>
                         ) : (
                             <label className="od-evidence__pick">
-                                <input type="file" accept="image/*" onChange={handleEvidenceFile} hidden />
+                                <input type="file" accept="image/*" capture="environment" onChange={handleEvidenceFile} hidden />
                                 <Camera size={18} />
                                 <span>Agregar evidencia</span>
                             </label>

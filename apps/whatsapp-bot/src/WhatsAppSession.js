@@ -480,8 +480,15 @@ class WhatsAppSession extends EventEmitter {
             media = await MessageMedia.fromUrl(mediaUrl, { unsafeMime: true });
         }
 
+        // Resuelve el ID real de WhatsApp igual que sendMessage/sendDocument.
+        // Sin esto, enviar media a un `digits@c.us` sin resolver falla con el
+        // error "No LID"/wid en WhatsApp multi-device, y el fallo se reportaba
+        // en la UI como "el bot no está activo" (engañoso: la sesión sí existe).
         const formatted = this._formatPhone(phone);
-        const result = await this.client.sendMessage(formatted, media, { caption: message || '' });
+        console.log(`📤 Sending media to ${formatted}...`);
+        const numberId = await this.client.getNumberId(formatted.replace('@c.us', ''));
+        const chatId = numberId ? numberId._serialized : formatted;
+        const result = await this.client.sendMessage(chatId, media, { caption: message || '' });
         return { success: true, messageId: result.id._serialized };
     }
 

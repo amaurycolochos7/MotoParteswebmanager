@@ -239,11 +239,13 @@ export const sendEvidence = async (mechanicId, phone, mediaUrl, caption) => {
     }
 
     try {
+        let sendError = null;
         if (mechanicId) {
             const status = await whatsappBotService.getSessionStatus(mechanicId);
             if (status.isConnected) {
                 const result = await whatsappBotService.sendMedia(mechanicId, phone, mediaUrl, caption);
                 if (result.success) return { success: true, automated: true };
+                if (result.sendFailed) sendError = result.error;
             }
         }
 
@@ -252,6 +254,13 @@ export const sendEvidence = async (mechanicId, phone, mediaUrl, caption) => {
         if (activeSessions.length > 0) {
             const result = await whatsappBotService.sendMedia(activeSessions[0].mechanicId, phone, mediaUrl, caption);
             if (result.success) return { success: true, automated: true };
+            if (result.sendFailed) sendError = result.error;
+        }
+
+        // Si hubo una sesión activa pero el envío falló, el bot SÍ está activo:
+        // el problema es el envío en sí (número no registrado, error de WhatsApp…).
+        if (sendError) {
+            return { success: false, automated: false, error: `No se pudo enviar la imagen: ${sendError}` };
         }
 
         return {
