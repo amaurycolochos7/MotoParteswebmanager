@@ -12,7 +12,7 @@ const BOT_KEY = process.env.WHATSAPP_API_KEY || 'motopartes-whatsapp-key';
 // Template substitution. Placeholders like {cliente}, {folio}, {total}…
 // ────────────────────────────────────────────────────────────────────────
 
-function substitute(body, vars) {
+export function substitute(body, vars) {
     if (!body) return '';
     return body.replace(/\{([a-z_]+)\}/gi, (match, key) => {
         if (Object.prototype.hasOwnProperty.call(vars, key)) {
@@ -51,8 +51,11 @@ async function buildVars(workspaceId, context) {
             vars.anticipo = '$' + Number(order.advance_payment || 0).toLocaleString('es-MX');
             vars.diagnostico = order.initial_diagnosis || '';
             vars.notas = order.mechanic_notes || '';
+            // Motivo de ingreso — el reclamo/petición del cliente al recibir la moto.
+            // Fallback profesional si la orden se creó sin capturarlo.
+            vars.motivo = (order.customer_complaint || '').trim() || 'Servicio general';
             if (order.client) {
-                vars.cliente = order.client.full_name || '';
+                vars.cliente = order.client.full_name || 'cliente';
                 vars.cliente_telefono = order.client.phone || '';
             }
             if (order.motorcycle) {
@@ -61,6 +64,9 @@ async function buildVars(workspaceId, context) {
                 vars.placas = order.motorcycle.plates || '';
                 vars.year = order.motorcycle.year || '';
             }
+            // {moto} = "marca modelo" listo para usar en el mensaje, con fallback
+            // seguro si la orden no tiene moto asociada.
+            vars.moto = [vars.marca, vars.modelo].filter(Boolean).join(' ').trim() || 'su motocicleta';
             if (order.mechanic) {
                 vars.mecanico = order.mechanic.full_name || '';
             }

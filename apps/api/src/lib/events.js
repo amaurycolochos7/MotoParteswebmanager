@@ -14,7 +14,7 @@ function unscoped(fn) {
 
 // Does the context match the automation's filter? Filters are a flat map of
 // { key: value } which must all equal the corresponding key in context.
-function matchesFilter(filter, context) {
+export function matchesFilter(filter, context) {
     if (!filter || typeof filter !== 'object') return true;
     for (const [key, value] of Object.entries(filter)) {
         if (context[key] !== value) return false;
@@ -41,6 +41,26 @@ export async function fireEvent(trigger, contextFromCaller) {
         let queued = 0;
         for (const auto of automations) {
             if (!matchesFilter(auto.filter || {}, context)) continue;
+
+            // Idempotency guard: automations flagged `params.dedup_per_order`
+            // fire at most once per order (e.g. order-created:{orderId},
+            // order-completed:{orderId}). Prevents duplicate WhatsApp messages
+            // when a status is re-applied or an event double-fires.
+            if (auto.params?.dedup_per_order && context.order_id) {
+                const already = await unscoped(() =>
+                    prisma.automationJob.findFirst({
+                        where: {
+                            workspace_id: workspaceId,
+                            automation_id: auto.id,
+                            context: { path: ['order_id'], equals: context.order_id },
+                            status: { in: ['pending', 'running', 'done'] },
+                        },
+                        select: { id: true },
+                    })
+                );
+                if (already) continue;
+            }
+
             const delayMs = (auto.delay_minutes || 0) * 60 * 1000;
             await unscoped(() =>
                 prisma.automationJob.create({
