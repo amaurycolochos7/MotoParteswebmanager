@@ -61,12 +61,24 @@ export default function WhatsAppConnect() {
                 setQrCode(null);
                 setError(null);
                 startRequested.current = false;
+            } else if (statusRes.exists && statusRes.qr) {
+                // QR is available — fetch the image immediately
+                const qrRes = await whatsappBotService.getQR(user.id);
+                if (qrRes.qr) {
+                    setQrCode(qrRes.qr);
+                    setStatus('qr');
+                    setError(null);
+                    startRequested.current = false;
+                } else {
+                    setStatus('disconnected');
+                    setError(statusRes.lastError || null);
+                }
             } else if (statusRes.initializing || statusRes.restartScheduled) {
                 // Bot is working on it — just wait, don't spam startSession
                 setStatus('disconnected');
                 setError(statusRes.lastError || null);
-            } else if (statusRes.exists === false || (!statusRes.initializing && !statusRes.qr)) {
-                // Only call startSession ONCE until we get a QR or connection
+            } else if (statusRes.exists === false) {
+                // No session at all — request one start
                 if (!startRequested.current) {
                     startRequested.current = true;
                     await whatsappBotService.startSession(user.id);
@@ -74,7 +86,7 @@ export default function WhatsAppConnect() {
                 setStatus('disconnected');
                 setError(statusRes.lastError || null);
             } else {
-                // Session exists, check for QR
+                // Session exists but no QR yet — check QR endpoint as fallback
                 const qrRes = await whatsappBotService.getQR(user.id);
                 if (qrRes.qr) {
                     setQrCode(qrRes.qr);
