@@ -191,20 +191,12 @@ class WhatsAppSession extends EventEmitter {
             }
         }
 
+        // ponytail: Do NOT fall back to system /usr/bin/chromium. Debian's rolling
+        // package is unpinned and v150 core-dumps (SIGTRAP) on launch. Puppeteer's
+        // bundled Chrome-for-Testing (pinned, in /root/.cache/puppeteer) is stable.
+        // Only override if PUPPETEER_EXECUTABLE_PATH is explicitly set in env.
         if (!chromePath) {
-            // Check system paths as fallback
-            const systemPaths = ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome'];
-            for (const sp of systemPaths) {
-                try {
-                    fs.accessSync(sp, fs.constants.X_OK);
-                    console.log(`✅ Found system Chrome at: ${sp}`);
-                    chromePath = sp;
-                    break;
-                } catch { /* skip */ }
-            }
-            if (!chromePath) {
-                console.log(`📦 No system Chrome found, Puppeteer will use its bundled Chrome`);
-            }
+            console.log(`📦 Using Puppeteer bundled Chrome (no PUPPETEER_EXECUTABLE_PATH set)`);
         }
 
         const dataPath = sessionsPath();
