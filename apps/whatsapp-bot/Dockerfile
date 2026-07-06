@@ -33,10 +33,12 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
-# Tell Puppeteer to use system Chromium (don't download its own)
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-ENV CHROME_PATH=/usr/bin/chromium
+# Use Puppeteer's OWN bundled Chrome-for-Testing (pinned to the puppeteer version),
+# NOT Debian's rolling `chromium` apt package. Debian bumped chromium to v150 which
+# core-dumps (SIGTRAP) on launch in this container; the pinned bundled Chrome (v145)
+# is stable and is what our other WhatsApp bots on this host use successfully.
+# The apt `chromium` above stays only for its shared-library dependencies.
+ENV CHROME_PATH=
 
 # Session data persists in this volume across deploys
 # This path MUST match the volume mount in docker-compose
@@ -49,6 +51,11 @@ COPY apps/whatsapp-bot/package*.json ./
 COPY apps/whatsapp-bot/prisma ./prisma/
 
 RUN npm install --omit=dev
+
+# Download Puppeteer's pinned Chrome-for-Testing into /root/.cache/puppeteer.
+# Explicit + idempotent: guarantees the browser exists even if the transitive
+# install script is skipped. Runtime runs as root (HOME=/root) so the cache matches.
+RUN ./node_modules/.bin/puppeteer browsers install chrome
 
 # Copy and run the patch script to fix whatsapp-web.js
 COPY apps/whatsapp-bot/patch-wwebjs.cjs ./patch-wwebjs.cjs
