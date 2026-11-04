@@ -500,11 +500,80 @@ class WhatsAppSession extends EventEmitter {
             // 2) UN solo envío. Si sendMessage no lanzó, el mensaje salió: aunque
             //    devuelva undefined NO se reintenta (antes se reenviaba por otra vía y
             //    el cliente recibía copias mientras la UI mostraba error).
-            const sinceSec = Math.floor(Date.now() / 1000) - 1;
-            const result = await this.client.sendMessage(chatId, message);
-            this._trackAck(chatId, sinceSec, 'text');
-            return { success: true, messageId: this._sentMessageId(result) };
+            return this._sendAndConfirm(
+                chatId,
+                () => this.client.sendMessage(chatId, message),
+                { kind: 'text', body: message },
+                'text'
+            );
         });
+    }
+
+    /**
+     * ¿Aparece el mensaje saliente en el chat de WhatsApp Web? Un mensaje enviado
+     * existe de inmediato en chat.msgs (ack 0 = pendiente). Si NO existe, la
+     * librería devolvió undefined SIN enviar nada (p. ej. no pudo crear el chat de
+     * un contacto nuevo resuelto como @lid) y reportarlo como éxito perdía el mensaje.
+     * Devuelve { found, ack } o { found:false, error } si no se pudo consultar.
+     */
+    async _confirmSent(chatId, sinceSec, matcher, timeoutMs = 6000) {
+        const deadline = Date.now() + timeoutMs;
+        do {
+            try {
+                const r = await this.client.pupPage.evaluate(async (id, since, kind, body) => {
+                    const wid = window.require('WAWebWidFactory').createWid(id);
+                    const chat = window.require('WAWebCollections').Chat.get(wid);
+                    if (!chat) return { chat: false, found: false };
+                    const mine = chat.msgs.getModelsArray().filter((m) =>
+                        (m.id ? m.id.fromMe : m.fromMe) &&
+                        m.t >= since &&
+                        (kind === 'text' ? String(m.body || '') === body : m.type !== 'chat')
+                    );
+                    const m = mine[mine.length - 1];
+                    return m ? { chat: true, found: true, ack: m.ack } : { chat: true, found: false };
+                }, chatId, sinceSec, matcher.kind, matcher.body || '');
+                if (r.found) return r;
+            } catch (e) {
+                return { found: false, error: e.message };
+            }
+            await new Promise((res) => setTimeout(res, 500));
+        } while (Date.now() < deadline);
+        return { found: false };
+    }
+
+    /**
+     * Envía y VERIFICA. Si el mensaje no aparece en el chat, NO salió, así que es
+     * seguro reintentar una sola vez sin riesgo de duplicado. Si aun así no aparece,
+     * se informa el error real en lugar de un falso éxito.
+     */
+    async _sendAndConfirm(chatId, doSend, matcher, label) {
+        const sinceSec = Math.floor(Date.now() / 1000) - 2;
+        let result = await doSend();
+        let conf = await this._confirmSent(chatId, sinceSec, matcher, 6000);
+
+        if (conf.error) {
+            // No se pudo consultar el chat: no sabemos si salió. NO reintentar (podría duplicar).
+            console.warn(`⚠️ [${label}] ${chatId}: no se pudo verificar el envío (${conf.error})`);
+            return { success: true, messageId: this._sentMessageId(result), ack: null, unverified: true };
+        }
+
+        if (!conf.found) {
+            console.warn(`⚠️ [${label}] ${chatId}: el mensaje NO aparece en el chat tras el envío (resultado=${result ? 'objeto' : 'undefined'}) — se reintenta UNA vez`);
+            result = await doSend();
+            conf = await this._confirmSent(chatId, sinceSec, matcher, 8000);
+            if (conf.error) {
+                console.warn(`⚠️ [${label}] ${chatId}: reintento sin verificar (${conf.error})`);
+                return { success: true, messageId: this._sentMessageId(result), ack: null, unverified: true };
+            }
+            if (!conf.found) {
+                console.error(`❌ [${label}] ${chatId}: WhatsApp no registró el mensaje ni tras el reintento`);
+                throw new Error('WhatsApp no registró el mensaje (no se envió). Intenta de nuevo.');
+            }
+            console.log(`🔁 [${label}] ${chatId}: reintento OK (ack=${conf.ack})`);
+        }
+
+        this._trackAck(chatId, sinceSec, label);
+        return { success: true, messageId: this._sentMessageId(result), ack: conf.ack };
     }
 
     /**
@@ -593,8 +662,12 @@ class WhatsAppSession extends EventEmitter {
         return this._dedupeSend('media', formatted, `${mediaKey}|${message || ''}`, async () => {
             const numberId = await this.client.getNumberId(formatted.replace('@c.us', ''));
             const chatId = numberId ? numberId._serialized : formatted;
-            const result = await this.client.sendMessage(chatId, media, { caption: message || '' });
-            return { success: true, messageId: this._sentMessageId(result) };
+            return this._sendAndConfirm(
+                chatId,
+                () => this.client.sendMessage(chatId, media, { caption: message || '' }),
+                { kind: 'media' },
+                'media'
+            );
         });
     }
 
@@ -616,11 +689,15 @@ class WhatsAppSession extends EventEmitter {
             try {
                 const numberId = await this.client.getNumberId(formatted.replace('@c.us', ''));
                 const chatId = numberId ? numberId._serialized : formatted;
-                const result = await this.client.sendMessage(chatId, media, {
-                    caption: message || '',
-                    sendMediaAsDocument: true,
-                });
-                return { success: true, messageId: this._sentMessageId(result) };
+                return await this._sendAndConfirm(
+                    chatId,
+                    () => this.client.sendMessage(chatId, media, {
+                        caption: message || '',
+                        sendMediaAsDocument: true,
+                    }),
+                    { kind: 'media' },
+                    'document'
+                );
             } catch (err) {
                 console.error(`Failed to send document: ${err.message}`);
                 throw err;
