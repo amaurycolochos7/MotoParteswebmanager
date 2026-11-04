@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Telemetría · Servidor</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b0907'/%3E%3Cpath d='M7 22a10 10 0 1 1 18 0' fill='none' stroke='%23ffb627' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M16 20l5-7' stroke='%23f2e9d6' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0907; --panel:#15110c; --panel2:#1a150e; --line:#2b2418; --line2:#3b3020;
+  --ink:#f2e9d6; --dim:#a39878; --faint:#5f5640;
+  --amber:#ffb627; --ember:#ff7a2e; --red:#ff4132; --ok:#9be15d; --teal:#52d8c9; --lime:#c4e85a;
+  --tone:var(--amber);
+  --display:'Big Shoulders Display','Arial Narrow',Impact,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg)}
+body{
+  min-height:100vh;color:var(--ink);font-family:var(--mono);font-size:13px;line-height:1.45;
+  background:
+    radial-gradient(900px 520px at 88% -8%, rgba(255,122,46,.13), transparent 60%),
+    radial-gradient(800px 520px at -6% 108%, rgba(255,182,39,.10), transparent 60%),
+    linear-gradient(180deg,#0d0a08,#090705);
+  -webkit-font-smoothing:antialiased;
+}
+body::before{ /* grano de película */
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.075;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+body::after{ /* retícula de puntos */
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.35;
+  background-image:radial-gradient(rgba(255,182,39,.10) 1px,transparent 1.2px);background-size:26px 26px;
+  mask-image:linear-gradient(180deg,#000 0%,transparent 70%);
+}
+.wrap{position:relative;z-index:1;max-width:1480px;margin:0 auto;padding:26px 28px 40px}
+
+/* ───── encabezado ───── */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;padding-bottom:18px;margin-bottom:22px;border-bottom:1px solid var(--line);position:relative}
+.top::after{content:"";position:absolute;left:0;bottom:-1px;width:180px;height:2px;background:var(--amber);box-shadow:0 0 14px var(--amber)}
+.kicker{font-size:11px;letter-spacing:.32em;color:var(--dim);text-transform:uppercase;margin-bottom:4px}
+.brand{font-family:var(--display);font-weight:900;font-size:clamp(46px,7vw,92px);line-height:.86;letter-spacing:.01em;text-transform:uppercase;
+  background:linear-gradient(180deg,#fff3d6 0%,#ffcf6b 46%,#ff9a2e 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 22px rgba(255,150,40,.28))}
+.sub{margin-top:8px;color:var(--dim);font-size:12px;letter-spacing:.04em}
+.sub b{color:var(--ink);font-weight:500}
+.right{display:flex;align-items:center;gap:26px;flex-wrap:wrap}
+.status{display:flex;align-items:center;gap:14px;padding:10px 16px 10px 14px;border:1px solid var(--line2);background:rgba(255,255,255,.015)}
+.lamp{width:14px;height:14px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(155,225,93,.14),0 0 18px var(--ok);animation:pulse 2.4s ease-in-out infinite;flex:none}
+.lamp.warn{background:var(--amber);box-shadow:0 0 0 3px rgba(255,182,39,.16),0 0 18px var(--amber)}
+.lamp.crit{background:var(--red);box-shadow:0 0 0 3px rgba(255,65,50,.18),0 0 20px var(--red);animation-duration:.9s}
+.lamp.off{background:#555;box-shadow:none;animation:none}
+.status .st{font-family:var(--display);font-weight:700;font-size:25px;letter-spacing:.1em;line-height:1}
+.status .why{font-size:11px;color:var(--dim);margin-top:3px;max-width:340px}
+.clock{text-align:right}
+.clock .t{font-family:var(--display);font-weight:500;font-size:44px;line-height:.9;letter-spacing:.04em}
+.clock .t i{font-style:normal;animation:blink 1s steps(2) infinite;color:var(--amber)}
+.clock .d{color:var(--dim);font-size:11px;letter-spacing:.16em;text-transform:uppercase;margin-top:4px}
+
+/* ───── rejilla y tarjetas ───── */
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:18px}
+.card{position:relative;padding:18px 20px 20px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:3px;
+  opacity:0;transform:translateY(14px);animation:rise .8s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--i,0)*90ms + 120ms);overflow:hidden}
+.card::before,.card::after{content:"";position:absolute;width:14px;height:14px;border:2px solid var(--amber);opacity:.85;pointer-events:none}
+.card::before{left:-1px;top:-1px;border-right:0;border-bottom:0}
+.card::after{right:-1px;bottom:-1px;border-left:0;border-top:0}
+.tag{display:flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+.tag em{font-style:normal;color:var(--amber)}
+.tag .rule{flex:1;height:1px;background:linear-gradient(90deg,var(--line2),transparent)}
+.hero{grid-column:span 5;grid-row:span 2}
+.c-cpu{grid-column:span 3}.c-mem{grid-column:span 4}
+.c-disk{grid-column:span 7}
+.c-hist{grid-column:span 8}.c-power{grid-column:span 4}
+.c-svc{grid-column:span 8}.c-hw{grid-column:span 4}
+@media (max-width:1180px){.hero{grid-column:span 12;grid-row:auto}.c-cpu{grid-column:span 5}.c-mem{grid-column:span 7}.c-disk{grid-column:span 12}.c-hist,.c-svc{grid-column:span 12}.c-power,.c-hw{grid-column:span 6}}
+@media (max-width:760px){.brow{grid-template-columns:118px 1fr 60px}.wrap{padding:18px 14px 30px}.c-cpu,.c-mem,.c-power,.c-hw{grid-column:span 12}.clock{text-align:left}.top{align-items:flex-start}}
+
+/* ───── relojes ───── */
+.gauge{display:block;width:100%;height:auto;color:var(--tone);overflow:visible}
+.gauge .track{fill:none;stroke:#241d12;stroke-width:10}
+.gauge .val{fill:none;stroke:currentColor;stroke-width:10;stroke-linecap:round;filter:drop-shadow(0 0 7px currentColor);transition:stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1),color .5s}
+.gauge .tick{stroke:#3a2f1d;stroke-width:1.6;transition:stroke .5s}
+.gauge .tick.lit{stroke:currentColor;opacity:.9}
+.gauge .tick.major{stroke-width:2.4}
+.gauge .gnum{font-family:var(--display);font-weight:900;font-size:54px;fill:var(--ink);text-anchor:middle}
+.gauge .gunit{font-family:var(--display);font-weight:500;font-size:19px;fill:var(--amber);text-anchor:middle;letter-spacing:.02em}
+.gauge .gcap{font-family:var(--mono);font-size:7.5px;fill:var(--dim);text-anchor:middle;letter-spacing:.22em;text-transform:uppercase}
+.gauge .gend{font-family:var(--mono);font-size:8px;fill:var(--faint);text-anchor:middle}
+.gauge .zone{fill:none;stroke-width:3.2;opacity:.8}
+.gauge .mk{fill:var(--ink);filter:drop-shadow(0 0 4px #fff8)}
+.gauge .lim{stroke:var(--red);stroke-width:2.6;filter:drop-shadow(0 0 4px var(--red))}
+.tone-ok{--tone:var(--amber)}.tone-warn{--tone:var(--ember)}.tone-crit{--tone:var(--red)}
+
+.stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
+.stat{padding:10px 12px;border:1px solid var(--line);background:rgba(0,0,0,.22)}
+.stat .l{font-size:9.5px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
+.stat .v{font-family:var(--display);font-weight:700;font-size:30px;line-height:1.05;margin-top:3px}
+.stat .v small{font-size:15px;color:var(--amber);margin-left:2px;font-weight:500}
+.stat .n{font-size:10.5px;color:var(--dim);margin-top:2px}
+.bars{margin-top:16px;display:grid;gap:7px}
+.brow{display:grid;grid-template-columns:150px 1fr 64px;align-items:center;gap:10px;font-size:11.5px}
+.brow .nm{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brow .tr{height:7px;background:#221b10;position:relative;overflow:hidden}
+.brow .fl{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#b9780e,var(--amber));box-shadow:0 0 10px rgba(255,182,39,.5);transition:width 1s cubic-bezier(.2,.8,.2,1)}
+.brow .fl.warn{background:linear-gradient(90deg,#b34a12,var(--ember))}.brow .fl.crit{background:linear-gradient(90deg,#a01c12,var(--red))}
+.brow .vl{text-align:right;font-variant-numeric:tabular-nums}
+.note{margin-top:12px;font-size:11px;color:var(--dim);line-height:1.5}
+.empty{padding:30px 10px;text-align:center;color:var(--dim);font-size:12px}
+
+/* ───── CPU / RAM ───── */
+.cores{display:flex;gap:8px;align-items:flex-end;height:78px;margin-top:6px}
+.core{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%}
+.core .col{flex:1;width:100%;background:#211a0f;position:relative;overflow:hidden}
+.core .col i{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(0deg,#b9780e,var(--amber));box-shadow:0 0 10px rgba(255,182,39,.45);transition:height .9s cubic-bezier(.2,.8,.2,1)}
+.core span{font-size:9.5px;color:var(--dim);letter-spacing:.1em}
+.loads{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:2px;margin-bottom:12px}
+.loads div{text-align:center;padding:6px 0;border:1px solid var(--line);background:rgba(0,0,0,.2)}
+.loads b{display:block;font-family:var(--display);font-size:24px;font-weight:700;line-height:1}
+.loads span{font-size:9px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase}
+.peak{margin-top:12px;font-size:11px;color:var(--dim)}.peak b{color:var(--ink);font-weight:500}
+.stack{display:flex;height:16px;background:#211a0f;overflow:hidden;margin-top:6px}
+.stack i{display:block;height:100%;transition:width 1s cubic-bezier(.2,.8,.2,1)}
+.s-app{background:linear-gradient(90deg,#c98310,var(--amber))}
+.s-cache{background:repeating-linear-gradient(135deg,#6d4c14 0 5px,#8a6118 5px 10px)}
+.legend{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.legend div{font-size:10.5px;color:var(--dim)}
+.legend b{display:block;font-family:var(--display);font-weight:700;font-size:22px;color:var(--ink);line-height:1.05}
+.legend u{display:inline-block;width:8px;height:8px;margin-right:6px;text-decoration:none}
+
+/* ───── disco (LED) ───── */
+.big3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.big3 .l{font-size:10px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase}
+.big3 .v{font-family:var(--display);font-weight:900;font-size:clamp(38px,4.4vw,58px);line-height:1;margin-top:2px}
+.big3 .v small{font-size:.38em;font-weight:500;color:var(--amber);margin-left:4px;letter-spacing:.1em}
+.big3 .u .v{color:var(--tone)}
+.led{display:grid;grid-template-columns:repeat(60,1fr);gap:3px;height:30px}
+.led i{background:#251d11;border-radius:1px;transition:background .5s,box-shadow .5s}
+.led i.on{background:var(--tone);box-shadow:0 0 8px color-mix(in srgb,var(--tone) 70%,transparent)}
+.ledscale{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:6px;letter-spacing:.1em}
+.phys{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line2);font-size:11.5px;color:var(--dim);line-height:1.6}
+.phys b{color:var(--ink);font-weight:500}.phys .hl{color:var(--amber)}
+
+/* ───── historial ───── */
+.tabs{display:flex;gap:6px;margin-left:auto}
+.tabs button{font:inherit;font-size:11px;letter-spacing:.12em;color:var(--dim);background:transparent;border:1px solid var(--line2);padding:5px 12px;cursor:pointer;transition:.2s;text-transform:uppercase}
+.tabs button:hover{color:var(--ink);border-color:var(--amber)}
+.tabs button.on{color:#1a1208;background:var(--amber);border-color:var(--amber);font-weight:600}
+.charts{display:grid;gap:14px}
+.chart{position:relative}
+.chart .hd{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:2px}
+.chart .hd h4{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:.12em;text-transform:uppercase}
+.chart .hd span{font-size:11px;color:var(--dim)}.chart .hd span b{color:var(--ink);font-weight:500}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.tip{position:absolute;pointer-events:none;background:#0b0907f2;border:1px solid var(--amber);padding:6px 9px;font-size:11px;white-space:nowrap;opacity:0;transition:opacity .12s;z-index:5;transform:translate(-50%,-100%)}
+.tip b{color:var(--amber);font-weight:600}
+
+/* ───── energía ───── */
+.src{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.src .big{font-family:var(--display);font-weight:900;font-size:28px;letter-spacing:.08em;line-height:1}
+.bat{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;height:26px;margin:4px 0 10px;padding:3px;border:1.5px solid var(--line2);position:relative}
+.bat::after{content:"";position:absolute;right:-7px;top:7px;width:4px;height:10px;background:var(--line2)}
+.bat i{background:#251d11}.bat i.on{background:var(--tone);box-shadow:0 0 7px color-mix(in srgb,var(--tone) 70%,transparent)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:12px}
+.kv dt{color:var(--dim)}.kv dd{text-align:right;color:var(--ink)}
+.fan{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line2)}
+
+/* ───── servicios ───── */
+.svc{display:grid;gap:0}
+.srow{display:grid;grid-template-columns:18px 190px 1fr 120px 56px;align-items:center;gap:14px;padding:11px 4px;border-bottom:1px solid var(--line);font-size:12.5px}
+.srow:last-child{border-bottom:0}
+.srow .lamp{width:11px;height:11px}
+.srow .nm{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:.08em;text-transform:uppercase}
+.srow .dt{color:var(--dim)}
+.srow .lat{height:5px;background:#221b10;position:relative}.srow .lat i{position:absolute;inset:0 auto 0 0;background:var(--amber);box-shadow:0 0 8px rgba(255,182,39,.5)}
+.srow .ms{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
+@media (max-width:760px){.srow{grid-template-columns:18px 1fr 56px}.srow .dt,.srow .lat{display:none}}
+
+footer{margin-top:24px;display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;color:var(--faint);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.offline{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:60;background:var(--red);color:#fff;padding:8px 18px;font-family:var(--display);font-weight:700;letter-spacing:.16em;font-size:17px;display:none;box-shadow:0 0 30px rgba(255,65,50,.5)}
+body.lost .offline{display:block}body.lost .grid{filter:grayscale(.8) brightness(.7)}
+
+@keyframes rise{to{opacity:1;transform:none}}
+@keyframes pulse{50%{opacity:.55;transform:scale(.9)}}
+@keyframes blink{50%{opacity:.15}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.card{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="offline">SIN CONEXIÓN CON EL SERVIDOR</div>
+<main class="wrap">
+  <header class="top">
+    <div>
+      <div class="kicker">Telemetría · solo lectura</div>
+      <div class="brand" id="host">Servidor</div>
+      <div class="sub" id="sub">cargando datos…</div>
+    </div>
+    <div class="right">
+      <div class="status" id="status"><span class="lamp off" id="lamp"></span><div><div class="st" id="st">CONECTANDO</div><div class="why" id="why"></div></div></div>
+      <div class="clock"><div class="t" id="clk">--<i>:</i>--<i>:</i>--</div><div class="d" id="date"></div></div>
+    </div>
+  </header>
+
+  <section class="grid">
+    <article class="card hero" style="--i:0">
+      <div class="tag"><em>01</em> Temperatura · procesador <span class="rule"></span></div>
+      <div id="g-temp"></div>
+      <div id="temp-extra"></div>
+    </article>
+
+    <article class="card c-cpu" style="--i:1">
+      <div class="tag"><em>02</em> Procesador <span class="rule"></span></div>
+      <div id="g-cpu"></div>
+      <div class="loads" id="loads"></div>
+      <div class="cores" id="cores"></div>
+      <div class="peak" id="cpu-peak"></div>
+    </article>
+
+    <article class="card c-mem" style="--i:2">
+      <div class="tag"><em>03</em> Memoria RAM <span class="rule"></span></div>
+      <div id="g-mem"></div>
+      <div class="stack" id="mem-stack"></div>
+      <div class="legend" id="mem-legend"></div>
+      <div class="peak" id="mem-peak"></div>
+    </article>
+
+    <article class="card c-disk" style="--i:3">
+      <div class="tag"><em>04</em> Almacenamiento <span class="rule"></span></div>
+      <div class="big3" id="disk-big"></div>
+      <div class="led" id="led"></div>
+      <div class="ledscale"><span>0</span><span>25 %</span><span>50 %</span><span>75 %</span><span>100 %</span></div>
+      <div class="phys" id="phys"></div>
+    </article>
+
+    <article class="card c-hist" style="--i:4">
+      <div class="tag"><em>05</em> Historial
+        <span class="rule"></span>
+        <div class="tabs" id="tabs"><button data-r="15m">15 min</button><button data-r="1h">1 h</button><button data-r="24h" class="on">24 h</button><button data-r="7d">7 días</button></div>
+      </div>
+      <div class="charts" id="charts"></div>
+    </article>
+
+    <article class="card c-power" style="--i:5">
+      <div class="tag"><em>06</em> Energía y ventilación <span class="rule"></span></div>
+      <div id="power"></div>
+    </article>
+
+    <article class="card c-svc" style="--i:6">
+      <div class="tag"><em>07</em> Servicios <span class="rule"></span></div>
+      <div class="svc" id="svc"></div>
+    </article>
+
+    <article class="card c-hw" style="--i:7">
+      <div class="tag"><em>08</em> Equipo <span class="rule"></span></div>
+      <dl class="kv" id="hw"></dl>
+    </article>
+  </section>
+
+  <footer><span>Panel de solo lectura · se actualiza cada 3 s</span><span id="stamp"></span></footer>
+</main>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const GB = 1024 ** 3;
+const fmtB = (b) => b >= 1024 ** 4 ? (b / 1024 ** 4).toFixed(2) + ' TB' : b >= GB ? (b / GB).toFixed(b >= 100 * GB ? 0 : 1) + ' GB' : (b / 1024 ** 2).toFixed(0) + ' MB';
+const num = (b) => b >= GB ? (b / GB).toFixed(b >= 100 * GB ? 0 : 1) : (b / 1024 ** 2).toFixed(0);
+const unit = (b) => b >= GB ? 'GB' : 'MB';
+const pad = (n) => String(n).padStart(2, '0');
+const ago = (t) => { const s = (Date.now() - t) / 1000; if (s < 90) return 'hace un momento'; if (s < 5400) return `hace ${Math.round(s / 60)} min`; if (s < 129600) return `hace ${Math.round(s / 3600)} h`; return `hace ${Math.round(s / 86400)} d`; };
+const dur = (s) => { const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d} d ${h} h ${m} min` : h ? `${h} h ${m} min` : `${m} min`; };
+const tone = (v, a, b) => v >= b ? 'crit' : v >= a ? 'warn' : 'ok';
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* ───── reloj de instrumentos ───── */
+const C = 100, R = 78, A0 = 135, SW = 270;
+const pt = (r, a) => [C + r * Math.cos(a * Math.PI / 180), C + r * Math.sin(a * Math.PI / 180)];
+const arc = (r, a0, a1) => { const [x0, y0] = pt(r, a0), [x1, y1] = pt(r, a1); return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`; };
+const LEN = R * SW * Math.PI / 180;
+
+class Gauge {
+  constructor(host, o) {
+    this.o = Object.assign({ min: 0, max: 100, ticks: 50, unit: '%', caption: '', zones: [], dec: 0 }, o);
+    const { min, max, ticks, zones } = this.o;
+    const ang = (v) => A0 + SW * (v - min) / (max - min);
+    let t = '';
+    for (let i = 0; i <= ticks; i++) {
+      const a = A0 + SW * i / ticks, major = i % 5 === 0;
+      const [x1, y1] = pt(90, a), [x2, y2] = pt(major ? 100 : 95, a);
+      t += `<line class="tick${major ? ' major' : ''}" data-f="${(i / ticks).toFixed(4)}" x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}"/>`;
+    }
+    const z = zones.map((q) => `<path class="zone" style="stroke:${q.c}" d="${arc(66, ang(q.from), ang(q.to))}"/>`).join('');
+    const [ex0, ey0] = pt(R, A0), [ex1, ey1] = pt(R, A0 + SW);
+    host.innerHTML = `<svg class="gauge" viewBox="-8 -8 216 216" role="img" aria-label="${esc(this.o.caption)}">
+      <path class="track" d="${arc(R, A0, A0 + SW)}"/>${z}${t}
+      <path class="val" d="${arc(R, A0, A0 + SW)}" stroke-dasharray="${LEN} ${LEN}" stroke-dashoffset="${LEN}"/>
+      <g class="marks"></g>
+      <text class="gnum" x="100" y="106">–</text>
+      <text class="gunit" x="100" y="128">${esc(this.o.unit)}</text>
+      <text class="gcap" x="100" y="146">${esc(this.o.caption)}</text>
+      <text class="gend" x="${ex0.toFixed(1)}" y="176">${min}</text><text class="gend" x="${ex1.toFixed(1)}" y="176">${max}</text>
+    </svg>`;
+    this.svg = host.firstChild; this.val = $('.val', this.svg); this.numEl = $('.gnum', this.svg);
+    this.ticks = [...this.svg.querySelectorAll('.tick')]; this.marks = $('.marks', this.svg); this.cur = null; this.ang = ang;
+  }
+  update(v, { tone: tn = 'ok', markers = [] } = {}) {
+    const { min, max, dec } = this.o;
+    this.svg.setAttribute('class', `gauge tone-${tn}`);
+    if (v === null || v === undefined) { this.numEl.textContent = '–'; this.val.setAttribute('stroke-dashoffset', LEN); this.ticks.forEach((k) => k.classList.remove('lit')); return; }
+    const f = Math.max(0, Math.min(1, (v - min) / (max - min)));
+    this.val.setAttribute('stroke-dashoffset', (LEN * (1 - f)).toFixed(2));
+    this.ticks.forEach((k) => k.classList.toggle('lit', Number(k.dataset.f) <= f + 1e-6));
+    const from = this.cur ?? min; this.cur = v; const t0 = performance.now();
+    const step = (t) => { const p = Math.min(1, (t - t0) / 700), e = 1 - Math.pow(1 - p, 3); this.numEl.textContent = (from + (v - from) * e).toFixed(dec); if (p < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+    this.marks.innerHTML = markers.map((m) => {
+      const a = this.ang(Math.max(min, Math.min(max, m.v)));
+      if (m.kind === 'limit') { const [x1, y1] = pt(66, a), [x2, y2] = pt(104, a); return `<line class="lim" x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}"/>`; }
+      const [x, y] = pt(106, a), [xl, yl] = pt(113, a - 2.6), [xr, yr] = pt(113, a + 2.6);
+      return `<polygon class="mk" points="${x.toFixed(2)},${y.toFixed(2)} ${xl.toFixed(2)},${yl.toFixed(2)} ${xr.toFixed(2)},${yr.toFixed(2)}"/>`;
+    }).join('');
+  }
+}
+
+const gTemp = new Gauge($('#g-temp'), { min: 20, max: 110, unit: '°C', caption: 'procesador', dec: 0,
+  zones: [{ from: 20, to: 65, c: '#7a5614' }, { from: 65, to: 85, c: '#ff7a2e' }, { from: 85, to: 110, c: '#ff4132' }] });
+const gCpu = new Gauge($('#g-cpu'), { unit: '%', caption: 'uso total', dec: 0 });
+const gMem = new Gauge($('#g-mem'), { unit: '%', caption: 'memoria en uso', dec: 0 });
+
+/* ───── gráficas ───── */
+let range = '24h', hist = null;
+const SERIES = [
+  { key: 'temp', title: 'Temperatura', unit: '°C', color: '#ff8a2b', floor: null, dec: 1, maxKey: 'tempMax' },
+  { key: 'cpu', title: 'Uso de CPU', unit: '%', color: '#52d8c9', floor: 0, dec: 0, maxKey: 'cpuMax' },
+  { key: 'mem', title: 'Memoria RAM', unit: '%', color: '#c4e85a', floor: 0, dec: 0, maxKey: 'memMax' },
+];
+const tFmt = (t, r) => { const d = new Date(t); const h = `${pad(d.getHours())}:${pad(d.getMinutes())}`; return r === '7d' ? `${['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][d.getDay()]} ${h}` : r === '15m' ? `${h}:${pad(d.getSeconds())}` : h; };
+
+function drawCharts() {
+  const host = $('#charts');
+  if (!hist || !hist.points.length) { host.innerHTML = '<div class="empty">Reuniendo datos… el historial aparece en unos minutos.</div>'; return; }
+  const pts = hist.points;
+  host.innerHTML = SERIES.map((s) => `<div class="chart" data-k="${s.key}"><div class="hd"><h4>${s.title}</h4><span id="st-${s.key}"></span></div><div class="cv"></div><div class="tip"></div></div>`).join('');
+  SERIES.forEach((s) => {
+    const vals = pts.map((p) => (p[s.key] === undefined ? null : p[s.key]));
+    const real = vals.filter((v) => v !== null);
+    const el = $(`.chart[data-k="${s.key}"]`, host);
+    if (!real.length) { $('.cv', el).innerHTML = '<div class="empty">Este equipo no expone este dato.</div>'; return; }
+    const W = 640, H = 124, L = 38, Rr = 8, T = 8, B = 20;
+    let lo = Math.min(...real), hi = Math.max(...real, ...(hist.range === '15m' ? [] : pts.map((p) => p[s.maxKey]).filter((v) => v != null)));
+    if (s.floor === 0) { lo = 0; hi = Math.max(hi * 1.25, s.key === 'cpu' ? 20 : 40); hi = Math.ceil(hi / 10) * 10; }
+    else { const span = Math.max(hi - lo, 14); lo = Math.floor((lo - span * .25) / 5) * 5; hi = Math.ceil((hi + span * .25) / 5) * 5; }
+    const X = (i) => L + (pts.length === 1 ? 0 : (W - L - Rr) * i / (pts.length - 1));
+    const Y = (v) => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+    let d = '', pen = false;
+    vals.forEach((v, i) => { if (v === null) { pen = false; return; } d += `${pen ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`; pen = true; });
+    const firstI = vals.findIndex((v) => v !== null), lastI = vals.length - 1 - [...vals].reverse().findIndex((v) => v !== null);
+    const area = `${d}L${X(lastI).toFixed(1)} ${H - B}L${X(firstI).toFixed(1)} ${H - B}Z`;
+    let grid = '';
+    for (let g = 0; g <= 3; g++) { const v = lo + (hi - lo) * g / 3, y = Y(v); grid += `<line x1="${L}" x2="${W - Rr}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#2b2418" stroke-dasharray="3 5"/><text x="${L - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" fill="#6d634b" font-size="9.5" font-family="IBM Plex Mono,monospace">${Math.round(v)}</text>`; }
+    let xl = '';
+    for (let g = 0; g <= 4; g++) { const i = Math.round((pts.length - 1) * g / 4); xl += `<text x="${X(i).toFixed(1)}" y="${H - 4}" text-anchor="${g === 0 ? 'start' : g === 4 ? 'end' : 'middle'}" fill="#6d634b" font-size="9.5" font-family="IBM Plex Mono,monospace">${tFmt(pts[i].t, hist.range)}</text>`; }
+    $('.cv', el).innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="aspect-ratio:${W}/${H}">
+      <defs><linearGradient id="gr-${s.key}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${s.color}" stop-opacity=".38"/><stop offset="1" stop-color="${s.color}" stop-opacity="0"/></linearGradient></defs>
+      ${grid}${xl}<path d="${area}" fill="url(#gr-${s.key})"/><path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.9" stroke-linejoin="round" style="filter:drop-shadow(0 0 5px ${s.color}99)"/>
+      <line class="xh" y1="${T}" y2="${H - B}" stroke="#f2e9d6" stroke-opacity=".5" style="display:none"/><circle class="dot" r="4" fill="${s.color}" stroke="#0b0907" stroke-width="2" style="display:none"/>
+      <rect class="hit" x="${L}" y="0" width="${W - L - Rr}" height="${H}" fill="transparent"/></svg>`;
+    const avg = real.reduce((a, b) => a + b, 0) / real.length;
+    const peak = Math.max(...pts.map((p) => (p[s.maxKey] != null ? p[s.maxKey] : p[s.key])).filter((v) => v != null));
+    $(`#st-${s.key}`).innerHTML = `ahora <b>${real[real.length - 1].toFixed(s.dec)} ${s.unit}</b> · promedio <b>${avg.toFixed(s.dec)}</b> · pico <b>${peak.toFixed(s.dec)}</b>`;
+    const svg = $('svg', el), tip = $('.tip', el), xh = $('.xh', svg), dot = $('.dot', svg);
+    $('.hit', svg).addEventListener('mousemove', (e) => {
+      const r = svg.getBoundingClientRect(), fx = (e.clientX - r.left) / r.width * W;
+      let i = Math.round((fx - L) / (W - L - Rr) * (pts.length - 1)); i = Math.max(0, Math.min(pts.length - 1, i));
+      if (vals[i] === null) return;
+      xh.setAttribute('x1', X(i)); xh.setAttribute('x2', X(i)); xh.style.display = ''; dot.setAttribute('cx', X(i)); dot.setAttribute('cy', Y(vals[i])); dot.style.display = '';
+      const mx = pts[i][s.maxKey]; tip.innerHTML = `${tFmt(pts[i].t, hist.range)}<br><b>${vals[i].toFixed(s.dec)} ${s.unit}</b>${mx != null && hist.range !== '15m' ? ` · máx ${mx.toFixed(s.dec)}` : ''}`;
+      tip.style.left = (X(i) / W * r.width) + 'px'; tip.style.top = (Y(vals[i]) / H * r.height + svg.offsetTop - 10) + 'px'; tip.style.opacity = 1;
+    });
+    $('.hit', svg).addEventListener('mouseleave', () => { tip.style.opacity = 0; xh.style.display = 'none'; dot.style.display = 'none'; });
+  });
+}
+async function loadHistory() {
+  try { const r = await fetch(`/api/history?range=${range}`, { cache: 'no-store' }); if (r.ok) { hist = await r.json(); drawCharts(); } } catch { /* se reintenta */ }
+}
+$('#tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  range = b.dataset.r; [...$('#tabs').children].forEach((x) => x.classList.toggle('on', x === b)); loadHistory();
+});
+
+/* ───── render principal ───── */
+const LED = 60; $('#led').innerHTML = '<i></i>'.repeat(LED); const ledEls = [...$('#led').children];
+const BATS = { Full: 'Cargada', Charging: 'Cargando', Discharging: 'Descargando', 'Not charging': 'Cargada (sin cargar)', Unknown: 'Desconocido' };
+
+function render(s) {
+  document.body.classList.remove('lost');
+  const h = s.host;
+  $('#host').textContent = h.name || 'Servidor';
+  $('#sub').innerHTML = [h.machine && `<b>${esc(h.machine)}</b>`, h.os && esc(h.os), h.cpu && esc(h.cpu), `encendido hace <b>${dur(h.uptime)}</b>`].filter(Boolean).join(' &nbsp;·&nbsp; ');
+
+  // estado general
+  const lv = s.status.level;
+  $('#lamp').className = `lamp ${lv === 'ok' ? '' : lv}`;
+  $('#st').textContent = lv === 'ok' ? 'TODO EN ORDEN' : lv === 'warn' ? 'ATENCIÓN' : 'ALERTA';
+  $('#why').textContent = s.status.reasons.length ? s.status.reasons.slice(0, 3).map((r) => r.msg).join(' · ') : 'Servicios, temperatura, disco y memoria dentro de lo normal';
+
+  // temperatura
+  const th = s.thermal, te = $('#temp-extra');
+  if (!th) { gTemp.update(null); te.innerHTML = '<div class="empty">Este equipo no expone sensores de temperatura.</div>'; }
+  else {
+    const c = th.package.c, lim = th.package.limit, tn = c >= lim - 10 ? 'crit' : c >= 85 ? 'warn' : c >= 65 ? 'warn' : 'ok';
+    const rec = s.records.temp;
+    gTemp.update(c, { tone: c >= lim - 10 ? 'crit' : c >= 80 ? 'warn' : 'ok', markers: [{ kind: 'limit', v: lim }, ...(rec ? [{ kind: 'max', v: rec.v }] : [])] });
+    const sens = [{ label: th.package.label + ' (paquete)', c }, ...th.cores.map((k) => ({ label: k.label, c: k.c })), ...th.others];
+    te.innerHTML = `<div class="stats3">
+      <div class="stat"><div class="l">Máxima registrada</div><div class="v">${rec ? rec.v.toFixed(1) : '–'}<small>°C</small></div><div class="n">${rec ? ago(rec.t) : 'sin datos'}</div></div>
+      <div class="stat"><div class="l">Límite del sensor</div><div class="v">${lim.toFixed(0)}<small>°C</small></div><div class="n">apagado de seguridad</div></div>
+      <div class="stat"><div class="l">Margen libre</div><div class="v">${Math.max(0, lim - c).toFixed(0)}<small>°C</small></div><div class="n">${c < 65 ? 'enfriado, sin estrés' : c < 85 ? 'carga moderada' : 'bajo estrés térmico'}</div></div></div>
+      <div class="bars">${sens.map((k) => { const t = tone(k.c, 65, 85); return `<div class="brow"><span class="nm">${esc(k.label)}</span><span class="tr"><i class="fl ${t === 'ok' ? '' : t}" style="width:${Math.max(2, Math.min(100, (k.c - 20) / 90 * 100)).toFixed(0)}%"></i></span><span class="vl">${k.c.toFixed(1)} °C</span></div>`; }).join('')}</div>
+      <div class="note">Marca blanca en el reloj: máxima registrada desde que empezó a medirse (${new Date(s.since).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}). Marca roja: límite del sensor.</div>`;
+  }
+
+  // CPU
+  gCpu.update(s.cpu.pct, { tone: tone(s.cpu.pct ?? 0, 70, 90) });
+  $('#loads').innerHTML = ['1 min', '5 min', '15 min'].map((l, i) => `<div><b>${s.cpu.load[i].toFixed(2)}</b><span>${l}</span></div>`).join('');
+  $('#cores').innerHTML = s.cpu.cores.map((v, i) => `<div class="core"><div class="col"><i style="height:${Math.max(2, v)}%"></i></div><span>N${i}</span></div>`).join('');
+  $('#cpu-peak').innerHTML = s.records.cpu ? `Pico: <b>${s.records.cpu.v.toFixed(0)} %</b> · ${ago(s.records.cpu.t)}` : '';
+
+  // RAM
+  const m = s.mem;
+  if (m) {
+    gMem.update(m.pct, { tone: tone(m.pct, 75, 90) });
+    const pc = (v) => (v / m.total * 100).toFixed(1);
+    $('#mem-stack').innerHTML = `<i class="s-app" style="width:${pc(m.apps)}%"></i><i class="s-cache" style="width:${pc(m.cache)}%"></i>`;
+    $('#mem-legend').innerHTML = `<div><u class="s-app"></u>Programas<b>${fmtB(m.apps)}</b></div><div><u class="s-cache"></u>Caché<b>${fmtB(m.cache)}</b></div><div><u style="background:#211a0f;border:1px solid #3b3020"></u>Libre real<b>${fmtB(m.free)}</b></div>`;
+    $('#mem-peak').innerHTML = `Disponible para usar: <b>${fmtB(m.avail)}</b> de <b>${fmtB(m.total)}</b><br>Swap: <b>${fmtB(m.swapUsed)}</b> de <b>${fmtB(m.swapTotal)}</b>${s.records.mem ? ` · pico de uso <b>${s.records.mem.v.toFixed(0)} %</b>` : ''}`;
+  }
+
+  // disco
+  const d = s.disk;
+  if (d) {
+    const tn = tone(d.pct, 80, 90);
+    $('#disk-big').innerHTML = `<div class="u tone-${tn}"><div class="l">Ocupado</div><div class="v">${num(d.used)}<small>${unit(d.used)}</small></div></div><div><div class="l">Libre</div><div class="v">${num(d.free)}<small>${unit(d.free)}</small></div></div><div><div class="l">Capacidad del volumen</div><div class="v">${num(d.total)}<small>${unit(d.total)}</small></div></div>`;
+    const on = Math.round(d.pct / 100 * LED);
+    $('#led').className = `led tone-${tn}`; ledEls.forEach((e, i) => e.classList.toggle('on', i < on));
+    const ph = s.physical && s.physical[0], unalloc = ph ? ph.bytes - d.total - 3 * GB : 0;
+    $('#phys').innerHTML = `Volumen del sistema al <b>${d.pct.toFixed(0)} %</b>${s.records.diskFree ? ` · mínimo de espacio libre registrado: <b>${fmtB(s.records.diskFree.v)}</b>` : ''}` +
+      (ph ? `<br>Disco físico: <b>${esc(ph.model || ph.name)}</b> · ${ph.kind} · <b>${fmtB(ph.bytes)}</b>` : '') +
+      (ph && unalloc > 10 * GB ? `<br><span class="hl">▲ ≈ ${fmtB(unalloc)} del disco físico no están asignados al sistema</span> y se pueden ampliar si algún día hace falta espacio.` : '');
+  }
+
+  // energía
+  const pw = s.power, b = pw.battery, ph2 = $('#power');
+  let html = '';
+  if (pw.ac !== null || b) {
+    const onBat = pw.ac === false, tn = onBat ? (b && b.capacity < 20 ? 'crit' : 'warn') : 'ok';
+    html += `<div class="src tone-${tn}"><span class="lamp ${onBat ? (tn === 'crit' ? 'crit' : 'warn') : ''}"></span><div class="big">${onBat ? 'CON BATERÍA' : 'CORRIENTE CONECTADA'}</div></div>`;
+  }
+  if (b) {
+    const cap = b.capacity ?? 0, on = Math.round(cap / 10), bt = pw.ac === false ? tone(100 - cap, 80, 90) : 'ok';
+    html += `<div class="bat tone-${bt}">${Array.from({ length: 10 }, (_, i) => `<i class="${i < on ? 'on' : ''}"></i>`).join('')}</div>
+      <dl class="kv"><dt>Carga</dt><dd>${cap} %</dd><dt>Estado</dt><dd>${BATS[b.status] || b.status || '–'}</dd>
+      ${b.health != null ? `<dt>Salud de la batería</dt><dd>${b.health} %</dd>` : ''}${b.cycles ? `<dt>Ciclos de carga</dt><dd>${b.cycles}</dd>` : ''}
+      ${b.watts ? `<dt>Consumo</dt><dd>${b.watts} W</dd>` : ''}${b.hours ? `<dt>${b.status === 'Charging' ? 'Carga completa en' : 'Autonomía restante'}</dt><dd>${Math.floor(b.hours)} h ${Math.round((b.hours % 1) * 60)} min</dd>` : ''}</dl>`;
+  } else if (!html) html += '<div class="empty">Alimentación directa · este equipo no reporta batería.</div>';
+  const fans = th && th.fans || [];
+  if (fans.length) html += `<div class="fan"><div class="bars">${fans.map((f) => `<div class="brow"><span class="nm">${esc(f.label)}</span><span class="tr"><i class="fl" style="width:${Math.min(100, f.rpm / (f.max || 6500) * 100).toFixed(0)}%"></i></span><span class="vl">${f.rpm} rpm</span></div>`).join('')}</div></div>`;
+  else if (th) html += `<div class="note">Sin lectura de ventiladores (el sistema no expone el sensor).</div>`;
+  const rc = s.records, rrow = (l, r, f) => (r ? `<dt>${l}</dt><dd>${f(r.v)} <span style="color:var(--dim)">· ${ago(r.t)}</span></dd>` : '');
+  const recs = rrow('Pico de temperatura', rc.temp, (v) => v.toFixed(1) + ' °C') + rrow('Pico de CPU', rc.cpu, (v) => v.toFixed(0) + ' %') + rrow('Pico de RAM', rc.mem, (v) => v.toFixed(0) + ' %') + rrow('Menos disco libre', rc.diskFree, (v) => fmtB(v));
+  if (recs) html += `<div class="fan"><div class="note" style="margin:0 0 8px;letter-spacing:.2em;text-transform:uppercase;font-size:10px">Récords desde ${new Date(s.since).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</div><dl class="kv">${recs}</dl></div>`;
+  ph2.innerHTML = html;
+
+  // servicios
+  $('#svc').innerHTML = (s.services || []).map((v) => `<div class="srow"><span class="lamp ${v.level === 'ok' ? '' : v.level}"></span><span class="nm">${esc(v.name)}</span><span class="dt">${esc(v.detail)}</span><span class="lat"><i style="width:${v.ms == null ? 0 : Math.max(4, Math.min(100, v.ms / 200 * 100))}%"></i></span><span class="ms">${v.ms == null ? '—' : v.ms + ' ms'}</span></div>`).join('') || '<div class="empty">Sin servicios configurados.</div>';
+
+  // equipo
+  const kv = [['Equipo', h.machine], ['Procesador', h.cpu && `${h.cpu} · ${h.threads} hilos`], ['Sistema', h.os], ['Kernel', h.kernel], ['Encendido desde hace', dur(h.uptime)], ['Monitoreando desde', new Date(s.since).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })]];
+  $('#hw').innerHTML = kv.filter((r) => r[1]).map((r) => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join('');
+  $('#stamp').textContent = `actualizado ${pad(new Date(s.t).getHours())}:${pad(new Date(s.t).getMinutes())}:${pad(new Date(s.t).getSeconds())}`;
+}
+
+async function tick() {
+  try {
+    const r = await fetch('/api/snapshot', { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.status);
+    render(await r.json());
+  } catch { document.body.classList.add('lost'); }
+}
+
+function clock() {
+  const n = new Date();
+  $('#clk').innerHTML = `${pad(n.getHours())}<i>:</i>${pad(n.getMinutes())}<i>:</i>${pad(n.getSeconds())}`;
+  $('#date').textContent = n.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+clock(); setInterval(clock, 1000);
+tick(); setInterval(tick, 3000);
+loadHistory(); setInterval(() => loadHistory(), 20000);
+})();
+</script>
+</body>
+</html>

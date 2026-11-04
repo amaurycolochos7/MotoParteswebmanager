@@ -80,6 +80,15 @@ Instalación del cron (una sola vez en el servidor): `scripts/install-autodeploy
 
 **nginx**: `apps/frontend/nginx.conf.template` es una plantilla; el destino de la API (`API_UPSTREAM`, `API_PORT`) sale de variables de entorno con defaults para docker compose. `/api/whatsapp-bot/*` NO tiene location propio: la API lo reenvia al bot. No poner URI en `proxy_pass` cuando se usan variables (rompe `/api/auth/login`).
 
+## Panel de salud del servidor
+
+Servicio `server-monitor` (`apps/server-monitor/`): tablero de **solo lectura** con temperatura del procesador (con máxima registrada y límite del sensor), CPU, RAM, disco, batería/corriente, ventiladores, historial (15 min · 1 h · 24 h · 7 días) y salud de los servicios (web, API, bot de WhatsApp, base de datos).
+
+- Servidor: `http://IP-DEL-SERVIDOR:8088` (p. ej. por Tailscale `http://100.88.47.41:8088`). Se publica según `MONITOR_BIND` del `.env` del servidor (`0.0.0.0`).
+- Local: `http://localhost:8088` (solo localhost por defecto; una PC sin sensores muestra "sin sensores"). `MONITOR_DEMO=1` simula datos para ver el diseño.
+- Sin dependencias; lee `/proc` y `/sys` y `statfs`; no monta el socket de Docker ni escribe en el host. Guarda historial y récords en el volumen `monitor-data`.
+- Solo acepta GET; el único dato que sale son métricas de salud, sin credenciales.
+
 ## Licencia
 
 Privado. Todos los derechos reservados © 2026 MotoPartes.
