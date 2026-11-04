@@ -361,11 +361,14 @@ class WhatsAppSession extends EventEmitter {
             this.client.on('authenticated', () => {
                 console.log(`🔑 Authenticated: mechanic ${this.mechanicId}`);
                 this.lastQr = null;
+                // Autenticada pero aún sin "ready": si se atasca, reiniciar sola.
+                this._armReadyWatchdog('authenticated');
             });
 
             // Ready
             this.client.on('ready', () => {
                 console.log(`✅ Ready: mechanic ${this.mechanicId}`);
+                this._clearReadyWatchdog();
                 this.isConnected = true;
                 this._terminalReasonEmitted = false;
                 this.lastReadyAt = new Date();
@@ -440,6 +443,9 @@ class WhatsAppSession extends EventEmitter {
                 ),
             ]);
             console.log(`✅ Step 2 done: Client initialized for mechanic ${this.mechanicId}`);
+            // Sesión restaurada que carga pero nunca llega a "ready" (se vio tras un
+            // deploy: "Loading 100%" y silencio). Si hay QR pendiente no aplica.
+            this._armReadyWatchdog('post-init');
 
         } catch (err) {
             const errMsg = err instanceof Error ? err.message : String(err || 'Unknown error');
@@ -615,7 +621,34 @@ class WhatsAppSession extends EventEmitter {
         await this._destroyClientOnly(`client.destroy(${this.mechanicId})`);
     }
 
+    _clearReadyWatchdog() {
+        if (this._readyTimer) {
+            clearTimeout(this._readyTimer);
+            this._readyTimer = null;
+        }
+    }
+
+    /**
+     * Reloj de control: si la sesión no llega a "ready" en WA_READY_TIMEOUT_MS
+     * (120 s) y NO está esperando que escaneen un QR, se destruye el cliente y se
+     * emite 'disconnected' con motivo 'ready_timeout'; el SessionManager reinicia
+     * la sesión con retroceso exponencial. No borra los datos de sesión.
+     */
+    _armReadyWatchdog(origin) {
+        this._clearReadyWatchdog();
+        const ms = parsePositiveInt(process.env.WA_READY_TIMEOUT_MS, 120000);
+        this._readyTimer = setTimeout(() => {
+            this._readyTimer = null;
+            if (this.isConnected || this.lastQr || !this.client) return;
+            console.warn(`⏱️ Session ${this.mechanicId} sin "ready" tras ${ms}ms (${origin}) — reiniciando…`);
+            this.lastError = 'La sesión no terminó de conectar; reiniciando automáticamente…';
+            void this._stopForRelink('ready_timeout', false);
+        }, ms);
+        this._readyTimer.unref?.();
+    }
+
     async _destroyClientOnly(label = 'client.destroy') {
+        this._clearReadyWatchdog();
         try {
             this.isConnected = false;
             if (this.client) {
