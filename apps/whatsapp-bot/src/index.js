@@ -172,21 +172,62 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
         console.warn(`⚠️ Orphan session sweep failed: ${err.message}`);
     }
 
-    // Restore persisted sessions on boot
-    try {
-        const dbSessions = await prisma.whatsappSession.findMany({
-            where: { is_connected: true }
-        });
-        for (const s of dbSessions) {
-            if (s.mechanic_id) {
-                console.log(`  🔄 Restoring session for mechanic ${s.mechanic_id}...`);
-                await sessionManager.startSession(s.mechanic_id);
-            }
-        }
-    } catch (err) {
-        console.error('Error restoring sessions:', err.message);
-    }
+    // Restore persisted sessions on boot — CON REINTENTOS.
+    // Tras un encendido del servidor Docker arranca los contenedores sin respetar
+    // depends_on: el bot suele levantar ANTES que Postgres. Antes, esta consulta
+    // corria una sola vez, fallaba ("Can't reach database server") y la sesion de
+    // WhatsApp quedaba desconectada hasta que alguien la iniciara a mano.
+    restorePersistedSessionsWithRetry();
 });
+
+const firstLine = (m) => String(m || "").trim().split("
+")[0];
+
+// Levanta las sesiones marcadas is_connected=true que NO existen en memoria.
+// Devuelve cuantas inicio. Lanza SOLO si falla la consulta a la BD (se reintenta);
+// si una sesion falla al iniciar, el SessionManager ya programa su propio reinicio.
+async function restorePersistedSessions() {
+    const dbSessions = await prisma.whatsappSession.findMany({
+        where: { is_connected: true },
+    });
+    let started = 0;
+    for (const s of dbSessions) {
+        if (!s.mechanic_id) continue;
+        if (sessionManager.getSession(s.mechanic_id)) continue;        // ya existe en memoria
+        if (sessionManager._restartTimers?.has(s.mechanic_id)) continue; // reinicio ya programado
+        console.log(`  🔄 Restoring session for mechanic ${s.mechanic_id}...`);
+        started++;
+        try {
+            await sessionManager.startSession(s.mechanic_id);
+        } catch (err) {
+            console.error(`  ❌ Restore failed for ${s.mechanic_id}: ${err.message}`);
+        }
+    }
+    return started;
+}
+
+async function restorePersistedSessionsWithRetry() {
+    for (let attempt = 1; !isShuttingDown; attempt++) {
+        try {
+            await restorePersistedSessions();
+            if (attempt > 1) console.log(`✅ Sessions restored after ${attempt} attempt(s).`);
+            return;
+        } catch (err) {
+            const delayMs = Math.min(30000, 5000 * attempt);
+            console.error(`Error restoring sessions (attempt ${attempt}): ${err.message.split('\n')[0]} — retrying in ${delayMs / 1000}s`);
+            await new Promise((r) => setTimeout(r, delayMs));
+        }
+    }
+}
+
+// Revisión periódica: si una sesión marcada como conectada en la BD no está
+// levantada (p. ej. la BD tardó más de lo previsto), se levanta sola.
+setInterval(() => {
+    if (isShuttingDown) return;
+    restorePersistedSessions().catch((e) =>
+        console.warn(`[reconcile] sessions check failed: ${e.message.split('\n')[0]}`)
+    );
+}, 5 * 60 * 1000).unref?.();
 
 server.on('error', (err) => {
     console.error('Server error:', err);
