@@ -5,7 +5,6 @@
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 const WA_BOT_URL = import.meta.env.VITE_WHATSAPP_BOT_URL || '/api/whatsapp-bot';
-const WA_BOT_KEY = import.meta.env.VITE_WHATSAPP_BOT_KEY || 'motopartes-whatsapp-key';
 
 // Token management
 let authToken = localStorage.getItem('motopartes_token');
@@ -894,10 +893,13 @@ export const paymentRequestsService = {
 // =============================================
 // WhatsApp Bot Client (for sending)
 // =============================================
+// El proxy /api/whatsapp-bot exige el JWT del usuario (la API le agrega al bot su
+// API key del lado del servidor). La key del bot NO debe viajar en el navegador.
 async function waBotFetch(path, options = {}) {
+    const token = getToken();
     const headers = {
         'Content-Type': 'application/json',
-        'x-api-key': WA_BOT_KEY,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers
     };
     const res = await fetch(`${WA_BOT_URL}${path}`, { ...options, headers });
@@ -986,7 +988,7 @@ export const whatsappBotService = {
 
     async getBotHealth() {
         try {
-            const res = await fetch(`${WA_BOT_URL.replace('/api', '')}/health`);
+            const res = await fetch(`${WA_BOT_URL}/health`);
             return res.ok ? res.json() : null;
         } catch { return null; }
     }
