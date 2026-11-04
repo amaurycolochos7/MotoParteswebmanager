@@ -180,8 +180,7 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
     restorePersistedSessionsWithRetry();
 });
 
-const firstLine = (m) => String(m || "").trim().split("
-")[0];
+const firstLine = (m) => String(m || '').trim().split('\n')[0];
 
 // Levanta las sesiones marcadas is_connected=true que NO existen en memoria.
 // Devuelve cuantas inicio. Lanza SOLO si falla la consulta a la BD (se reintenta);
