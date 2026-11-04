@@ -1,16 +1,15 @@
-# Local development stack for motopartes-manager.
+# Stack de motopartes-manager. El MISMO archivo sirve para local y para el
+# servidor casero (servermacs); lo que cambia es el archivo .env de cada lado.
 #
-# This compose file is for LOCAL dev only. Production runs on Dokploy as three
-# independent applications (frontend, api, bot) mapped to obfuscated service
-# names (see the "Deployment map" note in .claude memory).
+# Local (PC):
+#   cp .env.example .env        (los valores por defecto ya funcionan)
+#   docker compose up -d --build
+#   -> http://localhost:5173 (app), http://localhost:3000/api/health,
+#      http://localhost:3002/health
 #
-# Quick start:
-#   cp apps/api/.env.example          apps/api/.env
-#   cp apps/whatsapp-bot/.env.example apps/whatsapp-bot/.env
-#   cp apps/frontend/.env.example     apps/frontend/.env
-#   docker compose up --build
-# Then: http://localhost:5173 (frontend), http://localhost:3000/api/health,
-#       http://localhost:3002/health
+# Servidor: ademas del .env, se activa el tunel de Cloudflare con el perfil:
+#   docker compose --profile tunnel up -d --build     (lo hace scripts/deploy.sh)
+#   .env del servidor debe tener TUNNEL_TOKEN y CORS_ORIGINS con la URL Tailscale.
 
 services:
   postgres:
@@ -43,7 +42,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-local-dev-only-change-me}
       WHATSAPP_API_KEY: ${WHATSAPP_API_KEY:-local-dev-bot-key}
       WHATSAPP_BOT_INTERNAL_URL: http://whatsapp-bot:3002
-      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
       PORT: 3000
     ports:
       - "3000:3000"
@@ -61,6 +60,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # La API crea/actualiza las tablas (prisma db push) al arrancar; el bot
+      # restaura sesiones desde esas tablas, asi que debe esperar a la API.
+      api:
+        condition: service_healthy
     volumes:
       # Named volume in dev so the Chromium session survives rebuilds but
       # doesn't leak into the host. In production the bot uses a host bind
@@ -70,7 +73,10 @@ services:
       DATABASE_URL: postgresql://motopartes:${DB_PASSWORD:-MotoPartes2026!}@postgres:5432/motopartes
       WHATSAPP_API_KEY: ${WHATSAPP_API_KEY:-local-dev-bot-key}
       PORT: 3002
-      WWEBJS_WEB_VERSION: ${WWEBJS_WEB_VERSION:-auto}
+      # Version fija: con "auto" el bot toma la ultima de WhatsApp Web, y la mas nueva
+      # (2.3000.1053060988) rompe whatsapp-web.js ("reading Socket"). Si algun dia el
+      # telefono rechaza el QR ("No se pudo vincular"), subir esta version.
+      WWEBJS_WEB_VERSION: ${WWEBJS_WEB_VERSION:-2.3000.1053021455-alpha}
     ports:
       - "3002:3002"
     healthcheck:
@@ -93,6 +99,27 @@ services:
       # nginx inside the container listens on 3000; map to 5173 so it doesn't
       # clash with the API's 3000 when both are running locally.
       - "5173:3000"
+
+  landing-vc:
+    build:
+      context: ./apps/landing-vc
+      dockerfile: Dockerfile
+    restart: unless-stopped
+
+  # Tunel de Cloudflare (solo servidor): publica motopartes.cloud -> frontend:3000
+  # y vc.motopartes.cloud -> landing-vc:80 (las reglas se editan en el panel de
+  # Cloudflare Zero Trust). --protocol http2 evita las caidas de QUIC/UDP que
+  # reiniciaban el tunel cada pocos segundos.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --protocol http2 run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    depends_on:
+      - frontend
+      - landing-vc
 
 volumes:
   postgres-data:

@@ -38,7 +38,9 @@ import publicRoutes from './routes/public.js';
 import questionsRoutes from './routes/questions.js';
 import { installWorkspaceStore } from './middleware/workspace.js';
 
-const fastify = Fastify({ logger: true });
+// trustProxy: la API vive detrás de nginx (frontend) y del túnel de Cloudflare; sin esto
+// request.ip es la IP del contenedor nginx y el rate-limit del login se comparte entre TODOS los usuarios.
+const fastify = Fastify({ logger: true, trustProxy: true });
 
 // Plugins
 await fastify.register(cors, {

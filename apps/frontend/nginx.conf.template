@@ -5,29 +5,23 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # Este archivo es una plantilla: la imagen nginx sustituye ${API_UPSTREAM} y
+    # ${API_PORT} al arrancar (ver Dockerfile).
+
     # Docker DNS resolver
     resolver 127.0.0.11 valid=30s ipv6=off;
 
-    # Proxy WhatsApp bot requests (must come before /api/ to match first)
-    location /api/whatsapp-bot/ {
-        set $bot_upstream app-calculate-cross-platform-monitor-n39v21;
-
-        rewrite ^/api/whatsapp-bot/(.*) /api/$1 break;
-        proxy_pass http://$bot_upstream:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-
-    # Proxy API requests — keep /api prefix intact
+    # Todo /api/* va a la API, INCLUIDO /api/whatsapp-bot/*: la API ya es el
+    # proxy hacia el bot (routes/whatsapp-bot-proxy.js quita el prefijo y agrega
+    # la API key). NO agregar aqui un location propio para el bot: el rewrite a
+    # /api/... daba 404 porque el bot sirve /sessions en la raiz (QR no cargaba).
     location /api/ {
-        set $api_host app-reboot-neural-alarm-2wz9br;
+        set $api_host ${API_UPSTREAM};
 
-        # When using variables, nginx strips the location match.
-        # Re-add /api/ prefix to the proxy destination.
-        proxy_pass http://$api_host:3000/api/;
+        # IMPORTANTE: con variables en proxy_pass NO se debe poner URI al final
+        # (p.ej. ":3000/api/"): nginx reemplazaria TODA la URL por "/api/" y
+        # rompe login y el resto de endpoints. Sin URI se envia la original.
+        proxy_pass http://$api_host:${API_PORT};
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';

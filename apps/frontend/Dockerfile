@@ -22,8 +22,10 @@ FROM nginx:alpine
 # Copy built files
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Copy nginx config
-COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+# nginx config as template: the official nginx image runs envsubst on
+# /etc/nginx/templates/*.template at startup (only on variables that are defined).
+COPY apps/frontend/nginx.conf.template /etc/nginx/templates/default.conf.template
+ENV API_UPSTREAM=api API_PORT=3000
 
 EXPOSE 3000
 
