@@ -5,5 +5,5 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 chmod +x "$REPO_DIR/scripts/deploy.sh"
 LINE="* * * * * $REPO_DIR/scripts/deploy.sh >/dev/null 2>&1  # motopartes-autodeploy"
-( crontab -l 2>/dev/null | grep -v 'motopartes-autodeploy' ; echo "$LINE" ) | crontab -
+{ crontab -l 2>/dev/null | grep -v "motopartes-autodeploy" || true; echo "$LINE"; } | crontab -
 echo "Auto-deploy instalado:"; crontab -l | grep motopartes-autodeploy
