@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { EventEmitter } from 'events';
+import { createHash } from 'crypto';
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth, MessageMedia } = pkg;
 
@@ -159,6 +160,47 @@ class WhatsAppSession extends EventEmitter {
         this.phoneNumber = null;
         this._heartbeatInterval = null;
         this._terminalReasonEmitted = false;
+        // Candado anti-duplicados de envío: clave -> { ts, promise }
+        this._recentSends = new Map();
+    }
+
+    /**
+     * Evita enviar dos veces el MISMO mensaje al MISMO número desde esta sesión
+     * dentro de una ventana corta (por defecto 30 s). Los duplicados reales venían
+     * de reintentos en cascada del frontend (send-message → send-for-order →
+     * "cualquier sesión") y de automatizaciones que disparan el mismo aviso.
+     * Un envío en curso se comparte (los duplicados esperan el mismo resultado);
+     * si el primero FALLA, la clave se libera para poder reintentar.
+     */
+    _dedupeSend(type, formattedId, content, fn) {
+        const windowMs = parsePositiveInt(process.env.WA_SEND_DEDUPE_MS, 30000);
+        const key = createHash('sha1')
+            .update(`${type}|${formattedId}|${content ?? ''}`)
+            .digest('hex');
+        const now = Date.now();
+
+        for (const [k, v] of this._recentSends) {
+            if (now - v.ts > windowMs) this._recentSends.delete(k);
+        }
+
+        const hit = this._recentSends.get(key);
+        if (hit) {
+            console.warn(`🛑 Envío duplicado ignorado (${type} → ${formattedId}, hace ${now - hit.ts}ms)`);
+            return hit.promise.then((r) => ({ ...r, duplicate: true }));
+        }
+
+        const promise = fn();
+        this._recentSends.set(key, { ts: now, promise });
+        promise.catch(() => {
+            if (this._recentSends.get(key)?.promise === promise) this._recentSends.delete(key);
+        });
+        return promise;
+    }
+
+    // client.sendMessage puede devolver undefined aunque el mensaje SÍ salió
+    // (WhatsApp no deja releer el mensaje enviado a un LID). Nunca asumir `.id`.
+    _sentMessageId(result) {
+        return result?.id?._serialized ?? null;
     }
 
     async initialize() {
@@ -427,31 +469,29 @@ class WhatsAppSession extends EventEmitter {
         const formatted = this._formatPhone(phone);
         console.log(`📤 Sending message to ${formatted}...`);
 
-        try {
-            // Use getNumberId to resolve the WhatsApp ID properly (fixes "No LID" error)
-            const numberId = await this.client.getNumberId(formatted.replace('@c.us', ''));
-            if (numberId) {
-                console.log(`✅ Number resolved: ${numberId._serialized}`);
-                const result = await this.client.sendMessage(numberId._serialized, message);
-                return { success: true, messageId: result.id._serialized };
-            } else {
-                console.warn(`⚠️ Number ${formatted} is not registered on WhatsApp`);
-                throw new Error(`El número ${phone} no está registrado en WhatsApp`);
-            }
-        } catch (err) {
-            // If getNumberId fails, try direct send as fallback
-            if (err.message && err.message.includes('no está registrado')) {
-                throw err;
-            }
-            console.warn(`⚠️ getNumberId failed, trying direct send: ${err.message}`);
+        return this._dedupeSend('text', formatted, message, async () => {
+            // 1) Resolver el ID real (puede ser un @lid). Si la consulta en sí falla
+            //    (error de la librería), seguimos con el ID formateado.
+            let chatId = formatted;
             try {
-                const result = await this.client.sendMessage(formatted, message);
-                return { success: true, messageId: result.id._serialized };
-            } catch (directErr) {
-                console.error(`❌ Direct send also failed: ${directErr.message}`);
-                throw directErr;
+                const numberId = await this.client.getNumberId(formatted.replace('@c.us', ''));
+                if (!numberId) {
+                    console.warn(`⚠️ Number ${formatted} is not registered on WhatsApp`);
+                    throw new Error(`El número ${phone} no está registrado en WhatsApp`);
+                }
+                chatId = numberId._serialized;
+                console.log(`✅ Number resolved: ${chatId}`);
+            } catch (err) {
+                if (err.message && err.message.includes('no está registrado')) throw err;
+                console.warn(`⚠️ getNumberId failed, using formatted id: ${err.message}`);
             }
-        }
+
+            // 2) UN solo envío. Si sendMessage no lanzó, el mensaje salió: aunque
+            //    devuelva undefined NO se reintenta (antes se reenviaba por otra vía y
+            //    el cliente recibía copias mientras la UI mostraba error).
+            const result = await this.client.sendMessage(chatId, message);
+            return { success: true, messageId: this._sentMessageId(result) };
+        });
     }
 
     async sendMedia(phone, message, mediaUrl) {
@@ -478,10 +518,13 @@ class WhatsAppSession extends EventEmitter {
         // en la UI como "el bot no está activo" (engañoso: la sesión sí existe).
         const formatted = this._formatPhone(phone);
         console.log(`📤 Sending media to ${formatted}...`);
-        const numberId = await this.client.getNumberId(formatted.replace('@c.us', ''));
-        const chatId = numberId ? numberId._serialized : formatted;
-        const result = await this.client.sendMessage(chatId, media, { caption: message || '' });
-        return { success: true, messageId: result.id._serialized };
+        const mediaKey = createHash('sha1').update(String(mediaUrl)).digest('hex');
+        return this._dedupeSend('media', formatted, `${mediaKey}|${message || ''}`, async () => {
+            const numberId = await this.client.getNumberId(formatted.replace('@c.us', ''));
+            const chatId = numberId ? numberId._serialized : formatted;
+            const result = await this.client.sendMessage(chatId, media, { caption: message || '' });
+            return { success: true, messageId: this._sentMessageId(result) };
+        });
     }
 
     async sendDocument(phone, message, base64Data, filename, mimetype) {
@@ -497,18 +540,21 @@ class WhatsAppSession extends EventEmitter {
         const formatted = this._formatPhone(phone);
         console.log(`Sending document "${filename}" to ${formatted}...`);
 
-        try {
-            const numberId = await this.client.getNumberId(formatted.replace('@c.us', ''));
-            const chatId = numberId ? numberId._serialized : formatted;
-            const result = await this.client.sendMessage(chatId, media, {
-                caption: message || '',
-                sendMediaAsDocument: true,
-            });
-            return { success: true, messageId: result.id._serialized };
-        } catch (err) {
-            console.error(`Failed to send document: ${err.message}`);
-            throw err;
-        }
+        const docKey = createHash('sha1').update(String(base64Data)).digest('hex');
+        return this._dedupeSend('document', formatted, `${docKey}|${filename || ''}|${message || ''}`, async () => {
+            try {
+                const numberId = await this.client.getNumberId(formatted.replace('@c.us', ''));
+                const chatId = numberId ? numberId._serialized : formatted;
+                const result = await this.client.sendMessage(chatId, media, {
+                    caption: message || '',
+                    sendMediaAsDocument: true,
+                });
+                return { success: true, messageId: this._sentMessageId(result) };
+            } catch (err) {
+                console.error(`Failed to send document: ${err.message}`);
+                throw err;
+            }
+        });
     }
 
     /**
