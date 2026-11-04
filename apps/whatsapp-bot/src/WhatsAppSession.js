@@ -295,6 +295,11 @@ class WhatsAppSession extends EventEmitter {
                 // Give WhatsApp Web more time to load in Docker (default 30s is too short)
                 authTimeoutMs,
                 qrMaxRetries,
+                // Si WhatsApp reporta CONFLICT (la sesion sigue abierta por la instancia
+                // anterior, p. ej. justo despues de un deploy/reinicio) tomar el control
+                // en vez de quedarse colgado en "authenticated" sin llegar a "ready".
+                takeoverOnConflict: true,
+                takeoverTimeoutMs: 0,
                 // Bypass CSP to allow script injection
                 bypassCSP: true,
                 // CRITICAL: Override the outdated Chrome/101 default user agent.
@@ -636,7 +641,7 @@ class WhatsAppSession extends EventEmitter {
      */
     _armReadyWatchdog(origin) {
         this._clearReadyWatchdog();
-        const ms = parsePositiveInt(process.env.WA_READY_TIMEOUT_MS, 120000);
+        const ms = parsePositiveInt(process.env.WA_READY_TIMEOUT_MS, 60000);
         this._readyTimer = setTimeout(() => {
             this._readyTimer = null;
             if (this.isConnected || this.lastQr || !this.client) return;

@@ -57,6 +57,10 @@ services:
       context: .
       dockerfile: apps/whatsapp-bot/Dockerfile
     restart: unless-stopped
+    # Al apagarse el bot cierra Chrome y se despide de WhatsApp (destroyAll, hasta
+    # ~15 s por sesion). Con los 10 s por defecto Docker lo mataba a medias y
+    # WhatsApp seguia viendo la sesion abierta, colgando el siguiente arranque.
+    stop_grace_period: 40s
     depends_on:
       postgres:
         condition: service_healthy
