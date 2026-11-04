@@ -66,6 +66,13 @@ COPY apps/whatsapp-bot/patch-wwebjs.cjs ./patch-wwebjs.cjs
 # AB test confirmed: WITHOUT this patch, Debug.VERSION appears in 2s; WITH it, NEVER.
 RUN node patch-wwebjs.cjs
 
+# Parche del envio de imagenes/PDF/documentos: el id del mensaje era pisado por el
+# `id: undefined` del modelo de media ("Data passed to getter must include an id
+# property"). Ver el encabezado del script. Va despues del anterior (que puede
+# terminar antes de tiempo si su marcador no existe en la version de la libreria).
+COPY apps/whatsapp-bot/patch-wwebjs-media.cjs ./patch-wwebjs-media.cjs
+RUN node patch-wwebjs-media.cjs
+
 RUN npx prisma generate
 
 # Copy source code

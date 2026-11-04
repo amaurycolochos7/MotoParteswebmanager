@@ -506,7 +506,10 @@ export default function OrderDetail() {
             });
             const result = await res.json();
             if (result.success && result.automated) showToast('PDF enviado por WhatsApp', 'success');
-            else if (result.fallback) showToast('WhatsApp no disponible. Conecta el bot primero.', 'warning');
+            // "Conecta el bot" solo si realmente no hay sesión (503) o el bot no responde.
+            // Si el bot está conectado y el envío falló (500), mostrar el error real.
+            else if (result.fallback && (!result.botStatus || result.botStatus === 503)) showToast('WhatsApp no disponible. Conecta el bot primero.', 'warning');
+            else if (result.fallback) showToast(`No se pudo enviar el PDF: ${result.error || 'error del bot'}`, 'error');
             else showToast(result.error || 'Error al enviar PDF', 'error');
         } catch (error) {
             console.error('Error sending PDF:', error);
