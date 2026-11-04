@@ -84,3 +84,6 @@ tail_logs.txt
 trace_test.txt
 dokploy_*.json
 migration_*.json
+
+# Auto-deploy: ultimo commit que fallo en el servidor
+.last-failed-deploy

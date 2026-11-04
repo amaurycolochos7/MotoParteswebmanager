@@ -13,7 +13,7 @@ Monorepo con tres aplicaciones independientes:
 | API | `apps/api/` | Fastify 5 + Prisma 6 + PostgreSQL 16 | 3000 |
 | WhatsApp bot | `apps/whatsapp-bot/` | Express 5 + whatsapp-web.js (Puppeteer/Chromium) | 3002 |
 
-Producción corre en Dokploy como tres apps separadas, servidas en `motopartes.cloud`, `motopartes.cloud/api`, y `motopartes.cloud/api/whatsapp-bot`.
+Producción corre en un servidor casero (`servermacs`, Ubuntu + Docker Compose) y se publica con un túnel de Cloudflare: `motopartes.cloud` → `frontend:3000` (nginx, que hace proxy de `/api` y `/api/whatsapp-bot`) y `vc.motopartes.cloud` → `landing-vc`.
 
 ## Desarrollo local
 
@@ -21,19 +21,18 @@ Producción corre en Dokploy como tres apps separadas, servidas en `motopartes.c
 - Docker + Docker Compose
 - Node.js 20+ (solo si quieres correr tests o la UI fuera de Docker)
 
-### Arranque en 4 comandos
+### Arranque
 
 ```
-cp apps/api/.env.example          apps/api/.env
-cp apps/whatsapp-bot/.env.example apps/whatsapp-bot/.env
-cp apps/frontend/.env.example     apps/frontend/.env
-docker compose up --build
+cp .env.example .env        # los valores por defecto ya funcionan en local
+docker compose up -d --build
 ```
 
 Listo:
 - Frontend: http://localhost:5173
 - API: http://localhost:3000/api/health
 - Bot: http://localhost:3002/health
+- Landing: se sirve solo dentro de la red de Docker (en producción por `vc.motopartes.cloud`)
 
 Para parear WhatsApp en local, entra al frontend, inicia sesión, ve a `/mechanic/whatsapp`, y escanea el QR desde el teléfono del mecánico de prueba.
 
@@ -60,9 +59,26 @@ cd apps/api && npm install && npm test
 
 ## Despliegue
 
-Push a `main` → Dokploy sincroniza los tres apps desde git. Las imágenes se construyen en el VPS y se actualizan vía `docker service update`. El mapa de servicios Dokploy → contenedor real vive en la nota de memoria "Deployment map" del equipo.
+**Push a `main` → el servidor se actualiza solo.** En el servidor corre un cron (cada minuto) que ejecuta [`scripts/deploy.sh`](scripts/deploy.sh):
 
-**Rotación de secretos**: `JWT_SECRET` y `WHATSAPP_API_KEY` se configuran en Dokploy → app → Environment. Sin ellos los servicios arrancan con un fallback legacy y registran un warning ruidoso — es por diseño para no tumbar producción en un push. Rotar invalida todas las sesiones vigentes.
+1. `git fetch`; si `origin/main` no trae commits nuevos, no hace nada.
+2. `git reset --hard origin/main` y `docker compose --profile tunnel up -d --build` (solo reconstruye lo que cambió).
+3. Espera a que API, bot y frontend respondan `/health`.
+4. Si algo no queda sano, vuelve al commit anterior (rollback) y no reintenta ese commit en bucle.
+
+Comandos útiles desde tu PC (alias `servermacs` en `~/.ssh/config`):
+
+```
+ssh servermacs "~/MotoParteswebmanager/scripts/deploy.sh --force"   # desplegar ya
+ssh servermacs "tail -50 ~/motopartes-deploy.log"                   # ver historial de deploys
+ssh servermacs "cd ~/MotoParteswebmanager && docker compose ps"     # estado de servicios
+```
+
+Instalación del cron (una sola vez en el servidor): `scripts/install-autodeploy.sh`.
+
+**Configuración que NO está en git** (vive en `~/MotoParteswebmanager/.env` del servidor): `DB_PASSWORD`, `JWT_SECRET`, `WHATSAPP_API_KEY`, `CORS_ORIGINS`, `TUNNEL_TOKEN`. Ver `.env.example`. Rotar `JWT_SECRET` invalida todas las sesiones vigentes.
+
+**nginx**: `apps/frontend/nginx.conf.template` es una plantilla; el destino de la API (`API_UPSTREAM`, `API_PORT`) sale de variables de entorno con defaults para docker compose. `/api/whatsapp-bot/*` NO tiene location propio: la API lo reenvia al bot. No poner URI en `proxy_pass` cuando se usan variables (rompe `/api/auth/login`).
 
 ## Licencia
 
