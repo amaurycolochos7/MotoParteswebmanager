@@ -500,9 +500,69 @@ class WhatsAppSession extends EventEmitter {
             // 2) UN solo envío. Si sendMessage no lanzó, el mensaje salió: aunque
             //    devuelva undefined NO se reintenta (antes se reenviaba por otra vía y
             //    el cliente recibía copias mientras la UI mostraba error).
+            const sinceSec = Math.floor(Date.now() / 1000) - 1;
             const result = await this.client.sendMessage(chatId, message);
+            this._trackAck(chatId, sinceSec, 'text');
             return { success: true, messageId: this._sentMessageId(result) };
         });
+    }
+
+    /**
+     * DIAGNÓSTICO (no cambia el envío): lee el chat dentro de WhatsApp Web y
+     * devuelve los últimos mensajes con su ack (0=pendiente, 1=enviado al servidor,
+     * 2=entregado, 3=leído). Sirve para saber si un envío "exitoso" realmente salió.
+     */
+    async recentMessages(phone, limit = 8) {
+        if (!this.isConnected || !this.client) {
+            throw new Error(`Session ${this.mechanicId} not connected`);
+        }
+        const formatted = this._formatPhone(phone);
+        let chatId = formatted;
+        try {
+            const numberId = await this.client.getNumberId(formatted.replace('@c.us', ''));
+            if (numberId) chatId = numberId._serialized;
+        } catch { /* usar el id formateado */ }
+        const data = await this.client.pupPage.evaluate(async (id, n) => {
+            const wid = window.require('WAWebWidFactory').createWid(id);
+            const chat = window.require('WAWebCollections').Chat.get(wid);
+            if (!chat) return { chatExists: false };
+            const msgs = chat.msgs.getModelsArray().slice(-n).map((m) => ({
+                t: m.t,
+                fromMe: !!(m.id ? m.id.fromMe : m.fromMe),
+                type: m.type,
+                ack: m.ack,
+                body: String(m.body || m.caption || '').slice(0, 60),
+            }));
+            return { chatExists: true, total: chat.msgs.length, msgs };
+        }, chatId, Math.min(Math.max(parseInt(limit, 10) || 8, 1), 50));
+        return { phone: formatted, chatId, ...data };
+    }
+
+    // Registra en el log el ack real del último mensaje saliente (3 s, 10 s y 25 s
+    // después del envío). No bloquea ni altera el resultado del envío.
+    _trackAck(chatId, sinceSec, label) {
+        (async () => {
+            for (const wait of [3000, 7000, 15000]) {
+                await new Promise((r) => setTimeout(r, wait));
+                if (!this.client) return;
+                try {
+                    const r = await this.client.pupPage.evaluate(async (id, since) => {
+                        const wid = window.require('WAWebWidFactory').createWid(id);
+                        const chat = window.require('WAWebCollections').Chat.get(wid);
+                        if (!chat) return { chat: false };
+                        const out = chat.msgs.getModelsArray()
+                            .filter((m) => (m.id ? m.id.fromMe : m.fromMe) && m.t >= since);
+                        const m = out[out.length - 1];
+                        return m ? { chat: true, found: true, ack: m.ack } : { chat: true, found: false };
+                    }, chatId, sinceSec);
+                    console.log(`📬 [${label}] ${chatId} → ${!r.chat ? 'CHAT NO EXISTE (no se envió)' : !r.found ? 'MENSAJE NO ENCONTRADO en el chat (no se envió)' : `ack=${r.ack}`}`);
+                    if (r.found && r.ack >= 2) return;
+                } catch (e) {
+                    console.log(`📬 [${label}] ${chatId} → error leyendo ack: ${e.message}`);
+                    return;
+                }
+            }
+        })();
     }
 
     async sendMedia(phone, message, mediaUrl) {

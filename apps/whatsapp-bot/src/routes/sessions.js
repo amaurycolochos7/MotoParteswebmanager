@@ -34,6 +34,23 @@ router.get('/:mechanicId/status', (req, res) => {
     });
 });
 
+// GET /sessions/:mechanicId/messages?phone=9631911772&limit=8
+// DIAGNÓSTICO INTERNO (no está en la lista blanca del proxy de la API, así que no
+// es accesible desde internet): últimos mensajes del chat con su ack de entrega.
+router.get('/:mechanicId/messages', async (req, res) => {
+    const sessionManager = req.app.get('sessionManager');
+    const session = sessionManager.getSession(req.params.mechanicId);
+    if (!session || !session.isConnected) {
+        return res.status(503).json({ error: 'Sesión de WhatsApp no disponible' });
+    }
+    if (!req.query.phone) return res.status(400).json({ error: 'phone requerido' });
+    try {
+        res.json(await session.recentMessages(req.query.phone, req.query.limit));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // GET /api/sessions/:mechanicId/qr
 router.get('/:mechanicId/qr', async (req, res) => {
     const sessionManager = req.app.get('sessionManager');
