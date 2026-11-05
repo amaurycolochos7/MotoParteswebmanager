@@ -13,6 +13,7 @@ router.get('/', (req, res) => {
 router.get('/:mechanicId/status', (req, res) => {
     const sessionManager = req.app.get('sessionManager');
     const session = sessionManager.getSession(req.params.mechanicId);
+    if (session) session.touch(); // la pantalla está abierta: mantener vivo el QR
 
     if (!session) {
         // ponytail: also check if a restart is scheduled or init is in-flight
@@ -30,6 +31,7 @@ router.get('/:mechanicId/status', (req, res) => {
         platform: session.platform || 'Web',
         qr: session.lastQr ? true : false,
         lastError: session.lastError || null,
+        idleReason: session.idleReason || null,
         restartScheduled: sessionManager._restartTimers.has(req.params.mechanicId),
     });
 });
@@ -55,6 +57,7 @@ router.get('/:mechanicId/messages', async (req, res) => {
 router.get('/:mechanicId/qr', async (req, res) => {
     const sessionManager = req.app.get('sessionManager');
     const session = sessionManager.getSession(req.params.mechanicId);
+    if (session) session.touch(); // la pantalla está abierta: mantener vivo el QR
 
     if (!session || !session.lastQr) {
         return res.json({ qr: null, isConnected: session?.isConnected || false });

@@ -162,6 +162,39 @@ class WhatsAppSession extends EventEmitter {
         this._terminalReasonEmitted = false;
         // Candado anti-duplicados de envío: clave -> { ts, promise }
         this._recentSends = new Map();
+        // QR sin escanear: si nadie consulta la pantalla, se desactiva (ver _armQrWatch).
+        this.idleReason = null;   // por qué quedó detenida: 'qr_idle' | 'qr_exhausted' | null
+        this._lastWatchAt = Date.now();
+        this._qrWatch = null;
+    }
+
+    // La pantalla de WhatsApp consulta /status y /qr cada pocos segundos: eso es
+    // "alguien está mirando". Si deja de hacerlo con un QR visible, se desactiva.
+    touch() { this._lastWatchAt = Date.now(); }
+
+    _clearQrWatch() {
+        if (this._qrWatch) { clearInterval(this._qrWatch); this._qrWatch = null; }
+    }
+
+    /**
+     * Mientras haya un QR esperando ser escaneado, vigila que la pantalla siga
+     * abierta. Si pasan WA_QR_IDLE_MS (60 s) sin consultas, se detiene la sesión,
+     * se borran sus datos y NO se vuelve a generar ningún QR hasta que el usuario
+     * pulse "Conectar" (antes quedaba en un bucle infinito de QR sin dueño).
+     */
+    _armQrWatch() {
+        if (this._qrWatch) return;
+        const idleMs = parsePositiveInt(process.env.WA_QR_IDLE_MS, 60000);
+        this._qrWatch = setInterval(() => {
+            if (!this.client || !this.lastQr) { this._clearQrWatch(); return; } // ya vinculó o se detuvo
+            if (Date.now() - this._lastWatchAt > idleMs) {
+                console.log(`💤 QR sin escanear y sin nadie mirando la pantalla (${Math.round(idleMs / 1000)} s) — se desactiva ${this.mechanicId}`);
+                this._clearQrWatch();
+                this.lastError = 'El código QR se desactivó porque nadie lo escaneó. Pulsa "Conectar WhatsApp" para generar uno nuevo.';
+                void this._stopForRelink('qr_idle', true);
+            }
+        }, Math.min(15000, Math.max(100, Math.floor(idleMs / 4))));
+        this._qrWatch.unref?.();
     }
 
     /**
@@ -216,6 +249,8 @@ class WhatsAppSession extends EventEmitter {
 
         this.initializing = true;
         this.lastError = null;
+        this.idleReason = null;
+        this._lastWatchAt = Date.now();
         this._terminalReasonEmitted = false;
         console.log(`🔧 Initializing WhatsApp client for mechanic ${this.mechanicId}...`);
 
@@ -343,10 +378,12 @@ class WhatsAppSession extends EventEmitter {
                 this.lastQr = qr;
                 this.isConnected = false;
                 this.emit('qr', qr);
+                this._armQrWatch();
 
                 if (this._qrCount >= qrMaxRetries) {
                     console.error(`❌ Too many QR regenerations (${this._qrCount}) for ${this.mechanicId} — stopping to prevent runaway loop`);
-                    this.lastError = 'El código QR expiró. Reintentando con sesión limpia…';
+                    this.lastError = 'El código QR expiró sin escanearse. Pulsa "Conectar WhatsApp" para generar uno nuevo.';
+                    this.idleReason = 'qr_exhausted';
                     this.lastQr = null;
                     // Wipe the on-disk session folder. After several unscanned QRs the
                     // local LocalAuth state is invariably stale (auth tokens that
@@ -366,6 +403,7 @@ class WhatsAppSession extends EventEmitter {
             this.client.on('authenticated', () => {
                 console.log(`🔑 Authenticated: mechanic ${this.mechanicId}`);
                 this.lastQr = null;
+                this._clearQrWatch();
                 // Autenticada pero aún sin "ready": si se atasca, reiniciar sola.
                 this._armReadyWatchdog('authenticated');
             });
@@ -408,10 +446,11 @@ class WhatsAppSession extends EventEmitter {
 
                 this.emit('disconnected', reason);
 
-                // Auto-restart if disconnected due to QR timeout
+                // QR agotado por la libreria: queda en reposo hasta que el usuario pulse
+                // "Conectar" (ya NO se regenera solo).
                 if (reason === 'Max qrcode retries reached') {
-                    console.log(`🔄 QR timeout for ${this.mechanicId}, emitting qr_timeout for auto-restart...`);
-                    this.emit('qr_timeout');
+                    this.idleReason = 'qr_exhausted';
+                    this.lastError = 'El código QR expiró sin escanearse. Pulsa "Conectar WhatsApp" para generar uno nuevo.';
                 }
             });
 
@@ -791,6 +830,7 @@ class WhatsAppSession extends EventEmitter {
 
     async _destroyClientOnly(label = 'client.destroy') {
         this._clearReadyWatchdog();
+        this._clearQrWatch();
         try {
             this.isConnected = false;
             if (this.client) {
@@ -812,6 +852,7 @@ class WhatsAppSession extends EventEmitter {
     async _stopForRelink(reason, wipeSessionDir = false) {
         if (this._terminalReasonEmitted) return;
         this._terminalReasonEmitted = true;
+        if (String(reason).startsWith('qr_')) this.idleReason = reason;
         this.isConnected = false;
         this.lastQr = null;
         this._stopHeartbeat();

@@ -21,8 +21,10 @@ export default function WhatsAppConnect() {
     const [qrCode, setQrCode] = useState(null);
     const [sessionData, setSessionData] = useState(null);
     const [error, setError] = useState(null);
+    const [idleReason, setIdleReason] = useState(null); // por qué quedó detenida (QR sin escanear, etc.)
     const pollInterval = useRef(null);
     const startRequested = useRef(false); // ponytail: prevents startSession spam during init
+    const startedAt = useRef(0); // momento en que el usuario pulsó "Conectar"
 
     useEffect(() => {
         checkStatus();
@@ -73,36 +75,44 @@ export default function WhatsAppConnect() {
                     setStatus('disconnected');
                     setError(statusRes.lastError || null);
                 }
-            } else if (statusRes.initializing || statusRes.restartScheduled) {
-                // Bot is working on it — just wait, don't spam startSession
+            } else if (statusRes.initializing || (statusRes.restartScheduled && !statusRes.idleReason)) {
+                // El bot está levantando Chrome / generando el QR (o reintentando tras un
+                // fallo real): esperar sin pedir nada nuevo.
                 setStatus('disconnected');
                 setError(statusRes.lastError || null);
-            } else if (statusRes.exists === false) {
-                // No session at all — request one start
-                if (!startRequested.current) {
-                    startRequested.current = true;
-                    await whatsappBotService.startSession(user.id);
-                }
+            } else if (Date.now() - startedAt.current < 20000) {
+                // Acabas de pulsar "Conectar": darle unos segundos al bot para arrancar.
                 setStatus('disconnected');
-                setError(statusRes.lastError || null);
             } else {
-                // Session exists but no QR yet — check QR endpoint as fallback
-                const qrRes = await whatsappBotService.getQR(user.id);
-                if (qrRes.qr) {
-                    setQrCode(qrRes.qr);
-                    setStatus('qr');
-                    setError(null);
-                    startRequested.current = false;
-                } else {
-                    setStatus('disconnected');
-                    setError(statusRes.lastError || null);
-                }
+                // Sin sesión, o detenida a propósito (QR sin escanear / expirado / sesión
+                // cerrada). NO se genera ningún QR solo: aparece el botón "Conectar".
+                setIdleReason(statusRes.idleReason || null);
+                setError(statusRes.lastError || null);
+                setQrCode(null);
+                setStatus('stopped');
             }
         } catch (err) {
             console.error('Error checking WhatsApp status:', err);
             setError('Error de conexión con el bot');
             setStatus('error');
         }
+    };
+
+    // Único camino para generar un QR: el botón "Conectar WhatsApp" / "Reconectar".
+    const handleStart = async () => {
+        setError(null);
+        setIdleReason(null);
+        setQrCode(null);
+        setStatus('disconnected');
+        startedAt.current = Date.now();
+        const ok = await whatsappBotService.startSession(user.id);
+        if (!ok) {
+            startedAt.current = 0;
+            setError('No se pudo iniciar la conexión con el bot. Intenta de nuevo.');
+            setStatus('stopped');
+            return;
+        }
+        checkStatus();
     };
 
     const handleRestartSession = async () => {
@@ -254,6 +264,27 @@ export default function WhatsAppConnect() {
                         <div className="wa-qr-waiting">
                             <Loader size={14} className="spin" /> Esperando escaneo...
                         </div>
+                        <p className="wa-retry-note" style={{ textAlign: 'center', marginTop: 8 }}>
+                            El código se renueva solo mientras esta pantalla esté abierta. Si sales, se desactiva.
+                        </p>
+                    </div>
+                )}
+
+                {status === 'stopped' && (
+                    <div className="wa-disconnected">
+                        <Smartphone size={40} className="text-primary" />
+                        <h3>WhatsApp no está conectado</h3>
+                        <p>
+                            {idleReason === 'qr_idle'
+                                ? 'El código QR se desactivó porque nadie lo escaneó.'
+                                : idleReason === 'qr_exhausted'
+                                    ? 'El código QR expiró sin escanearse.'
+                                    : 'Pulsa el botón para generar un código QR y vincular el teléfono.'}
+                        </p>
+                        {error && !idleReason && <p className="wa-retry-note">{error}</p>}
+                        <button className="btn btn-primary mt-md" onClick={handleStart}>
+                            <RefreshCw size={16} /> Conectar WhatsApp
+                        </button>
                     </div>
                 )}
 
@@ -274,7 +305,7 @@ export default function WhatsAppConnect() {
                         <AlertCircle size={40} className="text-warning" />
                         <h3>Sesión Cerrada</h3>
                         <p>Has cerrado sesión de WhatsApp exitosamente.</p>
-                        <button className="btn btn-outline mt-md" onClick={() => { setStatus('disconnected'); checkStatus(); }}>
+                        <button className="btn btn-outline mt-md" onClick={handleStart}>
                             <RefreshCw size={16} /> Reconectar
                         </button>
                     </div>

@@ -253,6 +253,7 @@ if (SELF_HEAL_ENABLED) {
                 if (s.isConnected) continue;
                 if (s.initializing) continue;                 // ya está levantando, no tocar
                 if (!s.lastReadyAt) continue;                 // nunca autenticó — seguramente escanear QR pendiente
+                if (s.idleReason) continue;                   // en reposo a propósito (QR sin escanear): espera al usuario
                 const last = new Date(s.lastReadyAt).getTime();
                 if (Date.now() - last > DEAD_THRESHOLD_MS) {
                     console.log(`[self-heal] session ${s.mechanicId} looks dead; reinitializing…`);

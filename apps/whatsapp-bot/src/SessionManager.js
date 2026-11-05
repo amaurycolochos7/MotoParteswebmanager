@@ -104,10 +104,9 @@ class SessionManager {
             }
         });
 
-        // Auto-restart when QR scan times out (user took too long)
-        session.on('qr_timeout', async () => {
-            this._scheduleRestart(mechanicId, 'qr_timeout');
-        });
+        // QR sin escanear: ya no se reinicia automaticamente (antes generaba QR
+        // nuevos sin parar). El usuario decide con el boton "Conectar".
+        session.on('qr_timeout', () => {});
 
         // Initialize WhatsApp client
         try {
@@ -217,6 +216,7 @@ class SessionManager {
                 qr: session.lastQr,
                 phoneNumber: session.phoneNumber,
                 lastReadyAt: session.lastReadyAt || null,
+                idleReason: session.idleReason || null,
                 lastError: session.lastError || this._lastErrors.get(mechanicId) || null,
                 restartScheduled: this._restartTimers.has(mechanicId),
                 restartAttempts: this._restartAttempts.get(mechanicId) || 0,
@@ -271,7 +271,9 @@ class SessionManager {
     }
 
     _shouldAutoRestart(reason) {
-        return reason !== 'LOGOUT' && reason !== 'manual_stop';
+        // Una sesión que nadie escaneó (QR agotado / sin nadie mirando) NO se reinicia
+        // sola: se queda en reposo hasta que el usuario pulse "Conectar".
+        return !['LOGOUT', 'manual_stop', 'qr_exhausted', 'qr_idle', 'Max qrcode retries reached'].includes(reason);
     }
 
     _scheduleRestart(mechanicId, reason) {
