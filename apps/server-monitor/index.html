@@ -332,7 +332,7 @@ function drawChart(id) {
   if (cfg.type === 'rate') { div = allMax >= GB ? GB : allMax >= MB ? MB : allMax >= 1024 ? 1024 : 1; unit = div === GB ? 'GB/s' : div === MB ? 'MB/s' : div === 1024 ? 'KB/s' : 'B/s'; }
   let lo, hi;
   if (cfg.type === 'temp') { const sc = nice(Math.max(0, allMin - 4), allMax + 4, 4); lo = sc.lo; hi = sc.hi; }
-  else if (cfg.type === 'pct') { hi = cfg.fixedMax || nice(0, Math.max(allMax * 1.2, 10), 4).hi; lo = 0; }
+  else if (cfg.type === 'pct') { hi = cfg.fixedMax || Math.min(100, nice(0, Math.max(allMax * 1.2, 10), 4).hi); lo = 0; }
   else { const sc = nice(0, Math.max(allMax / div * 1.15, 1), 4); lo = 0; hi = sc.hi; }
   const L = 42, R = 10, T = 8, B = 22;
   const X = (i) => L + (W - L - R) * i / (pts.length - 1);
