@@ -80,14 +80,13 @@ Instalación del cron (una sola vez en el servidor): `scripts/install-autodeploy
 
 **nginx**: `apps/frontend/nginx.conf.template` es una plantilla; el destino de la API (`API_UPSTREAM`, `API_PORT`) sale de variables de entorno con defaults para docker compose. `/api/whatsapp-bot/*` NO tiene location propio: la API lo reenvia al bot. No poner URI en `proxy_pass` cuando se usan variables (rompe `/api/auth/login`).
 
-## Panel de salud del servidor
+## Panel de estado del servidor
 
-Servicio `server-monitor` (`apps/server-monitor/`): tablero de **solo lectura** con temperatura del procesador (con máxima registrada y límite del sensor), CPU, RAM, disco, batería/corriente, ventiladores, historial (15 min · 1 h · 24 h · 7 días) y salud de los servicios (web, API, bot de WhatsApp, base de datos).
+Servicio `server-monitor` (`apps/server-monitor/`): panel **genérico y de solo lectura** del equipo (no depende de la app). Muestra CPU (uso por núcleo, frecuencia, carga, presión), memoria y swap, disco (espacio, inodos, E/S por dispositivo), red (tráfico, interfaces, conexiones TCP y puertos en escucha), temperatura y límite térmico, batería/corriente, procesos que más consumen e historial (15 min · 1 h · 24 h · 7 días). Tema claro/oscuro y adaptado a teléfono.
 
-- Servidor: `http://IP-DEL-SERVIDOR:8088` (p. ej. por Tailscale `http://100.88.47.41:8088`). Se publica según `MONITOR_BIND` del `.env` del servidor (`0.0.0.0`).
-- Local: `http://localhost:8088` (solo localhost por defecto; una PC sin sensores muestra "sin sensores"). `MONITOR_DEMO=1` simula datos para ver el diseño.
-- Sin dependencias; lee `/proc` y `/sys` y `statfs`; no monta el socket de Docker ni escribe en el host. Guarda historial y récords en el volumen `monitor-data`.
-- Solo acepta GET; el único dato que sale son métricas de salud, sin credenciales.
+- Servidor: `http://IP-DEL-SERVIDOR:8088` (p. ej. por Tailscale `http://100.88.47.41:8088`). `MONITOR_BIND` del `.env` define la interfaz (`0.0.0.0` en el servidor, `127.0.0.1` por defecto).
+- Corre con `pid: host` y `network_mode: host` para ver procesos y red reales, pero sin privilegios: usuario no-root, sistema de archivos de solo lectura, sin capacidades, sin socket de Docker. No muestra líneas de comando de procesos (solo su nombre) y solo acepta GET.
+- `MONITOR_DEMO=1` simula datos para ver el diseño en una PC sin sensores. El historial y los récords se guardan en el volumen `monitor-data`.
 
 ## Licencia
 

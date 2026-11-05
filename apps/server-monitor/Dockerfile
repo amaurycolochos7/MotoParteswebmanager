@@ -12,6 +12,6 @@ ENV NODE_ENV=production PORT=8088 DATA_DIR=/data
 EXPOSE 8088
 
 HEALTHCHECK --interval=30s --timeout=4s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:8088/healthz >/dev/null || exit 1
+  CMD wget -qO- "http://127.0.0.1:${PORT:-8088}/healthz" >/dev/null || exit 1
 
 CMD ["node", "server.mjs"]

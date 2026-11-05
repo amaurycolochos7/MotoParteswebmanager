@@ -125,21 +125,29 @@ services:
       - frontend
       - landing-vc
 
-  # Panel de salud del servidor (CPU, RAM, disco, temperatura, batería, servicios).
-  # SOLO LECTURA: lee /proc y /sys del host y comprueba los demas servicios por la
-  # red interna. Por defecto solo en localhost; en el servidor se publica con
-  # MONITOR_BIND=0.0.0.0 en su .env -> http://IP-DEL-SERVIDOR:8088
+  # Panel de estado del servidor (CPU, RAM, disco, red, temperatura, procesos...).
+  # SOLO LECTURA y generico (no depende de la app). Usa pid:host y network:host para
+  # ver los procesos y las interfaces de red REALES del equipo, pero corre sin
+  # privilegios: usuario no-root, sistema de archivos de solo lectura, sin capacidades
+  # y sin el socket de Docker. En network:host no hay "ports": escucha en
+  # MONITOR_BIND:MONITOR_PORT (por defecto 127.0.0.1:8088; en el servidor 0.0.0.0).
   server-monitor:
     build:
       context: ./apps/server-monitor
       dockerfile: Dockerfile
     restart: unless-stopped
+    network_mode: host
+    pid: host
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp"]
     environment:
       HOST_LABEL: ${MONITOR_HOST_LABEL:-}
       HOST_OS: ${MONITOR_HOST_OS:-}
       MONITOR_DEMO: ${MONITOR_DEMO:-0}
-    ports:
-      - "${MONITOR_BIND:-127.0.0.1}:${MONITOR_PORT:-8088}:8088"
+      LISTEN_HOST: ${MONITOR_BIND:-127.0.0.1}
+      PORT: ${MONITOR_PORT:-8088}
     volumes:
       - monitor-data:/data
 
