@@ -106,6 +106,17 @@ export default function WhatsAppConnect() {
     };
 
     const handleRestartSession = async () => {
+        // Cerrar sesión DESVINCULA el WhatsApp del taller y borra sus credenciales:
+        // hay que escanear un QR nuevo con el teléfono para volver a conectar, y
+        // mientras tanto no salen avisos a los clientes. Confirmar si está conectado.
+        if (status === 'connected') {
+            const ok = window.confirm(
+                '¿Cerrar la sesión de WhatsApp?\n\n' +
+                'Se desvinculará el número y dejarán de enviarse los avisos a los clientes ' +
+                'hasta que escanees un QR nuevo con el teléfono.'
+            );
+            if (!ok) return;
+        }
         setStatus('loading');
         setError(null);
         startRequested.current = false;
