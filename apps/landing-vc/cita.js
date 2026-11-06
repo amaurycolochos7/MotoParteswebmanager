@@ -137,10 +137,10 @@
 
   // ── Elegir otra fecha ─────────────────────────────────
   function isoLocal(d) { var p = function (n) { return String(n).padStart(2, '0'); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+  var dateCal = null;
   function openPicker() {
     say(''); chosen = null; $('cpSend').disabled = true;
-    var t = new Date(); t.setDate(t.getDate() + 1); var m = new Date(); m.setDate(m.getDate() + 120);
-    $('cpDate').min = isoLocal(t); $('cpDate').max = isoLocal(m); $('cpDate').value = '';
+    if (dateCal) dateCal.clear(); else $('cpDate').value = '';
     $('cpSlots').textContent = ''; $('cpPickHint').hidden = true;
     $('cpPicker').hidden = false; $('cpActions').hidden = true;
     $('cpPicker').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -178,7 +178,7 @@
     }
   }
   document.addEventListener('DOMContentLoaded', function () {
-    $('cpDate').addEventListener('change', loadSlots);
+    if (window.MPCalendar) dateCal = MPCalendar({ btn: $('cpDateBtn'), txt: $('cpDateTxt'), input: $('cpDate'), panel: $('cpCal'), onPick: loadSlots });
     $('cpPickCancel').addEventListener('click', function () { $('cpPicker').hidden = true; $('cpActions').hidden = false; });
     $('cpSend').addEventListener('click', function () {
       if (!chosen) return;

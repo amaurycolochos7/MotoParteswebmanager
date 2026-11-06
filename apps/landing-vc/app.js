@@ -180,15 +180,6 @@ function isoLocal(d) {
   const p = n => String(n).padStart(2, '0');
   return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
 }
-function initDatepicker() {
-  const fi = document.getElementById('fecha');
-  if (!fi) return;
-  const t = new Date(); t.setDate(t.getDate() + 1);
-  const m = new Date(); m.setDate(m.getDate() + MAX_DIAS);
-  fi.min = isoLocal(t);
-  fi.max = isoLocal(m);
-}
-
 /* ── FORMULARIO ──────────────────────────────────── */
 function initForm() {
   const $ = id => document.getElementById(id);
@@ -226,32 +217,51 @@ function initForm() {
   /* Horas disponibles segun la fecha elegida */
   const fmt = h => { const n = +h.slice(0, 2); return ((n % 12) || 12) + h.slice(2) + (n < 12 ? ' am' : ' pm'); };
   const ALL = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+  const hours = $('hours');
+  function hoursMsg(text) {
+    hora.value = '';
+    hours.textContent = '';
+    const p = document.createElement('p'); p.className = 'hours-ph'; p.textContent = text;
+    hours.append(p);
+  }
   function fillHours(slots) {
     const prev = hora.value;
-    hora.innerHTML = '<option value="">Selecciona…</option>' + slots.map(s =>
-      '<option value="' + s.hora + '"' + (s.available ? '' : ' disabled') + '>' + fmt(s.hora) + (s.available ? '' : ' — no disponible') + '</option>').join('');
-    hora.disabled = false;
     const keep = slots.find(s => s.hora === prev && s.available);
     hora.value = keep ? prev : '';
+    hours.textContent = '';
+    slots.forEach(s => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'hour'; b.textContent = fmt(s.hora);
+      b.setAttribute('role', 'radio');
+      const on = hora.value === s.hora;
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+      if (on) b.classList.add('on');
+      if (!s.available) { b.disabled = true; b.title = 'No disponible'; }
+      else b.addEventListener('click', () => {
+        hora.value = s.hora; hours.classList.remove('error');
+        hours.querySelectorAll('.hour').forEach(x => { const sel = x === b; x.classList.toggle('on', sel); x.setAttribute('aria-checked', sel ? 'true' : 'false'); });
+      });
+      hours.append(b);
+    });
   }
   let reqId = 0;
   async function loadAvailability() {
     hint.hidden = true;
-    if (!fecha.value) { hora.disabled = true; hora.innerHTML = '<option value="">Primero elige la fecha</option>'; return; }
+    if (!fecha.value) { hoursMsg('Primero elige la fecha'); return; }
     if (new Date(fecha.value + 'T12:00:00').getDay() === 0) {
-      hora.disabled = true; hora.innerHTML = '<option value="">Cerrado los domingos</option>';
+      hoursMsg('Cerrado los domingos');
       hint.textContent = 'No atendemos domingos. Elige otro día.'; hint.hidden = false;
       return;
     }
     const id = ++reqId;
-    hora.disabled = true; hora.innerHTML = '<option value="">Buscando horarios…</option>';
+    hoursMsg('Buscando horarios…');
     try {
       const res = await fetch(API_URL + '/availability?fecha=' + encodeURIComponent(fecha.value));
       if (!res.ok) throw new Error('http ' + res.status);
       const data = await res.json();
       if (id !== reqId) return;
       if (data.closed) {
-        hora.disabled = true; hora.innerHTML = '<option value="">Sin servicio ese día</option>';
+        hoursMsg('Sin servicio ese día');
         hint.textContent = data.reason || 'Ese día no hay servicio. Elige otro día.'; hint.hidden = false;
         return;
       }
@@ -264,7 +274,7 @@ function initForm() {
       fillHours(ALL.map(h => ({ hora: h, available: true }))); // el servidor valida de todos modos
     }
   }
-  fecha.addEventListener('change', () => { fecha.classList.remove('error'); loadAvailability(); });
+  const cal = MPCalendar({ btn: $('fechaBtn'), txt: $('fechaTxt'), input: fecha, panel: $('cal'), onPick: loadAvailability });
   loadAvailability();
 
   form.addEventListener('submit', async e => {
@@ -275,7 +285,8 @@ function initForm() {
     must.forEach(id => {
       const el = $(id);
       const bad = !el.value.trim();
-      el.classList.toggle('error', bad);
+      const shown = id === 'fecha' ? $('fechaBtn') : id === 'hora' ? hours : el;   // campos ocultos: marcar el control visible
+      shown.classList.toggle('error', bad);
       if (bad) valid = false;
     });
     if ($('telefono').value.replace(/\D/g, '').length !== 10) { $('telefono').classList.add('error'); valid = false; }
@@ -352,7 +363,7 @@ function initForm() {
     form.reset();
     ['otroWrap', 'otraMarcaWrap'].forEach(id => { $(id).hidden = true; });
     btn.disabled = false; txt.textContent = 'Solicitar cita';
-    clearErr(); loadAvailability();
+    cal.clear(); clearErr(); loadAvailability();
     ok.hidden = true; form.hidden = false;
     form.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
@@ -433,6 +444,6 @@ function initCanvas3D() {
 document.addEventListener('DOMContentLoaded', () => {
   // Cada init va aislado: si uno falla no debe tumbar a los demas (asi un error
   // en el canvas o en los contadores nunca vuelve a dejar el formulario muerto).
-  [initIntro, initPromo, initWaLinks, initNavbar, initReveal, initStats, initCountdown, initDatepicker, initForm, initCanvas3D]
+  [initIntro, initPromo, initWaLinks, initNavbar, initReveal, initStats, initCountdown, initForm, initCanvas3D]
     .forEach(fn => { try { fn(); } catch (e) { console.error('[landing] ' + fn.name + ' fallo:', e); } });
 });

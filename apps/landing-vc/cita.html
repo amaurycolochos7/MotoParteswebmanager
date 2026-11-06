@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="/style.css?v=20261107b"/>
+  <link rel="stylesheet" href="/style.css?v=20261108b"/>
 </head>
 <body class="cp-body">
 
@@ -46,8 +46,13 @@
       <!-- Elegir otra fecha -->
       <div id="cpPicker" class="cp-picker" hidden>
         <h2 class="cp-picker-h">Elige tu nueva fecha</h2>
-        <label class="cp-label" for="cpDate">Fecha</label>
-        <input type="date" id="cpDate" class="cp-input"/>
+        <label class="cp-label" for="cpDateBtn">Fecha</label>
+        <button type="button" class="pick" id="cpDateBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="cpCal">
+          <span id="cpDateTxt" class="pick-ph">Toca para elegir el día</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="1"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>
+        </button>
+        <input type="hidden" id="cpDate"/>
+        <div class="cal" id="cpCal" role="dialog" aria-label="Elige el día" hidden></div>
         <p id="cpPickHint" class="cp-hint" hidden></p>
         <div id="cpSlots" class="cp-slots" role="radiogroup" aria-label="Horarios disponibles"></div>
         <div class="cp-actions">
@@ -70,6 +75,7 @@
   </div>
 </main>
 
-<script src="/cita.js?v=20261107b"></script>
+<script src="/cal.js?v=20261108b"></script>
+<script src="/cita.js?v=20261108b"></script>
 </body>
 </html>

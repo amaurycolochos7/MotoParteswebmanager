@@ -996,6 +996,50 @@ html.intro-on .hero-ducati { transform: translateY(14%) scale(1.14); filter: bri
 .ff[hidden], .slot-hint[hidden], .form-err[hidden], .form-ok[hidden], .cita-form[hidden] { display: none; }
 .ff select:disabled { opacity: .5; cursor: not-allowed; }
 .ff select option:disabled { color: #71717a; }
+/* Selector de fecha propio (boton + calendario) y horarios en botones */
+.pick {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+  min-height: 48px; padding: 12px 14px; text-align: left; cursor: pointer;
+  font: 500 .95rem 'Inter', sans-serif; color: #fff;
+  background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.14); border-radius: 2px;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.pick svg { flex: none; color: rgba(255,255,255,.55); }
+.pick-ph { color: rgba(255,255,255,.4); }
+.pick:focus-visible, .pick[aria-expanded="true"] { border-color: var(--red); outline: none; }
+.pick.error, .hours.error { border-color: var(--red); }
+.hours.error { outline: 1px solid var(--red); outline-offset: 4px; }
+
+.cal { margin-top: 8px; padding: 14px; background: #111; border: 1px solid rgba(255,255,255,.14); border-radius: 2px; }
+.cal[hidden] { display: none; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cal-title { color: #fff; font-size: 1.05rem; font-weight: 700; text-transform: capitalize; letter-spacing: .02em; }
+.cal-nav {
+  width: 44px; height: 44px; font-size: 1.5rem; line-height: 1; color: #fff; cursor: pointer;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 2px;
+  touch-action: manipulation;
+}
+.cal-nav:disabled { opacity: .25; cursor: not-allowed; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-dow { text-align: center; font-size: .72rem; font-weight: 700; color: rgba(255,255,255,.4); padding: 4px 0 6px; text-transform: uppercase; }
+.cal-day {
+  aspect-ratio: 1; min-height: 40px; font: 600 .95rem 'Inter', sans-serif; color: #fff; cursor: pointer;
+  background: rgba(255,255,255,.05); border: 1px solid transparent; border-radius: 2px; touch-action: manipulation;
+}
+.cal-day:hover:not(:disabled) { border-color: var(--red); }
+.cal-day.on { background: var(--red); border-color: var(--red); }
+.cal-day:disabled { background: transparent; color: rgba(255,255,255,.2); cursor: not-allowed; }
+.cal-note { margin: 10px 0 0; font-size: .75rem; color: rgba(255,255,255,.45); text-align: center; }
+
+.hours { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.hours-ph { grid-column: 1 / -1; margin: 0; padding: 12px 14px; color: rgba(255,255,255,.4); font-size: .95rem; border: 1px dashed rgba(255,255,255,.14); border-radius: 2px; }
+.hour {
+  min-height: 46px; padding: 8px 6px; font: 600 .92rem 'Inter', sans-serif; color: #fff; cursor: pointer;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.14); border-radius: 2px; touch-action: manipulation;
+}
+.hour:hover:not(:disabled) { border-color: var(--red); }
+.hour.on { background: var(--red); border-color: var(--red); }
+.hour:disabled { color: rgba(255,255,255,.22); text-decoration: line-through; cursor: not-allowed; background: transparent; }
 .slot-hint { margin: -6px 0 12px; font-size: .78rem; font-weight: 600; color: #f87171; }
 .ok-sum {
   display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; text-align: left;
