@@ -46,7 +46,7 @@ const toLocalTimeInput = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 // Enlace publico para que los clientes agenden solos. Cada taller con landing
 // propia tiene su entrada aqui (workspace_id -> URL).
 const BOOKING_LINKS = {
-    'c4bca2c8-1ca2-49c0-a084-8b677439c731': { url: 'https://vc.motopartes.cloud/cita', shop: 'Moto Partes VC' },
+    'c4bca2c8-1ca2-49c0-a084-8b677439c731': { url: 'https://vc.motopartes.cloud/cita', shop: 'MOTOPARTES' },
 };
 
 function BookingLinkCard({ link }) {

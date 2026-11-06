@@ -99,7 +99,7 @@ async function sendConfirmationWA(workspaceId, phone, nombre, fecha, hora, servi
 
         const message =
             `¡Hola ${nombre}! ✅\n\n` +
-            `Tu solicitud de cita en *Moto Partes* fue recibida.\n\n` +
+            `Tu solicitud de cita en *MOTOPARTES* fue recibida.\n\n` +
             `📅 *Fecha:* ${fechaFmt}\n` +
             `⏰ *Hora:* ${fmtHora(hora)}\n` +
             `🔧 *Servicio:* ${servicio}` +
