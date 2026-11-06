@@ -755,6 +755,7 @@ model Appointment {
   source               String   @default("internal")          // "internal" | "external" (desde landing pública)
   client_phone         String?                                // para citas externas sin client_id
   client_name_ext      String?                                // nombre del cliente externo sin perfil en DB
+  moto_label           String?                                // "Honda CB 190 2021" capturada en la cita en linea
   reminder_sent        Boolean  @default(false)
   google_event_id      String?                                // Fase 6.4 — id del evento en Google Calendar, si sincronizado
   created_by           String?  @db.Uuid

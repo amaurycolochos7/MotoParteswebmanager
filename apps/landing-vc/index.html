@@ -6,6 +6,15 @@
   <title>Moto Partes VC — Taller y Refaccionaria · Venustiano Carranza, Chiapas</title>
   <meta name="description" content="Taller mecánico especializado en motocicletas y refaccionaria. Venustiano Carranza, Chiapas. Más de 15 años de experiencia."/>
   <meta name="theme-color" content="#09090b"/>
+  <!-- Vista previa al compartir el enlace por WhatsApp -->
+  <meta property="og:type" content="website"/>
+  <meta property="og:locale" content="es_MX"/>
+  <meta property="og:site_name" content="Moto Partes VC"/>
+  <meta property="og:title" content="Agenda tu cita en Moto Partes VC"/>
+  <meta property="og:description" content="Elige día y hora para el servicio de tu moto. Rápido, en línea y con confirmación por WhatsApp."/>
+  <meta property="og:url" content="https://vc.motopartes.cloud/cita"/>
+  <meta property="og:image" content="https://vc.motopartes.cloud/img/mecanicotrabajando.jpg"/>
+  <meta name="twitter:card" content="summary"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
@@ -254,19 +263,80 @@
     <div class="section-head-c reveal-up" data-d="0">
       <div class="eyebrow">Citas en línea</div>
       <h2 class="title-xl">Agenda tu <span class="red">cita</span></h2>
-      <p class="sub-c">Llena el formulario y te confirmamos por WhatsApp.</p>
+      <p class="sub-c">Llena el formulario en un minuto y te confirmamos por WhatsApp.</p>
     </div>
     <div class="form-wrap reveal-up" data-d="80">
       <form class="cita-form" id="citaForm" novalidate>
-        <div class="frow"><div class="ff"><label for="nombre">Nombre completo *</label><input type="text" id="nombre" name="nombre" placeholder="Tu nombre" required autocomplete="name"/></div><div class="ff"><label for="telefono">WhatsApp (10 dígitos) *</label><input type="tel" id="telefono" name="telefono" placeholder="10 dígitos" required maxlength="10" autocomplete="tel" inputmode="numeric"/></div></div>
-        <div class="ff"><label for="tipo_servicio">Servicio requerido *</label><select id="tipo_servicio" name="tipo_servicio" required><option value="">Selecciona un servicio…</option><option value="Afinación general">Afinación general</option><option value="Cambio de aceite y filtros">Cambio de aceite y filtros</option><option value="Servicio completo — Promo junio $1,200">Servicio completo — Promo junio $1,200</option><option value="Frenos y suspensión">Frenos y suspensión</option><option value="Reparación de motor">Reparación de motor</option><option value="Sistema eléctrico">Sistema eléctrico</option><option value="Consulta de refacción">Consulta de refacción</option><option value="Diagnóstico general">Diagnóstico general</option><option value="Otro">Otro</option></select></div>
-        <div class="frow"><div class="ff"><label for="fecha">Fecha deseada *</label><input type="date" id="fecha" name="fecha" required/></div><div class="ff"><label for="hora">Hora *</label><select id="hora" name="hora" required><option value="">Selecciona…</option><option value="09:00">9:00 am</option><option value="10:00">10:00 am</option><option value="11:00">11:00 am</option><option value="12:00">12:00 pm</option><option value="13:00">1:00 pm</option><option value="14:00">2:00 pm</option><option value="15:00">3:00 pm</option><option value="16:00">4:00 pm</option><option value="17:00">5:00 pm</option></select></div></div>
-        <div class="ff"><label for="notas">Notas <span class="opt">(opcional)</span></label><textarea id="notas" name="notas" rows="3" placeholder="Describe el problema o detalles sobre tu moto…"></textarea></div>
+
+        <div class="fgroup">
+          <div class="fgroup-t"><span class="fgroup-n">1</span>Tus datos</div>
+          <div class="frow">
+            <div class="ff"><label for="nombre">Nombre completo *</label><input type="text" id="nombre" name="nombre" placeholder="Tu nombre" required maxlength="80" autocomplete="name"/></div>
+            <div class="ff"><label for="telefono">WhatsApp (10 dígitos) *</label><input type="tel" id="telefono" name="telefono" placeholder="10 dígitos" required maxlength="14" autocomplete="tel-national" inputmode="numeric"/></div>
+          </div>
+        </div>
+
+        <div class="fgroup">
+          <div class="fgroup-t"><span class="fgroup-n">2</span>Tu moto</div>
+          <div class="frow">
+            <div class="ff"><label for="moto_marca">Marca *</label>
+              <select id="moto_marca" name="moto_marca" required>
+                <option value="">Selecciona…</option>
+                <option>Italika</option><option>Honda</option><option>Yamaha</option><option>Suzuki</option><option>Bajaj</option><option>Kawasaki</option><option>KTM</option><option>Vento</option><option>Ducati</option><option>Otra</option>
+              </select>
+            </div>
+            <div class="ff" id="otraMarcaWrap" hidden><label for="moto_marca_custom">¿Cuál marca? *</label><input type="text" id="moto_marca_custom" maxlength="40" placeholder="Escribe la marca"/></div>
+          </div>
+          <div class="frow">
+            <div class="ff"><label for="moto_modelo">Modelo *</label><input type="text" id="moto_modelo" name="moto_modelo" placeholder="Ej. FT150, CB190R…" required maxlength="60"/></div>
+            <div class="ff"><label for="moto_anio">Año <span class="opt">(opcional)</span></label><input type="text" id="moto_anio" name="moto_anio" placeholder="Ej. 2021" maxlength="4" inputmode="numeric"/></div>
+          </div>
+        </div>
+
+        <div class="fgroup">
+          <div class="fgroup-t"><span class="fgroup-n">3</span>Servicio</div>
+          <div class="ff"><label for="tipo_servicio">¿Qué necesita tu moto? *</label>
+            <select id="tipo_servicio" name="tipo_servicio" required>
+              <option value="">Selecciona un servicio…</option>
+              <option value="Afinación general">Afinación general</option>
+              <option value="Cambio de aceite y filtros">Cambio de aceite y filtros</option>
+              <option value="Servicio completo — Promo junio $1,200">Servicio completo — Promo junio $1,200</option>
+              <option value="Frenos y suspensión">Frenos y suspensión</option>
+              <option value="Reparación de motor">Reparación de motor</option>
+              <option value="Sistema eléctrico">Sistema eléctrico</option>
+              <option value="Consulta de refacción">Consulta de refacción</option>
+              <option value="Diagnóstico general">Diagnóstico general</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+          <div class="ff" id="otroWrap" hidden><label for="otro_servicio">Describe el servicio *</label><input type="text" id="otro_servicio" maxlength="120" placeholder="¿Qué necesitas?"/></div>
+        </div>
+
+        <div class="fgroup">
+          <div class="fgroup-t"><span class="fgroup-n">4</span>Fecha y hora</div>
+          <div class="frow">
+            <div class="ff"><label for="fecha">Fecha deseada *</label><input type="date" id="fecha" name="fecha" required/></div>
+            <div class="ff"><label for="hora">Hora *</label><select id="hora" name="hora" required disabled><option value="">Primero elige la fecha</option></select></div>
+          </div>
+          <p class="slot-hint" id="slotHint" hidden></p>
+        </div>
+
+        <div class="fgroup">
+          <div class="ff"><label for="notas">Notas <span class="opt">(opcional)</span></label><textarea id="notas" name="notas" rows="3" maxlength="1000" placeholder="Describe el problema o detalles sobre tu moto…"></textarea></div>
+        </div>
+
         <button type="submit" class="btn btn-red btn-lg btn-full" id="submitBtn"><span id="submitText">Solicitar cita</span></button>
-        <p class="form-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Recibirás confirmación por WhatsApp.</p>
+        <div class="form-err" id="formError" role="alert" hidden></div>
+        <p class="form-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Recibirás la confirmación por WhatsApp. Atendemos de lunes a sábado, de 9:00 am a 6:00 pm.</p>
       </form>
-      <div class="form-ok" id="formSuccess" hidden><div class="ok-icon"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="10"/><polyline points="9,12 11,14 15,10"/></svg></div><h3>Cita solicitada</h3><p>Te confirmamos por WhatsApp en breve.</p><a href="https://wa.me/529671234567" target="_blank" rel="noopener" class="btn btn-wa" id="waSuccessBtn">Escribirnos directamente</a></div>
-      <div class="form-err" id="formError" hidden></div>
+
+      <div class="form-ok" id="formSuccess" hidden>
+        <div class="ok-icon"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="10"/><polyline points="9,12 11,14 15,10"/></svg></div>
+        <h3>¡Cita solicitada!</h3>
+        <p id="okText">Te confirmamos por WhatsApp en breve.</p>
+        <dl class="ok-sum" id="okSum"></dl>
+        <button type="button" class="btn btn-outline-dark" id="againBtn">Agendar otra cita</button>
+      </div>
     </div>
   </div>
 </section>

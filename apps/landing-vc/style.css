@@ -430,3 +430,19 @@ button { font-family: inherit; }
   .loc-btns { flex-direction: row; flex-wrap: wrap; }
   .loc-btns .btn { flex: 1; min-width: 130px; }
 }
+
+/* ── FORMULARIO DE CITAS: grupos, disponibilidad y resumen ── */
+.ff[hidden], .slot-hint[hidden], .form-err[hidden], .form-ok[hidden], .cita-form[hidden] { display: none; }
+.cita-form .ff { margin-bottom: 18px; }
+.cita-form .frow { gap: 0 18px; }
+.fgroup { padding-bottom: 6px; margin-bottom: 18px; border-bottom: 1px dashed var(--border); }
+.fgroup:last-of-type { border-bottom: 0; margin-bottom: 8px; }
+.fgroup-t { display: flex; align-items: center; gap: 10px; font-size: .78rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--dark); margin-bottom: 16px; }
+.fgroup-n { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--red); color: #fff; font-size: .75rem; letter-spacing: 0; }
+.slot-hint { margin: -6px 0 14px; font-size: .82rem; font-weight: 600; color: var(--red-d); }
+.ff select:disabled { background: #f4f4f5; color: var(--muted); cursor: not-allowed; }
+.ff select option:disabled { color: #a1a1aa; }
+.cita-form .form-err { margin-top: 14px; }
+.ok-sum { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; text-align: left; max-width: 420px; margin: 0 auto 28px; padding: 18px 22px; background: var(--light); border: 1px solid var(--border); border-radius: var(--r); font-size: .92rem; }
+.ok-sum dt { color: var(--muted); font-weight: 600; }
+.ok-sum dd { color: var(--dark); font-weight: 700; overflow-wrap: anywhere; }

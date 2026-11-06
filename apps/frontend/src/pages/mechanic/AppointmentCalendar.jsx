@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
     Calendar, Plus, User, Phone, Clock, Wrench, X, Edit2, Trash2,
-    AlertCircle, Check, Globe, Filter, RefreshCw, ThumbsUp, ThumbsDown
+    AlertCircle, Check, Globe, Filter, RefreshCw, ThumbsUp, ThumbsDown,
+    Copy, MessageCircle, Link2, StickyNote, Bike
 } from 'lucide-react';
 import AppointmentModal from '../../components/appointments/AppointmentModal';
 import { appointmentsService } from '../../lib/api';
@@ -36,9 +37,79 @@ function fmtTime(iso) {
     return new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 }
 
+// Fecha/hora LOCAL para los <input type="date|time"> (toISOString() usa UTC y
+// corre el dia para citas de la tarde/noche).
+const pad2 = (n) => String(n).padStart(2, '0');
+const toLocalDateInput = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const toLocalTimeInput = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+// Enlace publico para que los clientes agenden solos. Cada taller con landing
+// propia tiene su entrada aqui (workspace_id -> URL).
+const BOOKING_LINKS = {
+    'c4bca2c8-1ca2-49c0-a084-8b677439c731': { url: 'https://vc.motopartes.cloud/cita', shop: 'Moto Partes VC' },
+};
+
+function BookingLinkCard({ link }) {
+    const [copied, setCopied] = useState(false);
+    const [phone, setPhone] = useState('');
+    const message =
+        `¡Hola! 👋 Para agendar tu cita en ${link.shop} entra a este enlace, ` +
+        `elige el día y la hora y llena tus datos. Es rápido y te confirmamos por WhatsApp:\n${link.url}`;
+    const digits = phone.replace(/\D/g, '');
+    const validPhone = digits.length === 10;
+
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(link.url);
+        } catch {
+            const ta = document.createElement('textarea');
+            ta.value = link.url; document.body.appendChild(ta); ta.select();
+            document.execCommand('copy'); ta.remove();
+        }
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+    const share = () => {
+        const base = validPhone ? `https://wa.me/52${digits}` : 'https://wa.me/';
+        window.open(`${base}?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
+    };
+
+    return (
+        <div className="booking-card">
+            <div className="booking-head">
+                <Link2 size={18} />
+                <div>
+                    <strong>Enlace para citas en línea</strong>
+                    <span>Mándalo por WhatsApp a quien quiera agendar: ellos eligen día y hora y la cita te aparece aquí.</span>
+                </div>
+            </div>
+            <div className="booking-url">{link.url}</div>
+            <input
+                className="booking-phone"
+                type="tel"
+                inputMode="numeric"
+                placeholder="WhatsApp del cliente (opcional, 10 dígitos)"
+                value={phone}
+                maxLength={14}
+                onChange={e => setPhone(e.target.value)}
+            />
+            <div className="booking-actions">
+                <button type="button" className="booking-btn wa" onClick={share}>
+                    <MessageCircle size={16} /> {validPhone ? 'Enviar a este cliente' : 'Enviar por WhatsApp'}
+                </button>
+                <button type="button" className="booking-btn" onClick={copy}>
+                    {copied ? <><Check size={16} /> Copiado</> : <><Copy size={16} /> Copiar enlace</>}
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export default function AppointmentCalendar() {
     const { clients = [], motorcycles = [], users = [], addClient } = useData();
-    const { user, canManageAppointments } = useAuth();
+    const { user, activeWorkspace } = useAuth();
+    const bookingLink = BOOKING_LINKS[activeWorkspace?.id] || null;
+    const [actionError, setActionError] = useState('');
 
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -96,40 +167,64 @@ export default function AppointmentCalendar() {
         return c?.phone || null;
     };
 
+    // Numero para wa.me: 10 digitos de Mexico -> 52 + numero; si ya trae lada, se respeta.
+    const waNumber = (raw) => {
+        const d = String(raw).replace(/\D/g, '');
+        return d.length === 10 ? `52${d}` : d;
+    };
+
     const handleConfirm = async (apt) => {
+        setActionError('');
         setActionLoading(apt.id + '_confirm');
         try {
             await appointmentsService.confirm(apt.id);
             await loadAppointments();
+        } catch (e) {
+            setActionError(`No se pudo confirmar la cita: ${e?.message || 'error desconocido'}`);
         } finally {
             setActionLoading(null);
         }
     };
 
     const handleReject = async (apt) => {
+        if (!window.confirm('¿Rechazar esta cita? Se avisará al cliente por WhatsApp para que reagende.')) return;
+        setActionError('');
         setActionLoading(apt.id + '_reject');
         try {
             await appointmentsService.reject(apt.id);
             await loadAppointments();
+        } catch (e) {
+            setActionError(`No se pudo rechazar la cita: ${e?.message || 'error desconocido'}`);
         } finally {
             setActionLoading(null);
         }
     };
 
     const handleSaveNew = async (data) => {
+        setActionError('');
         try {
-            await appointmentsService.create({ ...data, created_by: user.id, status: 'scheduled' });
+            // El modal manda fecha y hora por separado; la API solo lee scheduled_date.
+            const { scheduled_time, estimated_duration, ...rest } = data;
+            const when = new Date(`${data.scheduled_date}T${scheduled_time || '09:00'}`);
+            await appointmentsService.create({
+                ...rest,
+                scheduled_date: when.toISOString(),
+                created_by: user.id,
+                status: 'scheduled',
+            });
             setShowNewModal(false);
             await loadAppointments();
-        } catch { /* modal muestra error */ }
+        } catch (e) {
+            setActionError(`No se pudo guardar la cita: ${e?.message || 'error desconocido'}`);
+        }
     };
 
     const openEdit = (apt) => {
         setSelectedApt(apt);
         const d = new Date(apt.scheduled_date);
         setEditData({
-            scheduled_date: d.toISOString().slice(0, 10),
-            scheduled_time: d.toTimeString().slice(0, 5),
+            scheduled_date: toLocalDateInput(d),
+            scheduled_time: toLocalTimeInput(d),
         });
         setEditMode('edit');
         setCancelReason('');
@@ -195,6 +290,8 @@ export default function AppointmentCalendar() {
                         )}
                     </div>
 
+                    {actionError && <div className="apt-error" role="alert">{actionError}</div>}
+
                     <div className="main-buttons">
                         <button className="btn-main" onClick={() => { setFilter('all'); setShowList(true); }}>
                             <Calendar size={20} />
@@ -212,6 +309,8 @@ export default function AppointmentCalendar() {
                             Agendar Nueva Cita
                         </button>
                     </div>
+
+                    {bookingLink && <BookingLinkCard link={bookingLink} />}
                 </div>
             ) : (
                 <div className="list-view">
@@ -246,9 +345,13 @@ export default function AppointmentCalendar() {
                         ))}
                     </div>
 
+                    {actionError && <div className="apt-error" role="alert">{actionError}</div>}
+
                     <button className="btn-new-appointment" onClick={() => setShowNewModal(true)}>
                         <Plus size={20} /> Agendar Nueva Cita
                     </button>
+
+                    {bookingLink && <BookingLinkCard link={bookingLink} />}
 
                     {loading ? (
                         <div className="empty-state"><RefreshCw size={32} style={{ opacity: 0.3 }} /><p>Cargando...</p></div>
@@ -291,7 +394,14 @@ export default function AppointmentCalendar() {
                                             </div>
                                             {phone && (
                                                 <div className="apt-meta">
-                                                    <Phone size={13} /> {phone}
+                                                    <Phone size={13} />
+                                                    <a
+                                                        className="apt-phone"
+                                                        href={`https://wa.me/${waNumber(phone)}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        title="Abrir en WhatsApp"
+                                                    >{phone}</a>
                                                 </div>
                                             )}
                                             {apt.service_type && (
@@ -299,8 +409,15 @@ export default function AppointmentCalendar() {
                                                     <Wrench size={13} /> {apt.service_type}
                                                 </div>
                                             )}
-                                            {moto && (
-                                                <div className="apt-meta">🏍️ {moto.brand} {moto.model}</div>
+                                            {(apt.moto_label || moto) && (
+                                                <div className="apt-meta">
+                                                    <Bike size={13} /> {apt.moto_label || `${moto.brand} ${moto.model}`}
+                                                </div>
+                                            )}
+                                            {apt.notes && (
+                                                <div className="apt-meta apt-notes">
+                                                    <StickyNote size={13} /> <span>{apt.notes}</span>
+                                                </div>
                                             )}
                                             <div className="apt-status-chip" style={{ background: (STATUS_COLORS[apt.status] || '#6e6e73') + '22', color: STATUS_COLORS[apt.status] || '#6e6e73' }}>
                                                 {STATUS_LABELS[apt.status] || apt.status}
@@ -522,8 +639,30 @@ export default function AppointmentCalendar() {
                 .mode-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: var(--spacing-sm) var(--spacing-md); background: transparent; border: none; border-radius: var(--radius-sm); font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; transition: 0.15s; }
                 .mode-btn.active { background: white; color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,.1); }
 
+                .apt-phone { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
+                .apt-phone:hover { color: #16a34a; }
+                .apt-notes { align-items: flex-start; }
+                .apt-notes svg { margin-top: 2px; flex-shrink: 0; }
+                .apt-notes span { white-space: pre-line; overflow-wrap: anywhere; }
+                .apt-error { width: 100%; max-width: 420px; background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; border-radius: var(--radius-md); padding: 10px 14px; font-size: 0.875rem; font-weight: 600; margin-bottom: var(--spacing-md); }
+
+                .booking-card { width: 100%; max-width: 420px; background: white; border: 1.5px dashed var(--border-color); border-radius: var(--radius-lg); padding: var(--spacing-md); display: flex; flex-direction: column; gap: 10px; margin-bottom: var(--spacing-xl); }
+                .booking-head { display: flex; gap: 10px; align-items: flex-start; color: var(--text-primary); }
+                .booking-head svg { color: var(--primary); margin-top: 2px; flex-shrink: 0; }
+                .booking-head strong { display: block; font-size: 0.95rem; }
+                .booking-head span { display: block; font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
+                .booking-url { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; background: var(--bg-hover); border-radius: var(--radius-md); padding: 8px 10px; overflow-wrap: anywhere; user-select: all; }
+                .booking-phone { width: 100%; border: 1.5px solid var(--border-color); border-radius: var(--radius-md); padding: 8px 10px; font-size: 0.875rem; background: white; color: var(--text-primary); }
+                .booking-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+                .booking-btn { flex: 1 1 140px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px; border-radius: var(--radius-md); border: 1.5px solid var(--border-color); background: white; color: var(--text-primary); font-size: 0.875rem; font-weight: 700; cursor: pointer; transition: 0.15s; }
+                .booking-btn:hover { background: var(--bg-hover); }
+                .booking-btn.wa { background: #25d366; border-color: #25d366; color: white; }
+                .booking-btn.wa:hover { background: #1ebe5b; }
+                .list-view .booking-card { max-width: none; margin-bottom: var(--spacing-lg); }
+
                 @media (max-width: 768px) {
                     .main-buttons { max-width: 100%; }
+                    .booking-card, .apt-error { max-width: 100%; }
                     .btn-main { font-size: 1rem; padding: var(--spacing-md) var(--spacing-lg); }
                 }
 

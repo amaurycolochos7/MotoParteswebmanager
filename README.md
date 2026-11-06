@@ -88,6 +88,14 @@ Servicio `server-monitor` (`apps/server-monitor/`): panel **genérico y de solo 
 - Corre con `pid: host` y `network_mode: host` para ver procesos y red reales, pero sin privilegios: usuario no-root, sistema de archivos de solo lectura, sin capacidades, sin socket de Docker. No muestra líneas de comando de procesos (solo su nombre) y solo acepta GET.
 - `MONITOR_DEMO=1` simula datos para ver el diseño en una PC sin sensores. El historial y los récords se guardan en el volumen `monitor-data`.
 
+## Citas en línea (landing → app)
+
+El taller comparte por WhatsApp el enlace **`https://vc.motopartes.cloud/cita`** (redirige al formulario `#citas` de la landing, con vista previa Open Graph). El cliente captura nombre, WhatsApp, moto (marca/modelo/año), servicio, fecha, hora y notas.
+
+- **API pública** (`apps/api/src/routes/public.js`, sin login): `GET /api/public/appointments/availability?fecha=YYYY-MM-DD` (horas libres) y `POST /api/public/appointments`. Valida horario (lun–sáb, 9:00–17:00, zona UTC-6, mínimo 1 h de anticipación, máximo 120 días), evita sobrecupo (`APPT_SLOT_CAPACITY`, por defecto 2 citas por hora) y limita por teléfono (`APPT_PHONE_DAILY_LIMIT`, por defecto 6/24 h). La cita queda `pending_external` en el workspace de `LANDING_VC_WORKSPACE_ID` y se avisa al cliente por WhatsApp.
+- **App** (`/mechanic/appointments`): las citas web aparecen como "Pendiente web" con moto y notas, globo naranja en el menú, y Confirmar/Rechazar (avisa al cliente). La misma pantalla trae la tarjeta "Enlace para citas en línea" (copiar / enviar por WhatsApp). El mapa workspace → enlace está en `BOOKING_LINKS` de `AppointmentCalendar.jsx`.
+- Los scripts de la landing aíslan cada inicializador (`app.js`): un error en uno ya no deja el formulario muerto.
+
 ## Licencia
 
 Privado. Todos los derechos reservados © 2026 MotoPartes.

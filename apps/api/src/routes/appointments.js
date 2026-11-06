@@ -29,6 +29,7 @@ async function sendApptNotification(workspaceId, appt, status) {
             hour: '2-digit', minute: '2-digit', hour12: true, timeZone: TZ,
         });
         const servicio = appt.service_type || 'Servicio';
+        const motoLine = appt.moto_label ? `🏍️ *Moto:* ${appt.moto_label}\n` : '';
 
         let message;
         if (status === 'confirmed') {
@@ -37,8 +38,9 @@ async function sendApptNotification(workspaceId, appt, status) {
                 `*Tu cita ha sido CONFIRMADA* en Moto Partes.\n\n` +
                 `📅 *Fecha:* ${fecha}\n` +
                 `⏰ *Hora:* ${hora}\n` +
-                `🔧 *Servicio:* ${servicio}\n\n` +
-                `Por favor llega 5 minutos antes. ¡Te esperamos! 🏍️`;
+                `🔧 *Servicio:* ${servicio}\n` +
+                motoLine +
+                `\nPor favor llega 5 minutos antes. ¡Te esperamos! 🏍️`;
         } else {
             message =
                 `Hola ${nombre}, lamentablemente no podemos atenderte en la fecha solicitada.\n\n` +
@@ -55,6 +57,12 @@ async function sendApptNotification(workspaceId, appt, status) {
         console.error('[appt] WA notification failed:', e.message);
     }
 }
+
+// Lista blanca de campos editables: nunca aceptar workspace_id, source, created_by...
+const EDITABLE_FIELDS = [
+    'scheduled_date', 'service_type', 'notes', 'status',
+    'assigned_mechanic_id', 'client_id', 'motorcycle_id', 'moto_label',
+];
 
 export default async function appointmentsRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
@@ -99,9 +107,16 @@ export default async function appointmentsRoutes(fastify) {
     });
 
     // PUT /api/appointments/:id
-    fastify.put('/:id', async (request) => {
-        const updates = { ...request.body };
-        if (updates.scheduled_date) updates.scheduled_date = new Date(updates.scheduled_date);
+    fastify.put('/:id', async (request, reply) => {
+        const updates = {};
+        for (const k of EDITABLE_FIELDS) {
+            if (request.body && request.body[k] !== undefined) updates[k] = request.body[k];
+        }
+        if (updates.scheduled_date) {
+            updates.scheduled_date = new Date(updates.scheduled_date);
+            if (isNaN(updates.scheduled_date.getTime()))
+                return reply.code(400).send({ error: 'Fecha inválida.' });
+        }
 
         const prev = await prisma.appointment.findUnique({
             where: { id: request.params.id },

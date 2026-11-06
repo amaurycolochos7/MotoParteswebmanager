@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { appointmentsService } from '../../lib/api';
 import {
     LayoutDashboard,
     ClipboardList,
@@ -52,6 +53,22 @@ export default function AppLayout() {
     const navigate = useNavigate();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
+    // Citas que llegaron desde la web y esperan confirmación (globo en "Citas").
+    const [pendingWebAppts, setPendingWebAppts] = useState(0);
+    useEffect(() => {
+        if (!user?.id) return undefined;
+        let alive = true;
+        const load = async () => {
+            try {
+                const rows = await appointmentsService.getAll({ status: 'pending_external' });
+                if (alive) setPendingWebAppts(Array.isArray(rows) ? rows.length : 0);
+            } catch { /* sin workspace activo o sin red: sin globo */ }
+        };
+        load();
+        const timer = setInterval(() => { if (!document.hidden) load(); }, 30000);
+        return () => { alive = false; clearInterval(timer); };
+    }, [user?.id]);
+
     const handleLogout = () => {
         logout();
         navigate('/login');
@@ -66,6 +83,7 @@ export default function AppLayout() {
 
         { section: 'Gestión' },
         { to: '/admin/clients', icon: Users, label: 'Clientes' },
+        { to: '/mechanic/appointments', icon: Calendar, label: 'Citas' },
         { to: '/admin/users', icon: Users, label: 'Usuarios' },
 
         { section: 'Herramientas' },
@@ -208,6 +226,19 @@ export default function AppLayout() {
                             >
                                 <Icon size={20} />
                                 <span>{item.label}</span>
+                                {item.to === '/mechanic/appointments' && pendingWebAppts > 0 && (
+                                    <span
+                                        title="Citas de la web por confirmar"
+                                        style={{
+                                            marginLeft: 'auto', minWidth: 20, height: 20, padding: '0 6px',
+                                            borderRadius: 10, background: '#f59e0b', color: '#fff',
+                                            fontSize: '0.7rem', fontWeight: 700,
+                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                        }}
+                                    >
+                                        {pendingWebAppts > 9 ? '9+' : pendingWebAppts}
+                                    </span>
+                                )}
                             </NavLink>
                         );
                     })}

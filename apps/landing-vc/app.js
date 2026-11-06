@@ -125,95 +125,184 @@ function initCountdown() {
   setInterval(tick, 1000);
 }
 
-/* ── DATEPICKER ──────────────────────────────────── */
+/* ── FECHA ───────────────────────────────────────── */
+const MAX_DIAS = 120;
+function isoLocal(d) {
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
 function initDatepicker() {
   const fi = document.getElementById('fecha');
   if (!fi) return;
   const t = new Date(); t.setDate(t.getDate() + 1);
-  fi.min = t.toISOString().slice(0, 10);
-  fi.addEventListener('change', () => {
-    if (new Date(fi.value + 'T12:00:00').getDay() === 0) {
-      fi.setCustomValidity('No atendemos domingos. Elige otro día.');
-      fi.reportValidity(); fi.value = '';
-    } else { fi.setCustomValidity(''); }
-  });
+  const m = new Date(); m.setDate(m.getDate() + MAX_DIAS);
+  fi.min = isoLocal(t);
+  fi.max = isoLocal(m);
 }
 
 /* ── FORMULARIO ──────────────────────────────────── */
 function initForm() {
-  const form = document.getElementById('citaForm');
-  const ok   = document.getElementById('formSuccess');
-  const err  = document.getElementById('formError');
-  const btn  = document.getElementById('submitBtn');
-  const txt  = document.getElementById('submitText');
+  const $ = id => document.getElementById(id);
+  const form = $('citaForm');
   if (!form) return;
+  const ok = $('formSuccess'), err = $('formError');
+  const btn = $('submitBtn'), txt = $('submitText');
+  const fecha = $('fecha'), hora = $('hora'), hint = $('slotHint');
 
-  /* Mostrar campo libre al seleccionar "Otro servicio" */
-  const selectServicio = document.getElementById('tipo_servicio');
-  const otroWrap       = document.getElementById('otroWrap');
-  const otroInput      = document.getElementById('otro_servicio');
-  selectServicio.addEventListener('change', () => {
-    const esOtro = selectServicio.value === 'Otro';
-    otroWrap.style.display = esOtro ? 'flex' : 'none';
-    if (esOtro) otroInput.focus();
-    else { otroInput.value = ''; otroInput.classList.remove('error'); }
+  const showErr = msg => { err.textContent = msg; err.hidden = false; };
+  const clearErr = () => { err.hidden = true; };
+
+  /* Campos "Otro / Otra" */
+  function toggleOther(selectId, wrapId, inputId, value) {
+    const sel = $(selectId), wrap = $(wrapId), inp = $(inputId);
+    if (!sel || !wrap || !inp) return;
+    sel.addEventListener('change', () => {
+      const on = sel.value === value;
+      wrap.hidden = !on;
+      if (on) inp.focus(); else { inp.value = ''; inp.classList.remove('error'); }
+    });
+  }
+  toggleOther('tipo_servicio', 'otroWrap', 'otro_servicio', 'Otro');
+  toggleOther('moto_marca', 'otraMarcaWrap', 'moto_marca_custom', 'Otra');
+
+  /* Telefono: solo digitos (acepta pegar "+52 963 191 1772") */
+  const tel = $('telefono');
+  tel.addEventListener('input', () => {
+    let d = tel.value.replace(/\D/g, '');
+    if (d.length > 10 && d.startsWith('52')) d = d.slice(2);
+    if (d.length > 10 && d.startsWith('1')) d = d.slice(1);
+    tel.value = d.slice(0, 10);
   });
 
-  /* Mostrar campo libre al seleccionar "Otra marca" */
-  const selectMarca    = document.getElementById('moto_marca');
-  const otraMarcaWrap  = document.getElementById('otraMarcaWrap');
-  const otraMarcaInput = document.getElementById('moto_marca_custom');
-  selectMarca.addEventListener('change', () => {
-    const esOtra = selectMarca.value === 'Otra';
-    otraMarcaWrap.style.display = esOtra ? 'flex' : 'none';
-    if (esOtra) otraMarcaInput.focus();
-    else { otraMarcaInput.value = ''; otraMarcaInput.classList.remove('error'); }
-  });
+  /* Horas disponibles segun la fecha elegida */
+  const fmt = h => { const n = +h.slice(0, 2); return ((n % 12) || 12) + h.slice(2) + (n < 12 ? ' am' : ' pm'); };
+  const ALL = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+  function fillHours(slots) {
+    const prev = hora.value;
+    hora.innerHTML = '<option value="">Selecciona…</option>' + slots.map(s =>
+      '<option value="' + s.hora + '"' + (s.available ? '' : ' disabled') + '>' + fmt(s.hora) + (s.available ? '' : ' — no disponible') + '</option>').join('');
+    hora.disabled = false;
+    const keep = slots.find(s => s.hora === prev && s.available);
+    hora.value = keep ? prev : '';
+  }
+  let reqId = 0;
+  async function loadAvailability() {
+    hint.hidden = true;
+    if (!fecha.value) { hora.disabled = true; hora.innerHTML = '<option value="">Primero elige la fecha</option>'; return; }
+    if (new Date(fecha.value + 'T12:00:00').getDay() === 0) {
+      hora.disabled = true; hora.innerHTML = '<option value="">Cerrado los domingos</option>';
+      hint.textContent = 'No atendemos domingos. Elige otro día.'; hint.hidden = false;
+      return;
+    }
+    const id = ++reqId;
+    hora.disabled = true; hora.innerHTML = '<option value="">Buscando horarios…</option>';
+    try {
+      const res = await fetch(API_URL + '/availability?fecha=' + encodeURIComponent(fecha.value));
+      if (!res.ok) throw new Error('http ' + res.status);
+      const data = await res.json();
+      if (id !== reqId) return;
+      fillHours(data.slots);
+      if (!data.slots.some(s => s.available)) {
+        hint.textContent = 'Ese día ya no tiene horarios libres. Prueba con otra fecha.'; hint.hidden = false;
+      }
+    } catch {
+      if (id !== reqId) return;
+      fillHours(ALL.map(h => ({ hora: h, available: true }))); // el servidor valida de todos modos
+    }
+  }
+  fecha.addEventListener('change', () => { fecha.classList.remove('error'); loadAvailability(); });
+  loadAvailability();
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
-    err.hidden = true;
+    clearErr();
+    const must = ['nombre', 'telefono', 'moto_marca', 'moto_modelo', 'tipo_servicio', 'fecha', 'hora'];
     let valid = true;
-    ['nombre','telefono','tipo_servicio','moto_modelo','fecha','hora'].forEach(id => {
-      const el = document.getElementById(id);
-      if (!el.value.trim()) { el.classList.add('error'); valid = false; }
-      else el.classList.remove('error');
+    must.forEach(id => {
+      const el = $(id);
+      const bad = !el.value.trim();
+      el.classList.toggle('error', bad);
+      if (bad) valid = false;
     });
-    // Validar marca
-    if (!selectMarca.value) { selectMarca.classList.add('error'); valid = false; }
-    else selectMarca.classList.remove('error');
-    const tel = document.getElementById('telefono');
-    const ph  = tel.value.replace(/\D/g, '');
-    if (ph.length !== 10) { tel.classList.add('error'); valid = false; }
+    if ($('telefono').value.replace(/\D/g, '').length !== 10) { $('telefono').classList.add('error'); valid = false; }
 
-    /* Resolver servicio */
-    let servicioFinal = selectServicio.value;
-    if (servicioFinal === 'Otro') {
-      if (!otroInput.value.trim()) { otroInput.classList.add('error'); valid = false; }
-      else servicioFinal = otroInput.value.trim();
+    let servicio = $('tipo_servicio').value;
+    if (servicio === 'Otro') {
+      const v = $('otro_servicio').value.trim();
+      $('otro_servicio').classList.toggle('error', !v);
+      if (!v) valid = false; else servicio = v;
     }
-    /* Resolver marca */
-    let marcaFinal = selectMarca.value;
-    if (marcaFinal === 'Otra') {
-      if (!otraMarcaInput.value.trim()) { otraMarcaInput.classList.add('error'); valid = false; }
-      else marcaFinal = otraMarcaInput.value.trim();
+    let marca = $('moto_marca').value;
+    if (marca === 'Otra') {
+      const v = $('moto_marca_custom').value.trim();
+      $('moto_marca_custom').classList.toggle('error', !v);
+      if (!v) valid = false; else marca = v;
     }
+    const anio = $('moto_anio').value.trim();
+    if (anio && !/^\d{4}$/.test(anio)) { $('moto_anio').classList.add('error'); valid = false; }
 
-    if (!valid) { err.textContent = 'Por favor completa todos los campos requeridos.'; err.hidden = false; return; }
+    if (!valid) {
+      showErr('Revisa los campos marcados en rojo.');
+      const first = form.querySelector('.error');
+      if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
 
     btn.disabled = true; txt.textContent = 'Enviando…';
+    const payload = {
+      nombre: $('nombre').value.trim(),
+      telefono: $('telefono').value.replace(/\D/g, ''),
+      tipo_servicio: servicio,
+      moto_marca: marca,
+      moto_modelo: $('moto_modelo').value.trim(),
+      moto_anio: anio || null,
+      fecha: fecha.value,
+      hora: hora.value,
+      notas: $('notas').value.trim(),
+    };
     try {
-      const res  = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nombre: document.getElementById('nombre').value.trim(), telefono: ph, tipo_servicio: servicioFinal, moto_marca: marcaFinal, moto_modelo: document.getElementById('moto_modelo').value.trim(), moto_anio: document.getElementById('moto_anio').value || null, fecha: document.getElementById('fecha').value, hora: document.getElementById('hora').value, notas: document.getElementById('notas').value.trim() }) });
-      const data = await res.json().catch(()=>({}));
-      if (!res.ok) throw new Error(data.error || 'Error ' + res.status);
-      form.hidden = true; ok.hidden = false;
-      ok.scrollIntoView({ behavior:'smooth', block:'start' });
-    } catch(e) {
-      err.textContent = e.message || 'Ocurrió un error. Inténtalo por WhatsApp.';
-      err.hidden = false; btn.disabled = false; txt.textContent = 'Solicitar cita';
+      const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 409) loadAvailability();
+        throw new Error(data.error || 'No se pudo enviar (error ' + res.status + ').');
+      }
+      showSuccess(payload);
+    } catch (ex) {
+      const offline = ex instanceof TypeError;
+      showErr(offline ? 'No hay conexión con el servidor. Revisa tu internet e inténtalo de nuevo.' : ex.message);
+      btn.disabled = false; txt.textContent = 'Solicitar cita';
     }
   });
-  form.querySelectorAll('input,select,textarea').forEach(el => el.addEventListener('input', () => el.classList.remove('error')));
+
+  function showSuccess(p) {
+    const d = new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+    const fechaTxt = d.charAt(0).toUpperCase() + d.slice(1);
+    const moto = [p.moto_marca, p.moto_modelo, p.moto_anio].filter(Boolean).join(' ');
+    $('okText').textContent = 'Te confirmamos por WhatsApp al ' + p.telefono + ' en cuanto el taller revise tu solicitud.';
+    const rows = [['Fecha', fechaTxt], ['Hora', fmt(p.hora)], ['Servicio', p.tipo_servicio], ['Moto', moto]];
+    const sum = $('okSum');
+    sum.textContent = '';
+    rows.forEach(([k, v]) => {
+      const dt = document.createElement('dt'); dt.textContent = k;
+      const dd = document.createElement('dd'); dd.textContent = v;
+      sum.append(dt, dd);
+    });
+    form.hidden = true; ok.hidden = false;
+    ok.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  $('againBtn').addEventListener('click', () => {
+    form.reset();
+    ['otroWrap', 'otraMarcaWrap'].forEach(id => { $(id).hidden = true; });
+    btn.disabled = false; txt.textContent = 'Solicitar cita';
+    clearErr(); loadAvailability();
+    ok.hidden = true; form.hidden = false;
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  form.querySelectorAll('input,select,textarea').forEach(el =>
+    el.addEventListener('input', () => el.classList.remove('error')));
 }
 
 /* ── CANVAS 3D RINGS ─────────────────────────────── */
@@ -286,12 +375,8 @@ function initCanvas3D() {
 
 /* ── INIT ────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
-  initWaLinks();
-  initNavbar();
-  initReveal();
-  initStats();
-  initCountdown();
-  initDatepicker();
-  initForm();
-  initCanvas3D();
+  // Cada init va aislado: si uno falla no debe tumbar a los demas (asi un error
+  // en el canvas o en los contadores nunca vuelve a dejar el formulario muerto).
+  [initWaLinks, initNavbar, initReveal, initStats, initCountdown, initDatepicker, initForm, initCanvas3D]
+    .forEach(fn => { try { fn(); } catch (e) { console.error('[landing] ' + fn.name + ' fallo:', e); } });
 });
