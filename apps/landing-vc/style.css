@@ -1008,3 +1008,191 @@ html.intro-on .hero-ducati { transform: translateY(14%) scale(1.14); filter: bri
 /* Marca sola -> ancho completo; con "Otra" -> dos columnas */
 .cita-form .ff { margin-bottom: 14px; }
 .frow:has(#otraMarcaWrap[hidden]) { grid-template-columns: 1fr; }
+
+/* ══════════════════════════════════════════════════════════════
+   REDISEÑO v2 — menos "plantilla", más taller.
+   Esquinas rectas, cortes en diagonal (como el carenado de una moto),
+   líneas finas en lugar de tarjetas, tipografía condensada grande.
+   No cambia imágenes ni textos.
+══════════════════════════════════════════════════════════════ */
+:root { --r: 2px; --rlg: 2px; --cut: 14px; }
+
+/* ── Titulares ─────────────────────────── */
+.title-xl { font-size: clamp(2.7rem, 5.6vw, 4.6rem); line-height: .94; letter-spacing: .02em; }
+.lead { font-size: 1.02rem; line-height: 1.8; }
+
+/* ── Botones: paralelogramo, tipografía condensada ── */
+.btn-red, .btn-wa, .hbtn-red, .svcd-btn, .nl-cta, .nm-cta, .promo-cta {
+  font-family: 'Bebas Neue', sans-serif; font-weight: 400;
+  font-size: 1.3rem; letter-spacing: .07em; line-height: 1; text-transform: uppercase;
+  padding: 15px 40px; border: 0; border-radius: 0;
+  clip-path: polygon(var(--cut) 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%);
+  transition: background .2s, transform .2s;
+  box-shadow: none;
+}
+.btn-red:hover, .btn-wa:hover, .hbtn-red:hover, .svcd-btn:hover { transform: translateX(4px); box-shadow: none; }
+.btn-lg { padding: 17px 46px; font-size: 1.45rem; border-radius: 0; }
+.btn-full { clip-path: none; }
+.btn-outline-white, .btn-outline-dark {
+  font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 1.2rem; letter-spacing: .07em;
+  text-transform: uppercase; border-radius: 0; border-width: 2px; padding: 12px 30px;
+}
+.nl-cta { padding: 9px 26px; font-size: 1.15rem; }
+.nm-cta { clip-path: none; text-align: center; }
+.nl, .nm { font-weight: 600; letter-spacing: .01em; }
+
+/* Botones del hero */
+.hbtn-red { font-size: 1.35rem; padding: 16px 44px; }
+.hbtn-outline {
+  font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 1.25rem; letter-spacing: .07em;
+  color: rgba(255,255,255,.8); padding-bottom: 3px; border-bottom: 2px solid rgba(255,255,255,.22);
+  transition: color .2s, border-color .2s;
+}
+.hbtn-outline::after { content: none; }
+.hbtn-outline:hover { color: #fff; border-color: var(--red); }
+
+/* Rótulo del hero: texto normal, no etiqueta con tracking */
+.hero-eyebrow {
+  font-size: .98rem; font-weight: 500; letter-spacing: .01em; text-transform: none;
+  color: rgba(255,255,255,.72); padding-left: 16px; position: relative;
+}
+.hero-eyebrow::before {
+  content: ''; position: absolute; left: 0; top: .2em; bottom: .2em; width: 4px;
+  background: var(--red); transform: skewX(-16deg);
+}
+.hero-sub { font-size: 1.05rem; color: rgba(255,255,255,.62); }
+
+/* ── Franja de cifras ──────────────────── */
+.data-strip { background: #0a0a0a; border-top: 0; padding: 34px 0; }
+.ds { padding: 0 46px; border-right: 0; position: relative; }
+.ds + .ds::before {
+  content: ''; position: absolute; left: 0; top: 50%; width: 2px; height: 48px;
+  background: rgba(255,255,255,.16); transform: translateY(-50%) skewX(-18deg);
+}
+.ds-n { font-size: 3.6rem; letter-spacing: .01em; }
+.ds-plus { font-size: 1.8rem; }
+.ds-l { font-size: .85rem; text-transform: none; letter-spacing: .01em; font-weight: 500; color: rgba(255,255,255,.55); max-width: 104px; }
+
+/* ── Franja de servicios rápidos ───────── */
+.qs-section { border-top: 4px solid var(--red); border-bottom: 0; background: #101010; }
+.qs-card { padding: 22px 24px; gap: 14px; border-right: 1px solid rgba(255,255,255,.08); }
+.qs-card:hover { background: #181818; }
+.qs-icon { width: 34px; height: 34px; }
+.qs-card h4 {
+  font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 1.3rem; letter-spacing: .05em;
+  text-transform: uppercase; color: #fff;
+}
+
+/* ── Servicio completo (foto de fondo) ─── */
+.svcd-eyebrow { display: none; }
+.svcd-h2 { font-size: clamp(3.2rem, 6vw, 5.4rem); line-height: .92; }
+.svcd-lead { font-size: 1rem; color: rgba(255,255,255,.68); }
+.svcd-chips { gap: 0 36px; }
+.svcd-chip {
+  background: none; border: 0; border-bottom: 1px solid rgba(255,255,255,.14); border-radius: 0;
+  padding: 18px 0 18px 20px; position: relative; align-items: center;
+}
+.svcd-chip::before {
+  content: ''; position: absolute; left: 0; top: 20px; bottom: 20px; width: 5px; background: var(--red);
+  transform: skewX(-14deg); transition: top .25s, bottom .25s;
+}
+.svcd-chip:hover { background: none; border-color: rgba(255,255,255,.14); }
+.svcd-chip:hover::before { top: 8px; bottom: 8px; }
+.svcd-chip svg { display: none; }
+.svcd-chip strong { font-size: 1rem; white-space: normal; margin-bottom: 3px; }
+.svcd-chip span { font-size: .84rem; color: rgba(255,255,255,.55); white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* ── Sobre nosotros ────────────────────── */
+.about-checks .ac { font-size: 1rem; }
+.ac-mark { width: 14px; height: 5px; border-radius: 0; transform: skewX(-20deg); }
+.about-img { position: relative; overflow: visible; border-radius: 0; box-shadow: none; }
+.about-img::before {
+  content: ''; position: absolute; left: -16px; bottom: -16px; width: 58%; height: 58%;
+  border-left: 5px solid var(--red); border-bottom: 5px solid var(--red);
+}
+.about-img img { position: relative; clip-path: polygon(0 0, calc(100% - 44px) 0, 100% 44px, 100% 100%, 0 100%); }
+
+/* ── Refaccionaria: cuadrícula de líneas finas ── */
+.refac-grid { gap: 0; border-top: 1px solid rgba(255,255,255,.14); border-left: 1px solid rgba(255,255,255,.14); }
+.pc {
+  background: rgba(0,0,0,.38); border: 0; border-right: 1px solid rgba(255,255,255,.14);
+  border-bottom: 1px solid rgba(255,255,255,.14); border-radius: 0;
+  padding: 22px 18px 22px 22px; font-size: .95rem; font-weight: 600; color: rgba(255,255,255,.85);
+  position: relative; min-height: 66px;
+}
+.pc svg { display: none; }
+.pc::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--red);
+  transform: scaleY(0); transform-origin: bottom; transition: transform .25s;
+}
+.pc:hover { background: rgba(220,38,38,.14); border-color: rgba(255,255,255,.14); color: #fff; }
+.pc:hover::before { transform: scaleY(1); }
+.refac-sub { font-size: .98rem; color: rgba(255,255,255,.6); max-width: 320px; }
+
+/* ── Formulario de citas ───────────────── */
+.appt-sub { font-size: 1rem; color: rgba(255,255,255,.58); }
+.appt-item { font-size: .96rem; }
+.cita-form {
+  border-radius: 0; background: #101010; border: 1px solid rgba(255,255,255,.1);
+  border-top: 4px solid var(--red); padding: 34px 32px;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 28px), calc(100% - 28px) 100%, 0 100%);
+}
+.ff label { text-transform: none; letter-spacing: .01em; font-size: .86rem; font-weight: 600; color: rgba(255,255,255,.78); }
+.ff input, .ff select, .ff textarea { border-radius: 2px; padding: 12px 14px; background: rgba(255,255,255,.045); border-color: rgba(255,255,255,.14); }
+.ff-section-label {
+  font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; font-weight: 400; letter-spacing: .06em;
+  text-transform: none; color: #fff; padding: 14px 0 12px; margin-top: 6px;
+  border-top: 1px solid rgba(255,255,255,.12);
+}
+.cita-form .btn-full { padding: 17px; font-size: 1.45rem; clip-path: none; border-radius: 0; }
+.form-ok { border-radius: 0; background: #101010; border: 1px solid rgba(255,255,255,.1); border-top: 4px solid #22c55e; }
+.form-err { border-radius: 2px; }
+.ok-sum { border-radius: 0; }
+.form-note { font-size: .8rem; color: rgba(255,255,255,.4); }
+
+/* ── Ubicación ─────────────────────────── */
+.loc-card { border-radius: 0; background: none; border: 0; border-top: 1px solid rgba(255,255,255,.12); padding: 6px 0 0; }
+.loc-item { padding: 18px 0; }
+.loc-ico { border-radius: 0; width: 38px; height: 38px; clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+.loc-item strong { font-size: .95rem; }
+.loc-item p { font-size: .9rem; }
+.map-wrap { border-radius: 0; border: 1px solid rgba(255,255,255,.14); }
+.loc-btns .btn { clip-path: none; }
+.loc-btns .btn-wa { padding: 15px; }
+.footer-brand-vc { border-radius: 0; }
+
+/* ── Detalles ──────────────────────────── */
+.nav-logo-img { border-radius: 0; }
+.intro-tag { font-family: 'Bebas Neue', sans-serif; font-size: 1.05rem; font-weight: 400; letter-spacing: .22em; color: rgba(255,255,255,.6); }
+.intro-skip { border-radius: 0; font-family: 'Bebas Neue', sans-serif; font-size: 1rem; letter-spacing: .12em; padding: 9px 18px; }
+
+/* ── Responsive de la capa v2 ──────────── */
+@media (max-width: 1024px) {
+  .ds { padding: 14px 18px; }
+  .ds + .ds::before { display: none; }
+  .ds-n { font-size: 2.6rem; }
+  .ds-plus { font-size: 1.4rem; }
+  .ds-l { font-size: .8rem; }
+  .refac-sub { max-width: 100%; }
+}
+@media (max-width: 640px) {
+  .title-xl { font-size: clamp(2.5rem, 12vw, 3.4rem); }
+  .btn-red, .btn-wa, .hbtn-red, .svcd-btn { padding: 15px 34px; font-size: 1.25rem; }
+  .hbtn-red { padding: 14px 32px; font-size: 1.2rem; }
+  .hbtn-outline { font-size: 1.1rem; }
+  .ds { padding: 10px 12px; }
+  .ds-n { font-size: 2.1rem; }
+  .ds-l { font-size: .74rem; max-width: 84px; }
+  .qs-card { padding: 16px 14px; gap: 10px; }
+  .qs-card h4 { font-size: 1.1rem; }
+  .svcd-chips { grid-template-columns: 1fr; gap: 0; }
+  .svcd-chip { padding: 14px 0 14px 18px; }
+  .svcd-chip::before { top: 16px; bottom: 16px; }
+  .svcd-chip strong { font-size: .95rem; }
+  .svcd-chip span { font-size: .8rem; display: block; -webkit-line-clamp: unset; white-space: normal; }
+  .refac-grid { grid-template-columns: 1fr 1fr; gap: 0; }
+  .pc { padding: 16px 12px 16px 16px; font-size: .88rem; min-height: 58px; }
+  .about-img::before { left: -8px; bottom: -8px; border-width: 4px; }
+  .cita-form { padding: 26px 18px; }
+  .hero-eyebrow { font-size: .9rem; }
+}
