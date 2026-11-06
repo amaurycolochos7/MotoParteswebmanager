@@ -6,6 +6,55 @@ const API_URL   = 'https://motopartes.cloud/api/public/appointments';
 const WA_NUMBER = '529631911772';
 const PROMO_END = new Date('2026-06-30T23:59:59');
 
+/* ── INTRO (Ducati + logo) ───────────────────────── */
+let introResolve;
+const introReady = new Promise(r => { introResolve = r; });
+
+function initIntro() {
+  const html = document.documentElement;
+  const intro = document.getElementById('intro');
+  if (!intro || !html.classList.contains('intro-on')) { introResolve(); return; }
+
+  const num = document.getElementById('introNum');
+  const COUNT_START = 1050, COUNT_MS = 1400, OPEN_AT = 2650;
+  let finished = false;
+  const t0 = performance.now();
+
+  // Contador 0 -> 100 sincronizado con el anillo (misma curva aproximada)
+  const ease = p => (p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
+  (function tick(now) {
+    if (finished) return;
+    const p = Math.min(Math.max((now - t0 - COUNT_START) / COUNT_MS, 0), 1);
+    if (num) num.textContent = Math.round(ease(p) * 100);
+    if (p < 1) requestAnimationFrame(tick);
+  })(t0);
+
+  function finish() {
+    if (finished) return;
+    finished = true;
+    if (num) num.textContent = '100';
+    try { sessionStorage.setItem('mp_intro', '1'); } catch (e) { /* modo privado */ }
+    intro.classList.add('opening');
+    setTimeout(() => {
+      html.classList.remove('intro-on');   // libera el scroll y la moto del hero "se enciende"
+      introResolve();
+      setTimeout(() => intro.remove(), 1200);
+    }, 700);
+  }
+  const skip = document.getElementById('introSkip');
+  if (skip) skip.addEventListener('click', finish);
+  setTimeout(finish, OPEN_AT);
+}
+
+/* ── PROMO VENCIDA ───────────────────────────────── */
+function initPromo() {
+  // Con la promo terminada, el contador en 00 y la fecha de junio se ven rotos:
+  // se oculta la seccion, sus enlaces y la opcion del formulario.
+  if (Date.now() <= PROMO_END) return;
+  document.querySelectorAll('#promocion, a[href="#promocion"]').forEach(el => el.remove());
+  document.querySelectorAll('#tipo_servicio option').forEach(o => { if (/promo/i.test(o.value)) o.remove(); });
+}
+
 /* ── WA LINKS ────────────────────────────────────── */
 function initWaLinks() {
   const url = 'https://wa.me/' + WA_NUMBER;
@@ -43,7 +92,7 @@ function initReveal() {
   function revealEl(el) {
     if (el.classList.contains('revealed')) return;
     const d = parseInt(el.dataset.d || 0);
-    setTimeout(() => el.classList.add('revealed'), d);
+    introReady.then(() => setTimeout(() => el.classList.add('revealed'), d));
   }
 
   function revealVisible() {
@@ -58,7 +107,7 @@ function initReveal() {
   setTimeout(revealVisible, 150);
   setTimeout(revealVisible, 500);
   // Seguro final: revelar todo lo que quede a los 1.5s
-  setTimeout(() => els.forEach(el => el.classList.add('revealed')), 1500);
+  introReady.then(() => setTimeout(() => els.forEach(el => el.classList.add('revealed')), 1500));
 
   const obs = new IntersectionObserver((entries) => {
     entries.forEach(e => {
@@ -377,6 +426,6 @@ function initCanvas3D() {
 document.addEventListener('DOMContentLoaded', () => {
   // Cada init va aislado: si uno falla no debe tumbar a los demas (asi un error
   // en el canvas o en los contadores nunca vuelve a dejar el formulario muerto).
-  [initWaLinks, initNavbar, initReveal, initStats, initCountdown, initDatepicker, initForm, initCanvas3D]
+  [initIntro, initPromo, initWaLinks, initNavbar, initReveal, initStats, initCountdown, initDatepicker, initForm, initCanvas3D]
     .forEach(fn => { try { fn(); } catch (e) { console.error('[landing] ' + fn.name + ' fallo:', e); } });
 });
