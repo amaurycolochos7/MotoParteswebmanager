@@ -96,6 +96,17 @@ El taller comparte por WhatsApp el enlace **`https://vc.motopartes.cloud/cita`**
 - **App** (`/mechanic/appointments`): las citas web aparecen como "Pendiente web" con moto y notas, globo naranja en el menú, y Confirmar/Rechazar (avisa al cliente). La misma pantalla trae la tarjeta "Enlace para citas en línea" (copiar / enviar por WhatsApp). El mapa workspace → enlace está en `BOOKING_LINKS` de `AppointmentCalendar.jsx`.
 - Los scripts de la landing aíslan cada inicializador (`app.js`): un error en uno ya no deja el formulario muerto.
 
+### Flujo de la cita (solicitud → revisión → confirmación)
+
+1. **Solicitud:** el cliente llena el formulario; la cita queda `pending_external` ("Por revisar") con un enlace único `/cita/<código>` (24 caracteres aleatorios) y recibe el mensaje 1 por WhatsApp.
+2. **Revisión (panel de MotoPartes → Citas):** *Aceptar* (confirma y avisa), *Proponer otra fecha* (estado `proposal_sent`; el horario propuesto queda apartado `APPT_PROPOSAL_TTL_HOURS` = 24 h) o *No disponible* (el cliente puede elegir otra fecha desde su enlace).
+3. **El cliente** entra a su enlace y acepta, elige otro día, rechaza o cancela; cada respuesta actualiza la cita, deja un aviso en el panel (globo + sonido en el menú) y manda el mensaje correspondiente.
+4. **Tareas automáticas** (`startAppointmentJobs`, cada 5 min): recordatorio de propuesta a mitad de la vigencia, vencimiento (si era el cambio de una cita confirmada, vuelve a confirmada) y recordatorios 24 h / 2 h antes de la cita (se omiten si el taller tiene su propia automatización `appointment.upcoming_*`).
+5. **Días sin servicio** (`blocked_days`): no se ofrecen en el formulario ni en el enlace; el panel avisa qué citas ya había ese día.
+6. Cambiar la fecha de una cita **confirmada** siempre pasa por una propuesta que el cliente debe aceptar. Si WhatsApp no está conectado, el panel muestra el mensaje y el enlace para enviarlos a mano.
+
+Código: `apps/api/src/lib/appointment-flow.js` (textos, envío, horarios, tareas), `routes/public.js` (cliente), `routes/appointments.js` (taller), `apps/landing-vc/cita.html` y `cita.js` (página del enlace). Variables: `PUBLIC_APPT_BASE`, `APPT_SLOT_CAPACITY`, `APPT_PROPOSAL_TTL_HOURS`, `SHOP_MAPS_URL`.
+
 ## Licencia
 
 Privado. Todos los derechos reservados © 2026 MotoPartes.

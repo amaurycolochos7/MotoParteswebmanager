@@ -162,6 +162,10 @@ setInterval(() => {
     runTemporalSweep().catch((e) => console.error('[automations] temporal error:', e.message));
 }, 5 * 60 * 1000);
 
+// Citas en linea: recordatorio/vencimiento de propuestas y recordatorios de cita (cada 5 min).
+import { startAppointmentJobs } from './lib/appointment-flow.js';
+startAppointmentJobs(fastify.log);
+
 // Referral payout sweep — corre 1× por día. Internamente solo genera
 // payouts si es día 1 del mes. Barato, idempotente por @@unique.
 import { runReferralPayoutSweep } from './lib/referral-sweep.js';

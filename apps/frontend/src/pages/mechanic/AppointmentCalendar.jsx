@@ -1,44 +1,69 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import {
-    Calendar, Plus, User, Phone, Clock, Wrench, X, Edit2, Trash2,
-    AlertCircle, Check, Globe, Filter, RefreshCw, ThumbsUp, ThumbsDown,
-    Copy, MessageCircle, Link2, StickyNote, Bike
+    Calendar, Plus, User, Phone, Wrench, X, Edit2, Trash2,
+    AlertCircle, Check, Globe, RefreshCw, ThumbsUp, Ban,
+    Copy, MessageCircle, Link2, StickyNote, Bike, Send, CalendarOff
 } from 'lucide-react';
 import AppointmentModal from '../../components/appointments/AppointmentModal';
+import {
+    WhatsAppNotice, ProposeModal, ReasonModal, BlockedDaysModal, FlowStyles, fmtLong, fmtHour,
+} from '../../components/appointments/AppointmentFlowParts';
 import { appointmentsService } from '../../lib/api';
 import { useData } from '../../context/DataContext';
 
 const STATUS_LABELS = {
     scheduled: 'Agendada',
-    pending_external: 'Pendiente web',
+    pending_external: 'Por revisar',
+    proposal_sent: 'Esperando al cliente',
     confirmed: 'Confirmada',
-    rejected: 'Rechazada',
+    rejected: 'No disponible',
     cancelled: 'Cancelada',
+    expired: 'Propuesta vencida',
     completed: 'Completada',
 };
 
 const STATUS_COLORS = {
     scheduled: '#d71920',
     pending_external: '#f59e0b',
+    proposal_sent: '#2563eb',
     confirmed: '#22c55e',
     rejected: '#ef4444',
     cancelled: '#86868b',
+    expired: '#86868b',
     completed: '#10b981',
 };
 
-function fmtDate(iso) {
-    if (!iso) return '';
-    return new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+// Lo que el cliente hizo y el taller aun no ha visto
+const ALERT_TEXT = {
+    customer_accepted: 'El cliente aceptó tu propuesta y la cita quedó confirmada ✓',
+    customer_chose: 'El cliente pidió otra fecha — revísala',
+    customer_cancelled: 'El cliente canceló su cita',
+    customer_declined: 'El cliente rechazó la propuesta',
+    expired: 'La propuesta venció sin respuesta',
+};
 
-function fmtTime(iso) {
-    if (!iso) return '';
-    return new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-}
+const EVENT_TEXT = {
+    requested: 'Solicitud recibida',
+    accepted: 'Aceptaste la cita',
+    proposed: 'Enviaste una propuesta',
+    rejected: 'Marcaste no disponible',
+    cancelled: 'Cancelaste la cita',
+    customer_accepted: 'El cliente aceptó',
+    customer_chose: 'El cliente pidió otra fecha',
+    customer_declined: 'El cliente rechazó la propuesta',
+    customer_cancelled: 'El cliente canceló',
+    expired: 'Venció la propuesta',
+    reminder: 'Recordatorio enviado',
+    wa_failed: 'No se pudo enviar WhatsApp',
+};
 
-// Fecha/hora LOCAL para los <input type="date|time"> (toISOString() usa UTC y
-// corre el dia para citas de la tarde/noche).
+const MX = 'America/Mexico_City';
+const dayNum = (iso) => new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', timeZone: MX });
+const monShort = (iso) => new Date(iso).toLocaleDateString('es-MX', { month: 'short', timeZone: MX });
+const fmtStamp = (iso) => new Date(iso).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: MX });
+
+// Fecha/hora LOCAL para los <input type="date|time"> de la edicion de citas internas.
 const pad2 = (n) => String(n).padStart(2, '0');
 const toLocalDateInput = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 const toLocalTimeInput = (d) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
@@ -105,15 +130,19 @@ function BookingLinkCard({ link }) {
     );
 }
 
+const HIDDEN = new Set(['cancelled', 'completed', 'rejected', 'expired']);
+const effDate = (a) => (a.status === 'proposal_sent' && a.proposed_date ? a.proposed_date : a.scheduled_date);
+
 export default function AppointmentCalendar() {
     const { clients = [], motorcycles = [], users = [], addClient } = useData();
     const { user, activeWorkspace } = useAuth();
     const bookingLink = BOOKING_LINKS[activeWorkspace?.id] || null;
-    const [actionError, setActionError] = useState('');
 
+    const [actionError, setActionError] = useState('');
+    const [notice, setNotice] = useState(null);           // resultado del ultimo envio por WhatsApp
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState('all'); // 'all' | 'external' | 'internal'
+    const [filter, setFilter] = useState('all');          // 'all' | 'external' | 'internal' | 'closed'
     const [showList, setShowList] = useState(false);
     const [showNewModal, setShowNewModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
@@ -122,36 +151,49 @@ export default function AppointmentCalendar() {
     const [editData, setEditData] = useState({});
     const [cancelReason, setCancelReason] = useState('');
     const [actionLoading, setActionLoading] = useState(null);
+    const [proposeFor, setProposeFor] = useState(null);
+    const [reasonFor, setReasonFor] = useState(null);     // { apt, mode: 'reject' | 'cancel' }
+    const [showBlocked, setShowBlocked] = useState(false);
+    const [blockedDays, setBlockedDays] = useState([]);
+    const [openHistory, setOpenHistory] = useState({});
 
-    const loadAppointments = useCallback(async () => {
-        setLoading(true);
+    const loadAppointments = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const data = await appointmentsService.getAll();
             setAppointments(Array.isArray(data) ? data : []);
         } catch {
-            setAppointments([]);
+            if (!silent) setAppointments([]);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, []);
 
+    const loadBlocked = useCallback(async () => {
+        try { const rows = await appointmentsService.blockedDays(); setBlockedDays(Array.isArray(rows) ? rows : []); } catch { /* sin dias */ }
+    }, []);
+
+    useEffect(() => { loadAppointments(); loadBlocked(); }, [loadAppointments, loadBlocked]);
+
+    // El panel se mantiene en sincronia con el cliente: se refresca solo mientras la pantalla esta visible.
     useEffect(() => {
-        loadAppointments();
+        const t = setInterval(() => { if (!document.hidden) loadAppointments(true); }, 15000);
+        return () => clearInterval(t);
     }, [loadAppointments]);
 
-    const HIDDEN = new Set(['cancelled', 'completed', 'rejected']);
-
-    const allActive = appointments
-        .filter(a => !HIDDEN.has(a.status))
-        .sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date));
-
-    const externalPending = appointments.filter(a => a.status === 'pending_external');
+    const active = appointments.filter(a => !HIDDEN.has(a.status)).sort((a, b) => new Date(effDate(a)) - new Date(effDate(b)));
+    const closed = appointments.filter(a => HIDDEN.has(a.status)).sort((a, b) => new Date(b.scheduled_date) - new Date(a.scheduled_date));
+    const toReview = appointments.filter(a => a.status === 'pending_external');
+    const alerts = appointments.filter(a => a.shop_alert);
+    const attention = new Set([...toReview, ...alerts].map(a => a.id)).size;
 
     const filtered = filter === 'external'
-        ? appointments.filter(a => a.source === 'external' && !HIDDEN.has(a.status))
+        ? active.filter(a => a.source === 'external')
         : filter === 'internal'
-            ? appointments.filter(a => a.source !== 'external' && !HIDDEN.has(a.status))
-            : allActive;
+            ? active.filter(a => a.source !== 'external')
+            : filter === 'closed'
+                ? closed
+                : active;
 
     const clientName = (apt) => {
         if (apt.client?.full_name) return apt.client.full_name;
@@ -173,33 +215,53 @@ export default function AppointmentCalendar() {
         return d.length === 10 ? `52${d}` : d;
     };
 
-    const handleConfirm = async (apt) => {
-        setActionError('');
-        setActionLoading(apt.id + '_confirm');
+    // ── Acciones del flujo ───────────────────────────────────────────────
+    const handleAccept = async (apt) => {
+        setActionError(''); setNotice(null);
+        setActionLoading(apt.id + '_accept');
         try {
-            await appointmentsService.confirm(apt.id);
-            await loadAppointments();
+            const res = await appointmentsService.accept(apt.id);
+            setNotice(res?.whatsapp || null);
+            await loadAppointments(true);
         } catch (e) {
-            setActionError(`No se pudo confirmar la cita: ${e?.message || 'error desconocido'}`);
+            setActionError(`No se pudo aceptar la cita: ${e?.message || 'error desconocido'}`);
         } finally {
             setActionLoading(null);
         }
     };
 
-    const handleReject = async (apt) => {
-        if (!window.confirm('¿Rechazar esta cita? Se avisará al cliente por WhatsApp para que reagende.')) return;
+    const submitPropose = async ({ scheduled_date, note }) => {
+        const res = await appointmentsService.propose(proposeFor.id, { scheduled_date, note });
+        setNotice(res?.whatsapp || null); setActionError('');
+        setProposeFor(null);
+        await loadAppointments(true);
+    };
+
+    const submitReason = async (reason) => {
+        const { apt, mode } = reasonFor;
+        const res = mode === 'reject' ? await appointmentsService.reject(apt.id, reason) : await appointmentsService.cancel(apt.id, reason);
+        setNotice(res?.whatsapp || null); setActionError('');
+        setReasonFor(null);
+        await loadAppointments(true);
+    };
+
+    const handleSeen = async (apt) => {
+        setAppointments(list => list.map(a => (a.id === apt.id ? { ...a, shop_alert: false } : a)));
+        try { await appointmentsService.seen(apt.id); } catch { /* se reintenta en el siguiente refresco */ }
+    };
+
+    const handleDeleteApt = async (apt) => {
+        if (!window.confirm('¿Eliminar esta cita permanentemente? No se avisa al cliente.')) return;
         setActionError('');
-        setActionLoading(apt.id + '_reject');
         try {
-            await appointmentsService.reject(apt.id);
-            await loadAppointments();
+            await appointmentsService.remove(apt.id);
+            await loadAppointments(true);
         } catch (e) {
-            setActionError(`No se pudo rechazar la cita: ${e?.message || 'error desconocido'}`);
-        } finally {
-            setActionLoading(null);
+            setActionError(`No se pudo eliminar: ${e?.message || 'error desconocido'}`);
         }
     };
 
+    // ── Citas internas (creadas desde la app) ────────────────────────────
     const handleSaveNew = async (data) => {
         setActionError('');
         try {
@@ -239,7 +301,9 @@ export default function AppointmentCalendar() {
                 scheduled_date: new Date(`${editData.scheduled_date}T${editData.scheduled_time}`).toISOString(),
             });
             setShowEditModal(false);
-            await loadAppointments();
+            await loadAppointments(true);
+        } catch (e) {
+            setActionError(`No se pudo guardar el cambio: ${e?.message || 'error desconocido'}`);
         } finally {
             setActionLoading(null);
         }
@@ -249,12 +313,12 @@ export default function AppointmentCalendar() {
         if (!cancelReason.trim()) return;
         setActionLoading('cancel');
         try {
-            await appointmentsService.update(selectedApt.id, {
-                status: 'cancelled',
-                notes: cancelReason.trim(),
-            });
+            const res = await appointmentsService.cancel(selectedApt.id, cancelReason.trim());
+            setNotice(res?.whatsapp || null);
             setShowEditModal(false);
-            await loadAppointments();
+            await loadAppointments(true);
+        } catch (e) {
+            setActionError(`No se pudo cancelar: ${e?.message || 'error desconocido'}`);
         } finally {
             setActionLoading(null);
         }
@@ -266,47 +330,61 @@ export default function AppointmentCalendar() {
         try {
             await appointmentsService.remove(selectedApt.id);
             setShowEditModal(false);
-            await loadAppointments();
+            await loadAppointments(true);
         } finally {
             setActionLoading(null);
         }
     };
 
+    const notices = (
+        <>
+            {actionError && <div className="apt-error" role="alert">{actionError}</div>}
+            <WhatsAppNotice result={notice} onClose={() => setNotice(null)} />
+        </>
+    );
+
     return (
         <div className="appointments-page">
+            <FlowStyles />
             {!showList ? (
                 <div className="main-screen">
                     <div className="welcome-header">
                         <Calendar size={64} className="welcome-icon" />
                         <h1 className="welcome-title">Citas</h1>
                         <p className="welcome-subtitle">
-                            {allActive.length} cita{allActive.length !== 1 ? 's' : ''} activa{allActive.length !== 1 ? 's' : ''}
+                            {active.length} cita{active.length !== 1 ? 's' : ''} activa{active.length !== 1 ? 's' : ''}
                         </p>
-                        {externalPending.length > 0 && (
+                        {attention > 0 && (
                             <div className="external-alert" onClick={() => { setFilter('external'); setShowList(true); }}>
                                 <Globe size={16} />
-                                <strong>{externalPending.length}</strong> cita{externalPending.length !== 1 ? 's' : ''} desde la web — toca para revisar
+                                <strong>{toReview.length}</strong> por revisar
+                                {alerts.length > 0 && <> · <strong>{alerts.length}</strong> respuesta{alerts.length !== 1 ? 's' : ''} de clientes</>}
+                                {' '}— toca para atender
                             </div>
                         )}
                     </div>
 
-                    {actionError && <div className="apt-error" role="alert">{actionError}</div>}
+                    {notices}
 
                     <div className="main-buttons">
                         <button className="btn-main" onClick={() => { setFilter('all'); setShowList(true); }}>
                             <Calendar size={20} />
                             Ver Citas Activas
                         </button>
-                        {externalPending.length > 0 && (
+                        {(attention > 0 || appointments.some(a => a.source === 'external' && !HIDDEN.has(a.status))) && (
                             <button className="btn-main btn-warning" onClick={() => { setFilter('external'); setShowList(true); }}>
                                 <Globe size={20} />
                                 Citas del Sitio Web
-                                <span className="btn-badge">{externalPending.length}</span>
+                                {attention > 0 && <span className="btn-badge">{attention}</span>}
                             </button>
                         )}
                         <button className="btn-main btn-new" onClick={() => setShowNewModal(true)}>
                             <Plus size={20} />
                             Agendar Nueva Cita
+                        </button>
+                        <button className="btn-main btn-dark" onClick={() => setShowBlocked(true)}>
+                            <CalendarOff size={20} />
+                            Días sin servicio
                         </button>
                     </div>
 
@@ -321,7 +399,7 @@ export default function AppointmentCalendar() {
                                 <h2>Citas</h2>
                                 <p>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</p>
                             </div>
-                            <button className="btn-icon" onClick={loadAppointments} title="Actualizar">
+                            <button className="btn-icon" onClick={() => loadAppointments()} title="Actualizar">
                                 <RefreshCw size={18} />
                             </button>
                         </div>
@@ -331,8 +409,9 @@ export default function AppointmentCalendar() {
                     <div className="filter-tabs">
                         {[
                             { key: 'all', label: 'Todas' },
-                            { key: 'external', label: 'Del sitio web', badge: externalPending.length },
+                            { key: 'external', label: 'Del sitio web', badge: attention },
                             { key: 'internal', label: 'Internas' },
+                            { key: 'closed', label: 'Cerradas' },
                         ].map(f => (
                             <button
                                 key={f.key}
@@ -345,7 +424,7 @@ export default function AppointmentCalendar() {
                         ))}
                     </div>
 
-                    {actionError && <div className="apt-error" role="alert">{actionError}</div>}
+                    {notices}
 
                     <button className="btn-new-appointment" onClick={() => setShowNewModal(true)}>
                         <Plus size={20} /> Agendar Nueva Cita
@@ -368,17 +447,20 @@ export default function AppointmentCalendar() {
                                 const phone = clientPhone(apt);
                                 const moto = motorcycles.find(m => m.id === apt.motorcycle_id);
                                 const isExternal = apt.source === 'external';
-                                const isPendingExternal = apt.status === 'pending_external';
+                                const st = apt.status;
+                                const date = effDate(apt);
+                                const color = STATUS_COLORS[st] || '#6e6e73';
+                                const alertEvent = apt.shop_alert ? (apt.events || []).find(e => ALERT_TEXT[e.type]) : null;
+                                const busy = !!actionLoading;
+                                const canFlow = isExternal && !['cancelled', 'completed'].includes(st);
 
                                 return (
-                                    <div key={apt.id} className={`appointment-card ${isExternal ? 'is-external' : ''} ${isPendingExternal ? 'is-pending' : ''}`}>
+                                    <div key={apt.id} className={`appointment-card ${isExternal ? 'is-external' : ''} ${st === 'pending_external' ? 'is-pending' : ''}`}>
                                         {/* Barra izquierda de fecha */}
-                                        <div className="apt-date-badge" style={{ background: isPendingExternal ? '#f59e0b' : undefined }}>
-                                            <div className="badge-day">{new Date(apt.scheduled_date).getDate()}</div>
-                                            <div className="badge-month-year">
-                                                {new Date(apt.scheduled_date).toLocaleDateString('es-MX', { month: 'short' })}
-                                            </div>
-                                            <div className="badge-time">{fmtTime(apt.scheduled_date)}</div>
+                                        <div className="apt-date-badge" style={{ background: ['pending_external', 'proposal_sent'].includes(st) ? color : undefined }}>
+                                            <div className="badge-day">{dayNum(date)}</div>
+                                            <div className="badge-month-year">{monShort(date)}</div>
+                                            <div className="badge-time">{fmtHour(date)}</div>
                                         </div>
 
                                         {/* Contenido */}
@@ -419,41 +501,83 @@ export default function AppointmentCalendar() {
                                                     <StickyNote size={13} /> <span>{apt.notes}</span>
                                                 </div>
                                             )}
-                                            <div className="apt-status-chip" style={{ background: (STATUS_COLORS[apt.status] || '#6e6e73') + '22', color: STATUS_COLORS[apt.status] || '#6e6e73' }}>
-                                                {STATUS_LABELS[apt.status] || apt.status}
+                                            {apt.decision_note && ['rejected', 'cancelled'].includes(st) && (
+                                                <div className="apt-meta apt-notes"><AlertCircle size={13} /> <span>{apt.decision_note}</span></div>
+                                            )}
+
+                                            {st === 'proposal_sent' && apt.proposed_date && (
+                                                <div className="apt-proposal">
+                                                    {apt.proposal_from_confirmed ? 'Cita actual' : 'Pidió'}: {fmtLong(apt.scheduled_date)} {fmtHour(apt.scheduled_date)}<br />
+                                                    Propusiste: <strong>{fmtLong(apt.proposed_date)} {fmtHour(apt.proposed_date)}</strong>
+                                                    {apt.proposal_expires_at && <> · vence {fmtStamp(apt.proposal_expires_at)}</>}
+                                                </div>
+                                            )}
+
+                                            {alertEvent && (
+                                                <div className="apt-alert">
+                                                    <span>{ALERT_TEXT[alertEvent.type]}</span>
+                                                    <button onClick={() => handleSeen(apt)}>Entendido</button>
+                                                </div>
+                                            )}
+
+                                            <div className="apt-status-chip" style={{ background: color + '22', color }}>
+                                                {STATUS_LABELS[st] || st}
                                             </div>
 
-                                            {/* Botones Confirmar/Rechazar para citas externas pendientes */}
-                                            {isPendingExternal && (
+                                            {/* Acciones segun el estado */}
+                                            {canFlow && (
                                                 <div className="apt-actions">
-                                                    <button
-                                                        className="btn-confirm"
-                                                        disabled={!!actionLoading}
-                                                        onClick={() => handleConfirm(apt)}
-                                                    >
-                                                        {actionLoading === apt.id + '_confirm'
-                                                            ? '...'
-                                                            : <><ThumbsUp size={14} /> Confirmar</>
-                                                        }
-                                                    </button>
-                                                    <button
-                                                        className="btn-reject"
-                                                        disabled={!!actionLoading}
-                                                        onClick={() => handleReject(apt)}
-                                                    >
-                                                        {actionLoading === apt.id + '_reject'
-                                                            ? '...'
-                                                            : <><ThumbsDown size={14} /> Rechazar</>
-                                                        }
-                                                    </button>
+                                                    {st === 'pending_external' && (
+                                                        <button className="btn-confirm" disabled={busy} onClick={() => handleAccept(apt)}>
+                                                            {actionLoading === apt.id + '_accept' ? '...' : <><ThumbsUp size={14} /> Aceptar</>}
+                                                        </button>
+                                                    )}
+                                                    {['pending_external', 'proposal_sent', 'confirmed', 'rejected', 'expired'].includes(st) && (
+                                                        <button className="btn-propose" disabled={busy} onClick={() => setProposeFor(apt)}>
+                                                            <Send size={14} /> {st === 'confirmed' ? 'Proponer cambio' : st === 'proposal_sent' ? 'Cambiar propuesta' : 'Proponer otra fecha'}
+                                                        </button>
+                                                    )}
+                                                    {st === 'pending_external' && (
+                                                        <button className="btn-plain danger" disabled={busy} onClick={() => setReasonFor({ apt, mode: 'reject' })}>
+                                                            <Ban size={14} /> No disponible
+                                                        </button>
+                                                    )}
+                                                    {['proposal_sent', 'confirmed'].includes(st) && (
+                                                        <button className="btn-plain danger" disabled={busy} onClick={() => setReasonFor({ apt, mode: 'cancel' })}>
+                                                            <X size={14} /> Cancelar cita
+                                                        </button>
+                                                    )}
                                                 </div>
+                                            )}
+
+                                            {/* Historial */}
+                                            {(apt.events || []).length > 0 && (
+                                                <>
+                                                    <button className="apt-history-toggle" onClick={() => setOpenHistory(h => ({ ...h, [apt.id]: !h[apt.id] }))}>
+                                                        {openHistory[apt.id] ? 'Ocultar historial' : 'Ver historial'}
+                                                    </button>
+                                                    {openHistory[apt.id] && (
+                                                        <ul className="apt-history">
+                                                            {apt.events.map(ev => (
+                                                                <li key={ev.id}>
+                                                                    <b>{EVENT_TEXT[ev.type] || ev.type}</b>
+                                                                    {ev.detail ? ` · ${ev.detail}` : ''} <span>({fmtStamp(ev.created_at)})</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
 
-                                        {/* Botón editar (solo si no es externa pendiente) */}
-                                        {!isPendingExternal && (
+                                        {/* Citas internas: editar. Citas web: eliminar */}
+                                        {!isExternal && !HIDDEN.has(st) ? (
                                             <button className="apt-edit-btn" onClick={() => openEdit(apt)}>
                                                 <Edit2 size={16} />
+                                            </button>
+                                        ) : (
+                                            <button className="apt-trash" onClick={() => handleDeleteApt(apt)} title="Eliminar">
+                                                <Trash2 size={16} />
                                             </button>
                                         )}
                                     </div>
@@ -473,6 +597,37 @@ export default function AppointmentCalendar() {
                     clients={clients}
                     motorcycles={motorcycles}
                     users={users}
+                />
+            )}
+
+            {proposeFor && (
+                <ProposeModal
+                    apt={proposeFor}
+                    name={clientName(proposeFor)}
+                    blockedDays={blockedDays}
+                    onClose={() => setProposeFor(null)}
+                    onSubmit={submitPropose}
+                />
+            )}
+
+            {reasonFor && (
+                <ReasonModal
+                    title={reasonFor.mode === 'reject' ? 'No disponible' : 'Cancelar cita'}
+                    intro={reasonFor.mode === 'reject'
+                        ? `Se le avisa a ${clientName(reasonFor.apt)} por WhatsApp y puede elegir otra fecha desde su enlace.`
+                        : `Se le avisa a ${clientName(reasonFor.apt)} por WhatsApp que la cita se cancela.`}
+                    placeholder={reasonFor.mode === 'reject' ? 'Ej: Ese día no laboramos' : 'Ej: Tuvimos un imprevisto en el taller'}
+                    confirmText={reasonFor.mode === 'reject' ? 'Enviar aviso' : 'Cancelar cita'}
+                    danger
+                    onClose={() => setReasonFor(null)}
+                    onSubmit={submitReason}
+                />
+            )}
+
+            {showBlocked && (
+                <BlockedDaysModal
+                    onClose={() => setShowBlocked(false)}
+                    onChanged={(rows) => setBlockedDays(Array.isArray(rows) ? rows : [])}
                 />
             )}
 
@@ -510,7 +665,7 @@ export default function AppointmentCalendar() {
                                 </>
                             ) : (
                                 <>
-                                    <p className="text-secondary" style={{ marginBottom: '1rem' }}>¿Cancelar esta cita?</p>
+                                    <p className="text-secondary" style={{ marginBottom: '1rem' }}>¿Cancelar esta cita? Se le avisa al cliente por WhatsApp.</p>
                                     <div className="form-group">
                                         <label className="form-label">Motivo *</label>
                                         <textarea className="form-textarea" rows={3} value={cancelReason}
@@ -542,8 +697,7 @@ export default function AppointmentCalendar() {
                 </div>
             )}
 
-            <style>{`
-                .appointments-page { min-height: calc(100vh - 120px); padding-bottom: 80px; }
+            <style>{`                .appointments-page { min-height: calc(100vh - 120px); padding-bottom: 80px; }
 
                 .main-screen {
                     display: flex; flex-direction: column; align-items: center;
@@ -681,6 +835,8 @@ export default function AppointmentCalendar() {
                 .btn-ghost-danger:hover {
                     background: rgba(239, 68, 68, 0.1);
                 }
+            
+                .btn-main.btn-dark { background: linear-gradient(135deg,#3f3f46,#18181b); box-shadow: 0 4px 16px rgba(24,24,27,.25); }
             `}</style>
         </div>
     );

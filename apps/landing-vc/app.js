@@ -250,6 +250,11 @@ function initForm() {
       if (!res.ok) throw new Error('http ' + res.status);
       const data = await res.json();
       if (id !== reqId) return;
+      if (data.closed) {
+        hora.disabled = true; hora.innerHTML = '<option value="">Sin servicio ese día</option>';
+        hint.textContent = data.reason || 'Ese día no hay servicio. Elige otro día.'; hint.hidden = false;
+        return;
+      }
       fillHours(data.slots);
       if (!data.slots.some(s => s.available)) {
         hint.textContent = 'Ese día ya no tiene horarios libres. Prueba con otra fecha.'; hint.hidden = false;
@@ -316,7 +321,7 @@ function initForm() {
         if (res.status === 409) loadAvailability();
         throw new Error(data.error || 'No se pudo enviar (error ' + res.status + ').');
       }
-      showSuccess(payload);
+      showSuccess(payload, data.link);
     } catch (ex) {
       const offline = ex instanceof TypeError;
       showErr(offline ? 'No hay conexión con el servidor. Revisa tu internet e inténtalo de nuevo.' : ex.message);
@@ -324,11 +329,11 @@ function initForm() {
     }
   });
 
-  function showSuccess(p) {
+  function showSuccess(p, link) {
     const d = new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
     const fechaTxt = d.charAt(0).toUpperCase() + d.slice(1);
     const moto = [p.moto_marca, p.moto_modelo, p.moto_anio].filter(Boolean).join(' ');
-    $('okText').textContent = 'Te confirmamos por WhatsApp al ' + p.telefono + ' en cuanto el taller revise tu solicitud.';
+    $('okText').textContent = 'Te enviamos un mensaje por WhatsApp al ' + p.telefono + ' y te avisaremos por ahí en cuanto el taller revise tu solicitud.';
     const rows = [['Fecha', fechaTxt], ['Hora', fmt(p.hora)], ['Servicio', p.tipo_servicio], ['Moto', moto]];
     const sum = $('okSum');
     sum.textContent = '';
@@ -337,6 +342,8 @@ function initForm() {
       const dd = document.createElement('dd'); dd.textContent = v;
       sum.append(dt, dd);
     });
+    const lk = $('okLink');
+    if (lk) { lk.hidden = !link; if (link) lk.href = link; }
     form.hidden = true; ok.hidden = false;
     ok.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }

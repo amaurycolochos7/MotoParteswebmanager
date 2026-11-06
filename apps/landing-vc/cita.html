@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tu cita — MOTOPARTES</title>
+  <meta name="robots" content="noindex, nofollow"/>
+  <meta name="theme-color" content="#000000"/>
+  <meta property="og:title" content="Tu cita en MOTOPARTES"/>
+  <meta property="og:description" content="Consulta el estado de tu cita, acepta una propuesta o cámbiala."/>
+  <link rel="icon" type="image/png" href="/img/logo.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/style.css?v=20261107b"/>
+</head>
+<body class="cp-body">
+
+<header class="cp-top">
+  <a href="/" class="cp-brand" aria-label="MOTOPARTES">MOTO<span>PARTES</span></a>
+</header>
+
+<main class="cp-main">
+  <div class="cp-wrap">
+
+    <div id="cpLoading" class="cp-loading" role="status">Cargando tu cita…</div>
+
+    <section id="cpCard" class="cp-card" hidden>
+      <span id="cpChip" class="cp-chip"></span>
+      <h1 id="cpTitle" class="cp-title"></h1>
+      <p id="cpLead" class="cp-lead"></p>
+
+      <!-- Propuesta del taller -->
+      <div id="cpProposal" class="cp-proposal" hidden>
+        <div class="cp-proposal-h">Nueva fecha propuesta</div>
+        <div class="cp-proposal-d" id="cpPropDate"></div>
+        <div class="cp-proposal-t" id="cpPropTime"></div>
+        <p class="cp-proposal-n" id="cpPropNote" hidden></p>
+        <p class="cp-proposal-v" id="cpPropVence"></p>
+      </div>
+
+      <dl id="cpSum" class="cp-sum"></dl>
+
+      <div id="cpActions" class="cp-actions"></div>
+
+      <!-- Elegir otra fecha -->
+      <div id="cpPicker" class="cp-picker" hidden>
+        <h2 class="cp-picker-h">Elige tu nueva fecha</h2>
+        <label class="cp-label" for="cpDate">Fecha</label>
+        <input type="date" id="cpDate" class="cp-input"/>
+        <p id="cpPickHint" class="cp-hint" hidden></p>
+        <div id="cpSlots" class="cp-slots" role="radiogroup" aria-label="Horarios disponibles"></div>
+        <div class="cp-actions">
+          <button type="button" class="btn btn-red" id="cpSend" disabled>Enviar esta fecha</button>
+          <button type="button" class="cp-link" id="cpPickCancel">Volver</button>
+        </div>
+      </div>
+
+      <p id="cpMsg" class="cp-msg" role="status" hidden></p>
+    </section>
+
+    <section id="cpError" class="cp-card" hidden>
+      <span class="cp-chip cp-chip-bad">No encontrada</span>
+      <h1 class="cp-title">No encontramos tu cita</h1>
+      <p class="cp-lead" id="cpErrText">Revisa que el enlace esté completo. Si el problema sigue, escríbenos por WhatsApp.</p>
+      <div class="cp-actions"><a href="/#citas" class="btn btn-red">Agendar una cita</a></div>
+    </section>
+
+    <p class="cp-foot">Venustiano Carranza, Chiapas · <a href="/">MOTOPARTES</a></p>
+  </div>
+</main>
+
+<script src="/cita.js?v=20261107b"></script>
+</body>
+</html>

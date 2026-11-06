@@ -1,25 +1,11 @@
 import prisma from '../lib/prisma.js';
+import {
+    WORKSPACE_ID, FINAL_STATUSES, DATE_RE, MAPS_URL, SHOP_NAME,
+    newToken, linkFor, localParts, fmtFecha, fmtHora, validateCustomerSlot, availabilityFor,
+    logEvent, notifyCustomer,
+} from '../lib/appointment-flow.js';
 
-// ID fijo del workspace de Moto Partes VC — env var preferred, hardcoded fallback
-const WORKSPACE_ID = process.env.LANDING_VC_WORKSPACE_ID || 'c4bca2c8-1ca2-49c0-a084-8b677439c731';
-const BOT_URL = process.env.WHATSAPP_BOT_INTERNAL_URL || 'http://whatsapp-bot:3002';
-const BOT_KEY = process.env.WHATSAPP_API_KEY || 'motopartes-whatsapp-key';
-
-// Horario de atencion de la cita en linea. Chiapas = CST (UTC-6), sin horario de
-// verano desde 2022. Los horarios son los mismos que ofrece el formulario de la landing.
-const TZ_OFFSET = '-06:00';
-const TZ = 'America/Mexico_City';
-const SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
-// Cuantas citas simultaneas aguanta el taller en una misma hora (mecanicos disponibles).
-const SLOT_CAPACITY = Math.max(1, parseInt(process.env.APPT_SLOT_CAPACITY || '2', 10) || 2);
-const MAX_DAYS_AHEAD = 120;
-// Estados que ocupan lugar en la agenda.
-const BLOCKING_STATUSES = ['scheduled', 'pending_external', 'confirmed'];
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-// In-memory rate limiter: max N appointment requests per phone per 24h (anti-spam;
-// holgado para que el dueño pueda probar el formulario con su propio numero).
+// ── Anti-spam: maximo N solicitudes por telefono cada 24 h (en memoria) ──
 const PHONE_DAILY_LIMIT = parseInt(process.env.APPT_PHONE_DAILY_LIMIT || '6', 10) || 6;
 const phoneRateMap = new Map();
 function isRateLimited(phone) {
@@ -34,116 +20,66 @@ function isRateLimited(phone) {
     phoneRateMap.set(phone, { ...entry, count: entry.count + 1 });
     return false;
 }
-// Evita que el mapa crezca sin limite.
 setInterval(() => {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
     for (const [k, v] of phoneRateMap) if (v.since < cutoff) phoneRateMap.delete(k);
 }, 60 * 60 * 1000).unref();
 
 const clean = (v, max) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, max) : '');
+const TOKEN_RE = /^[A-Za-z0-9_-]{20,40}$/;
 
-// Devuelve el Date de la hora indicada ese dia, o null si fecha/hora no son validas.
-function slotDate(fecha, hora) {
-    if (!DATE_RE.test(fecha || '') || !SLOTS.includes(hora)) return null;
-    const d = new Date(`${fecha}T${hora}:00${TZ_OFFSET}`);
-    return isNaN(d.getTime()) ? null : d;
-}
-
-// 0 = domingo, calculado sobre el dia local de Chiapas.
-function isSunday(fecha) {
-    return new Date(`${fecha}T12:00:00${TZ_OFFSET}`).getUTCDay() === 0;
-}
-
-// Cuantas citas activas hay por hora ese dia -> { '09:00': 1, ... }
-async function bookedBySlot(fecha) {
-    const start = new Date(`${fecha}T00:00:00${TZ_OFFSET}`);
-    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-    const rows = await prisma.appointment.findMany({
-        where: {
-            workspace_id: WORKSPACE_ID,
-            status: { in: BLOCKING_STATUSES },
-            scheduled_date: { gte: start, lt: end },
-        },
-        select: { scheduled_date: true },
-    });
-    const counts = {};
-    for (const r of rows) {
-        const hh = new Date(r.scheduled_date.getTime() - 6 * 3600 * 1000).toISOString().slice(11, 16);
-        // Una cita a las 10:30 ocupa el bloque de las 10:00.
-        const slot = `${hh.slice(0, 2)}:00`;
-        counts[slot] = (counts[slot] || 0) + 1;
+// Lo que el cliente puede ver de su cita (nunca el telefono ni datos internos).
+function publicView(a) {
+    const now = Date.now();
+    const proposalLive = a.status === 'proposal_sent' && a.proposal_expires_at && new Date(a.proposal_expires_at).getTime() > now;
+    // Si la propuesta ya paso de vigencia pero la tarea automatica aun no corrio, se muestra como vencida.
+    const status = a.status === 'proposal_sent' && !proposalLive ? (a.proposal_from_confirmed ? 'confirmed' : 'expired') : a.status;
+    const when = localParts(a.scheduled_date);
+    const view = {
+        status,
+        nombre: (a.client?.full_name || a.client_name_ext || '').split(' ')[0],
+        fecha: when.fecha, hora: when.hora,
+        fecha_texto: fmtFecha(a.scheduled_date), hora_texto: fmtHora(a.scheduled_date),
+        scheduled_iso: new Date(a.scheduled_date).toISOString(),
+        servicio: a.service_type, moto: a.moto_label || null, notas: a.notes || null,
+        proposal: null,
+        decision_note: ['rejected', 'cancelled'].includes(a.status) ? a.decision_note || null : null,
+        cancelled_by: a.status === 'cancelled' ? a.cancelled_by : null,
+        shop: SHOP_NAME, maps: MAPS_URL,
+    };
+    if (proposalLive) {
+        const p = localParts(a.proposed_date);
+        view.proposal = {
+            fecha: p.fecha, hora: p.hora,
+            fecha_texto: fmtFecha(a.proposed_date), hora_texto: fmtHora(a.proposed_date),
+            scheduled_iso: new Date(a.proposed_date).toISOString(),
+            note: a.proposal_note || null,
+            expires_texto: `${fmtFecha(a.proposal_expires_at)} a las ${fmtHora(a.proposal_expires_at)}`,
+            from_confirmed: !!a.proposal_from_confirmed,
+        };
     }
-    return counts;
-}
-
-function fmtHora(hora) {
-    const [h, m] = hora.split(':');
-    const hh = parseInt(h, 10);
-    const suf = hh < 12 ? 'am' : 'pm';
-    const h12 = hh % 12 === 0 ? 12 : hh % 12;
-    return `${h12}:${m} ${suf}`;
-}
-
-// Envía WhatsApp de confirmación al cliente (no bloquea la respuesta)
-async function sendConfirmationWA(workspaceId, phone, nombre, fecha, hora, servicio, moto) {
-    try {
-        const session = await prisma.whatsappSession.findFirst({
-            where: { workspace_id: workspaceId, is_connected: true },
-        });
-        if (!session?.mechanic_id) return;
-
-        const fechaFmt = new Date(`${fecha}T12:00:00${TZ_OFFSET}`).toLocaleDateString('es-MX', {
-            weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ,
-        });
-        const motoLine = moto ? `\n🏍️ *Moto:* ${moto}` : '';
-
-        const message =
-            `¡Hola ${nombre}! ✅\n\n` +
-            `Tu solicitud de cita en *MOTOPARTES* fue recibida.\n\n` +
-            `📅 *Fecha:* ${fechaFmt}\n` +
-            `⏰ *Hora:* ${fmtHora(hora)}\n` +
-            `🔧 *Servicio:* ${servicio}` +
-            motoLine +
-            `\n\nEstamos revisando tu solicitud y te confirmaremos a la brevedad. ¡Gracias! 🙌`;
-
-        await fetch(`${BOT_URL}/send-message`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-key': BOT_KEY },
-            body: JSON.stringify({ mechanicId: session.mechanic_id, phone: `52${phone}`, message }),
-            signal: AbortSignal.timeout(15000),
-        });
-    } catch (e) {
-        // No bloquear la respuesta si WhatsApp falla
-        console.error('[public/appt] WA send failed:', e.message);
-    }
+    return view;
 }
 
 export default async function publicRoutes(fastify) {
-    // GET /api/public/appointments/availability?fecha=YYYY-MM-DD
-    // Horas disponibles de ese dia, para que el formulario no ofrezca horarios llenos.
+    const byToken = async (token) => {
+        if (!TOKEN_RE.test(token || '')) return null;
+        return prisma.appointment.findFirst({ where: { public_token: token }, include: { client: true } });
+    };
+    const notFound = (reply) => reply.code(404).send({ error: 'No encontramos esta cita. Revisa que el enlace esté completo.' });
+
+    // GET /api/public/appointments/availability?fecha=YYYY-MM-DD[&token=...]
     fastify.get('/appointments/availability', {
         config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
     }, async (request, reply) => {
         const fecha = String(request.query?.fecha || '');
-        if (!DATE_RE.test(fecha) || isNaN(new Date(`${fecha}T12:00:00${TZ_OFFSET}`).getTime()))
+        if (!DATE_RE.test(fecha) || isNaN(new Date(`${fecha}T12:00:00-06:00`).getTime()))
             return reply.code(400).send({ error: 'Fecha inválida.' });
-        if (isSunday(fecha))
-            return reply.send({ fecha, closed: true, slots: SLOTS.map(h => ({ hora: h, available: false })) });
-
-        const booked = await bookedBySlot(fecha);
-        const now = Date.now();
-        return reply.send({
-            fecha,
-            closed: false,
-            slots: SLOTS.map(h => ({
-                hora: h,
-                available: slotDate(fecha, h).getTime() > now + 60 * 60 * 1000
-                    && (booked[h] || 0) < SLOT_CAPACITY,
-            })),
-        });
+        const own = request.query?.token ? await byToken(String(request.query.token)) : null;
+        return reply.send(await availabilityFor(WORKSPACE_ID, fecha, { excludeId: own?.id }));
     });
 
-    // POST /api/public/appointments — sin autenticación, desde la landing vc.motopartes.cloud
+    // POST /api/public/appointments — sin autenticacion, desde la landing
     fastify.post('/appointments', {
         config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
     }, async (request, reply) => {
@@ -157,76 +93,145 @@ export default async function publicRoutes(fastify) {
         const fecha = clean(body.fecha, 10);
         const hora = clean(body.hora, 5);
 
-        if (!nombre)
-            return reply.code(400).send({ error: 'El nombre es obligatorio.' });
+        if (!nombre) return reply.code(400).send({ error: 'El nombre es obligatorio.' });
         const phone = String(body.telefono || '').replace(/\D/g, '');
-        if (!/^\d{10}$/.test(phone))
-            return reply.code(400).send({ error: 'Teléfono inválido — debe tener 10 dígitos.' });
-        if (!fecha || !hora)
-            return reply.code(400).send({ error: 'Fecha y hora son obligatorias.' });
-        if (!servicio)
-            return reply.code(400).send({ error: 'El tipo de servicio es obligatorio.' });
-        if (anio && !/^\d{4}$/.test(anio))
-            return reply.code(400).send({ error: 'El año de la moto no es válido.' });
+        if (!/^\d{10}$/.test(phone)) return reply.code(400).send({ error: 'Teléfono inválido — debe tener 10 dígitos.' });
+        if (!fecha || !hora) return reply.code(400).send({ error: 'Fecha y hora son obligatorias.' });
+        if (!servicio) return reply.code(400).send({ error: 'El tipo de servicio es obligatorio.' });
+        if (anio && !/^\d{4}$/.test(anio)) return reply.code(400).send({ error: 'El año de la moto no es válido.' });
+        if (!WORKSPACE_ID) return reply.code(503).send({ error: 'Servicio de citas no disponible temporalmente.' });
 
-        const scheduledDate = slotDate(fecha, hora);
-        if (!scheduledDate)
-            return reply.code(400).send({ error: 'Fecha u hora inválida.' });
-        if (isSunday(fecha))
-            return reply.code(400).send({ error: 'No atendemos domingos. Elige otro día.' });
-        const now = Date.now();
-        if (scheduledDate.getTime() < now + 60 * 60 * 1000)
-            return reply.code(400).send({ error: 'Elige una fecha y hora futuras.' });
-        if (scheduledDate.getTime() > now + MAX_DAYS_AHEAD * 24 * 60 * 60 * 1000)
-            return reply.code(400).send({ error: 'Solo puedes agendar con hasta 4 meses de anticipación.' });
-
-        if (!WORKSPACE_ID) {
-            return reply.code(503).send({ error: 'Servicio de citas no disponible temporalmente.' });
-        }
-
-        // Horario lleno (alguien lo tomó mientras llenabas el formulario).
-        const booked = await bookedBySlot(fecha);
-        if ((booked[hora] || 0) >= SLOT_CAPACITY)
-            return reply.code(409).send({ error: 'Ese horario ya se ocupó. Elige otra hora, por favor.' });
-
-        if (isRateLimited(phone)) {
-            return reply.code(429).send({ error: 'Demasiadas solicitudes. Intenta mañana.' });
-        }
+        const slot = await validateCustomerSlot(WORKSPACE_ID, fecha, hora);
+        if (!slot.ok) return reply.code(slot.status).send({ error: slot.error });
+        if (isRateLimited(phone)) return reply.code(429).send({ error: 'Demasiadas solicitudes. Intenta mañana.' });
 
         const moto = [marca, modelo, anio].filter(Boolean).join(' ');
-
-        // El cliente puede estar guardado con o sin lada.
         const existingClient = await prisma.client.findFirst({
-            where: {
-                workspace_id: WORKSPACE_ID,
-                phone: { in: [phone, `52${phone}`, `+52${phone}`, `521${phone}`] },
-            },
+            where: { workspace_id: WORKSPACE_ID, phone: { in: [phone, `52${phone}`, `+52${phone}`, `521${phone}`] } },
         });
 
         const created = await prisma.appointment.create({
             data: {
                 workspace_id: WORKSPACE_ID,
                 client_id: existingClient?.id || null,
-                scheduled_date: scheduledDate,
+                scheduled_date: slot.date,
                 service_type: servicio,
                 notes: notas || null,
                 moto_label: moto || null,
                 status: 'pending_external',
                 source: 'external',
-                // Siempre guardamos nombre y telefono capturados: el cliente puede
-                // llamarse distinto en el perfil y el telefono es el que se confirma.
                 client_phone: phone,
                 client_name_ext: nombre,
+                public_token: newToken(),
+                shop_alert: false,
             },
+            include: { client: true },
         });
+        await logEvent(created, 'requested', 'customer', `${fecha} ${hora} · ${servicio}`);
 
-        // Enviar confirmación por WhatsApp al cliente (async, no bloquea)
-        sendConfirmationWA(WORKSPACE_ID, phone, nombre, fecha, hora, servicio, moto);
+        // Mensaje 1: "recibimos tu solicitud" (no bloquea la respuesta)
+        notifyCustomer(created, 'received').catch((e) => console.error('[public/appt] WA received:', e.message));
 
         return reply.code(201).send({
-            success: true,
-            id: created.id,
-            message: '¡Cita solicitada! Te enviaremos confirmación por WhatsApp. 📱',
+            success: true, id: created.id, link: linkFor(created.public_token),
+            message: '¡Cita solicitada! Te avisaremos por WhatsApp.',
         });
+    });
+
+    // ── Enlace unico del cliente ─────────────────────────────────────────
+    const tokenLimit = { config: { rateLimit: { max: 40, timeWindow: '1 minute' } } };
+
+    // GET /api/public/appointments/by-token/:token
+    fastify.get('/appointments/by-token/:token', tokenLimit, async (request, reply) => {
+        const a = await byToken(request.params.token);
+        if (!a) return notFound(reply);
+        return reply.send(publicView(a));
+    });
+
+    // POST .../accept — el cliente acepta la propuesta del taller
+    fastify.post('/appointments/by-token/:token/accept', tokenLimit, async (request, reply) => {
+        const a = await byToken(request.params.token);
+        if (!a) return notFound(reply);
+        const live = a.status === 'proposal_sent' && a.proposal_expires_at && new Date(a.proposal_expires_at).getTime() > Date.now();
+        if (!live) return reply.code(409).send({ error: 'Esta propuesta ya no está vigente.', view: publicView(a) });
+
+        const updated = await prisma.appointment.update({
+            where: { id: a.id },
+            data: {
+                scheduled_date: a.proposed_date, status: 'confirmed',
+                proposed_date: null, proposal_note: null, proposal_expires_at: null,
+                proposal_reminder_sent: false, proposal_from_confirmed: false,
+                reminder_sent: false, reminder_2h_sent: false, decision_note: null, shop_alert: true,
+            },
+            include: { client: true },
+        });
+        await logEvent(updated, 'customer_accepted', 'customer', `Aceptó ${fmtFecha(updated.scheduled_date)} ${fmtHora(updated.scheduled_date)}`);
+        notifyCustomer(updated, 'confirmed').catch(() => {});
+        return reply.send(publicView(updated));
+    });
+
+    // POST .../choose — el cliente elige otra fecha/hora (queda "en revision" para el taller)
+    fastify.post('/appointments/by-token/:token/choose', tokenLimit, async (request, reply) => {
+        const a = await byToken(request.params.token);
+        if (!a) return notFound(reply);
+        if (['cancelled', 'completed'].includes(a.status))
+            return reply.code(409).send({ error: 'Esta cita ya no se puede modificar. Agenda una nueva.', view: publicView(a) });
+        const fecha = clean(request.body?.fecha, 10), hora = clean(request.body?.hora, 5);
+        const slot = await validateCustomerSlot(a.workspace_id, fecha, hora, { excludeId: a.id });
+        if (!slot.ok) return reply.code(slot.status).send({ error: slot.error });
+
+        const before = `${fmtFecha(a.scheduled_date)} ${fmtHora(a.scheduled_date)}`;
+        const updated = await prisma.appointment.update({
+            where: { id: a.id },
+            data: {
+                scheduled_date: slot.date, status: 'pending_external',
+                proposed_date: null, proposal_note: null, proposal_expires_at: null,
+                proposal_reminder_sent: false, proposal_from_confirmed: false,
+                reminder_sent: false, reminder_2h_sent: false, decision_note: null, cancelled_by: null, shop_alert: true,
+            },
+            include: { client: true },
+        });
+        await logEvent(updated, 'customer_chose', 'customer', `Pidió ${fmtFecha(slot.date)} ${fmtHora(slot.date)} (antes: ${before})`);
+        notifyCustomer(updated, 'customerChose').catch(() => {});
+        return reply.send(publicView(updated));
+    });
+
+    // POST .../decline — "No me sirve" ante una propuesta
+    fastify.post('/appointments/by-token/:token/decline', tokenLimit, async (request, reply) => {
+        const a = await byToken(request.params.token);
+        if (!a) return notFound(reply);
+        if (a.status !== 'proposal_sent') return reply.code(409).send({ error: 'No hay una propuesta pendiente.', view: publicView(a) });
+        const keep = a.proposal_from_confirmed;
+        const updated = await prisma.appointment.update({
+            where: { id: a.id },
+            data: {
+                status: keep ? 'confirmed' : 'cancelled', cancelled_by: keep ? null : 'customer',
+                proposed_date: null, proposal_note: null, proposal_expires_at: null,
+                proposal_from_confirmed: false, shop_alert: true,
+            },
+            include: { client: true },
+        });
+        await logEvent(updated, 'customer_declined', 'customer', keep ? 'Rechazó el cambio; sigue su cita original' : 'Rechazó la propuesta; cita cancelada');
+        notifyCustomer(updated, keep ? 'proposalDeclinedKeep' : 'cancelledByCustomer').catch(() => {});
+        return reply.send(publicView(updated));
+    });
+
+    // POST .../cancel — el cliente cancela su cita
+    fastify.post('/appointments/by-token/:token/cancel', tokenLimit, async (request, reply) => {
+        const a = await byToken(request.params.token);
+        if (!a) return notFound(reply);
+        if (FINAL_STATUSES.includes(a.status)) return reply.code(409).send({ error: 'Esta cita ya no se puede cancelar.', view: publicView(a) });
+        const updated = await prisma.appointment.update({
+            where: { id: a.id },
+            data: {
+                status: 'cancelled', cancelled_by: 'customer',
+                proposed_date: null, proposal_note: null, proposal_expires_at: null,
+                proposal_from_confirmed: false, shop_alert: true,
+            },
+            include: { client: true },
+        });
+        await logEvent(updated, 'customer_cancelled', 'customer', 'El cliente canceló desde su enlace');
+        notifyCustomer(updated, 'cancelledByCustomer').catch(() => {});
+        return reply.send(publicView(updated));
     });
 }

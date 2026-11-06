@@ -1277,11 +1277,37 @@ export const appointmentsService = {
     remove(id) {
         return apiFetch(`/appointments/${id}`, { method: 'DELETE' });
     },
-    confirm(id) {
-        return apiFetch(`/appointments/${id}`, { method: 'PUT', body: JSON.stringify({ status: 'confirmed' }) });
+    // ── Flujo de cita en linea ── (todas devuelven { appointment, whatsapp })
+    accept(id) {
+        return apiFetch(`/appointments/${id}/accept`, { method: 'POST', body: JSON.stringify({}) });
     },
-    reject(id) {
-        return apiFetch(`/appointments/${id}`, { method: 'PUT', body: JSON.stringify({ status: 'rejected' }) });
+    propose(id, { scheduled_date, note }) {
+        return apiFetch(`/appointments/${id}/propose`, { method: 'POST', body: JSON.stringify({ scheduled_date, note }) });
+    },
+    reject(id, reason = '') {
+        return apiFetch(`/appointments/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) });
+    },
+    cancel(id, reason = '') {
+        return apiFetch(`/appointments/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) });
+    },
+    seen(id) {
+        return apiFetch(`/appointments/${id}/seen`, { method: 'POST', body: JSON.stringify({}) });
+    },
+    events(id) {
+        return apiFetch(`/appointments/${id}/events`);
+    },
+    attentionCount() {
+        return apiFetch('/appointments/attention-count');
+    },
+    // Dias sin servicio
+    blockedDays() {
+        return apiFetch('/appointments/blocked-days');
+    },
+    addBlockedDay({ date, reason }) {
+        return apiFetch('/appointments/blocked-days', { method: 'POST', body: JSON.stringify({ date, reason }) });
+    },
+    removeBlockedDay(id) {
+        return apiFetch(`/appointments/blocked-days/${id}`, { method: 'DELETE' });
     },
 };
 

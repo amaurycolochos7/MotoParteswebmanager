@@ -28,6 +28,8 @@ const SCOPED_MODELS = new Set([
     'OrderHistory',
     'OrderUpdate',
     'Appointment',
+    'AppointmentEvent',
+    'BlockedDay',
     'WhatsappSession',
     'OrderRequest',
     'MechanicEarning',

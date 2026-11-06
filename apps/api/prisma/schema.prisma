@@ -756,6 +756,17 @@ model Appointment {
   client_phone         String?                                // para citas externas sin client_id
   client_name_ext      String?                                // nombre del cliente externo sin perfil en DB
   moto_label           String?                                // "Honda CB 190 2021" capturada en la cita en linea
+  // ── Flujo de cita en linea (solicitud -> revision -> propuesta -> confirmada) ──
+  public_token         String?  @unique                       // enlace unico del cliente: /cita/<token>
+  proposed_date        DateTime? @db.Timestamptz              // fecha propuesta por el taller (esperando al cliente)
+  proposal_note        String?
+  proposal_expires_at  DateTime? @db.Timestamptz
+  proposal_reminder_sent Boolean @default(false)
+  proposal_from_confirmed Boolean @default(false)             // si la propuesta cambia una cita ya confirmada
+  decision_note        String?                                // motivo de "no disponible" / cancelacion
+  cancelled_by         String?                                // 'customer' | 'shop' | 'system'
+  shop_alert           Boolean  @default(false)               // el cliente respondio y el taller no lo ha visto
+  reminder_2h_sent     Boolean  @default(false)
   reminder_sent        Boolean  @default(false)
   google_event_id      String?                                // Fase 6.4 — id del evento en Google Calendar, si sincronizado
   created_by           String?  @db.Uuid
@@ -767,8 +778,39 @@ model Appointment {
   mechanic   Profile?    @relation("AppointmentMechanic", fields: [assigned_mechanic_id], references: [id])
   creator    Profile?    @relation("AppointmentCreator", fields: [created_by], references: [id])
 
+  events AppointmentEvent[]
+
   @@index([workspace_id])
+  @@index([status, proposal_expires_at])
   @@map("appointments")
+}
+
+// Historial de cada cita en linea (quien hizo que y cuando).
+model AppointmentEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  workspace_id   String?  @db.Uuid
+  appointment_id String   @db.Uuid
+  type           String   // requested | accepted | proposed | customer_accepted | customer_chose | customer_cancelled | rejected | cancelled | expired | reminder | wa_failed ...
+  actor          String   // customer | shop | system
+  detail         String?
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  appointment Appointment @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+
+  @@index([appointment_id, created_at])
+  @@map("appointment_events")
+}
+
+// Dias en que el taller no da servicio (la landing no ofrece esas fechas).
+model BlockedDay {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspace_id String   @db.Uuid
+  date         String   // YYYY-MM-DD (dia local de Chiapas)
+  reason       String?
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  @@unique([workspace_id, date])
+  @@map("blocked_days")
 }
 
 // =============================================
