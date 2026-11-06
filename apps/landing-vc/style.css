@@ -1196,3 +1196,57 @@ html.intro-on .hero-ducati { transform: translateY(14%) scale(1.14); filter: bri
   .cita-form { padding: 26px 18px; }
   .hero-eyebrow { font-size: .9rem; }
 }
+
+/* ── v2.1: hero y botones realmente responsivos ───────────────
+   El hero móvil usaba filas de altura fija (76 % / 24 %) con overflow
+   oculto: con botones y texto más grandes el contenido se recortaba.
+   Ahora el texto toma su altura natural y la moto ocupa lo que sobra. */
+@media (max-width: 768px) {
+  .hero {
+    height: auto; min-height: 100vh; min-height: 100svh;
+    grid-template-rows: auto auto; overflow: visible;
+  }
+  .hero-right {
+    height: clamp(250px, calc(100svh - 450px), 62svh);
+    padding-top: 64px; box-sizing: content-box;
+  }
+  /* La foto trae mucho negro alrededor: se amplia y se recorta por los bordes */
+  .hero-ducati { height: 132%; max-height: none; width: auto; max-width: none; object-position: center 30%; transform: translateY(-3%); }
+  .hero-left {
+    height: auto; overflow: visible;
+    padding: 10px 22px 34px;
+    align-items: flex-start; justify-content: flex-start;
+  }
+  .hero-left-content { width: 100%; }
+  .hero-h1 { font-size: clamp(2.7rem, 13.5vw, 3.8rem); line-height: .95; margin-bottom: 10px; }
+  .hero-sub { font-size: .95rem; line-height: 1.6; margin: 0 0 22px; max-width: 34ch; }
+  .hero-btns { flex-wrap: wrap; gap: 14px 20px; align-items: center; width: 100%; }
+  .hbtn-red { flex: 0 1 auto; min-width: 170px; text-align: center; padding: 15px 24px; font-size: 1.3rem; }
+  .hbtn-outline { font-size: 1.15rem; padding-bottom: 2px; }
+}
+@media (max-width: 390px) {
+  .hero { grid-template-rows: auto auto; }
+  .hero-h1 { font-size: clamp(2.5rem, 13vw, 3.2rem); }
+}
+@media (max-height: 700px) and (max-width: 768px) {
+  .hero { grid-template-rows: auto auto; }
+  .hero-h1 { font-size: clamp(2.3rem, 11vw, 3rem); margin-bottom: 8px; }
+  .hero-sub { font-size: .88rem; margin-bottom: 16px; }
+}
+/* Teléfono horizontal: sin alturas forzadas */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 520px) {
+  .hero { min-height: 0; height: auto; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
+  .hero-right { grid-row: 1; grid-column: 2; height: 78vh; min-height: 260px; padding-top: 56px; }
+  .hero-left { grid-row: 1; grid-column: 1; padding: 90px 20px 24px; justify-content: center; }
+  .hero-h1 { font-size: clamp(2.2rem, 9vw, 3rem); }
+}
+
+/* Botones: nunca más anchos que la pantalla */
+.btn, .svcd-btn, .hbtn-red { max-width: 100%; }
+@media (max-width: 480px) {
+  .btn-red, .btn-wa, .svcd-btn { padding: 14px 28px; font-size: 1.25rem; }
+  .btn-lg { padding: 15px 30px; font-size: 1.3rem; }
+  .btn { white-space: normal; text-align: center; line-height: 1.05; }
+  .svcd-left .svcd-btn, .about-text .btn, .refac-header .btn { display: flex; width: 100%; max-width: 360px; }
+  .loc-btns .btn-outline-dark, .loc-btns .btn-wa { font-size: 1.15rem; }
+}
