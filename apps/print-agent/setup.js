@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Asistente de instalación (se ejecuta desde INSTALAR.bat). Pregunta, prueba y guarda config.json.
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
@@ -10,11 +11,9 @@ import { buildTestPage } from './src/testpage.js';
 
 const RECOMMENDED = /pos|thermal|termic|receipt|ticket|hostech|xprinter|epson tm|star |rongta|bixolon|80|generic \/ text/i;
 
-// Permite probar el asistente sin tocar el config.json real:  node setup.js --config RUTA
-const cfgArgIdx = process.argv.indexOf('--config');
-const TARGET_CONFIG = cfgArgIdx > -1 && process.argv[cfgArgIdx + 1] ? path.resolve(process.argv[cfgArgIdx + 1]) : CONFIG_FILE;
-
-const rl = readline.createInterface({ input, output });
+// Se crea al iniciar el asistente (no al importar el archivo: el .exe lo importa siempre).
+let rl;
+let TARGET_CONFIG = CONFIG_FILE;
 const say = (s = '') => console.log(s);
 
 async function ask(question, def = '') {
@@ -66,7 +65,25 @@ async function chooseUsbPrinter(current) {
     }
 }
 
-async function main() {
+/**
+ * Corre el asistente. Devuelve el código de salida (0 = listo, 1 = no se completó).
+ * Permite probarlo sin tocar el config.json real:  node setup.js --config RUTA
+ */
+export async function runSetup(argv = process.argv.slice(2)) {
+    const cfgArgIdx = argv.indexOf('--config');
+    TARGET_CONFIG = cfgArgIdx > -1 && argv[cfgArgIdx + 1] ? path.resolve(argv[cfgArgIdx + 1]) : CONFIG_FILE;
+    rl = readline.createInterface({ input, output });
+    try {
+        return await wizard();
+    } catch (e) {
+        console.error('\nError en el asistente:', e.message);
+        return 1;
+    } finally {
+        rl.close();
+    }
+}
+
+async function wizard() {
     title('MotoPartes · Instalación del agente de impresión');
     say('Te voy a hacer unas preguntas cortas. Casi todo ya viene listo:');
     say('solo necesitas la CLAVE del panel y elegir tu impresora.');
@@ -114,8 +131,7 @@ async function main() {
         say();
         problems.forEach((p) => say('  ✗ ' + p));
         say('No se guardó nada. Vuelve a ejecutar INSTALAR.bat.');
-        rl.close();
-        process.exit(1);
+        return 1;
     }
 
     /* 4. Prueba */
@@ -139,12 +155,9 @@ async function main() {
     say();
     say(okTest ? '✓ Todo listo: la impresora funciona.' : '! Guardé la configuración, pero la prueba no quedó confirmada.');
     say(`  Configuración guardada en ${path.basename(TARGET_CONFIG)}`);
-    rl.close();
-    process.exit(0);
+    return 0;
 }
 
-main().catch((e) => {
-    console.error('\nError en el asistente:', e.message);
-    rl.close();
-    process.exit(1);
-});
+// Ejecución directa:  node setup.js
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+if (isMain) runSetup().then((code) => process.exit(code));

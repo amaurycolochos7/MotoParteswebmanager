@@ -1,14 +1,29 @@
 # Registra el agente para que se inicie solo al entrar a Windows (sin ventana y sin pedir administrador).
 # Usa una Tarea Programada; si Windows no la permite, deja un acceso directo en la carpeta Inicio.
-param([switch]$NoStart)
+param([switch]$NoStart, [string]$Exe = '')
 
 $ErrorActionPreference = 'Stop'
-$dir      = Split-Path -Parent $MyInvocation.MyCommand.Path
+# Con -Exe (MotoPartes-Impresion.exe) la carpeta es la del .exe y no hace falta Node.
+if ($Exe) { $dir = Split-Path -Parent $Exe } else { $dir = Split-Path -Parent $MyInvocation.MyCommand.Path }
 $vbs      = Join-Path $dir 'ejecutar-oculto.vbs'
 $taskName = 'MotoPartes Agente de Impresion'
 $lnkPath  = Join-Path ([Environment]::GetFolderPath('Startup')) 'MotoPartes Agente de Impresion.lnk'
 
-if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+if ($Exe) {
+    # Lanzador sin ventana para el .exe (lo vuelve a iniciar si se cae).
+    $vbsLines = @(
+        'Option Explicit',
+        'Dim sh, rc',
+        'Set sh = CreateObject("WScript.Shell")',
+        ('sh.CurrentDirectory = "' + $dir + '"'),
+        'Do',
+        ('    rc = sh.Run("""' + $Exe + '"" run", 0, True)'),
+        '    If rc = 0 Or rc = 3 Then Exit Do',
+        '    WScript.Sleep 15000',
+        'Loop'
+    )
+    Set-Content -Path $vbs -Value $vbsLines -Encoding Default
+} elseif (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host 'No encuentro Node.js. Instalalo desde https://nodejs.org y vuelve a intentar.' -ForegroundColor Red
     exit 1
 }

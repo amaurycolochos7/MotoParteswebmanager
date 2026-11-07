@@ -4,10 +4,10 @@ import os from 'node:os';
 import net from 'node:net';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { scriptPath } from './paths.js';
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-export const RAW_PRINT_PS1 = path.resolve(HERE, '..', 'raw-print.ps1');
+// Ruta de raw-print.ps1 (en el .exe se extrae del interior a la carpeta temporal).
+export const RAW_PRINT_PS1 = scriptPath('raw-print.ps1');
 
 /** Traduce cualquier error de impresión a un mensaje corto y claro para el panel. */
 export function friendlyPrintError(err) {

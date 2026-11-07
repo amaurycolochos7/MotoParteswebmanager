@@ -13,6 +13,8 @@ Panel (celular, tablet, PC)        Servidor (API)                 Laptop del tal
 
 - **Contrato de la API:** [IMPRESION-CONTRATO.md](IMPRESION-CONTRATO.md) (fuente de verdad).
 - **Agente de Windows:** [`apps/print-agent/`](../apps/print-agent/README.md) — instalación paso a paso para la laptop.
+  Se entrega como `MotoPartes-Impresion.zip` (un solo `.exe`, sin instalar Node): se genera con
+  `cd apps/print-agent/build && npm install && npm run build`.
 - **Ticket:** `apps/api/src/lib/ticket.js` (texto, ESC/POS y PDF de 80 mm) · ajustes: `apps/api/src/lib/print-settings.js`.
 - **Panel:** `/admin/printing` (estado, clave, ajustes con vista previa, historial) y botones en el detalle de la orden.
 

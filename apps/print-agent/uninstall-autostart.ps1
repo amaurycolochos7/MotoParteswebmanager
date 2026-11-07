@@ -1,6 +1,7 @@
 # Quita el inicio automatico y detiene el agente.
+param([string]$Exe = '')
 $ErrorActionPreference = 'SilentlyContinue'
-$dir      = Split-Path -Parent $MyInvocation.MyCommand.Path
+if ($Exe) { $dir = Split-Path -Parent $Exe } else { $dir = Split-Path -Parent $MyInvocation.MyCommand.Path }
 $taskName = 'MotoPartes Agente de Impresion'
 $lnkPath  = Join-Path ([Environment]::GetFolderPath('Startup')) 'MotoPartes Agente de Impresion.lnk'
 

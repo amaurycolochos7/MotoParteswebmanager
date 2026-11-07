@@ -1,0 +1,14 @@
+{
+    "name": "motopartes-print-agent-build",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Herramientas para empaquetar el agente de impresion en un solo .exe (no se usan en la laptop del taller)",
+    "type": "module",
+    "scripts": {
+        "build": "node build-exe.mjs"
+    },
+    "devDependencies": {
+        "esbuild": "^0.25.0",
+        "postject": "^1.0.0-alpha.6"
+    }
+}

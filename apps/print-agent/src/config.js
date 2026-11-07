@@ -1,9 +1,9 @@
 // Lectura, validación y guardado de config.json
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { APP_DIR } from './paths.js';
 
-export const HOME_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+export const HOME_DIR = APP_DIR;
 export const CONFIG_FILE = path.join(HOME_DIR, 'config.json');
 
 export const DEFAULTS = Object.freeze({

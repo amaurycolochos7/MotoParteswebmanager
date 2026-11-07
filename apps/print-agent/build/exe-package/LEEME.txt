@@ -1,0 +1,77 @@
+MOTOPARTES - AGENTE DE IMPRESION DE TICKETS (Windows)
+======================================================
+
+Este programa se queda en la laptop del taller, conectado a la impresora de tickets.
+Cada 3 segundos le pregunta a MotoPartes si hay un ticket por imprimir y, si hay, lo
+imprime solo. Nadie tiene que apretar nada en la laptop.
+
+NO HAY QUE INSTALAR NADA MAS (ni Node, ni controladores raros). Solo seguir estos pasos.
+
+
+QUE NECESITAS
+-------------
+- Una laptop o PC con Windows 10 u 11, con internet, que se quede PRENDIDA en horario de taller.
+- La impresora de tickets conectada por USB y con su rollo de papel de 80 mm.
+
+
+INSTALACION (una sola vez, unos 10 minutos)
+-------------------------------------------
+
+PASO 1. Copia esta carpeta a un lugar fijo, por ejemplo:   C:\MotoPartes\Impresion
+        (No la borres ni la cambies de lugar despues. Si la mueves, repite el paso 4.)
+
+PASO 2. Conecta la impresora por USB y enciendela.
+        Mira en Windows: Configuracion > Bluetooth y dispositivos > Impresoras y escaneres.
+        Debe aparecer con algun nombre (por ejemplo "POS-80" o "Hostech").
+
+        Si NO aparece: instala el controlador que venga con la impresora. Si no trae:
+          Agregar dispositivo > "Agregar manualmente" > "Agregar una impresora local"
+          Puerto: USB001 (o el USB que te ofrezca)
+          Fabricante: Generic   -   Impresora: Generic / Text Only
+          Ponle un nombre facil, por ejemplo "Tickets".
+
+PASO 3. Genera tu clave en MotoPartes:
+          1) Entra a MotoPartes con tu usuario de administrador.
+          2) Ve a "Impresion" y presiona "Generar clave".
+          3) Copia la clave (empieza con mpp_). Solo se muestra una vez; si la pierdes, genera otra.
+
+PASO 4. Doble clic en  INSTALAR.bat  y contesta lo que pregunte (casi todo ya viene listo):
+          - Direccion de MotoPartes: presiona Enter.
+          - Clave: pega la clave del paso 3 (clic derecho para pegar) y Enter.
+          - Impresora: elige 1 (USB) y escribe el NUMERO de tu impresora de la lista.
+          - Prueba: deja que imprima la pagina de prueba y contesta "s" si salio el ticket.
+        Al final dira LISTO. Ya puedes cerrar la ventana: el agente sigue funcionando solo
+        y se vuelve a iniciar cada vez que enciendes la laptop y entras a Windows.
+
+        AVISO DE WINDOWS: la primera vez puede salir "Windows protegio su PC" porque el programa
+        no tiene firma digital. Presiona "Mas informacion" y luego "Ejecutar de todas formas".
+
+PASO 5. Verifica en MotoPartes > Impresion: debe decir "Conectado".
+        Prueba con el boton "Imprimir ticket de prueba".
+
+
+COMO SABER QUE FUNCIONA
+-----------------------
+En una orden, presiona "Imprimir ticket": debe salir el ticket en la impresora en unos segundos.
+Si la laptop esta apagada, el ticket queda en espera y sale solo cuando se conecte.
+
+
+SI ALGO NO SALE
+---------------
+- "Sin laptop" en MotoPartes ........ La laptop esta apagada, sin internet, o no entraste a Windows.
+                                      Prendela, o abre INICIAR.bat.
+- No sale el ticket .................. Revisa que haya papel, que la impresora este encendida y conectada;
+                                      luego prueba PROBAR-IMPRESORA.bat.
+- Salen simbolos raros ............... En MotoPartes > Impresion deja APAGADA la opcion "Usar acentos".
+- Cambiaste de impresora o de clave .. Vuelve a hacer doble clic en INSTALAR.bat.
+- Registro de lo que pasa ............ Carpeta "logs" junto al programa (agente.log).
+
+
+ARCHIVOS
+--------
+INSTALAR.bat ............ Instalacion guiada (la primera vez y cada vez que cambies algo).
+INICIAR.bat ............. Abre el agente a mano en una ventana (si no quieres inicio automatico).
+PROBAR-IMPRESORA.bat .... Imprime una pagina de prueba.
+DESINSTALAR.bat ......... Quita el inicio automatico y detiene el agente.
+MotoPartes-Impresion.exe  El programa.
+config.json ............. Se crea solo al instalar (guarda tu clave: no lo compartas).

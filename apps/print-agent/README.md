@@ -18,6 +18,30 @@ Celular o tablet  →  MotoPartes (internet)  →  Laptop del taller (este progr
 > No hay que dejar abierto ningún programa: después de instalarlo, arranca solo cada vez que
 > la laptop se enciende y entras a Windows.
 
+## La forma más fácil: el `.exe` (no hay que instalar Node)
+
+Se genera una carpeta lista para copiar a la laptop (`MotoPartes-Impresion.zip`) con **un solo programa**
+(`MotoPartes-Impresion.exe`) y sus instaladores. Dentro trae su propia guía (`LEEME.txt`). Resumen:
+
+1. Copia la carpeta a la laptop (por ejemplo `C:\MotoPartes\Impresion`).
+2. En MotoPartes → **Impresión** → **Generar clave** y cópiala.
+3. Doble clic en **`INSTALAR.bat`**, pega la clave, elige la impresora y confirma la prueba.
+
+Cómo se genera (en tu computadora de desarrollo, Node 22+):
+
+```
+cd apps/print-agent/build
+npm install          (solo la primera vez)
+npm run build        → build/dist/MotoPartes-Impresion.zip
+```
+
+> El `.exe` no tiene firma digital: la primera vez Windows puede mostrar "Windows protegió su PC".
+> Presiona **Más información → Ejecutar de todas formas**.
+
+Comandos del `.exe`: `setup`, `run`, `test-print`, `check`, `autostart`, `autostart-off`, `version`.
+
+Si prefieres no usar el `.exe`, la instalación con Node.js sigue abajo.
+
 ---
 
 ## Instalación (una sola vez, ~10 minutos)

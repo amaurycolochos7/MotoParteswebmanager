@@ -21,7 +21,11 @@ import { acquireLock, AlreadyRunningError } from './src/lock.js';
 import { Runner } from './src/runner.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-export const VERSION = JSON.parse(fs.readFileSync(path.join(HERE, 'package.json'), 'utf8')).version;
+// __APP_VERSION__ lo inyecta el empaquetador del .exe; con Node se lee de package.json.
+/* global __APP_VERSION__ */
+export const VERSION = typeof __APP_VERSION__ !== 'undefined'
+    ? __APP_VERSION__
+    : JSON.parse(fs.readFileSync(path.join(HERE, 'package.json'), 'utf8')).version;
 
 function parseArgs(argv) {
     const args = { flags: new Set(), config: CONFIG_FILE };
