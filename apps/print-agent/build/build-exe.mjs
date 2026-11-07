@@ -6,6 +6,7 @@
 //   npm run build
 //
 // Salida: build/dist/MotoPartes-Impresion/ (carpeta lista) y build/dist/MotoPartes-Impresion.zip
+// El ZIP lleva SOLO el .exe y LEEME.txt (sin .bat/.vbs/.ps1, que los antivirus y el correo suelen bloquear).
 // El .exe incluye el runtime de Node de ESTA computadora (v22+ requerido), así que en la laptop
 // del taller no hay que instalar Node.
 import { execFileSync } from 'node:child_process';
@@ -59,8 +60,6 @@ fs.writeFileSync(
         useCodeCache: false,
         assets: {
             'raw-print.ps1': path.join(ROOT, 'raw-print.ps1'),
-            'install-autostart.ps1': path.join(ROOT, 'install-autostart.ps1'),
-            'uninstall-autostart.ps1': path.join(ROOT, 'uninstall-autostart.ps1'),
         },
     })
 );
@@ -74,7 +73,7 @@ await inject(EXE, 'NODE_SEA_BLOB', fs.readFileSync(blob), {
 });
 
 // 4) Archivos de apoyo para la laptop.
-console.log('4/5 Copiando instaladores y guía…');
+console.log('4/5 Copiando la guía…');
 for (const f of fs.readdirSync(path.join(HERE, 'exe-package'))) {
     fs.copyFileSync(path.join(HERE, 'exe-package', f), path.join(OUT, f));
 }

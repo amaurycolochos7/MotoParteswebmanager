@@ -73,6 +73,9 @@ laptop se conecte".
 
 Header: `x-print-key: mpp_…`. Prefijo `/api/print-agent`. Clave inválida o revocada → `401 { error }`.
 
+### `GET /api/print-agent/ping`
+Comprueba que la clave sea válida (lo usa el asistente de instalación). No reclama trabajos. Respuesta `{ "ok": true }`; clave mala → `401`.
+
 ### `GET /api/print-agent/poll?version=1.0.0&printer=NOMBRE`
 Latido + reclama el siguiente trabajo. Se llama cada ~3 s.
 

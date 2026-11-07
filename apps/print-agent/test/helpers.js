@@ -55,6 +55,8 @@ export async function startFakeApi() {
         if (url.pathname === '/api/health') return send(200, { status: 'ok' });
         if (req.headers['x-print-key'] !== KEY) return send(401, { error: 'Clave inválida' });
 
+        if (req.method === 'GET' && url.pathname === '/api/print-agent/ping') return send(200, { ok: true });
+
         if (req.method === 'GET' && url.pathname === '/api/print-agent/poll') {
             state.polls.push({
                 version: url.searchParams.get('version'),

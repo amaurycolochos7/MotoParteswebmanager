@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// Asistente de instalación (se ejecuta desde INSTALAR.bat). Pregunta, prueba y guarda config.json.
+// Asistente de instalación: 3 pasos cortos (clave → impresora → prueba) y guarda config.json.
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
 import { CONFIG_FILE, DEFAULTS, loadConfig, resolveConfig, saveConfig, validateConfig, normalizeApiUrl } from './src/config.js';
+import { createApiClient } from './src/api.js';
 import { createPrinter, friendlyPrintError, listWindowsPrinters } from './src/printers.js';
 import { buildTestPage } from './src/testpage.js';
 
@@ -35,46 +36,97 @@ function title(text) {
     say('='.repeat(60));
 }
 
-async function checkServer(apiUrl) {
-    try {
-        const res = await fetch(`${apiUrl}/api/health`, { signal: AbortSignal.timeout(10000) });
-        return res.ok;
-    } catch {
-        return false;
+/** Limpia lo que llega al pegar: espacios, comillas y saltos de línea. */
+export function cleanKey(raw) {
+    return String(raw || '').trim().replace(/^["'“”]+|["'“”]+$/g, '').trim();
+}
+
+/**
+ * Paso 1: pide la clave y la comprueba con el servidor.
+ * @returns {Promise<string|null>} la clave, o null si el usuario prefiere salir
+ */
+async function askKey(apiUrl, current) {
+    say('Abre MotoPartes en el navegador:  menú "Impresión"  →  botón "Generar clave".');
+    say('Copia la clave (empieza con mpp_) y PÉGALA AQUÍ:');
+    say('  (clic derecho dentro de esta ventana = pegar; luego presiona Enter)');
+    for (;;) {
+        const key = cleanKey(await ask('Clave', current));
+        if (/^https?:\/\//i.test(key)) {
+            say('  ✗ Eso es una dirección de internet, no la clave. La clave empieza con mpp_');
+            continue;
+        }
+        if (!/^mpp_\S{8,}$/.test(key)) {
+            say('  ✗ Esa no parece la clave. Debe empezar con mpp_ y estar completa, sin espacios.');
+            continue;
+        }
+        process.stdout.write('  Comprobando la clave con MotoPartes… ');
+        try {
+            await createApiClient({ apiUrl, key, timeoutMs: 15000 }).ping();
+            say('✓ Clave correcta.');
+            return key;
+        } catch (e) {
+            if (e.kind === 'auth') {
+                say('✗');
+                say('  MotoPartes no reconoce esa clave (puede estar incompleta, o ya generaste otra más nueva).');
+                say('  Genera una clave nueva en el panel y pégala completa.');
+                continue;
+            }
+            if (e.kind === 'http' && e.status === 404) {
+                // Servidor sin el endpoint de comprobación (versión anterior): no es culpa de la clave ni de internet.
+                say('(no se pudo comprobar, la guardo)');
+                return key;
+            }
+            say('✗');
+            say(`  No pude conectar con MotoPartes (${e.message}). Revisa que haya internet.`);
+            if (await yesNo('  ¿Guardar esta clave de todos modos y seguir?', false)) return key;
+        }
     }
 }
 
-async function chooseUsbPrinter(current) {
+/** Paso 2: devuelve { mode, printerName } o { mode:'network', host, port }, o null para salir. */
+async function askPrinter(cfg) {
     say('Buscando las impresoras instaladas en esta computadora…');
     const printers = await listWindowsPrinters();
-    if (printers.length === 0) {
-        say('No encontré impresoras. Primero instala la impresora en Windows (mira el README, paso 2).');
-        return ask('Si sabes el nombre exacto, escríbelo aquí (o deja vacío para cancelar)', current);
-    }
     say();
-    printers.forEach((p, i) => {
-        const star = RECOMMENDED.test(`${p.name} ${p.driver}`) ? '  ← parece la de tickets' : '';
-        say(`  ${i + 1}) ${p.name}   (${p.port})${star}`);
-    });
+    if (printers.length === 0) {
+        say('  No encontré impresoras instaladas. Instala la tuya en Windows (mira el LEEME, paso 2)');
+        say('  y vuelve a abrir este programa.');
+    } else {
+        printers.forEach((p, i) => {
+            const star = RECOMMENDED.test(`${p.name} ${p.driver}`) ? '   ← parece la de tickets' : '';
+            say(`  ${i + 1}) ${p.name}${star}`);
+        });
+    }
+    say('  R) Mi impresora está conectada por cable de red (tiene una dirección IP)');
+    say('  S) Salir');
     say();
     for (;;) {
-        const pick = await ask('Escribe el NÚMERO de tu impresora de tickets');
+        const pick = (await ask('Escribe el número de tu impresora de tickets (o R o S)')).toLowerCase();
+        if (pick === 's') return null;
+        if (pick === 'r') {
+            const host = await ask('Dirección IP de la impresora (sale en su hoja de prueba)', cfg.host);
+            const port = Number(await ask('Puerto', String(cfg.port || 9100))) || 9100;
+            return { mode: 'network', host, port };
+        }
         const idx = Number(pick) - 1;
-        if (Number.isInteger(idx) && printers[idx]) return printers[idx].name;
-        say('  Escribe solo el número de la lista, por favor.');
+        if (Number.isInteger(idx) && printers[idx]) return { mode: 'usb', printerName: printers[idx].name };
+        say('  Escribe solo el número que aparece en la lista (por ejemplo 1), o R, o S.');
     }
 }
 
 /**
  * Corre el asistente. Devuelve el código de salida (0 = listo, 1 = no se completó).
- * Permite probarlo sin tocar el config.json real:  node setup.js --config RUTA
+ * Opciones para pruebas:  --config RUTA   --url https://otro-servidor
  */
 export async function runSetup(argv = process.argv.slice(2)) {
-    const cfgArgIdx = argv.indexOf('--config');
-    TARGET_CONFIG = cfgArgIdx > -1 && argv[cfgArgIdx + 1] ? path.resolve(argv[cfgArgIdx + 1]) : CONFIG_FILE;
+    const arg = (name) => {
+        const i = argv.indexOf(name);
+        return i > -1 && argv[i + 1] ? argv[i + 1] : '';
+    };
+    TARGET_CONFIG = arg('--config') ? path.resolve(arg('--config')) : CONFIG_FILE;
     rl = readline.createInterface({ input, output });
     try {
-        return await wizard();
+        return await wizard(arg('--url'));
     } catch (e) {
         console.error('\nError en el asistente:', e.message);
         return 1;
@@ -83,66 +135,46 @@ export async function runSetup(argv = process.argv.slice(2)) {
     }
 }
 
-async function wizard() {
+async function wizard(urlOverride) {
     title('MotoPartes · Instalación del agente de impresión');
-    say('Te voy a hacer unas preguntas cortas. Casi todo ya viene listo:');
-    say('solo necesitas la CLAVE del panel y elegir tu impresora.');
+    say('Son 3 pasos cortos: la CLAVE, tu IMPRESORA y una PRUEBA.');
 
     const prev = loadConfig(TARGET_CONFIG).config;
     const cfg = { ...DEFAULTS, ...prev };
+    // La dirección de MotoPartes ya viene lista; solo cambia si se pide a propósito.
+    cfg.apiUrl = normalizeApiUrl(urlOverride || prev.apiUrl || DEFAULTS.apiUrl);
 
-    /* 1. Servidor */
-    title('Paso 1 de 4 · Servidor');
-    cfg.apiUrl = normalizeApiUrl(await ask('Dirección de MotoPartes', cfg.apiUrl || DEFAULTS.apiUrl));
-    process.stdout.write('Probando conexión… ');
-    if (await checkServer(cfg.apiUrl)) say('¡Conectado!');
-    else say('No pude conectar. Revisa que haya internet. (Puedes continuar y se reintenta solo.)');
+    /* 1. Clave */
+    title('Paso 1 de 3 · La clave');
+    cfg.key = await askKey(cfg.apiUrl, prev.key || '');
 
-    /* 2. Clave */
-    title('Paso 2 de 4 · Clave del agente');
-    say('En MotoPartes entra a  Impresión  y presiona  "Generar clave".');
-    say('Copia la clave (empieza con mpp_) y pégala aquí.');
-    for (;;) {
-        const key = await ask('Clave', cfg.key);
-        if (/^mpp_\S{8,}$/.test(key)) {
-            cfg.key = key;
-            break;
-        }
-        say('  Esa clave no parece correcta: debe empezar con mpp_ y no tener espacios.');
+    /* 2. Impresora */
+    title('Paso 2 de 3 · Tu impresora');
+    const choice = await askPrinter(cfg);
+    if (!choice) {
+        say('No se guardó nada. Cuando tengas la impresora lista, vuelve a abrir este programa.');
+        return 1;
     }
-
-    /* 3. Impresora */
-    title('Paso 3 de 4 · Impresora');
-    say('  1) Impresora conectada por USB (lo más común)');
-    say('  2) Impresora conectada por cable de red (IP)');
-    const modeAnswer = await ask('Elige 1 o 2', cfg.mode === 'network' ? '2' : '1');
-    if (modeAnswer === '2') {
-        cfg.mode = 'network';
-        cfg.host = await ask('Dirección IP de la impresora (sale en su hoja de prueba)', cfg.host);
-        cfg.port = Number(await ask('Puerto', String(cfg.port || 9100))) || 9100;
-    } else {
-        cfg.mode = 'usb';
-        cfg.printerName = await chooseUsbPrinter(cfg.printerName);
-    }
+    Object.assign(cfg, choice);
 
     const resolved = resolveConfig(cfg);
     const problems = validateConfig(resolved);
     if (problems.length > 0) {
         say();
         problems.forEach((p) => say('  ✗ ' + p));
-        say('No se guardó nada. Vuelve a ejecutar INSTALAR.bat.');
+        say('No se guardó nada. Vuelve a abrir el programa para intentarlo otra vez.');
         return 1;
     }
 
-    /* 4. Prueba */
-    title('Paso 4 de 4 · Prueba de impresión');
+    /* 3. Prueba */
+    title('Paso 3 de 3 · Página de prueba');
     const printer = createPrinter(resolved);
     let okTest = false;
-    if (await yesNo('¿Imprimir una página de prueba ahora?', true)) {
+    if (await yesNo(`Voy a imprimir una página de prueba en "${printer.label}". ¿La imprimo ahora?`, true)) {
         for (;;) {
             try {
                 await printer.print(buildTestPage({ printer: printer.label }));
-                okTest = await yesNo('¿Salió el ticket de prueba?', true);
+                okTest = await yesNo('¿Salió el ticket de prueba en la impresora?', true);
             } catch (e) {
                 say('  ✗ ' + friendlyPrintError(e));
             }

@@ -28,6 +28,12 @@ export default async function printAgentRoutes(fastify) {
 
     const limit = { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } };
 
+    // GET /ping — el asistente de instalación comprueba que la clave sirva (no reclama trabajos)
+    fastify.get('/ping', limit, async (request) => {
+        await prisma.printAgent.update({ where: { id: request.agent.id }, data: { last_seen_at: new Date() } });
+        return { ok: true };
+    });
+
     // GET /poll — latido + reclama el siguiente trabajo
     fastify.get('/poll', limit, async (request) => {
         const agent = request.agent;

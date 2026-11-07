@@ -92,7 +92,7 @@ test('asistente (setup.js): guía por los pasos, imprime la prueba y guarda conf
     await new Promise((r) => printer.listen(0, '127.0.0.1', r));
     const printerPort = printer.address().port;
 
-    const child = spawn(process.execPath, [SETUP, '--config', cfgPath], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, [SETUP, '--config', cfgPath, '--url', api.url], { stdio: ['pipe', 'pipe', 'pipe'] });
     let out = '';
     let consumed = 0;
     child.stdout.setEncoding('utf8');
@@ -107,24 +107,28 @@ test('asistente (setup.js): guía por los pasos, imprime la prueba y guarda conf
     };
 
     try {
-        await answer(/Dirección de MotoPartes.*: $/, api.url);
+        await answer(/Clave: $/, api.url); // pegó una dirección en vez de la clave → lo explica y vuelve a preguntar
         await answer(/Clave: $/, 'mala'); // clave con formato incorrecto → vuelve a preguntar
-        await answer(/Clave: $/, 'mpp_clave_de_prueba_123');
-        await answer(/Elige 1 o 2.*: $/, '2');
+        await answer(/Clave: $/, 'mpp_clave_equivocada_999'); // formato bueno pero el servidor no la reconoce
+        await answer(/Clave: $/, KEY);
+        await answer(/\(o R o S\): $/, 'r');
         await answer(/Dirección IP de la impresora.*: $/, '127.0.0.1');
         await answer(/Puerto.*: $/, String(printerPort));
-        await answer(/página de prueba ahora\? \(S\/n\): $/, 's');
-        await answer(/¿Salió el ticket de prueba\? \(S\/n\): $/, 's');
+        await answer(/¿La imprimo ahora\? \(S\/n\): $/, 's');
+        await answer(/¿Salió el ticket de prueba en la impresora\? \(S\/n\): $/, 's');
         const code = await exited;
         assert.equal(code, 0, out);
 
         const saved = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-        assert.equal(saved.key, 'mpp_clave_de_prueba_123');
+        assert.equal(saved.key, KEY);
         assert.equal(saved.mode, 'network');
         assert.equal(saved.host, '127.0.0.1');
         assert.equal(saved.port, printerPort);
         assert.equal(saved.apiUrl, api.url);
         assert.match(out, /Todo listo/);
+        assert.match(out, /no es la clave|dirección de internet/);
+        assert.match(out, /no reconoce esa clave/);
+        assert.match(out, /Clave correcta/);
         assert.ok(Buffer.concat(received).toString('latin1').includes('PAGINA DE PRUEBA'));
     } finally {
         child.kill();

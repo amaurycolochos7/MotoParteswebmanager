@@ -20,12 +20,16 @@ Celular o tablet  →  MotoPartes (internet)  →  Laptop del taller (este progr
 
 ## La forma más fácil: el `.exe` (no hay que instalar Node)
 
-Se genera una carpeta lista para copiar a la laptop (`MotoPartes-Impresion.zip`) con **un solo programa**
-(`MotoPartes-Impresion.exe`) y sus instaladores. Dentro trae su propia guía (`LEEME.txt`). Resumen:
+Se genera una carpeta lista para copiar a la laptop (`MotoPartes-Impresion.zip`) con **solo dos archivos**:
+`MotoPartes-Impresion.exe` y `LEEME.txt` (la guía). No lleva `.bat` ni scripts, para que el correo y el antivirus
+no lo bloqueen. Resumen:
 
-1. Copia la carpeta a la laptop (por ejemplo `C:\MotoPartes\Impresion`).
-2. En MotoPartes → **Impresión** → **Generar clave** y cópiala.
-3. Doble clic en **`INSTALAR.bat`**, pega la clave, elige la impresora y confirma la prueba.
+1. Copia la carpeta a la laptop (por ejemplo `C:\MotoPartes`).
+2. En MotoPartes → **Impresión** → **Generar clave** → **Copiar**.
+3. Doble clic en **`MotoPartes-Impresion.exe`**: pega la clave donde dice `Clave:`, elige tu impresora por su número y
+   confirma el ticket de prueba. Queda funcionando solo y se inicia con Windows.
+
+Al abrirlo después aparece un menú (probar impresora, cambiar clave o impresora, reiniciar, quitar el inicio automático).
 
 Cómo se genera (en tu computadora de desarrollo, Node 22+):
 
@@ -36,9 +40,11 @@ npm run build        → build/dist/MotoPartes-Impresion.zip
 ```
 
 > El `.exe` no tiene firma digital: la primera vez Windows puede mostrar "Windows protegió su PC".
-> Presiona **Más información → Ejecutar de todas formas**.
+> Presiona **Más información → Ejecutar de todas formas**. Sin firma (certificado de pago) algunos antivirus
+> pueden desconfiar de cualquier programa nuevo.
 
-Comandos del `.exe`: `setup`, `run`, `test-print`, `check`, `autostart`, `autostart-off`, `version`.
+Comandos del `.exe`: `setup`, `start`, `run`, `test-print`, `check`, `autostart`, `autostart-off`, `version`.
+El inicio automático usa la clave "Run" del usuario en el registro de Windows (sin administrador ni scripts).
 
 Si prefieres no usar el `.exe`, la instalación con Node.js sigue abajo.
 

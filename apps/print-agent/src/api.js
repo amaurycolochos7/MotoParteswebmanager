@@ -87,6 +87,11 @@ export function createApiClient({ apiUrl, key, version = '0.0.0', timeoutMs = 15
     }
 
     return {
+        /** Comprueba que la clave sea válida (sin reclamar trabajos). Lanza ApiError si no. */
+        async ping() {
+            return request('GET', '/api/print-agent/ping');
+        },
+
         /** Latido + reclama el siguiente trabajo. Devuelve { job } (job puede ser null). */
         async poll(printer = '') {
             const q = new URLSearchParams({ version, printer: String(printer || '') });

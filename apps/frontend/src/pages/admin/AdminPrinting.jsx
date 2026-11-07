@@ -373,9 +373,10 @@ export default function AdminPrinting() {
                 )}
 
                 <ol className="pr-steps">
-                    <li><span>1</span> Descarga o abre el instalador del agente de impresión en la laptop del taller.</li>
-                    <li><span>2</span> Pega la clave cuando te la pida.</li>
-                    <li><span>3</span> Listo: la laptop imprime sola cada ticket que mandes.</li>
+                    <li><span>1</span> Presiona <strong>Generar clave</strong> y luego <strong>Copiar</strong>.</li>
+                    <li><span>2</span> En la laptop del taller abre la carpeta <strong>MotoPartes-Impresion</strong> y dale doble clic a <strong>MotoPartes-Impresion.exe</strong>.</li>
+                    <li><span>3</span> En la ventana negra, donde dice <strong>Clave:</strong>, pega la clave (clic derecho dentro de la ventana = pegar) y presiona Enter. Después elige tu impresora escribiendo su número.</li>
+                    <li><span>4</span> Cuando salga el ticket de prueba, listo: aquí arriba dirá <strong>Conectado</strong>.</li>
                 </ol>
 
                 {agent && !newKey && (
