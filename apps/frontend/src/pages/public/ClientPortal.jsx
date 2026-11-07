@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { ordersService, orderUpdatesService } from '../../lib/api';
+import { ordersService } from '../../lib/api';
 import {
   AlertCircle,
   Phone,
@@ -43,13 +43,9 @@ export default function ClientPortal() {
         setError('Orden no encontrada');
       } else {
         setOrder(orderData);
-        // Load updates
-        try {
-          const updatesResult = await orderUpdatesService.getByOrder(orderData.id);
-          setUpdates(updatesResult?.data || updatesResult || []);
-        } catch (e) {
-          console.error('Error loading updates:', e);
-        }
+        // El endpoint publico ya trae los avances (updates). No llamar a
+        // /order-updates: requiere sesion y apiFetch mandaria al cliente a /login.
+        setUpdates(orderData.updates || []);
       }
     } catch (err) {
       console.error('Error loading order:', err);

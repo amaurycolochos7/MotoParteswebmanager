@@ -66,7 +66,7 @@ export default async function ordersRoutes(fastify) {
         const order = await prisma.order.findUnique({
             where: { public_token: request.params.token },
             include: {
-                client: { select: { id: true, name: true } },
+                client: { select: { id: true, full_name: true } },
                 motorcycle: true,
                 mechanic: { select: { id: true, full_name: true, phone: true } },
                 status: true,
