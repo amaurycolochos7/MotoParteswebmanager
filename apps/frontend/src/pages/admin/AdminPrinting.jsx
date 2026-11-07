@@ -11,6 +11,7 @@ import {
     RotateCcw,
     X,
     Unplug,
+    Download,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -36,6 +37,10 @@ const DEFAULTS = {
     show_mechanic: true,
     copies: 1,
 };
+
+// El ZIP se publica con apps/print-agent/build (npm run build -- --publish) en public/descargas.
+const DOWNLOAD_URL = '/descargas/MotoPartes-Impresion.zip';
+const DOWNLOAD_SIZE = '32 MB';
 
 const STANDARD_WARRANTY =
     'GARANTIA: 15 dias naturales desde la entrega. Vence el [fecha]. UNICAMENTE en mano de obra. Refacciones y piezas electricas NO tienen garantia.';
@@ -373,10 +378,45 @@ export default function AdminPrinting() {
                 )}
 
                 <ol className="pr-steps">
-                    <li><span>1</span> Presiona <strong>Generar clave</strong> y luego <strong>Copiar</strong>.</li>
-                    <li><span>2</span> En la laptop del taller abre la carpeta <strong>MotoPartes-Impresion</strong> y dale doble clic a <strong>MotoPartes-Impresion.exe</strong>.</li>
-                    <li><span>3</span> En la ventana negra, donde dice <strong>Clave:</strong>, pega la clave (clic derecho dentro de la ventana = pegar) y presiona Enter. Después elige tu impresora escribiendo su número.</li>
-                    <li><span>4</span> Cuando salga el ticket de prueba, listo: aquí arriba dirá <strong>Conectado</strong>.</li>
+                    <li>
+                        <span>1</span>
+                        <div className="pr-step-text">
+                            Descarga el programa <strong>en la laptop del taller</strong> y descomprímelo
+                            (clic derecho → <strong>Extraer todo</strong>).
+                            <a className="pr-btn pr-btn--primary pr-dl" href={DOWNLOAD_URL} download>
+                                <Download size={16} />
+                                Descargar para Windows ({DOWNLOAD_SIZE})
+                            </a>
+                            <small>
+                                Si Windows avisa «protegió su PC», presiona «Más información» y luego «Ejecutar de todas formas».
+                            </small>
+                        </div>
+                    </li>
+                    <li>
+                        <span>2</span>
+                        <div className="pr-step-text">
+                            Aquí abajo presiona <strong>Generar clave</strong> y luego <strong>Copiar</strong>.
+                        </div>
+                    </li>
+                    <li>
+                        <span>3</span>
+                        <div className="pr-step-text">
+                            En la laptop, abre la carpeta que descomprimiste y dale doble clic a <strong>MotoPartes-Impresion.exe</strong>.
+                        </div>
+                    </li>
+                    <li>
+                        <span>4</span>
+                        <div className="pr-step-text">
+                            En la ventana negra, donde dice <strong>Clave:</strong>, pega la clave (clic derecho dentro de la
+                            ventana = pegar) y presiona Enter. Después elige tu impresora escribiendo su número.
+                        </div>
+                    </li>
+                    <li>
+                        <span>5</span>
+                        <div className="pr-step-text">
+                            Cuando salga el ticket de prueba, listo: aquí arriba dirá <strong>Conectado</strong>.
+                        </div>
+                    </li>
                 </ol>
 
                 {agent && !newKey && (

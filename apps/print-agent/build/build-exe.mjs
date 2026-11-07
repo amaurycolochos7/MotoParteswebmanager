@@ -3,7 +3,8 @@
 //
 //   cd apps/print-agent/build
 //   npm install            (solo la primera vez: esbuild + postject)
-//   npm run build
+//   npm run build              (genera el ZIP)
+//   npm run build -- --publish (además lo copia a la web para descargarlo desde el panel)
 //
 // Salida: build/dist/MotoPartes-Impresion/ (carpeta lista) y build/dist/MotoPartes-Impresion.zip
 // El ZIP lleva SOLO el .exe y LEEME.txt (sin .bat/.vbs/.ps1, que los antivirus y el correo suelen bloquear).
@@ -86,6 +87,15 @@ execFileSync(
     ['-NoProfile', '-Command', `Compress-Archive -Path '${OUT}\\*' -DestinationPath '${zip}' -Force`],
     { stdio: 'inherit' }
 );
+
+// Con --publish también se copia a la web (apps/frontend/public/descargas) para que el panel
+// lo ofrezca con un clic: después hay que hacer commit y push para desplegarlo.
+if (process.argv.includes('--publish')) {
+    const pub = path.resolve(ROOT, '..', 'frontend', 'public', 'descargas');
+    fs.mkdirSync(pub, { recursive: true });
+    fs.copyFileSync(zip, path.join(pub, 'MotoPartes-Impresion.zip'));
+    console.log(`Publicado en ${pub}`);
+}
 
 const mb = (p) => (fs.statSync(p).size / 1048576).toFixed(1);
 console.log(`\nListo (v${version}):\n  ${EXE}  (${mb(EXE)} MB)\n  ${zip}  (${mb(zip)} MB)`);

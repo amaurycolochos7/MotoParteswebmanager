@@ -28,6 +28,11 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Descargas grandes (programa de impresión): que vayan directo, sin pasar por la caché.
+    if (url.pathname.startsWith('/descargas/')) {
+        return;
+    }
+
     // Para navegación (HTML), usar Network First
     if (event.request.mode === 'navigate' ||
         (event.request.method === 'GET' && event.request.headers.get('accept')?.includes('text/html'))) {

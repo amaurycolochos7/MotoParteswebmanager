@@ -47,7 +47,11 @@
 .pr-key__code { flex: 1 1 240px; min-width: 0; padding: 11px 12px; background: #fff; border: 1px dashed #d97706; border-radius: 8px; font-family: 'Courier New', ui-monospace, monospace; font-size: 0.95rem; word-break: break-all; user-select: all; }
 .pr-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; color: #3a3a3c; }
 .pr-steps li { display: flex; align-items: flex-start; gap: 10px; }
-.pr-steps li span { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; background: #fde8e8; color: #dc2626; font-weight: 800; font-size: 0.8rem; display: inline-flex; align-items: center; justify-content: center; }
+.pr-steps li > span:first-child { flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; background: #fde8e8; color: #dc2626; font-weight: 800; font-size: 0.8rem; display: inline-flex; align-items: center; justify-content: center; }
+.pr-step-text { flex: 1 1 auto; min-width: 0; line-height: 1.5; padding-top: 2px; }
+.pr-step-text strong { font-weight: 700; color: #1d1d1f; }
+.pr-step-text small { display: block; margin-top: 4px; font-size: 0.8rem; line-height: 1.4; color: #6e6e73; }
+.pr-dl { display: flex; width: fit-content; max-width: 100%; margin: 10px 0 2px; text-decoration: none; }
 .pr-confirm { display: flex; flex-direction: column; gap: 10px; padding: 12px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; font-size: 0.88rem; color: #7f1d1d; width: 100%; }
 .pr-confirm > div { display: flex; flex-wrap: wrap; gap: 8px; }
 
