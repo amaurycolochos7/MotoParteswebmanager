@@ -77,6 +77,10 @@ model Workspace {
   // Fase 7 — Tickets
   support_tickets    SupportTicket[]
 
+  // Impresión de tickets (cola + agente de Windows)
+  print_agents       PrintAgent[]
+  print_jobs         PrintJob[]
+
   // Every data table has a back-reference so cascade-deletes work if a
   // workspace is nuked. ON DELETE behavior is set at the table end.
   clients            Client[]
@@ -1191,4 +1195,53 @@ model SurveyEvent {
 
   @@index([created_at])
   @@map("survey_events")
+}
+
+// ─── Impresión de tickets ────────────────────────────────────────────────
+// La laptop del taller corre un agente que consulta la cola cada ~3 s con una
+// clave propia (solo se guarda su hash). Contrato: docs/IMPRESION-CONTRATO.md.
+model PrintAgent {
+  id            String    @id @default(uuid()) @db.Uuid
+  workspace_id  String    @db.Uuid
+  name          String    @default("Laptop del taller")
+  key_hash      String    @unique              // sha256 (hex) de la clave mpp_…
+  key_prefix    String                         // primeros caracteres, solo para mostrar
+  last_seen_at  DateTime? @db.Timestamptz
+  agent_version String?
+  printer_name  String?
+  revoked_at    DateTime? @db.Timestamptz
+  created_by    String?   @db.Uuid
+  created_at    DateTime  @default(now()) @db.Timestamptz
+
+  workspace Workspace  @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  jobs      PrintJob[]
+
+  @@index([workspace_id])
+  @@map("print_agents")
+}
+
+model PrintJob {
+  id              String    @id @default(uuid()) @db.Uuid
+  workspace_id    String    @db.Uuid
+  order_id        String?   @db.Uuid
+  kind            String    @default("ticket")    // ticket | test
+  status          String    @default("pending")   // pending | printing | printed | failed | cancelled
+  copies          Int       @default(1)
+  attempts        Int       @default(0)
+  error           String?
+  title           String?
+  payload_b64     String    @db.Text              // bytes ESC/POS en base64
+  next_attempt_at DateTime? @db.Timestamptz       // no reclamar antes de esta hora (reintentos)
+  claimed_at      DateTime? @db.Timestamptz
+  printed_at      DateTime? @db.Timestamptz
+  agent_id        String?   @db.Uuid
+  created_by      String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz
+
+  workspace Workspace   @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  agent     PrintAgent? @relation(fields: [agent_id], references: [id], onDelete: SetNull)
+
+  @@index([workspace_id, status])
+  @@index([order_id])
+  @@map("print_jobs")
 }

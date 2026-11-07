@@ -22,6 +22,7 @@ import AdminTasks from './pages/admin/AdminTasks';
 import AdminBotHealth from './pages/admin/AdminBotHealth';
 import AdminReferrals from './pages/admin/AdminReferrals';
 import AdminShopQR from './pages/admin/AdminShopQR';
+import AdminPrinting from './pages/admin/AdminPrinting';
 import AdminIntegrations from './pages/admin/AdminIntegrations';
 import AdminSupport from './pages/admin/AdminSupport';
 import AdminSupportNew from './pages/admin/AdminSupportNew';
@@ -175,6 +176,7 @@ function AppRoutes() {
         <Route path="bot-health" element={<AdminBotHealth />} />
         <Route path="referrals" element={<AdminReferrals />} />
         <Route path="shop-qr" element={<AdminShopQR />} />
+        <Route path="printing" element={<AdminPrinting />} />
         <Route path="integrations" element={<AdminIntegrations />} />
         <Route path="support" element={<AdminSupport />} />
         <Route path="support/new" element={<AdminSupportNew />} />

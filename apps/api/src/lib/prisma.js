@@ -38,6 +38,8 @@ const SCOPED_MODELS = new Set([
     'QuotationLabor',
     'QuotationPart',
     'OrderPayment',
+    'PrintJob',
+    'PrintAgent',
 ]);
 
 const CREATE_OPS = new Set(['create', 'createMany', 'upsert']);

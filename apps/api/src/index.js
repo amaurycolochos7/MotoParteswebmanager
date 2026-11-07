@@ -36,6 +36,8 @@ import quotationsRoutes from './routes/quotations.js';
 import orderPaymentsRoutes from './routes/order-payments.js';
 import publicRoutes from './routes/public.js';
 import questionsRoutes from './routes/questions.js';
+import printRoutes from './routes/print.js';
+import printAgentRoutes from './routes/print-agent.js';
 import { installWorkspaceStore } from './middleware/workspace.js';
 
 // trustProxy: la API vive detrás de nginx (frontend) y del túnel de Cloudflare; sin esto
@@ -140,6 +142,9 @@ await fastify.register(ticketsRoutes, { prefix: '/api/tickets' });
 await fastify.register(quotationsRoutes, { prefix: '/api/quotations' });
 await fastify.register(orderPaymentsRoutes, { prefix: '/api/order-payments' });
 await fastify.register(publicRoutes, { prefix: '/api/public' });
+// Impresión de tickets: panel (JWT) y agente de Windows (clave propia, sin JWT).
+await fastify.register(printRoutes, { prefix: '/api/print' });
+await fastify.register(printAgentRoutes, { prefix: '/api/print-agent' });
 // Módulo interno "MotoPartes Questions" — cuestionario privado por PIN.
 // Aislado: no usa el middleware de workspace ni toca el auth principal.
 await fastify.register(questionsRoutes, { prefix: '/api/questions' });

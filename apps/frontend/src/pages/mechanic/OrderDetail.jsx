@@ -37,6 +37,7 @@ import { getOrderPhotos, saveOrderPhotos } from '../../services/photoStorageServ
 import Toast from '../../components/ui/Toast';
 import OrderPhotosDownload from '../../components/ui/OrderPhotosDownload';
 import OrderPaymentsSection from '../../components/orders/OrderPaymentsSection';
+import { TicketPrintModal, TicketButtons } from '../../components/orders/TicketActions';
 import './OrderDetail.css';
 
 /* =========================================================================
@@ -190,6 +191,9 @@ export default function OrderDetail() {
     // Envío de resumen
     const [showSendChoice, setShowSendChoice] = useState(false);
     const [sendingPDF, setSendingPDF] = useState(false);
+
+    // Ticket: "¿Cómo quieres entregar la nota?" al marcar la orden como Entregada
+    const [showTicketModal, setShowTicketModal] = useState(false);
 
     // Costos
     const [editingCosts, setEditingCosts] = useState(false);
@@ -351,6 +355,7 @@ export default function OrderDetail() {
         try {
             await updateOrderStatus(order.id, statusObj.id, note);
             showToast(`Estado actualizado: ${statusObj.name}`, 'success');
+            if (isDelivered) setShowTicketModal(true);
 
             if (statusObj.name !== statusName && client?.phone) {
                 try {
@@ -1057,6 +1062,8 @@ export default function OrderDetail() {
                     </div>
                 )}
 
+                {currentCanonical !== 'Cancelada' && <TicketButtons order={order} client={client} />}
+
                 {!isTerminal && (
                     <button className="od-cancel-link" onClick={handleBeginCancellation}>
                         <Trash2 size={13} /> Cancelar orden
@@ -1162,6 +1169,13 @@ export default function OrderDetail() {
                     </div>
                 </div>
             )}
+
+            <TicketPrintModal
+                open={showTicketModal}
+                order={order}
+                client={client}
+                onClose={() => setShowTicketModal(false)}
+            />
 
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </div>

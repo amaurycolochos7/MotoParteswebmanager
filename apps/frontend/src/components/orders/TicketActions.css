@@ -1,0 +1,154 @@
+/* =============================================================
+   TICKET — botones, modal de entrega y vista previa.
+   Prefijo .tk-* ; los botones reutilizan .od-action-btn del detalle
+   de la orden (se usan siempre dentro de esa pantalla).
+   ============================================================= */
+
+.tk-spin { animation: tk-spin 0.9s linear infinite; }
+@keyframes tk-spin { to { transform: rotate(360deg); } }
+
+/* ---- Botones en la zona de acciones ---- */
+.tk-buttons { display: flex; flex-direction: column; gap: 9px; }
+.tk-buttons__row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 9px; }
+/* Más específico que .od-action-btn para que el texto largo baje de línea. */
+.od-action-btn.tk-btn { white-space: normal; text-align: center; line-height: 1.15; padding-top: 8px; padding-bottom: 8px; }
+
+/* ---- Modal ---- */
+.tk-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    z-index: 210;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+}
+.tk-modal {
+    background: #fff;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 460px;
+    max-height: calc(100dvh - 28px);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+}
+.tk-modal__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--od-line, #e8e8ed);
+}
+.tk-modal__head h3 { margin: 0; font-size: 16px; font-weight: 800; line-height: 1.25; }
+.tk-modal__head button { background: none; border: none; color: #6e6e73; cursor: pointer; display: flex; padding: 4px; }
+.tk-modal__head button:disabled { opacity: 0.4; cursor: not-allowed; }
+.tk-sub { margin: 3px 0 0; font-size: 12.5px; color: #6e6e73; }
+.tk-modal__body { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.tk-modal__foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 18px calc(12px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--od-line, #e8e8ed);
+}
+
+/* ---- Estado de la impresora ---- */
+.tk-status {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    margin: 0;
+    padding: 9px 11px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    line-height: 1.35;
+}
+.tk-status svg { flex: 0 0 auto; margin-top: 1px; }
+.tk-status--ok { background: #dcfce7; color: #166534; }
+.tk-status--warn { background: #fef3c7; color: #92400e; }
+.tk-status--idle { background: #f5f5f7; color: #6e6e73; }
+
+/* ---- Opciones grandes ---- */
+.tk-choices { display: flex; flex-direction: column; gap: 9px; }
+.tk-choice {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 58px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    border: 1.5px solid #e8e8ed;
+    background: #fff;
+    color: #1d1d1f;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.tk-choice:active:not(:disabled) { transform: scale(0.985); }
+.tk-choice:disabled { opacity: 0.5; cursor: not-allowed; }
+.tk-choice__icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: #f5f5f7;
+}
+.tk-choice__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.tk-choice__text strong { font-size: 15px; font-weight: 800; }
+.tk-choice__text small { font-size: 12px; color: #6e6e73; margin-top: 1px; }
+.tk-choice__done { flex: 0 0 auto; color: #16a34a; }
+
+.tk-choice--print { border-color: #bfdbfe; background: #eff6ff; }
+.tk-choice--print .tk-choice__icon { background: #1d4ed8; color: #fff; }
+.tk-choice--print:hover:not(:disabled) { border-color: #1d4ed8; }
+.tk-choice--wa { border-color: #bbe6c6; background: #f0fdf4; }
+.tk-choice--wa .tk-choice__icon { background: #25d366; color: #fff; }
+.tk-choice--wa:hover:not(:disabled) { border-color: #1da851; }
+.tk-choice--both:hover:not(:disabled) { border-color: #6e6e73; }
+
+/* ---- Enlace "Ver ticket" ---- */
+.tk-link {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 2px;
+    background: none;
+    border: none;
+    color: #1d4ed8;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* ---- El ticket en texto ---- */
+.tk-paper {
+    margin: 0;
+    padding: 12px 10px;
+    background: #fff;
+    color: #111;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    font-family: 'Courier New', Courier, ui-monospace, monospace;
+    /* Se achica solo para que las columnas del ticket quepan sin deslizar. */
+    font-size: clamp(8px, calc((100vw - 90px) / (var(--cols, 48) * 0.6)), 12px);
+    line-height: 1.25;
+    white-space: pre;
+    overflow-x: auto;
+    max-height: 52vh;
+    overflow-y: auto;
+}
+.tk-muted { margin: 0; font-size: 13px; color: #6e6e73; display: flex; align-items: center; gap: 6px; }
+.tk-error { margin: 0; font-size: 13px; color: #b91c1c; }

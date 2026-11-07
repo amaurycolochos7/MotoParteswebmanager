@@ -30,6 +30,7 @@ import {
     Plug,
     LifeBuoy,
     ShieldCheck,
+    Printer,
 } from 'lucide-react';
 import ConnectionStatus from '../ui/ConnectionStatus';
 
@@ -114,6 +115,7 @@ export default function AppLayout() {
         { to: '/admin/automations', icon: Zap, label: 'Automatizaciones' },
         { to: '/admin/templates', icon: FileText, label: 'Plantillas' },
         { to: '/admin/tasks', icon: CheckSquare, label: 'Tareas' },
+        { to: '/admin/printing', icon: Printer, label: 'Impresión' },
 
         { section: 'Cuenta' },
         { to: '/admin/workspace', icon: Store, label: 'Mi taller' },
@@ -158,7 +160,8 @@ export default function AppLayout() {
         // entry to manage users — without exposing the full admin panel.
         if (isWorkspaceOwner) {
             baseMechanicNavItems.push(
-                { to: '/admin/users', icon: Users, label: 'Gestionar Usuarios' }
+                { to: '/admin/users', icon: Users, label: 'Gestionar Usuarios' },
+                { to: '/admin/printing', icon: Printer, label: 'Impresión' }
             );
         }
     }

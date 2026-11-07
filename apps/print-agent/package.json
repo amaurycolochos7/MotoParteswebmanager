@@ -1,0 +1,18 @@
+{
+    "name": "motopartes-print-agent",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Agente de impresion de tickets de MotoPartes para Windows (ESC/POS por USB o red)",
+    "type": "module",
+    "main": "agent.js",
+    "engines": {
+        "node": ">=18"
+    },
+    "scripts": {
+        "start": "node agent.js",
+        "setup": "node setup.js",
+        "test-print": "node agent.js --test-print",
+        "test": "node --test test/*.test.js"
+    },
+    "dependencies": {}
+}

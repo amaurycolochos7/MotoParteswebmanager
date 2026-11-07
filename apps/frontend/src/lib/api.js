@@ -1356,3 +1356,89 @@ export const orderPaymentsService = {
         }
     },
 };
+
+// =============================================
+// PRINT SERVICE — impresión de tickets (ver docs/IMPRESION-CONTRATO.md)
+// Todos los métodos devuelven { data, error } y NO lanzan excepción.
+// =============================================
+async function printCall(path, options) {
+    try {
+        const data = await apiFetch(path, options);
+        return { data, error: null };
+    } catch (error) {
+        return { data: null, error };
+    }
+}
+
+export const printService = {
+    // { settings, agent, queue }
+    getSettings() {
+        return printCall('/print/settings');
+    },
+    // body: parcial de settings.print -> { settings }
+    saveSettings(settings) {
+        return printCall('/print/settings', { method: 'PUT', body: JSON.stringify(settings) });
+    },
+    // { key, agent } — la clave solo se ve esta vez
+    createAgentKey() {
+        return printCall('/print/agent-key', { method: 'POST' });
+    },
+    revokeAgentKey() {
+        return printCall('/print/agent-key', { method: 'DELETE' });
+    },
+    // { text, cols } — ticket real de una orden, en texto plano
+    preview(orderId) {
+        return printCall(`/print/orders/${orderId}/preview`);
+    },
+    // { text, cols } — ticket de ejemplo con los ajustes guardados.
+    // OJO: no está en el contrato original; la API debe exponer GET /api/print/sample.
+    sample() {
+        return printCall('/print/sample');
+    },
+    // 201 { job, agent_connected }
+    printOrderTicket(orderId, { copies } = {}) {
+        return printCall(`/print/orders/${orderId}/ticket`, {
+            method: 'POST',
+            body: JSON.stringify(copies ? { copies } : {}),
+        });
+    },
+    // Igual que /order-pdf/:id/send: data = { success, automated, fallback, error, botStatus }.
+    // Un `fallback` (bot caído) NO es excepción: viene en data con error = null.
+    async sendTicketWhatsApp(orderId) {
+        try {
+            const headers = {};
+            const token = getToken();
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            if (activeWorkspaceId) headers['x-workspace-id'] = activeWorkspaceId;
+            const res = await fetch(`${API_URL}/print/orders/${orderId}/ticket/whatsapp`, {
+                method: 'POST',
+                headers,
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok && !data.fallback) {
+                return { data, error: new Error(data.error || `Error ${res.status}`) };
+            }
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+    // 201 { job, agent_connected } — ticket de prueba
+    printTest() {
+        return printCall('/print/test', { method: 'POST' });
+    },
+    // { jobs }
+    listJobs({ limit = 30, orderId } = {}) {
+        const qs = new URLSearchParams({ limit: String(limit) });
+        if (orderId) qs.set('order_id', orderId);
+        return printCall(`/print/jobs?${qs.toString()}`);
+    },
+    // 201 { job }
+    reprint(jobId) {
+        return printCall(`/print/jobs/${jobId}/reprint`, { method: 'POST' });
+    },
+    // { job } (solo si estaba pendiente)
+    cancel(jobId) {
+        return printCall(`/print/jobs/${jobId}/cancel`, { method: 'POST' });
+    },
+};

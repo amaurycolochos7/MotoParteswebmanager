@@ -1,0 +1,10 @@
+{
+    "apiUrl": "https://motopartes.cloud",
+    "key": "mpp_PEGA_AQUI_LA_CLAVE_DEL_PANEL",
+    "mode": "usb",
+    "printerName": "Nombre exacto de la impresora en Windows",
+    "host": "",
+    "port": 9100,
+    "outputDir": "salida",
+    "pollMs": 3000
+}
