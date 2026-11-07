@@ -254,12 +254,12 @@ export const phoneOf = (appt) => appt.client?.phone || appt.client_phone || null
 
 // Construye, envia y registra. Devuelve { sent, text, link, phone, reason } para que el panel
 // pueda ofrecer "copiar mensaje" cuando WhatsApp no esta disponible.
-export async function notifyCustomer(appt, kind, extra = {}) {
+export async function notifyCustomer(appt, kind, extra = {}, opts = {}) {
     const token = await ensureToken(appt);
     const text = MSG[kind](ctxOf(appt, extra));
     const phone = phoneOf(appt);
     const result = phone ? await sendWhatsApp(appt.workspace_id, phone, text) : { sent: false, reason: 'sin_telefono' };
-    if (!result.sent) await logEvent(appt, 'wa_failed', 'system', `${kind}: ${result.reason}`);
+    if (!result.sent && !opts.quiet) await logEvent(appt, 'wa_failed', 'system', `${kind}: ${result.reason}`);
     return { ...result, text, link: linkFor(token), phone: phone ? normalizePhone(phone) : null };
 }
 
@@ -310,23 +310,34 @@ export async function runAppointmentJobs() {
         await notifyCustomer(a, keep ? 'proposalExpiredKeep' : 'proposalExpired');
     }
 
-    // 3) Recordatorios de cita confirmada (24 h y 2 h antes), salvo que el taller tenga su propia automatizacion
+    // 3) Recordatorios de cita (1 dia antes y 2 h antes) para TODA cita confirmada o agendada,
+    //    venga del sitio web o de la app, salvo que el taller tenga su propia automatizacion.
+    //    Ventanas: 24 h -> se envia al cruzar las 24 h (hasta 22 h, por si el servidor estuvo caido);
+    //              2 h  -> se envia al cruzar las 2 h (hasta 1 h antes).
+    //    Si WhatsApp no esta conectado no se marca como enviado y se reintenta en el siguiente ciclo
+    //    mientras siga dentro de la ventana.
     const soon = await prisma.appointment.findMany({
-        where: { status: 'confirmed', source: 'external', scheduled_date: { gt: now, lte: new Date(now.getTime() + 24 * 3600 * 1000) } },
+        where: { status: { in: ['confirmed', 'scheduled'] }, scheduled_date: { gt: now, lte: new Date(now.getTime() + 24 * 3600 * 1000) } },
         include: FULL_INCLUDE,
     });
     const skipWs = new Map();
+    const deliver = async (a, kind, flag, label) => {
+        const r = await notifyCustomer(a, kind, {}, { quiet: true });
+        if (r.sent) {
+            await prisma.appointment.update({ where: { id: a.id }, data: { [flag]: true } });
+            await logEvent(a, 'reminder', 'system', label);
+        } else if (r.reason === 'sin_telefono') {
+            await prisma.appointment.update({ where: { id: a.id }, data: { [flag]: true } });   // no hay a quien avisar: no reintentar
+            await logEvent(a, 'wa_failed', 'system', `${kind}: sin_telefono`);
+        }
+        // otro fallo (bot desconectado, etc.): sin marcar -> reintenta en 5 min
+    };
     for (const a of soon) {
         if (!skipWs.has(a.workspace_id)) skipWs.set(a.workspace_id, await hasReminderAutomation(a.workspace_id));
         if (skipWs.get(a.workspace_id)) continue;
         const hrs = (new Date(a.scheduled_date).getTime() - now.getTime()) / 3600000;
-        if (hrs <= 24 && hrs > 22 && !a.reminder_sent) {
-            await prisma.appointment.update({ where: { id: a.id }, data: { reminder_sent: true } });
-            await notifyCustomer(a, 'reminder24');
-        } else if (hrs <= 3 && hrs > 1 && !a.reminder_2h_sent) {
-            await prisma.appointment.update({ where: { id: a.id }, data: { reminder_2h_sent: true } });
-            await notifyCustomer(a, 'reminder2');
-        }
+        if (hrs <= 24 && hrs > 22 && !a.reminder_sent) await deliver(a, 'reminder24', 'reminder_sent', 'Recordatorio de 1 día antes');
+        else if (hrs <= 2 && hrs > 1 && !a.reminder_2h_sent) await deliver(a, 'reminder2', 'reminder_2h_sent', 'Recordatorio de 2 h antes');
     }
 }
 
