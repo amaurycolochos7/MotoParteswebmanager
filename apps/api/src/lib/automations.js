@@ -1,5 +1,6 @@
 import prisma, { workspaceContext } from './prisma.js';
 import { incrementUsageAsync } from './billing.js';
+import { formatPhone } from './phone.js';
 
 function unscoped(fn) {
     return workspaceContext.run({ workspaceId: null }, fn);
@@ -67,8 +68,15 @@ async function buildVars(workspaceId, context) {
             // {moto} = "marca modelo" listo para usar en el mensaje, con fallback
             // seguro si la orden no tiene moto asociada.
             vars.moto = [vars.marca, vars.modelo].filter(Boolean).join(' ').trim() || 'su motocicleta';
+            // {atiende} = linea lista para el mensaje ("Te atiende: Nombre (WhatsApp 961 123 4567)"),
+            // o vacio si la orden no tiene mecanico. Los datos sueltos tambien estan disponibles.
+            vars.atiende = '';
             if (order.mechanic) {
                 vars.mecanico = order.mechanic.full_name || '';
+                vars.mecanico_telefono = formatPhone(order.mechanic.phone);
+                if (vars.mecanico) {
+                    vars.atiende = `\n• *Te atiende:* ${vars.mecanico}${vars.mecanico_telefono ? ` (WhatsApp ${vars.mecanico_telefono})` : ''}`;
+                }
             }
             vars.portal_link = order.public_token ? `https://motopartes.cloud/orden/${order.public_token}` : '';
         }
@@ -97,6 +105,12 @@ async function buildVars(workspaceId, context) {
             if (app.motorcycle) {
                 vars.marca = app.motorcycle.brand || '';
                 vars.modelo = app.motorcycle.model || '';
+            }
+            vars.atiende = '';
+            if (app.mechanic?.full_name) {
+                vars.mecanico = app.mechanic.full_name;
+                vars.mecanico_telefono = formatPhone(app.mechanic.phone);
+                vars.atiende = `\n• *Te atiende:* ${vars.mecanico}${vars.mecanico_telefono ? ` (WhatsApp ${vars.mecanico_telefono})` : ''}`;
             }
         }
     }

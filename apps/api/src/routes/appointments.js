@@ -6,6 +6,7 @@ import { syncAppointmentToCalendar, removeAppointmentFromCalendar } from '../lib
 import {
     FINAL_STATUSES, DATE_RE, PROPOSAL_TTL_H, TZ_OFFSET,
     linkFor, localParts, fmtFecha, fmtHora, blockedReason, logEvent, notifyCustomer, ensureToken,
+    notifyMechanic, markClientConfirmed,
 } from '../lib/appointment-flow.js';
 
 // Lista blanca de campos editables: nunca aceptar workspace_id, source, created_by...
@@ -24,6 +25,7 @@ const CLEAR_PROPOSAL = {
     proposal_reminder_sent: false, proposal_from_confirmed: false,
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const withLink = (a) => (a ? { ...a, public_link: a.public_token ? linkFor(a.public_token) : null } : a);
 const reasonOf = (v) => (typeof v === 'string' ? v.trim().slice(0, 300) : '');
 
@@ -31,16 +33,20 @@ export default async function appointmentsRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
     fastify.addHook('preHandler', resolveWorkspace);
 
-    const load = (id) => prisma.appointment.findFirst({ where: { id }, include: { client: true, motorcycle: true } });
+    // `mechanic` (solo nombre) permite que los mensajes al cliente digan quien lo atiende.
+    const load = (id) => prisma.appointment.findFirst({ where: { id }, include: { client: true, motorcycle: true, mechanic: { select: { id: true, full_name: true, phone: true } } } });
     const full = async (id) => withLink(await prisma.appointment.findFirst({ where: { id }, include: INCLUDE }));
     const bad = (reply, code, error) => reply.code(code).send({ error });
     const sync = (id, ws) => syncAppointmentToCalendar(id, ws).catch(() => {});
 
-    // GET /api/appointments
+    // GET /api/appointments[?mine=1][&mechanicId=...][&status=...]
+    // mine=1 -> solo las citas asignadas al usuario que consulta ("Mis citas"). Cada fila trae
+    // mechanic { id, full_name, phone } y el cliente completo.
     fastify.get('/', async (request) => {
-        const { mechanicId, status } = request.query;
+        const { mechanicId, status, mine } = request.query;
         const where = {};
-        if (mechanicId) where.assigned_mechanic_id = mechanicId;
+        if (mine === '1' || mine === 'true') where.assigned_mechanic_id = request.user.id;
+        else if (mechanicId) where.assigned_mechanic_id = mechanicId;
         if (status) where.status = status;
         const rows = await prisma.appointment.findMany({ where, include: INCLUDE, orderBy: { scheduled_date: 'asc' } });
         return rows.map(withLink);
@@ -52,6 +58,16 @@ export default async function appointmentsRoutes(fastify) {
             where: { OR: [{ status: 'pending_external' }, { shop_alert: true }] },
         });
         return { count };
+    });
+
+    // GET /api/appointments/:id — una cita completa (cliente, moto, mecanico, historial y enlace).
+    // El aviso de WhatsApp al mecanico lleva a /mechanic/appointments?cita=<id> y el panel usa esto.
+    // (Las rutas fijas como /attention-count y /blocked-days tienen prioridad sobre /:id.)
+    fastify.get('/:id', async (request, reply) => {
+        if (!UUID_RE.test(request.params.id)) return bad(reply, 404, 'Cita no encontrada.');
+        const a = await full(request.params.id);
+        if (!a) return bad(reply, 404, 'Cita no encontrada.');
+        return a;
     });
 
     // ── Dias sin servicio ────────────────────────────────────────────────
@@ -109,6 +125,10 @@ export default async function appointmentsRoutes(fastify) {
             },
         });
         sync(created.id, request.workspace.id);
+        if (created.assigned_mechanic_id && created.assigned_mechanic_id !== request.user.id) {
+            const withRels = await load(created.id);
+            notifyMechanic(withRels, 'assigned'); // sin await: no retrasa la respuesta
+        }
         return created;
     });
 
@@ -126,6 +146,7 @@ export default async function appointmentsRoutes(fastify) {
             data: { status: 'confirmed', ...CLEAR_PROPOSAL, decision_note: null, cancelled_by: null, shop_alert: false, reminder_sent: false, reminder_2h_sent: false },
         });
         const cur = await load(a.id);
+        await markClientConfirmed(cur);
         await logEvent(cur, 'accepted', 'shop', `Confirmó ${fmtFecha(cur.scheduled_date)} ${fmtHora(cur.scheduled_date)}`);
         const whatsapp = await notifyCustomer(cur, 'confirmed');
         fireEvent('appointment.confirmed', { workspaceId: request.workspace.id, appointment_id: a.id }).catch(() => {});
@@ -232,7 +253,13 @@ export default async function appointmentsRoutes(fastify) {
         if (updates.status && ['confirmed', 'rejected', 'cancelled', 'proposal_sent'].includes(updates.status) && updates.status !== prev.status)
             return bad(reply, 400, 'Usa Aceptar, Proponer otra fecha, No disponible o Cancelar para cambiar el estado.');
 
+        // Si el taller cambia de mecanico, ya no es "el que eligio el cliente" y se le avisa al nuevo.
+        const reassigned = updates.assigned_mechanic_id !== undefined && (updates.assigned_mechanic_id || null) !== (prev.assigned_mechanic_id || null);
+        if (reassigned) updates.mechanic_requested = false;
         const updated = await prisma.appointment.update({ where: { id: prev.id }, data: updates, include: INCLUDE });
+        if (reassigned && updated.assigned_mechanic_id && updated.assigned_mechanic_id !== request.user.id) {
+            notifyMechanic(await load(updated.id), 'assigned');
+        }
         sync(updated.id, request.workspace.id);
         return withLink(updated);
     });

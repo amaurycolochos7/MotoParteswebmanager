@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { loginUrlFor } from '../../lib/safeNext';
 
 export default function ProtectedRoute({ children, requiredRole }) {
     const { isAuthenticated, user, workspaceRole, loading } = useAuth();
@@ -15,7 +16,8 @@ export default function ProtectedRoute({ children, requiredRole }) {
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/login" state={{ from: location }} replace />;
+        // Recuerda a donde iba (p. ej. el enlace de WhatsApp a una cita) para volver tras el login.
+        return <Navigate to={loginUrlFor(location.pathname + location.search)} state={{ from: location }} replace />;
     }
 
     if (requiredRole === 'admin') {

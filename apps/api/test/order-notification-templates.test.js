@@ -18,9 +18,27 @@ function orderVars(overrides = {}) {
         motivo: 'Cambio de aceite y frenos',
         total: '$1,300',
         taller: 'MotoPartes',
+        atiende: '',
         ...overrides,
     };
 }
+
+test('el mensaje incluye quién atiende (con su WhatsApp) cuando la orden tiene mecánico', () => {
+    const atiende = '\n• *Te atiende:* Elihu Hernández (WhatsApp 961 123 4567)';
+    for (const key of ['confirmacion_ingreso', 'lista_recoger']) {
+        const body = substitute(byKey(key).template.body, orderVars({ atiende }));
+        assert.match(body, /Te atiende:\* Elihu Hernández \(WhatsApp 961 123 4567\)/, key);
+        assert.ok(!/\{[a-z_]+\}/i.test(body), key);
+    }
+});
+
+test('sin mecánico no queda línea vacía de más ni placeholder suelto', () => {
+    for (const key of ['confirmacion_ingreso', 'lista_recoger']) {
+        const body = substitute(byKey(key).template.body, orderVars());
+        assert.ok(!body.includes('Te atiende'), key);
+        assert.ok(!/\n\n\n/.test(body), key);
+    }
+});
 
 test('MXN currency helper formats like $1,300', () => {
     // Same expression used by buildVars() for vars.total.

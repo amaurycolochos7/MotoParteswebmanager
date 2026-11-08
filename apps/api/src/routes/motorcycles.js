@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
+import { summarizeHistory } from '../lib/client-lookup.js';
 
 // Only allow known Motorcycle model fields
 function sanitizeMotoData(body) {
@@ -33,10 +34,65 @@ export default async function motorcyclesRoutes(fastify) {
         return prisma.motorcycle.findMany({ orderBy: { created_at: 'desc' } });
     });
 
+    // GET /api/motorcycles/:id/history — linea de tiempo de servicios de una moto.
+    // Ordenes (mas recientes primero) con servicios, refacciones, mecanico y totales,
+    // mas un resumen. Solo cuentan como "servicios hechos" las ordenes en estado terminal.
+    fastify.get('/:id/history', async (request, reply) => {
+        const moto = await prisma.motorcycle.findUnique({
+            where: { id: request.params.id },
+            include: { client: { select: { id: true, full_name: true, phone: true, preferred_mechanic_id: true } } },
+        });
+        if (!moto) return reply.status(404).send({ error: 'Moto no encontrada' });
+
+        const orders = await prisma.order.findMany({
+            where: { motorcycle_id: moto.id },
+            include: {
+                status: { select: { name: true, is_terminal: true, color: true } },
+                mechanic: { select: { id: true, full_name: true } },
+                services: { orderBy: { created_at: 'asc' } },
+                parts: { orderBy: { created_at: 'asc' } },
+            },
+            orderBy: { created_at: 'desc' },
+            take: 200,
+        });
+
+        return {
+            motorcycle: {
+                id: moto.id, brand: moto.brand, model: moto.model, year: moto.year,
+                plates: moto.plates, color: moto.color, mileage: moto.mileage,
+            },
+            client: moto.client,
+            summary: summarizeHistory(orders),
+            timeline: orders.map((o) => ({
+                id: o.id,
+                order_number: o.order_number,
+                date: o.completed_at || o.created_at,
+                created_at: o.created_at,
+                completed_at: o.completed_at,
+                status: o.status ? { name: o.status.name, is_terminal: o.status.is_terminal, color: o.status.color } : null,
+                mechanic: o.mechanic ? { id: o.mechanic.id, full_name: o.mechanic.full_name } : null,
+                services: o.services.map((s) => ({ name: s.name, quantity: s.quantity, price: s.price })),
+                parts: o.parts.map((p) => ({ name: p.name, quantity: p.quantity, price: p.price })),
+                labor_total: o.labor_total,
+                parts_total: o.parts_total,
+                total_amount: o.total_amount,
+                is_paid: o.is_paid,
+                notes: o.mechanic_notes || null,
+                complaint: o.customer_complaint || null,
+            })),
+        };
+    });
+
     // POST /api/motorcycles
     fastify.post('/', async (request, reply) => {
         try {
             const data = sanitizeMotoData(request.body);
+            if (!data.client_id || !data.brand || !data.model) {
+                return reply.status(400).send({ error: 'Cliente, marca y modelo son obligatorios.' });
+            }
+            // El cliente debe ser de este taller (findUnique ya filtra por workspace).
+            const owner = await prisma.client.findUnique({ where: { id: data.client_id }, select: { id: true } });
+            if (!owner) return reply.status(404).send({ error: 'Cliente no encontrado en este taller.' });
             return await prisma.motorcycle.create({ data });
         } catch (error) {
             request.log.error(error);

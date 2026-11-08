@@ -31,6 +31,7 @@ import {
     LifeBuoy,
     ShieldCheck,
     Printer,
+    Search,
 } from 'lucide-react';
 import ConnectionStatus from '../ui/ConnectionStatus';
 
@@ -106,6 +107,7 @@ export default function AppLayout() {
         { to: '/admin/mechanics', icon: Wrench, label: 'Mecánicos' },
 
         { section: 'Gestión' },
+        { to: '/admin/lookup', icon: Search, label: 'Buscar cliente' },
         { to: '/admin/clients', icon: Users, label: 'Clientes' },
         { to: '/mechanic/appointments', icon: Calendar, label: 'Citas' },
         { to: '/admin/users', icon: Users, label: 'Usuarios' },
@@ -144,6 +146,7 @@ export default function AppLayout() {
         { to: '/mechanic/quotations', icon: FileText, label: 'Cotizaciones' },
 
         { section: 'Consultas' },
+        { to: '/mechanic/lookup', icon: Search, label: 'Buscar cliente' },
         { to: '/mechanic/clients', icon: Users, label: 'Clientes' },
         { to: '/mechanic/appointments', icon: Calendar, label: 'Citas' },
     ];

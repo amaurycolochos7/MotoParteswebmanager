@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { ClientTags, ClientQuickFilter } from '../../components/clients/ClientTags';
 import {
     Search,
     Plus,
@@ -32,14 +33,18 @@ export default function AdminClients() {
     const canDelete = hasPermission('canDeleteClients');
 
     // Filtrar clientes
+    const [onlyWeb, setOnlyWeb] = useState(false);
+    const webCount = useMemo(() => clients.filter(c => c.web_unconfirmed).length, [clients]);
+
     const filteredClients = useMemo(() => {
-        if (!searchTerm) return clients;
+        const base = onlyWeb ? clients.filter(c => c.web_unconfirmed) : clients;
+        if (!searchTerm) return base;
         const search = searchTerm.toLowerCase();
-        return clients.filter(client =>
+        return base.filter(client =>
             client.full_name?.toLowerCase().includes(search) ||
             client.phone?.includes(searchTerm)
         );
-    }, [clients, searchTerm]);
+    }, [clients, searchTerm, onlyWeb]);
 
     const handleOpenModal = (client = null) => {
         if (client) {
@@ -157,6 +162,8 @@ export default function AdminClients() {
                 />
             </div>
 
+            <ClientQuickFilter onlyWeb={onlyWeb} onChange={setOnlyWeb} webCount={webCount} lookupPath="/admin/lookup" />
+
             {/* Lista de clientes */}
             <div className="clients-grid">
                 {filteredClients.map(client => (
@@ -175,6 +182,7 @@ export default function AdminClients() {
                                     <Phone size={14} />
                                     {client.phone}
                                 </div>
+                                <ClientTags client={client} />
                             </div>
                         </div>
 

@@ -40,7 +40,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="style.css?v=20261108b"/>
+  <link rel="stylesheet" href="style.css?v=20261109a"/>
 </head>
 <body>
 
@@ -348,7 +348,7 @@
     <!-- IZQUIERDA: info -->
     <div class="appt-info reveal-left" data-d="0">
       <h2 class="title-xl light">Agenda tu<br/><span class="red">cita</span></h2>
-      <p class="appt-sub">Llena el formulario y te confirmamos por WhatsApp.</p>
+      <p class="appt-sub">Sigue los pasos, elige quién te atiende y te confirmamos por WhatsApp.</p>
       <div class="appt-items">
         <div class="appt-item">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
@@ -368,71 +368,152 @@
     <!-- DERECHA: formulario -->
     <div class="appt-form-wrap reveal-right" data-d="80">
       <form class="cita-form" id="citaForm" novalidate>
-        <div class="frow">
-          <div class="ff"><label for="nombre">Nombre *</label><input type="text" id="nombre" name="nombre" placeholder="Tu nombre completo" required autocomplete="name"/></div>
-          <div class="ff"><label for="telefono">WhatsApp *</label><input type="tel" id="telefono" name="telefono" placeholder="10 dígitos" required maxlength="14" autocomplete="tel-national" inputmode="numeric"/></div>
+        <!-- Avance: "Paso 2 de 6" + 6 barritas -->
+        <div class="steps-head" id="stepsHead">
+          <p class="step-count" id="stepCount" aria-live="polite">Paso 1 de 6</p>
+          <div class="step-bars" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div>
         </div>
-        <div class="ff">
-          <label for="tipo_servicio">Servicio *</label>
-          <select id="tipo_servicio" name="tipo_servicio" required>
-            <option value="">Selecciona…</option>
-            <option value="Afinación general">Afinación general</option>
-            <option value="Cambio de aceite y filtros">Cambio de aceite y filtros</option>
-            <option value="Servicio completo — Promo junio $1,200">Servicio completo — Promo junio $1,200</option>
-            <option value="Frenos y suspensión">Frenos y suspensión</option>
-            <option value="Reparación de motor">Reparación de motor</option>
-            <option value="Sistema eléctrico">Sistema eléctrico</option>
-            <option value="Consulta de refacción">Consulta de refacción</option>
-            <option value="Diagnóstico general">Diagnóstico general</option>
-            <option value="Otro">Otro — especificar</option>
-          </select>
-        </div>
-        <div class="ff ff-otro" id="otroWrap" hidden>
-          <label for="otro_servicio">Describe el servicio *</label>
-          <input type="text" id="otro_servicio" name="otro_servicio" placeholder="Ej: revisión de carburador, cambio de llanta…"/>
-        </div>
-        <!-- Datos de la moto -->
-        <div class="ff-section-label">🏍️ Datos de la motocicleta</div>
-        <div class="frow">
+
+        <!-- PASO 1 · WhatsApp -->
+        <section class="step" data-step="1" aria-labelledby="st1">
+          <h3 class="step-title" id="st1" tabindex="-1">Tu WhatsApp</h3>
+          <p class="step-help">Escribe el número de tu celular. Si ya nos visitaste, te reconocemos y no tendrás que volver a llenar tus datos.</p>
           <div class="ff">
-            <label for="moto_marca">Marca *</label>
-            <select id="moto_marca" name="moto_marca" required>
-              <option value="">Marca…</option>
-              <option>Honda</option><option>Yamaha</option><option>Suzuki</option>
-              <option>Kawasaki</option><option>Bajaj</option><option>Hero</option>
-              <option>TVS</option><option>Italika</option><option>Carabela</option>
-              <option>KTM</option><option>Royal Enfield</option>
-              <option value="Otra">Otra — escribir</option>
+            <label for="telefono">Número de WhatsApp (10 dígitos)</label>
+            <input type="tel" id="telefono" name="telefono" placeholder="Ej: 9631234567" maxlength="14" autocomplete="tel-national" inputmode="numeric"/>
+          </div>
+          <p class="step-msg" id="lookupMsg" role="status" hidden></p>
+          <div class="step-nav">
+            <button type="button" class="btn btn-red btn-full" id="step1Next"><span id="step1Text">Continuar</span></button>
+            <button type="button" class="step-skip" id="step1Skip" hidden>Continuar sin buscar mis datos</button>
+          </div>
+        </section>
+
+        <!-- PASO 2 · Quién eres y tu moto -->
+        <section class="step" data-step="2" aria-labelledby="st2" hidden>
+          <div id="knownBox" hidden>
+            <h3 class="step-title" id="st2" tabindex="-1">Hola, <span id="knownName"></span></h3>
+            <p class="step-help" id="knownHelp">¿Con qué moto vienes? Toca la que quieras revisar.</p>
+            <div class="moto-cards" id="motoCards" role="radiogroup" aria-label="Tus motocicletas"></div>
+          </div>
+          <div id="newBox" hidden>
+            <h3 class="step-title" id="st2new" tabindex="-1">Cuéntanos de ti y de tu moto</h3>
+            <p class="step-help">Es la primera vez que te vemos. Con estos datos guardamos tu registro para la próxima.</p>
+            <div class="ff">
+              <label for="nombre">Tu nombre completo *</label>
+              <input type="text" id="nombre" name="nombre" placeholder="Nombre y apellido" autocomplete="name"/>
+            </div>
+          </div>
+          <div id="motoForm" hidden>
+            <div class="ff-section-label" id="motoFormTitle">Datos de la motocicleta</div>
+            <div class="frow">
+              <div class="ff">
+                <label for="moto_marca">Marca *</label>
+                <select id="moto_marca" name="moto_marca">
+                  <option value="">Marca…</option>
+                  <option>Honda</option><option>Yamaha</option><option>Suzuki</option>
+                  <option>Kawasaki</option><option>Bajaj</option><option>Hero</option>
+                  <option>TVS</option><option>Italika</option><option>Carabela</option>
+                  <option>KTM</option><option>Royal Enfield</option>
+                  <option value="Otra">Otra — escribir</option>
+                </select>
+              </div>
+              <div class="ff ff-otro" id="otraMarcaWrap" hidden>
+                <label for="moto_marca_custom">Escribe la marca *</label>
+                <input type="text" id="moto_marca_custom" placeholder="Ej: Vento, Benelli…"/>
+              </div>
+            </div>
+            <div class="frow">
+              <div class="ff"><label for="moto_modelo">Modelo *</label><input type="text" id="moto_modelo" name="moto_modelo" placeholder="Ej: CB190R, FZ25…"/></div>
+              <div class="ff"><label for="moto_anio">Año <span class="opt">(opcional)</span></label><input type="text" id="moto_anio" name="moto_anio" placeholder="Ej: 2021" maxlength="4" inputmode="numeric"/></div>
+            </div>
+          </div>
+          <p class="step-msg" id="step2Msg" role="status" hidden></p>
+          <div class="step-nav step-nav--two">
+            <button type="button" class="btn btn-outline-white" data-back>Atrás</button>
+            <button type="button" class="btn btn-red" data-next>Continuar</button>
+          </div>
+        </section>
+
+        <!-- PASO 3 · Servicio -->
+        <section class="step" data-step="3" aria-labelledby="st3" hidden>
+          <h3 class="step-title" id="st3" tabindex="-1">¿Qué necesita tu moto?</h3>
+          <div class="ff">
+            <label for="tipo_servicio">Servicio *</label>
+            <select id="tipo_servicio" name="tipo_servicio">
+              <option value="">Selecciona…</option>
+              <option value="Afinación general">Afinación general</option>
+              <option value="Cambio de aceite y filtros">Cambio de aceite y filtros</option>
+              <option value="Servicio completo — Promo junio $1,200">Servicio completo — Promo junio $1,200</option>
+              <option value="Frenos y suspensión">Frenos y suspensión</option>
+              <option value="Reparación de motor">Reparación de motor</option>
+              <option value="Sistema eléctrico">Sistema eléctrico</option>
+              <option value="Consulta de refacción">Consulta de refacción</option>
+              <option value="Diagnóstico general">Diagnóstico general</option>
+              <option value="Otro">Otro — especificar</option>
             </select>
           </div>
-          <div class="ff ff-otro" id="otraMarcaWrap" hidden>
-            <label for="moto_marca_custom">Escribe la marca *</label>
-            <input type="text" id="moto_marca_custom" placeholder="Ej: Vento, Benelli…"/>
+          <div class="ff ff-otro" id="otroWrap" hidden>
+            <label for="otro_servicio">Describe el servicio *</label>
+            <input type="text" id="otro_servicio" name="otro_servicio" placeholder="Ej: revisión de carburador, cambio de llanta…"/>
           </div>
-        </div>
-        <div class="frow">
-          <div class="ff"><label for="moto_modelo">Modelo *</label><input type="text" id="moto_modelo" name="moto_modelo" placeholder="Ej: CB190R, FZ25…" required/></div>
-          <div class="ff"><label for="moto_anio">Año <span class="opt">(opcional)</span></label><input type="text" id="moto_anio" name="moto_anio" placeholder="Ej: 2021" maxlength="4" inputmode="numeric"/></div>
-        </div>
-        <!-- Fecha y hora -->
-        <div class="ff">
-          <label for="fechaBtn">Fecha *</label>
-          <button type="button" class="pick" id="fechaBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="cal">
-            <span id="fechaTxt" class="pick-ph">Toca para elegir el día</span>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="1"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>
-          </button>
-          <input type="hidden" id="fecha" name="fecha"/>
-          <div class="cal" id="cal" role="dialog" aria-label="Elige el día de tu cita" hidden></div>
-        </div>
-        <div class="ff">
-          <label id="horaLbl">Hora *</label>
-          <input type="hidden" id="hora" name="hora"/>
-          <div class="hours" id="hours" role="radiogroup" aria-labelledby="horaLbl"><p class="hours-ph">Primero elige la fecha</p></div>
-        </div>
-        <p class="slot-hint" id="slotHint" hidden></p>
-        <div class="ff"><label for="notas">Notas <span class="opt">(opcional)</span></label><textarea id="notas" name="notas" rows="2" placeholder="Describe el problema o detalle adicional…"></textarea></div>
-        <button type="submit" class="btn btn-red btn-full" id="submitBtn"><span id="submitText">Solicitar cita</span></button>
-        <p class="form-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Te confirmamos por WhatsApp.</p>
+          <div class="ff"><label for="notas">Cuéntanos qué le pasa <span class="opt">(opcional)</span></label><textarea id="notas" name="notas" rows="3" placeholder="Describe el problema o cualquier detalle que nos ayude."></textarea></div>
+          <p class="step-msg" id="step3Msg" role="status" hidden></p>
+          <div class="step-nav step-nav--two">
+            <button type="button" class="btn btn-outline-white" data-back>Atrás</button>
+            <button type="button" class="btn btn-red" data-next>Continuar</button>
+          </div>
+        </section>
+
+        <!-- PASO 4 · Quién te atiende -->
+        <section class="step" data-step="4" aria-labelledby="st4" hidden>
+          <h3 class="step-title" id="st4" tabindex="-1">¿Quién quieres que te atienda?</h3>
+          <p class="step-help">Elige a la persona que trabajará en tu moto. Le avisamos de tu cita.</p>
+          <div class="mech-cards" id="mechCards" role="radiogroup" aria-label="Quién te atiende"></div>
+          <p class="step-msg" id="mechMsg" role="status" hidden></p>
+          <div class="step-nav step-nav--two">
+            <button type="button" class="btn btn-outline-white" data-back>Atrás</button>
+            <button type="button" class="btn btn-red" data-next id="step4Next">Continuar</button>
+          </div>
+        </section>
+
+        <!-- PASO 5 · Fecha y hora -->
+        <section class="step" data-step="5" aria-labelledby="st5" hidden>
+          <h3 class="step-title" id="st5" tabindex="-1">¿Cuándo puedes venir?</h3>
+          <p class="step-help" id="whenHelp">Elige el día y la hora. Solo se muestran los horarios libres.</p>
+          <div class="ff">
+            <label for="fechaBtn">Día *</label>
+            <button type="button" class="pick" id="fechaBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="cal">
+              <span id="fechaTxt" class="pick-ph">Toca para elegir el día</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="1"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>
+            </button>
+            <input type="hidden" id="fecha" name="fecha"/>
+            <div class="cal" id="cal" role="dialog" aria-label="Elige el día de tu cita" hidden></div>
+          </div>
+          <div class="ff">
+            <label id="horaLbl">Hora *</label>
+            <input type="hidden" id="hora" name="hora"/>
+            <div class="hours" id="hours" role="radiogroup" aria-labelledby="horaLbl"><p class="hours-ph">Primero elige el día</p></div>
+          </div>
+          <p class="slot-hint" id="slotHint" hidden></p>
+          <p class="step-msg" id="step5Msg" role="status" hidden></p>
+          <div class="step-nav step-nav--two">
+            <button type="button" class="btn btn-outline-white" data-back>Atrás</button>
+            <button type="button" class="btn btn-red" data-next>Continuar</button>
+          </div>
+        </section>
+
+        <!-- PASO 6 · Revisa y envía -->
+        <section class="step" data-step="6" aria-labelledby="st6" hidden>
+          <h3 class="step-title" id="st6" tabindex="-1">Revisa tu cita</h3>
+          <p class="step-help">Si algo está mal, toca "Cambiar". Cuando todo esté bien, envía la solicitud.</p>
+          <dl class="review" id="review"></dl>
+          <div class="step-nav step-nav--two">
+            <button type="button" class="btn btn-outline-white" data-back>Atrás</button>
+            <button type="submit" class="btn btn-red" id="submitBtn"><span id="submitText">Solicitar cita</span></button>
+          </div>
+          <p class="form-note"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Te confirmamos por WhatsApp.</p>
+        </section>
       </form>
       <div class="form-ok" id="formSuccess" hidden>
         <div class="ok-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="10"/><polyline points="9,12 11,14 15,10"/></svg></div>
@@ -504,7 +585,7 @@
 
 <a href="https://wa.me/529631911772" target="_blank" rel="noopener" class="wa-float" id="waFloat" aria-label="WhatsApp"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></a>
 
-<script src="cal.js?v=20261108b"></script>
-<script src="app.js?v=20261108b"></script>
+<script src="cal.js?v=20261109a"></script>
+<script src="app.js?v=20261109a"></script>
 </body>
 </html>

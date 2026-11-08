@@ -4,7 +4,8 @@
 ═══════════════════════════════════════════════════ */
 (function () {
   'use strict';
-  var API = 'https://motopartes.cloud/api/public/appointments';
+  var LOCAL = ['localhost', '127.0.0.1'].indexOf(location.hostname) !== -1;
+  var API = (LOCAL ? 'http://localhost:' + (new URLSearchParams(location.search).get('apiport') || '3101') : 'https://motopartes.cloud') + '/api/public/appointments';
   var TOKEN = decodeURIComponent(location.pathname.replace(/\/+$/, '').split('/').pop() || '');
   var $ = function (id) { return document.getElementById(id); };
   var view = null, chosen = null, busy = false;
@@ -84,7 +85,7 @@
 
     // Resumen
     var sum = $('cpSum'); sum.textContent = '';
-    var rows = [[showProposal && v.proposal.from_confirmed ? 'Cita actual' : (showProposal ? 'Fecha que pediste' : 'Fecha'), cap(v.fecha_texto)], ['Hora', v.hora_texto], ['Servicio', v.servicio], ['Moto', v.moto]];
+    var rows = [[showProposal && v.proposal.from_confirmed ? 'Cita actual' : (showProposal ? 'Fecha que pediste' : 'Fecha'), cap(v.fecha_texto)], ['Hora', v.hora_texto], ['Servicio', v.servicio], ['Moto', v.moto], ['Te atiende', v.mecanico]];
     if (s === 'confirmed' || s === 'scheduled') rows.push(['Lugar', 'Venustiano Carranza, Chiapas']);
     rows.forEach(function (r) { if (!r[1]) return; sum.appendChild(el('dt', null, r[0])); sum.appendChild(el('dd', null, r[1])); });
 

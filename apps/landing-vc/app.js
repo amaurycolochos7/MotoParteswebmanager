@@ -2,7 +2,12 @@
    MOTO PARTES VC — app.js
 ═══════════════════════════════════════════════════ */
 
-const API_URL   = 'https://motopartes.cloud/api/public/appointments';
+// API publica del taller. En una PC de desarrollo (localhost) apunta a la API local: ?apiport=3101
+const IS_LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+const API_BASE  = IS_LOCAL
+  ? 'http://localhost:' + (new URLSearchParams(location.search).get('apiport') || '3101') + '/api/public'
+  : 'https://motopartes.cloud/api/public';
+const API_URL   = API_BASE + '/appointments';
 const WA_NUMBER = '529631911772';
 const PROMO_END = new Date('2026-06-30T23:59:59');
 
@@ -174,13 +179,10 @@ function initCountdown() {
   setInterval(tick, 1000);
 }
 
-/* ── FECHA ───────────────────────────────────────── */
-const MAX_DIAS = 120;
-function isoLocal(d) {
-  const p = n => String(n).padStart(2, '0');
-  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
-}
-/* ── FORMULARIO ──────────────────────────────────── */
+/* ── FORMULARIO DE CITA POR PASOS ────────────────── */
+/* 1 WhatsApp -> 2 quién eres / tu moto -> 3 servicio -> 4 quién te atiende -> 5 día y hora -> 6 revisar y enviar.
+   El número de WhatsApp es lo primero: si ya es cliente se le muestran sus motos; si es nuevo se piden sus datos.
+   Al enviar, el taller guarda al cliente y su moto automáticamente. */
 function initForm() {
   const $ = id => document.getElementById(id);
   const form = $('citaForm');
@@ -188,11 +190,58 @@ function initForm() {
   const ok = $('formSuccess'), err = $('formError');
   const btn = $('submitBtn'), txt = $('submitText');
   const fecha = $('fecha'), hora = $('hora'), hint = $('slotHint');
+  const tel = $('telefono');
+  const TOTAL = 6;
 
+  const st = { step: 1, phone: '', known: null, motoId: '', addingMoto: false, mechId: '', mechName: '', mechs: null, mechState: 'idle' };
+
+  const isNet = e => !!e && (e.name === 'TypeError' || e.name === 'AbortError');
+  const NET_MSG = 'No hay conexión con el servidor. Revisa tu internet e inténtalo de nuevo.';
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const say = (id, text, bad) => { const m = $(id); if (!m) return; m.textContent = text || ''; m.hidden = !text; m.classList.toggle('step-msg--bad', !!bad); };
   const showErr = msg => { err.textContent = msg; err.hidden = false; };
   const clearErr = () => { err.hidden = true; };
+  const fmt = h => { const n = +h.slice(0, 2); return ((n % 12) || 12) + h.slice(2) + (n < 12 ? ' am' : ' pm'); };
+  const fmtTel = p => p.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1 $2 $3');
+  const fechaLarga = f => { const d = new Date(f + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }); return d.charAt(0).toUpperCase() + d.slice(1); };
 
-  /* Campos "Otro / Otra" */
+  async function fetchJson(url, opts) {
+    opts = opts || {};
+    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      const res = await fetch(url, {
+        method: opts.method || 'GET',
+        headers: opts.body ? { 'Content-Type': 'application/json' } : undefined,
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
+        signal: ctrl.signal
+      });
+      const data = await res.json().catch(() => ({}));
+      return { res, data };
+    } finally { clearTimeout(timer); }
+  }
+
+  /* ── Navegación entre pasos ── */
+  const steps = Array.from(form.querySelectorAll('.step'));
+  const bars = Array.from(form.querySelectorAll('.step-bars i'));
+  function go(n, quiet) {
+    st.step = n;
+    steps.forEach(s => { s.hidden = +s.dataset.step !== n; });
+    bars.forEach((b, i) => b.classList.toggle('on', i < n));
+    $('stepCount').textContent = 'Paso ' + n + ' de ' + TOTAL;
+    if (n !== 5) { $('cal').hidden = true; $('fechaBtn').setAttribute('aria-expanded', 'false'); }
+    clearErr();
+    if (n === 4) loadMechanics(false);
+    if (n === 5) { renderWhenHelp(); loadAvailability(); }
+    if (n === 6) renderReview();
+    if (quiet) return;
+    const sec = steps[n - 1];
+    const title = Array.from(sec.querySelectorAll('.step-title')).find(h => !h.closest('[hidden]'));
+    if (title) title.focus({ preventScroll: true });
+    const r = form.getBoundingClientRect();
+    if (r.top < 0 || r.top > window.innerHeight * 0.6) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* ── Campos "Otro / Otra" ── */
   function toggleOther(selectId, wrapId, inputId, value) {
     const sel = $(selectId), wrap = $(wrapId), inp = $(inputId);
     if (!sel || !wrap || !inp) return;
@@ -205,24 +254,210 @@ function initForm() {
   toggleOther('tipo_servicio', 'otroWrap', 'otro_servicio', 'Otro');
   toggleOther('moto_marca', 'otraMarcaWrap', 'moto_marca_custom', 'Otra');
 
-  /* Telefono: solo digitos (acepta pegar "+52 963 191 1772") */
-  const tel = $('telefono');
+  /* ── Paso 1: WhatsApp (solo dígitos; acepta pegar "+52 963 191 1772") ── */
   tel.addEventListener('input', () => {
     let d = tel.value.replace(/\D/g, '');
     if (d.length > 10 && d.startsWith('52')) d = d.slice(2);
     if (d.length > 10 && d.startsWith('1')) d = d.slice(1);
     tel.value = d.slice(0, 10);
+    say('lookupMsg', '');
+    $('step1Skip').hidden = true;
   });
 
-  /* Horas disponibles segun la fecha elegida */
-  const fmt = h => { const n = +h.slice(0, 2); return ((n % 12) || 12) + h.slice(2) + (n < 12 ? ' am' : ' pm'); };
-  const ALL = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+  const busy1 = on => { $('step1Next').disabled = on; $('step1Text').textContent = on ? 'Buscando…' : 'Continuar'; };
+
+  async function doLookup() {
+    const phone = tel.value.replace(/\D/g, '');
+    say('lookupMsg', ''); $('step1Skip').hidden = true;
+    if (phone.length !== 10) {
+      tel.classList.add('error');
+      say('lookupMsg', 'Escribe los 10 dígitos de tu número de WhatsApp.', true);
+      tel.focus();
+      return;
+    }
+    busy1(true);
+    try {
+      const { res, data } = await fetchJson(API_BASE + '/lookup', { method: 'POST', body: { telefono: phone } });
+      if (res.ok) {
+        if (phone !== st.phone) { st.motoId = ''; st.addingMoto = false; }
+        st.phone = phone;
+        st.known = data.found ? { nombre: data.nombre, motos: Array.isArray(data.motos) ? data.motos : [] } : null;
+        prepareStep2();
+        go(2);
+        return;
+      }
+      if (res.status === 400) { tel.classList.add('error'); say('lookupMsg', data.error || 'Revisa tu número de WhatsApp.', true); return; }
+      // 429 u otro error del servidor: se puede seguir llenando los datos a mano
+      say('lookupMsg', res.status === 429
+        ? 'Hemos buscado este número demasiadas veces. Puedes continuar y escribir tus datos.'
+        : 'No pudimos buscar tus datos en este momento. Inténtalo otra vez o continúa escribiéndolos.', true);
+      $('step1Skip').hidden = false;
+    } catch (e) {
+      say('lookupMsg', isNet(e) ? NET_MSG : 'No pudimos buscar tus datos. Inténtalo de nuevo.', true);
+      $('step1Skip').hidden = false;
+    } finally { busy1(false); }
+  }
+  $('step1Next').addEventListener('click', doLookup);
+  $('step1Skip').addEventListener('click', () => {
+    const phone = tel.value.replace(/\D/g, '');
+    if (phone.length !== 10) return;
+    st.phone = phone; st.known = null; st.motoId = ''; st.addingMoto = false;
+    prepareStep2(); go(2);
+  });
+
+  /* ── Paso 2: cliente conocido (elige moto) o nuevo (nombre + moto) ── */
+  function motoName(m) { return [m.marca, m.modelo].filter(Boolean).join(' '); }
+  function prepareStep2() {
+    const k = st.known;
+    say('step2Msg', '');
+    $('knownBox').hidden = !k;
+    $('newBox').hidden = !!k;
+    if (!k) { $('motoForm').hidden = false; $('motoFormTitle').textContent = 'Datos de la motocicleta'; return; }
+    $('knownName').textContent = k.nombre;
+    if (k.motos.length === 0) st.addingMoto = true;
+    $('knownHelp').textContent = k.motos.length
+      ? '¿Con qué moto vienes? Toca la que quieras revisar.'
+      : 'Aún no tenemos una moto registrada con este número. Agrega la tuya.';
+    renderMotoCards();
+  }
+  function renderMotoCards() {
+    const box = $('motoCards'); box.textContent = '';
+    const k = st.known;
+    k.motos.forEach(m => {
+      const on = st.motoId === m.id && !st.addingMoto;
+      const b = el('button', 'pick-card moto-card' + (on ? ' on' : ''));
+      b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.append(el('span', 'pick-card-main', motoName(m)));
+      if (m.anio) b.append(el('span', 'pick-card-sub', String(m.anio)));
+      b.addEventListener('click', () => { st.motoId = m.id; st.addingMoto = false; say('step2Msg', ''); renderMotoCards(); });
+      box.append(b);
+    });
+    if (k.motos.length) {
+      const add = el('button', 'pick-card moto-card pick-card--add' + (st.addingMoto ? ' on' : ''));
+      add.type = 'button'; add.setAttribute('role', 'radio'); add.setAttribute('aria-checked', st.addingMoto ? 'true' : 'false');
+      add.append(el('span', 'pick-card-main', 'Agregar otra moto'));
+      add.addEventListener('click', () => { st.addingMoto = true; st.motoId = ''; say('step2Msg', ''); renderMotoCards(); });
+      box.append(add);
+    }
+    $('motoForm').hidden = !st.addingMoto;
+    $('motoFormTitle').textContent = 'Datos de la otra moto';
+  }
+
+  /* Lee y valida los campos de la moto escrita a mano. */
+  function readMoto() {
+    let bad = false;
+    let marca = $('moto_marca').value;
+    $('moto_marca').classList.toggle('error', !marca);
+    if (!marca) bad = true;
+    if (marca === 'Otra') {
+      const v = $('moto_marca_custom').value.trim();
+      $('moto_marca_custom').classList.toggle('error', !v);
+      if (!v) bad = true; else marca = v;
+    }
+    const modelo = $('moto_modelo').value.trim();
+    $('moto_modelo').classList.toggle('error', !modelo);
+    if (!modelo) bad = true;
+    const anio = $('moto_anio').value.trim();
+    const anioBad = !!anio && !/^\d{4}$/.test(anio);
+    $('moto_anio').classList.toggle('error', anioBad);
+    if (anioBad) bad = true;
+    return { ok: !bad, marca, modelo, anio };
+  }
+  function validateStep2() {
+    say('step2Msg', '');
+    if (st.known) {
+      if (!st.addingMoto && !st.motoId) { say('step2Msg', 'Toca la moto con la que vienes, o elige "Agregar otra moto".', true); return false; }
+      if (st.addingMoto && !readMoto().ok) { say('step2Msg', 'Revisa los campos marcados en rojo.', true); return false; }
+      return true;
+    }
+    const nombre = $('nombre').value.trim();
+    $('nombre').classList.toggle('error', nombre.length < 3);
+    const moto = readMoto();
+    if (nombre.length < 3 || !moto.ok) { say('step2Msg', 'Revisa los campos marcados en rojo.', true); return false; }
+    return true;
+  }
+
+  /* ── Paso 3: servicio ── */
+  function serviceValue() {
+    const v = $('tipo_servicio').value;
+    return v === 'Otro' ? $('otro_servicio').value.trim() : v;
+  }
+  function validateStep3() {
+    say('step3Msg', '');
+    const sel = $('tipo_servicio').value;
+    $('tipo_servicio').classList.toggle('error', !sel);
+    const otroBad = sel === 'Otro' && !$('otro_servicio').value.trim();
+    $('otro_servicio').classList.toggle('error', otroBad);
+    if (!sel || otroBad) { say('step3Msg', sel ? 'Describe el servicio que necesitas.' : 'Elige el servicio que necesitas.', true); return false; }
+    return true;
+  }
+
+  /* ── Paso 4: quién te atiende (lista que viene del taller; sin "cualquiera") ── */
+  async function loadMechanics(force) {
+    if (st.mechState === 'loading') return;
+    if (st.mechs && !force) { renderMechs(); return; }
+    st.mechState = 'loading'; renderMechs();
+    try {
+      const { res, data } = await fetchJson(API_BASE + '/mechanics');
+      if (!res.ok || !Array.isArray(data)) throw new Error('http ' + res.status);
+      st.mechs = data; st.mechState = 'ready';
+      if (st.mechId && !data.some(m => m.id === st.mechId)) { st.mechId = ''; st.mechName = ''; }
+    } catch (e) {
+      st.mechs = null; st.mechState = 'error';
+    }
+    renderMechs();
+  }
+  function renderMechs() {
+    const box = $('mechCards'); box.textContent = '';
+    say('mechMsg', '');
+    $('step4Next').disabled = false;
+    if (st.mechState === 'loading') { box.append(el('p', 'hours-ph', 'Cargando…')); $('step4Next').disabled = true; return; }
+    if (st.mechState === 'error') {
+      box.append(el('p', 'hours-ph', 'No pudimos cargar la lista. Revisa tu internet e inténtalo de nuevo.'));
+      const r = el('button', 'btn btn-outline-white retry', 'Reintentar'); r.type = 'button';
+      r.addEventListener('click', () => loadMechanics(true));
+      box.append(r); $('step4Next').disabled = true; return;
+    }
+    if (!st.mechs || st.mechs.length === 0) {
+      box.append(el('p', 'hours-ph', 'Por ahora no hay personal disponible para citas en línea. Escríbenos por WhatsApp y te atendemos.'));
+      const a = el('a', 'btn btn-wa retry', 'Escribir por WhatsApp');
+      a.href = 'https://wa.me/' + WA_NUMBER; a.target = '_blank'; a.rel = 'noopener';
+      box.append(a); $('step4Next').disabled = true; return;
+    }
+    st.mechs.forEach(m => {
+      const on = st.mechId === m.id;
+      const b = el('button', 'pick-card mech-card' + (on ? ' on' : ''));
+      b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.append(el('span', 'mech-avatar', (m.nombre.trim().charAt(0) || '?').toUpperCase()));
+      b.append(el('span', 'pick-card-main', m.nombre));
+      b.addEventListener('click', () => {
+        if (st.mechId !== m.id) { hora.value = ''; }
+        st.mechId = m.id; st.mechName = m.nombre; say('mechMsg', ''); renderMechs();
+      });
+      box.append(b);
+    });
+  }
+  function validateStep4() {
+    if (!st.mechId) { say('mechMsg', 'Elige quién quieres que te atienda.', true); return false; }
+    return true;
+  }
+
+  /* ── Paso 5: día y hora (horarios de la persona elegida) ── */
   const hours = $('hours');
-  function hoursMsg(text) {
+  function renderWhenHelp() {
+    $('whenHelp').textContent = st.mechName
+      ? 'Estos son los horarios libres de ' + st.mechName + '. Elige el día y la hora.'
+      : 'Elige el día y la hora. Solo se muestran los horarios libres.';
+  }
+  function hoursMsg(text, retry) {
     hora.value = '';
     hours.textContent = '';
-    const p = document.createElement('p'); p.className = 'hours-ph'; p.textContent = text;
-    hours.append(p);
+    hours.append(el('p', 'hours-ph', text));
+    if (retry) {
+      const r = el('button', 'btn btn-outline-white retry', 'Reintentar'); r.type = 'button';
+      r.addEventListener('click', loadAvailability);
+      hours.append(r);
+    }
   }
   function fillHours(slots) {
     const prev = hora.value;
@@ -238,7 +473,7 @@ function initForm() {
       if (on) b.classList.add('on');
       if (!s.available) { b.disabled = true; b.title = 'No disponible'; }
       else b.addEventListener('click', () => {
-        hora.value = s.hora; hours.classList.remove('error');
+        hora.value = s.hora; hours.classList.remove('error'); say('step5Msg', '');
         hours.querySelectorAll('.hour').forEach(x => { const sel = x === b; x.classList.toggle('on', sel); x.setAttribute('aria-checked', sel ? 'true' : 'false'); });
       });
       hours.append(b);
@@ -247,7 +482,7 @@ function initForm() {
   let reqId = 0;
   async function loadAvailability() {
     hint.hidden = true;
-    if (!fecha.value) { hoursMsg('Primero elige la fecha'); return; }
+    if (!fecha.value) { hoursMsg('Primero elige el día'); return; }
     if (new Date(fecha.value + 'T12:00:00').getDay() === 0) {
       hoursMsg('Cerrado los domingos');
       hint.textContent = 'No atendemos domingos. Elige otro día.'; hint.hidden = false;
@@ -256,10 +491,16 @@ function initForm() {
     const id = ++reqId;
     hoursMsg('Buscando horarios…');
     try {
-      const res = await fetch(API_URL + '/availability?fecha=' + encodeURIComponent(fecha.value));
-      if (!res.ok) throw new Error('http ' + res.status);
-      const data = await res.json();
+      const url = API_BASE + '/appointments/availability?fecha=' + encodeURIComponent(fecha.value) +
+        (st.mechId ? '&mecanico_id=' + encodeURIComponent(st.mechId) : '');
+      const { res, data } = await fetchJson(url);
       if (id !== reqId) return;
+      if (res.status === 400 && st.mechId && /persona/i.test(data.error || '')) {
+        hoursMsg('Esa persona ya no está disponible');
+        hint.textContent = 'Regresa al paso anterior y elige a otra persona.'; hint.hidden = false;
+        return;
+      }
+      if (!res.ok) throw new Error('http ' + res.status);
       if (data.closed) {
         hoursMsg('Sin servicio ese día');
         hint.textContent = data.reason || 'Ese día no hay servicio. Elige otro día.'; hint.hidden = false;
@@ -267,94 +508,127 @@ function initForm() {
       }
       fillHours(data.slots);
       if (!data.slots.some(s => s.available)) {
-        hint.textContent = 'Ese día ya no tiene horarios libres. Prueba con otra fecha.'; hint.hidden = false;
+        hint.textContent = 'Ese día ya no tiene horarios libres' + (st.mechName ? ' con ' + st.mechName : '') + '. Prueba con otro día.'; hint.hidden = false;
       }
-    } catch {
+    } catch (e) {
       if (id !== reqId) return;
-      fillHours(ALL.map(h => ({ hora: h, available: true }))); // el servidor valida de todos modos
+      hoursMsg('No pudimos consultar los horarios.', true);
+      hint.textContent = isNet(e) ? NET_MSG : 'Inténtalo de nuevo en un momento.'; hint.hidden = false;
     }
   }
-  const cal = MPCalendar({ btn: $('fechaBtn'), txt: $('fechaTxt'), input: fecha, panel: $('cal'), onPick: loadAvailability });
-  loadAvailability();
+  const cal = MPCalendar({ btn: $('fechaBtn'), txt: $('fechaTxt'), input: fecha, panel: $('cal'), onPick: () => { say('step5Msg', ''); loadAvailability(); } });
+  function validateStep5() {
+    say('step5Msg', '');
+    $('fechaBtn').classList.toggle('error', !fecha.value);
+    hours.classList.toggle('error', !!fecha.value && !hora.value);
+    if (!fecha.value) { say('step5Msg', 'Elige el día de tu cita.', true); return false; }
+    if (!hora.value) { say('step5Msg', 'Elige una hora disponible.', true); return false; }
+    return true;
+  }
 
-  form.addEventListener('submit', async e => {
-    e.preventDefault();
-    clearErr();
-    const must = ['nombre', 'telefono', 'moto_marca', 'moto_modelo', 'tipo_servicio', 'fecha', 'hora'];
-    let valid = true;
-    must.forEach(id => {
-      const el = $(id);
-      const bad = !el.value.trim();
-      const shown = id === 'fecha' ? $('fechaBtn') : id === 'hora' ? hours : el;   // campos ocultos: marcar el control visible
-      shown.classList.toggle('error', bad);
-      if (bad) valid = false;
+  /* ── Paso 6: revisar ── */
+  function motoText() {
+    if (st.known && st.motoId && !st.addingMoto) {
+      const m = st.known.motos.find(x => x.id === st.motoId);
+      return m ? [m.marca, m.modelo, m.anio].filter(Boolean).join(' ') : '';
+    }
+    const marca = $('moto_marca').value === 'Otra' ? $('moto_marca_custom').value.trim() : $('moto_marca').value;
+    return [marca, $('moto_modelo').value.trim(), $('moto_anio').value.trim()].filter(Boolean).join(' ');
+  }
+  function personName() { return st.known ? st.known.nombre : $('nombre').value.trim(); }
+  function renderReview() {
+    const rows = [
+      ['WhatsApp', fmtTel(st.phone), 1],
+      ['Nombre', personName(), st.known ? 1 : 2],
+      ['Moto', motoText(), 2],
+      ['Servicio', serviceValue(), 3],
+      ['Te atiende', st.mechName, 4],
+      ['Día', fecha.value ? fechaLarga(fecha.value) : '', 5],
+      ['Hora', hora.value ? fmt(hora.value) : '', 5]
+    ];
+    const notas = $('notas').value.trim();
+    if (notas) rows.push(['Detalle', notas.length > 120 ? notas.slice(0, 117) + '…' : notas, 3]);
+    const dl = $('review'); dl.textContent = '';
+    rows.forEach(r => {
+      const row = el('div', 'review-row');
+      row.append(el('dt', null, r[0]), el('dd', null, r[1] || '—'));
+      const c = el('button', 'review-edit', 'Cambiar'); c.type = 'button';
+      c.setAttribute('aria-label', 'Cambiar ' + r[0].toLowerCase());
+      c.addEventListener('click', () => go(r[2]));
+      row.append(c);
+      dl.append(row);
     });
-    if ($('telefono').value.replace(/\D/g, '').length !== 10) { $('telefono').classList.add('error'); valid = false; }
+  }
 
-    let servicio = $('tipo_servicio').value;
-    if (servicio === 'Otro') {
-      const v = $('otro_servicio').value.trim();
-      $('otro_servicio').classList.toggle('error', !v);
-      if (!v) valid = false; else servicio = v;
-    }
-    let marca = $('moto_marca').value;
-    if (marca === 'Otra') {
-      const v = $('moto_marca_custom').value.trim();
-      $('moto_marca_custom').classList.toggle('error', !v);
-      if (!v) valid = false; else marca = v;
-    }
-    const anio = $('moto_anio').value.trim();
-    if (anio && !/^\d{4}$/.test(anio)) { $('moto_anio').classList.add('error'); valid = false; }
+  /* ── Botones Atrás / Continuar y Enter ── */
+  function next() {
+    const s = st.step;
+    if (s === 1) return doLookup();
+    if (s === 2 && validateStep2()) return go(3);
+    if (s === 3 && validateStep3()) return go(4);
+    if (s === 4 && validateStep4()) return go(5);
+    if (s === 5 && validateStep5()) return go(6);
+  }
+  form.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click', next));
+  form.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => go(Math.max(1, st.step - 1))));
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    if (st.step === 6) sendRequest(); else next();
+  });
+  form.querySelectorAll('input,select,textarea').forEach(el2 =>
+    el2.addEventListener('input', () => el2.classList.remove('error')));
 
-    if (!valid) {
-      showErr('Revisa los campos marcados en rojo.');
-      const first = form.querySelector('.error');
-      if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
+  /* ── Enviar ── */
+  async function sendRequest() {
+    clearErr();
+    // Defensa: si algo quedó incompleto, regresa al paso que falta.
+    if (st.phone.length !== 10) return go(1);
+    if (!validateStep2()) return go(2);
+    if (!validateStep3()) return go(3);
+    if (!validateStep4()) return go(4);
+    if (!validateStep5()) return go(5);
 
     btn.disabled = true; txt.textContent = 'Enviando…';
     const payload = {
-      nombre: $('nombre').value.trim(),
-      telefono: $('telefono').value.replace(/\D/g, ''),
-      tipo_servicio: servicio,
-      moto_marca: marca,
-      moto_modelo: $('moto_modelo').value.trim(),
-      moto_anio: anio || null,
-      fecha: fecha.value,
-      hora: hora.value,
-      notas: $('notas').value.trim(),
+      telefono: st.phone, mecanico_id: st.mechId, nombre: personName(),
+      tipo_servicio: serviceValue(), fecha: fecha.value, hora: hora.value, notas: $('notas').value.trim()
     };
-    try {
-      const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        if (res.status === 409) loadAvailability();
-        throw new Error(data.error || 'No se pudo enviar (error ' + res.status + ').');
-      }
-      showSuccess(payload, data.link);
-    } catch (ex) {
-      const offline = ex instanceof TypeError;
-      showErr(offline ? 'No hay conexión con el servidor. Revisa tu internet e inténtalo de nuevo.' : ex.message);
-      btn.disabled = false; txt.textContent = 'Solicitar cita';
+    if (st.known && st.motoId && !st.addingMoto) payload.moto_id = st.motoId;
+    else {
+      const m = readMoto();
+      payload.moto_marca = m.marca; payload.moto_modelo = m.modelo; payload.moto_anio = m.anio || null;
     }
-  });
+    try {
+      const { res, data } = await fetchJson(API_URL, { method: 'POST', body: payload });
+      if (!res.ok) {
+        if (res.status === 409) { go(5); say('step5Msg', data.error || 'Ese horario ya se ocupó. Elige otra hora.', true); return; }
+        if (res.status === 400 && /persona|atiende/i.test(data.error || '')) {
+          go(4); await loadMechanics(true); say('mechMsg', data.error, true); return;
+        }
+        showErr(data.error || 'No se pudo enviar (error ' + res.status + ').');
+        btn.disabled = false; txt.textContent = 'Solicitar cita';
+        return;
+      }
+      showSuccess(payload, data);
+    } catch (ex) {
+      showErr(isNet(ex) ? NET_MSG : 'No se pudo enviar. Inténtalo de nuevo.');
+      btn.disabled = false; txt.textContent = 'Reintentar envío';
+    }
+  }
 
-  function showSuccess(p, link) {
-    const d = new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
-    const fechaTxt = d.charAt(0).toUpperCase() + d.slice(1);
-    const moto = [p.moto_marca, p.moto_modelo, p.moto_anio].filter(Boolean).join(' ');
-    $('okText').textContent = 'Te enviamos un mensaje por WhatsApp al ' + p.telefono + ' y te avisaremos por ahí en cuanto el taller revise tu solicitud.';
-    const rows = [['Fecha', fechaTxt], ['Hora', fmt(p.hora)], ['Servicio', p.tipo_servicio], ['Moto', moto]];
+  function showSuccess(p, data) {
+    $('okText').textContent = 'Te enviamos un mensaje por WhatsApp al ' + fmtTel(p.telefono) + ' y te avisaremos por ahí en cuanto revisen tu solicitud.';
+    const rows = [['Día', fechaLarga(p.fecha)], ['Hora', fmt(p.hora)], ['Servicio', p.tipo_servicio], ['Moto', motoText()], ['Te atiende', data.mecanico || st.mechName]];
     const sum = $('okSum');
     sum.textContent = '';
     rows.forEach(([k, v]) => {
+      if (!v) return;
       const dt = document.createElement('dt'); dt.textContent = k;
       const dd = document.createElement('dd'); dd.textContent = v;
       sum.append(dt, dd);
     });
     const lk = $('okLink');
-    if (lk) { lk.hidden = !link; if (link) lk.href = link; }
+    if (lk) { lk.hidden = !data.link; if (data.link) lk.href = data.link; }
     form.hidden = true; ok.hidden = false;
     ok.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
@@ -362,14 +636,17 @@ function initForm() {
   $('againBtn').addEventListener('click', () => {
     form.reset();
     ['otroWrap', 'otraMarcaWrap'].forEach(id => { $(id).hidden = true; });
+    st.phone = ''; st.known = null; st.motoId = ''; st.addingMoto = false; st.mechId = ''; st.mechName = '';
+    $('knownBox').hidden = true; $('newBox').hidden = true; $('motoForm').hidden = true;
+    say('lookupMsg', ''); say('step2Msg', ''); say('step3Msg', ''); say('step5Msg', ''); $('step1Skip').hidden = true;
     btn.disabled = false; txt.textContent = 'Solicitar cita';
-    cal.clear(); clearErr(); loadAvailability();
+    cal.clear(); hora.value = '';
     ok.hidden = true; form.hidden = false;
+    go(1, true);
     form.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
-  form.querySelectorAll('input,select,textarea').forEach(el =>
-    el.addEventListener('input', () => el.classList.remove('error')));
+  go(1, true);
 }
 
 /* ── CANVAS 3D RINGS ─────────────────────────────── */

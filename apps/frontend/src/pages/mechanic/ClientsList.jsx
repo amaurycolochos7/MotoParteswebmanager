@@ -16,6 +16,7 @@ import {
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import WhatsAppSendModal from '../../components/ui/WhatsAppSendModal';
+import { ClientTags, ClientQuickFilter } from '../../components/clients/ClientTags';
 import { PageHeader, EmptyState, Button } from '../../components/ui';
 
 export default function ClientsList() {
@@ -33,15 +34,19 @@ export default function ClientsList() {
     const [waModalClient, setWaModalClient] = useState(null); // client for WhatsApp modal
 
     // Filter clients
+    const [onlyWeb, setOnlyWeb] = useState(false);
+    const webCount = useMemo(() => clients.filter(c => c.web_unconfirmed).length, [clients]);
+
     const filteredClients = useMemo(() => {
-        if (!searchQuery.trim()) return clients;
+        const base = onlyWeb ? clients.filter(c => c.web_unconfirmed) : clients;
+        if (!searchQuery.trim()) return base;
 
         const query = searchQuery.toLowerCase();
-        return clients.filter(client =>
+        return base.filter(client =>
             client.full_name?.toLowerCase().includes(query) ||
             client.phone?.includes(query)
         );
-    }, [clients, searchQuery]);
+    }, [clients, searchQuery, onlyWeb]);
 
     const openAddModal = () => {
         setEditingClient(null);
@@ -234,6 +239,8 @@ export default function ClientsList() {
                 )}
             </div>
 
+            <ClientQuickFilter onlyWeb={onlyWeb} onChange={setOnlyWeb} webCount={webCount} lookupPath="/mechanic/lookup" />
+
             {/* Clients List */}
             <div className="clients-list">
                 {filteredClients.length === 0 ? (
@@ -254,6 +261,7 @@ export default function ClientsList() {
                                 </div>
                                 <div className="client-info">
                                     <h3 className="client-name">{client.full_name}</h3>
+                                    <ClientTags client={client} />
                                     <div className="client-meta">
                                         {getClientMotosCount(client.id) > 0 && (
                                             <span className="meta-item">

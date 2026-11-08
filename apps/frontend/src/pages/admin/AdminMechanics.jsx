@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { authService } from '../../lib/api';
 import { useData } from '../../context/DataContext';
 import { Link } from 'react-router-dom';
+import OnlineBookingCard from '../../components/admin/OnlineBookingCard';
 import {
     Wrench,
     DollarSign,
@@ -194,6 +195,12 @@ export default function AdminMechanics() {
                     </div>
                 </div>
             </div>
+
+            {/* Quién aparece en la página de citas en línea */}
+            <OnlineBookingCard
+                users={allUsers}
+                onPatched={(id, patch) => setAllUsers((list) => list.map((u) => (u.id === id ? { ...u, ...patch } : u)))}
+            />
 
             {/* Lista de mecánicos */}
             {mechanics.length === 0 ? (

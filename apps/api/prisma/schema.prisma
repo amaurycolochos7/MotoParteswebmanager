@@ -113,6 +113,8 @@ model Membership {
   role         String   @default("mechanic") // owner | admin | mechanic | auxiliary
   permissions  Json     @default("{}")        // per-workspace override of the 9 boolean perms on Profile
   invited_by   String?  @db.Uuid
+  // Aparece en la lista "quien te atiende" de la landing (citas en linea).
+  online_booking_visible Boolean @default(true)
   joined_at    DateTime @default(now()) @db.Timestamptz
   updated_at   DateTime @default(now()) @updatedAt @db.Timestamptz
 
@@ -453,6 +455,7 @@ model Profile {
 
   // Relations
   created_clients       Client[]          @relation("ClientCreator")
+  preferred_by_clients  Client[]          @relation("ClientPreferredMechanic")
   motorcycles_assigned  Order[]           @relation("OrderMechanic")
   orders_approved       Order[]           @relation("OrderApprover")
   uploaded_photos       OrderPhoto[]
@@ -494,11 +497,18 @@ model Client {
   email        String?
   notes        String?
   created_by   String?  @db.Uuid
+  // Mecanico que el cliente prefiere (lo elige al agendar en linea o se asigna en el panel).
+  preferred_mechanic_id String? @db.Uuid
+  // 'manual' (registrado en el panel) | 'cita_web' (creado al agendar en la landing)
+  origin       String   @default("manual")
+  // Cliente creado desde la web que aun no tiene cita confirmada ni orden.
+  web_unconfirmed Boolean @default(false)
   created_at   DateTime @default(now()) @db.Timestamptz
   updated_at   DateTime @default(now()) @updatedAt @db.Timestamptz
 
   workspace    Workspace?    @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
   creator      Profile?      @relation("ClientCreator", fields: [created_by], references: [id])
+  preferred_mechanic Profile? @relation("ClientPreferredMechanic", fields: [preferred_mechanic_id], references: [id], onDelete: SetNull)
   motorcycles  Motorcycle[]
   orders       Order[]
   appointments Appointment[]
@@ -534,6 +544,7 @@ model Motorcycle {
   quotations   Quotation[]
 
   @@index([workspace_id])
+  @@index([client_id])
   @@map("motorcycles")
 }
 
@@ -770,6 +781,7 @@ model Appointment {
   decision_note        String?                                // motivo de "no disponible" / cancelacion
   cancelled_by         String?                                // 'customer' | 'shop' | 'system'
   shop_alert           Boolean  @default(false)               // el cliente respondio y el taller no lo ha visto
+  mechanic_requested   Boolean  @default(false)               // el cliente eligio al mecanico (assigned_mechanic_id)
   reminder_2h_sent     Boolean  @default(false)
   reminder_sent        Boolean  @default(false)
   google_event_id      String?                                // Fase 6.4 — id del evento en Google Calendar, si sincronizado
@@ -786,6 +798,7 @@ model Appointment {
 
   @@index([workspace_id])
   @@index([status, proposal_expires_at])
+  @@index([assigned_mechanic_id, scheduled_date])
   @@map("appointments")
 }
 

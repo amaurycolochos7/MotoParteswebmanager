@@ -12,7 +12,7 @@ export const DEFAULTS = [
         template: {
             name: 'Confirmación de ingreso',
             channel: 'whatsapp',
-            body: 'Hola, {cliente}. 👋\n\n✅ *Orden {folio} · Registrada con éxito*\n\nLe informamos que hemos recibido su *{moto}* en nuestro taller. A partir de este momento, utilizaremos este medio para mantenerlo notificado sobre cada avance en el servicio.\n\n• *Motivo de ingreso:* {motivo}\n\n*Próximos pasos:*\nUna vez concluida la evaluación técnica de su motocicleta, le haremos llegar el presupuesto detallado, que incluye mano de obra y refacciones, para su revisión y autorización.\n\nSi tiene alguna duda o requerimiento adicional, quedamos a su entera disposición por este chat.\n\nAtentamente,\n*MotoPartes Club · Taller V. Carranza*',
+            body: 'Hola, {cliente}. 👋\n\n✅ *Orden {folio} · Registrada con éxito*\n\nLe informamos que hemos recibido su *{moto}* en nuestro taller. A partir de este momento, utilizaremos este medio para mantenerlo notificado sobre cada avance en el servicio.\n\n• *Motivo de ingreso:* {motivo}{atiende}\n\n*Próximos pasos:*\nUna vez concluida la evaluación técnica de su motocicleta, le haremos llegar el presupuesto detallado, que incluye mano de obra y refacciones, para su revisión y autorización.\n\nSi tiene alguna duda o requerimiento adicional, quedamos a su entera disposición por este chat.\n\nAtentamente,\n*MotoPartes Club · Taller V. Carranza*',
         },
         automation: {
             name: 'Confirmación de ingreso',
@@ -43,7 +43,7 @@ export const DEFAULTS = [
         template: {
             name: 'Lista para recoger',
             channel: 'whatsapp',
-            body: 'Estimada {cliente},\n\nNos complace informarle que el servicio de su *{moto}* ha concluido con éxito. Su unidad ya se encuentra lista para ser retirada en nuestras instalaciones.\n\n• *Orden de servicio:* {folio}\n• *Total a liquidar:* {total}\n\n*Horarios de entrega:*\n\n• Lunes a Viernes: 9:00 a 18:00 hrs.\n• Sábados: 9:00 a 14:00 hrs.\n\nAgradecemos su confianza. Si tiene alguna duda o requiere asistencia adicional, quedamos a su entera disposición.\n\nAtentamente,\n*MotoPartes · Taller V. Carranza*',
+            body: 'Estimada {cliente},\n\nNos complace informarle que el servicio de su *{moto}* ha concluido con éxito. Su unidad ya se encuentra lista para ser retirada en nuestras instalaciones.\n\n• *Orden de servicio:* {folio}\n• *Total a liquidar:* {total}{atiende}\n\n*Horarios de entrega:*\n\n• Lunes a Viernes: 9:00 a 18:00 hrs.\n• Sábados: 9:00 a 14:00 hrs.\n\nAgradecemos su confianza. Si tiene alguna duda o requiere asistencia adicional, quedamos a su entera disposición.\n\nAtentamente,\n*MotoPartes · Taller V. Carranza*',
         },
         automation: {
             name: 'Lista para recoger',

@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
     Calendar, Plus, User, Phone, Wrench, X, Edit2, Trash2,
     AlertCircle, Check, Globe, RefreshCw, ThumbsUp, Ban,
-    Copy, MessageCircle, Link2, StickyNote, Bike, Send, CalendarOff
+    Copy, MessageCircle, Link2, StickyNote, Bike, Send, CalendarOff,
+    UserCheck, ClipboardList
 } from 'lucide-react';
 import AppointmentModal from '../../components/appointments/AppointmentModal';
 import {
@@ -135,8 +137,19 @@ const effDate = (a) => (a.status === 'proposal_sent' && a.proposed_date ? a.prop
 
 export default function AppointmentCalendar() {
     const { clients = [], motorcycles = [], users = [], addClient } = useData();
-    const { user, activeWorkspace } = useAuth();
+    const { user, activeWorkspace, workspaceRole } = useAuth();
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const bookingLink = BOOKING_LINKS[activeWorkspace?.id] || null;
+
+    // Enlace del aviso por WhatsApp: /mechanic/appointments?cita=<id> abre esa cita.
+    const citaId = searchParams.get('cita');
+    const [linkedApt, setLinkedApt] = useState(null);
+    const [linkError, setLinkError] = useState('');
+    const openedFor = useRef(null);
+    const triedFetch = useRef(null);
+    // Mecanicos y auxiliares ven primero SUS citas; dueno/admin ven todas.
+    const [scope, setScope] = useState(() => (['mechanic', 'auxiliary'].includes(workspaceRole) ? 'mine' : 'all'));
 
     const [actionError, setActionError] = useState('');
     const [notice, setNotice] = useState(null);           // resultado del ultimo envio por WhatsApp
@@ -181,10 +194,12 @@ export default function AppointmentCalendar() {
         return () => clearInterval(t);
     }, [loadAppointments]);
 
-    const active = appointments.filter(a => !HIDDEN.has(a.status)).sort((a, b) => new Date(effDate(a)) - new Date(effDate(b)));
-    const closed = appointments.filter(a => HIDDEN.has(a.status)).sort((a, b) => new Date(b.scheduled_date) - new Date(a.scheduled_date));
-    const toReview = appointments.filter(a => a.status === 'pending_external');
-    const alerts = appointments.filter(a => a.shop_alert);
+    // "Mis citas" = las asignadas a mi usuario (la API devuelve todas las del taller).
+    const scoped = scope === 'mine' ? appointments.filter(a => a.assigned_mechanic_id === user?.id) : appointments;
+    const active = scoped.filter(a => !HIDDEN.has(a.status)).sort((a, b) => new Date(effDate(a)) - new Date(effDate(b)));
+    const closed = scoped.filter(a => HIDDEN.has(a.status)).sort((a, b) => new Date(b.scheduled_date) - new Date(a.scheduled_date));
+    const toReview = scoped.filter(a => a.status === 'pending_external');
+    const alerts = scoped.filter(a => a.shop_alert);
     const attention = new Set([...toReview, ...alerts].map(a => a.id)).size;
 
     const filtered = filter === 'external'
@@ -194,6 +209,44 @@ export default function AppointmentCalendar() {
             : filter === 'closed'
                 ? closed
                 : active;
+
+    // Abrir la cita del aviso: se muestra primero en la lista, sin importar filtros.
+    useEffect(() => {
+        if (!citaId || loading) return undefined;
+        if (openedFor.current !== citaId) { openedFor.current = citaId; setShowList(true); setFilter('all'); }
+        if (appointments.some(a => a.id === citaId)) { setLinkError(''); return undefined; }
+        if (triedFetch.current === citaId) return undefined;
+        triedFetch.current = citaId;
+        let alive = true;
+        appointmentsService.get(citaId)
+            .then(a => { if (alive) { setLinkedApt(a); setLinkError(''); } })
+            .catch(() => { if (alive) setLinkError('No encontramos esa cita. Puede que ya no exista o que sea de otro taller.'); });
+        return () => { alive = false; };
+    }, [citaId, loading, appointments]);
+
+    const pinnedApt = citaId ? (appointments.find(a => a.id === citaId) || (linkedApt?.id === citaId ? linkedApt : null)) : null;
+    const listItems = pinnedApt ? [pinnedApt, ...filtered.filter(a => a.id !== citaId)] : filtered;
+    const clearCita = () => { setLinkedApt(null); setLinkError(''); setSearchParams({}, { replace: true }); };
+
+    // Crear la orden con cliente, moto y mecanico ya puestos.
+    const goCreateOrder = (apt) => {
+        const q = new URLSearchParams({ cita: apt.id });
+        if (apt.client_id) q.set('client', apt.client_id);
+        if (apt.motorcycle_id) q.set('moto', apt.motorcycle_id);
+        if (apt.assigned_mechanic_id) q.set('mechanic', apt.assigned_mechanic_id);
+        if (!apt.client_id) {
+            if (apt.client_phone) q.set('phone', apt.client_phone);
+            if (apt.client_name_ext) q.set('name', apt.client_name_ext);
+        }
+        navigate(`/mechanic/new-order?${q.toString()}`);
+    };
+
+    const scopeTabs = (
+        <div className="scope-tabs" role="tablist" aria-label="Qué citas ver">
+            <button type="button" role="tab" aria-selected={scope === 'mine'} className={scope === 'mine' ? 'on' : ''} onClick={() => setScope('mine')}>Mis citas</button>
+            <button type="button" role="tab" aria-selected={scope === 'all'} className={scope === 'all' ? 'on' : ''} onClick={() => setScope('all')}>Todas</button>
+        </div>
+    );
 
     const clientName = (apt) => {
         if (apt.client?.full_name) return apt.client.full_name;
@@ -354,6 +407,7 @@ export default function AppointmentCalendar() {
                         <p className="welcome-subtitle">
                             {active.length} cita{active.length !== 1 ? 's' : ''} activa{active.length !== 1 ? 's' : ''}
                         </p>
+                        {scopeTabs}
                         {attention > 0 && (
                             <div className="external-alert" onClick={() => { setFilter('external'); setShowList(true); }}>
                                 <Globe size={16} />
@@ -405,6 +459,10 @@ export default function AppointmentCalendar() {
                         </div>
                     </div>
 
+                    {scopeTabs}
+
+                    {linkError && <div className="apt-error" role="alert">{linkError} <button type="button" className="apt-pinned-close" onClick={clearCita}>Cerrar</button></div>}
+
                     {/* Filtros */}
                     <div className="filter-tabs">
                         {[
@@ -434,15 +492,18 @@ export default function AppointmentCalendar() {
 
                     {loading ? (
                         <div className="empty-state"><RefreshCw size={32} style={{ opacity: 0.3 }} /><p>Cargando...</p></div>
-                    ) : filtered.length === 0 ? (
+                    ) : listItems.length === 0 ? (
                         <div className="empty-state">
                             <Calendar size={56} style={{ opacity: 0.3 }} />
-                            <h3>Sin citas</h3>
-                            <p className="text-secondary">No hay citas en este filtro</p>
+                            <h3>{scope === 'mine' ? 'Sin citas para ti' : 'Sin citas'}</h3>
+                            <p className="text-secondary">
+                                {scope === 'mine' ? 'No tienes citas en este filtro. Revisa "Todas" para ver las del taller.' : 'No hay citas en este filtro'}
+                            </p>
                         </div>
                     ) : (
                         <div className="appointments-list">
-                            {filtered.map(apt => {
+                            {listItems.map(apt => {
+                                const isPinned = apt.id === citaId;
                                 const name = clientName(apt);
                                 const phone = clientPhone(apt);
                                 const moto = motorcycles.find(m => m.id === apt.motorcycle_id);
@@ -455,7 +516,7 @@ export default function AppointmentCalendar() {
                                 const canFlow = isExternal && !['cancelled', 'completed'].includes(st);
 
                                 return (
-                                    <div key={apt.id} className={`appointment-card ${isExternal ? 'is-external' : ''} ${st === 'pending_external' ? 'is-pending' : ''}`}>
+                                    <div key={apt.id} id={`apt-${apt.id}`} className={`appointment-card ${isExternal ? 'is-external' : ''} ${st === 'pending_external' ? 'is-pending' : ''} ${isPinned ? 'is-pinned' : ''}`}>
                                         {/* Barra izquierda de fecha */}
                                         <div className="apt-date-badge" style={{ background: ['pending_external', 'proposal_sent'].includes(st) ? color : undefined }}>
                                             <div className="badge-day">{dayNum(date)}</div>
@@ -465,6 +526,12 @@ export default function AppointmentCalendar() {
 
                                         {/* Contenido */}
                                         <div className="apt-info">
+                                            {isPinned && (
+                                                <div className="apt-pinned">
+                                                    <span>Cita del aviso</span>
+                                                    <button type="button" className="apt-pinned-close" onClick={clearCita}>Cerrar</button>
+                                                </div>
+                                            )}
                                             <div className="apt-client-row">
                                                 <User size={15} />
                                                 <strong>{name}</strong>
@@ -484,6 +551,12 @@ export default function AppointmentCalendar() {
                                                         rel="noopener noreferrer"
                                                         title="Abrir en WhatsApp"
                                                     >{phone}</a>
+                                                </div>
+                                            )}
+                                            {apt.mechanic?.full_name && (
+                                                <div className="apt-meta apt-mech">
+                                                    <UserCheck size={13} /> Atiende: <strong>{apt.mechanic.full_name}</strong>
+                                                    {apt.mechanic_requested && <span className="badge-asked">Lo pidió el cliente</span>}
                                                 </div>
                                             )}
                                             {apt.service_type && (
@@ -547,6 +620,14 @@ export default function AppointmentCalendar() {
                                                             <X size={14} /> Cancelar cita
                                                         </button>
                                                     )}
+                                                </div>
+                                            )}
+
+                                            {st === 'confirmed' && (
+                                                <div className="apt-actions">
+                                                    <button type="button" className="btn-order" onClick={() => goCreateOrder(apt)}>
+                                                        <ClipboardList size={14} /> Crear orden
+                                                    </button>
                                                 </div>
                                             )}
 
@@ -793,6 +874,18 @@ export default function AppointmentCalendar() {
                 .mode-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: var(--spacing-sm) var(--spacing-md); background: transparent; border: none; border-radius: var(--radius-sm); font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; transition: 0.15s; }
                 .mode-btn.active { background: white; color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,.1); }
 
+                .scope-tabs { display: inline-flex; gap: 4px; padding: 4px; background: #f1f1f4; border-radius: 12px; margin: var(--spacing-md) 0; }
+                .list-view .scope-tabs { margin: 0 0 var(--spacing-md); }
+                .scope-tabs button { border: 0; background: transparent; padding: 8px 18px; min-height: 40px; border-radius: 9px; font-size: 0.9rem; font-weight: 700; color: var(--text-secondary); cursor: pointer; }
+                .scope-tabs button.on { background: #fff; color: var(--primary); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+                .appointment-card.is-pinned { border-color: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }
+                .apt-pinned { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #dbeafe; color: #1e40af; border-radius: var(--radius-md); padding: 4px 10px; font-size: 0.78rem; font-weight: 800; margin-bottom: 6px; }
+                .apt-pinned-close { border: 0; background: transparent; color: inherit; font-weight: 800; font-size: 0.78rem; cursor: pointer; text-decoration: underline; min-height: 28px; }
+                .apt-mech { flex-wrap: wrap; }
+                .apt-mech strong { color: var(--text-primary); }
+                .badge-asked { background: #dcfce7; color: #166534; border-radius: 999px; padding: 1px 8px; font-size: 0.7rem; font-weight: 800; }
+                .btn-order { display: inline-flex; align-items: center; gap: 5px; padding: 8px 14px; min-height: 36px; background: #1d4ed8; color: #fff; border: none; border-radius: var(--radius-md); font-size: 0.8125rem; font-weight: 700; cursor: pointer; }
+                .btn-order:hover { background: #1e40af; }
                 .apt-phone { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
                 .apt-phone:hover { color: #16a34a; }
                 .apt-notes { align-items: flex-start; }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { nextFromSearch } from '../../lib/safeNext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, LogIn, UserX, XCircle } from 'lucide-react';
@@ -7,6 +8,7 @@ import { Mail, Lock, Eye, EyeOff, AlertCircle, LogIn, UserX, XCircle } from 'luc
 export default function Login() {
   const { login, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
 
   const [email, setEmail] = useState('');
@@ -39,8 +41,12 @@ export default function Login() {
     try {
       const user = await login(email, password);
 
-      // Redirigir según rol
-      if (user.role === 'admin') {
+      // Volver a donde iba (enlace de WhatsApp, etc.) si es una ruta interna segura;
+      // si no, al inicio según el rol.
+      const next = nextFromSearch(location.search);
+      if (next) {
+        navigate(next, { replace: true });
+      } else if (user.role === 'admin') {
         navigate('/admin');
       } else {
         navigate('/mechanic');

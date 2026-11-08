@@ -2,16 +2,37 @@ import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
 import { fireEvent } from '../lib/events.js';
-import { buildClientSearchWhere, matchesClient, rankScore } from '../lib/client-search.js';
+import { buildClientSearchWhere, matchesClient, rankScore, digitsOnly } from '../lib/client-search.js';
+import { toLocal10, phoneVariants } from '../lib/phone.js';
+import { buildLookupWhere, isPhoneQuery } from '../lib/client-lookup.js';
+
+const MECHANIC_SELECT = { id: true, full_name: true };
+
+/**
+ * Devuelve un mensaje de error si `profileId` no es miembro del taller activo;
+ * null si esta bien (o si no se pidio mecanico preferido).
+ * Membership no es un modelo "scoped", por eso se filtra por workspace a mano.
+ */
+async function preferredMechanicError(workspaceId, profileId) {
+    if (profileId === undefined || profileId === null || profileId === '') return null;
+    const m = await prisma.membership.findUnique({
+        where: { workspace_id_profile_id: { workspace_id: workspaceId, profile_id: String(profileId) } },
+        select: { id: true },
+    }).catch(() => null);
+    return m ? null : 'El mecánico preferido no pertenece a este taller.';
+}
 
 export default async function clientsRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
     fastify.addHook('preHandler', resolveWorkspace);
 
-    // GET /api/clients
-    fastify.get('/', async () => {
+    // GET /api/clients   (?web_unconfirmed=1 -> solo clientes de cita web por confirmar)
+    fastify.get('/', async (request) => {
+        const where = {};
+        if (request.query?.web_unconfirmed === '1') where.web_unconfirmed = true;
         return prisma.client.findMany({
-            include: { motorcycles: true },
+            where,
+            include: { motorcycles: true, preferred_mechanic: { select: MECHANIC_SELECT } },
             orderBy: { created_at: 'desc' }
         });
     });
@@ -58,6 +79,93 @@ export default async function clientsRoutes(fastify) {
             }));
     });
 
+    // GET /api/clients/lookup?q=...  — "Buscar cliente" del panel.
+    // q con 3+ digitos (telefono completo o los ultimos 4) o 3+ letras (nombre / placas / marca).
+    // Devuelve clientes con sus motos y, por moto, cuantos servicios se le han terminado.
+    // Una sola tanda de consultas (sin N+1): clientes -> 2 groupBy de ordenes.
+    fastify.get('/lookup', async (request) => {
+        const q = typeof request.query?.q === 'string' ? request.query.q.trim() : '';
+        const where = buildLookupWhere(q);
+        if (!where) return [];
+
+        const candidates = await prisma.client.findMany({
+            where,
+            include: {
+                motorcycles: { orderBy: { created_at: 'asc' } },
+                preferred_mechanic: { select: MECHANIC_SELECT },
+                orders: {
+                    select: { id: true, order_number: true, created_at: true, status: { select: { name: true } } },
+                    orderBy: { created_at: 'desc' },
+                    take: 1,
+                },
+            },
+            orderBy: { updated_at: 'desc' },
+            take: 60,
+        });
+
+        // Refinar en JS (sin acentos) y ordenar por relevancia. En busquedas por telefono
+        // matchesClient ya compara solo digitos.
+        const ranked = candidates
+            .filter((c) => (isPhoneQuery(q) ? digitsOnly(c.phone).includes(digitsOnly(q)) : matchesClient(c, q)))
+            .sort((a, b) => rankScore(b, q) - rankScore(a, q))
+            .slice(0, 20);
+
+        const motoIds = ranked.flatMap((c) => c.motorcycles.map((m) => m.id));
+        const done = new Map();   // moto_id -> { count, last }
+        const open = new Map();   // moto_id -> ordenes abiertas (no terminales)
+        if (motoIds.length > 0) {
+            const [doneRows, openRows] = await Promise.all([
+                prisma.order.groupBy({
+                    by: ['motorcycle_id'],
+                    where: {
+                        motorcycle_id: { in: motoIds },
+                        status: { is_terminal: true, NOT: { name: { contains: 'cancel', mode: 'insensitive' } } },
+                    },
+                    _count: { _all: true },
+                    _max: { completed_at: true, created_at: true },
+                }),
+                prisma.order.groupBy({
+                    by: ['motorcycle_id'],
+                    where: { motorcycle_id: { in: motoIds }, OR: [{ status_id: null }, { status: { is_terminal: false } }] },
+                    _count: { _all: true },
+                }),
+            ]);
+            doneRows.forEach((r) => done.set(r.motorcycle_id, {
+                count: r._count._all,
+                last: r._max.completed_at || r._max.created_at,
+            }));
+            openRows.forEach((r) => open.set(r.motorcycle_id, r._count._all));
+        }
+
+        return ranked.map((c) => {
+            const motorcycles = c.motorcycles.map((m) => {
+                const d = done.get(m.id);
+                return {
+                    id: m.id, brand: m.brand, model: m.model, year: m.year, plates: m.plates, color: m.color,
+                    services_count: d?.count || 0,
+                    last_service_at: d?.last || null,
+                    open_orders: open.get(m.id) || 0,
+                };
+            });
+            return {
+                id: c.id,
+                full_name: c.full_name,
+                phone: c.phone,
+                email: c.email,
+                notes: c.notes,
+                origin: c.origin,
+                web_unconfirmed: c.web_unconfirmed,
+                preferred_mechanic_id: c.preferred_mechanic_id,
+                preferred_mechanic: c.preferred_mechanic || null,
+                services_count: motorcycles.reduce((s, m) => s + m.services_count, 0),
+                motorcycles,
+                last_order: c.orders[0]
+                    ? { id: c.orders[0].id, order_number: c.orders[0].order_number, created_at: c.orders[0].created_at, status: c.orders[0].status?.name || null }
+                    : null,
+            };
+        });
+    });
+
     // GET /api/clients/:id/history — historial completo del cliente para mostrar
     // ANTES de crear cotización u orden (ELIHU 5.2). Mobile-friendly summary.
     fastify.get('/:id/history', async (request, reply) => {
@@ -66,6 +174,7 @@ export default async function clientsRoutes(fastify) {
             where: { id },
             include: {
                 motorcycles: true,
+                preferred_mechanic: { select: MECHANIC_SELECT },
                 orders: {
                     include: { status: true },
                     orderBy: { created_at: 'desc' },
@@ -91,6 +200,10 @@ export default async function clientsRoutes(fastify) {
             phone: client.phone,
             email: client.email,
             notes: client.notes,
+            origin: client.origin,
+            web_unconfirmed: client.web_unconfirmed,
+            preferred_mechanic_id: client.preferred_mechanic_id,
+            preferred_mechanic: client.preferred_mechanic || null,
             motorcycles: client.motorcycles,
             last_visit_at: client.orders[0]?.created_at || null,
             orders_count: client.orders.length,
@@ -118,18 +231,23 @@ export default async function clientsRoutes(fastify) {
     fastify.get('/:id', async (request, reply) => {
         const client = await prisma.client.findUnique({
             where: { id: request.params.id },
-            include: { motorcycles: true, orders: { include: { status: true } } }
+            include: {
+                motorcycles: true,
+                orders: { include: { status: true } },
+                preferred_mechanic: { select: MECHANIC_SELECT },
+            }
         });
         if (!client) return reply.status(404).send({ error: 'Cliente no encontrado' });
         return client;
     });
 
-    // GET /api/clients/phone/:phone
+    // GET /api/clients/phone/:phone  (acepta 10 digitos o con lada 52/521/+52)
     fastify.get('/phone/:phone', async (request) => {
-        const phone = request.params.phone.replace(/\D/g, '');
+        const variants = phoneVariants(request.params.phone);
+        if (variants.length === 0) return null;
         const client = await prisma.client.findFirst({
-            where: { phone: { contains: phone } },
-            include: { motorcycles: true }
+            where: { phone: { in: variants } },
+            include: { motorcycles: true, preferred_mechanic: { select: MECHANIC_SELECT } }
         });
         return client || null;
     });
@@ -137,16 +255,28 @@ export default async function clientsRoutes(fastify) {
     // POST /api/clients
     fastify.post('/', async (request, reply) => {
         try {
-            const data = request.body;
+            const data = request.body || {};
+            const mechErr = await preferredMechanicError(request.workspace.id, data.preferred_mechanic_id);
+            if (mechErr) return reply.status(400).send({ error: mechErr });
+
+            // Telefono guardado siempre en 10 digitos cuando es valido.
+            const phone = toLocal10(data.phone) || String(data.phone ?? '').trim();
+            const variants = phoneVariants(data.phone);
+            if (variants.length > 0) {
+                const dup = await prisma.client.findFirst({ where: { phone: { in: variants } }, select: { id: true } });
+                if (dup) return reply.status(409).send({ error: 'El teléfono ya está registrado' });
+            }
+
             const client = await prisma.client.create({
                 data: {
-                    phone: data.phone,
+                    phone,
                     full_name: data.full_name,
                     email: data.email || null,
                     notes: data.notes || null,
-                    created_by: request.user.id
+                    created_by: request.user.id,
+                    preferred_mechanic_id: data.preferred_mechanic_id || null,
                 },
-                include: { motorcycles: true }
+                include: { motorcycles: true, preferred_mechanic: { select: MECHANIC_SELECT } }
             });
             fireEvent('client.created', {
                 workspaceId: request.workspace.id,
@@ -172,11 +302,36 @@ export default async function clientsRoutes(fastify) {
         // Never let the client body rewrite ownership / scoping fields.
         delete data.id; delete data.workspace_id; delete data.created_by;
         delete data.created_at; delete data.motorcycles; delete data.orders;
-        return prisma.client.update({
-            where: { id: request.params.id },
-            data,
-            include: { motorcycles: true }
-        });
+        delete data.preferred_mechanic; delete data.origin; delete data.workspace; delete data.creator;
+
+        if ('preferred_mechanic_id' in data) {
+            const mechErr = await preferredMechanicError(request.workspace.id, data.preferred_mechanic_id);
+            if (mechErr) return reply.status(400).send({ error: mechErr });
+            data.preferred_mechanic_id = data.preferred_mechanic_id || null;
+        }
+
+        if ('phone' in data) {
+            const variants = phoneVariants(data.phone);
+            if (variants.length === 0) return reply.status(400).send({ error: 'Teléfono inválido.' });
+            const dup = await prisma.client.findFirst({
+                where: { phone: { in: variants }, id: { not: request.params.id } },
+                select: { id: true },
+            });
+            if (dup) return reply.status(409).send({ error: 'El teléfono ya está registrado' });
+            data.phone = toLocal10(data.phone) || String(data.phone).trim();
+        }
+
+        try {
+            return await prisma.client.update({
+                where: { id: request.params.id },
+                data,
+                include: { motorcycles: true, preferred_mechanic: { select: MECHANIC_SELECT } }
+            });
+        } catch (error) {
+            if (error.code === 'P2002') return reply.status(409).send({ error: 'El teléfono ya está registrado' });
+            if (error.code === 'P2025') return reply.status(404).send({ error: 'Cliente no encontrado' });
+            throw error;
+        }
     });
 
     // DELETE /api/clients/:id — solo owner/admin (acción destructiva, ELIHU 14).

@@ -5,6 +5,7 @@ import { assertWithinLimit, incrementUsageAsync, PlanLimitError } from '../lib/b
 import { fireEvent } from '../lib/events.js';
 import { generateOrderNumber } from '../lib/order-number.js';
 import { computeOrderFinance } from '../lib/payments.js';
+import { sendWhatsApp } from '../lib/appointment-flow.js';
 
 // Helper: recalculate order totals
 // price = total per service (labor + materials), cost = materials portion
@@ -138,8 +139,47 @@ export default async function ordersRoutes(fastify) {
                 }
                 throw err;
             }
-            const data = request.body;
+            const data = { ...(request.body || {}) };
             const folioPrefix = request.workspace?.folio_prefix || 'MP';
+
+            // ── Cliente / moto / mecanico preferido ──────────────────────────
+            // - Si el cliente tiene motos, la orden DEBE llevar una de ellas
+            //   (asi el servicio queda en el historial de esa moto).
+            // - Si tiene exactamente una y no llega, se asigna sola.
+            // - Si no tiene ninguna, se permite crear sin moto (el panel ofrece agregarla).
+            // - Si no llega mechanic_id y quien crea es owner/admin, se usa el mecanico
+            //   preferido del cliente (si sigue activo). Al mecanico no-admin NO se le fuerza nada:
+            //   el panel manda su propio id.
+            let orderClient = null;
+            if (data.client_id) {
+                orderClient = await prisma.client.findFirst({
+                    where: { id: data.client_id },
+                    include: { motorcycles: { select: { id: true, brand: true, model: true, year: true } } },
+                });
+                if (!orderClient) return reply.status(400).send({ error: 'Cliente no encontrado en este taller.' });
+                const motoIds = orderClient.motorcycles.map((m) => m.id);
+                if (data.motorcycle_id) {
+                    if (!motoIds.includes(data.motorcycle_id)) {
+                        return reply.status(400).send({ error: 'La moto no pertenece a ese cliente.' });
+                    }
+                } else if (motoIds.length === 1) {
+                    data.motorcycle_id = motoIds[0];
+                } else if (motoIds.length > 1) {
+                    return reply.status(400).send({ error: 'Elige la moto del cliente.' });
+                }
+            }
+            const preferredId = orderClient?.preferred_mechanic_id || null;
+            let preferredProfile = null;
+            if (preferredId) {
+                preferredProfile = await prisma.profile.findUnique({
+                    where: { id: preferredId },
+                    select: { id: true, full_name: true, phone: true, is_active: true },
+                });
+                if (preferredProfile && !preferredProfile.is_active) preferredProfile = null;
+            }
+            if (!data.mechanic_id && preferredProfile && ['owner', 'admin'].includes(request.workspaceRole)) {
+                data.mechanic_id = preferredProfile.id;
+            }
 
             // Generate public token
             const { nanoid } = await import('nanoid');
@@ -229,6 +269,28 @@ export default async function ordersRoutes(fastify) {
                 client_id: order.client_id,
                 motorcycle_id: order.motorcycle_id,
             });
+
+            // Un cliente de cita web deja de estar "por confirmar" al abrirle una orden.
+            if (orderClient?.web_unconfirmed) {
+                await prisma.client.updateMany({ where: { id: orderClient.id }, data: { web_unconfirmed: false } })
+                    .catch((e) => request.log.warn({ err: e.message }, 'web_unconfirmed no se pudo limpiar'));
+            }
+
+            // Aviso al mecanico preferido del cliente (si no es quien abre la orden). No bloquea.
+            if (preferredProfile && preferredProfile.id !== request.user.id && preferredProfile.phone) {
+                const moto = orderClient.motorcycles.find((m) => m.id === order.motorcycle_id);
+                const motoTxt = moto ? ` con su ${[moto.brand, moto.model, moto.year].filter(Boolean).join(' ')}` : '';
+                const base = (process.env.PUBLIC_APP_URL || 'https://motopartes.cloud').replace(/\/$/, '');
+                const mine = order.mechanic_id === preferredProfile.id;
+                const text =
+                    `Hola ${String(preferredProfile.full_name || '').split(' ')[0]}. ` +
+                    (mine
+                        ? `Se abrió la orden ${order.order_number} de tu cliente ${orderClient.full_name}${motoTxt}, a tu nombre.`
+                        : `Llegó tu cliente ${orderClient.full_name}${motoTxt}. Se abrió la orden ${order.order_number} con otro mecánico.`) +
+                    `\nRevísala aquí: ${base}/mechanic/order/${order.id}`;
+                sendWhatsApp(request.workspace.id, preferredProfile.phone, text)
+                    .catch((e) => request.log.warn({ err: e.message }, 'aviso a mecanico preferido fallo'));
+            }
 
             // Return full order
             return prisma.order.findUnique({

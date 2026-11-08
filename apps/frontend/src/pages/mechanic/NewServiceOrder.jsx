@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     ArrowLeft,
     ArrowRight,
@@ -59,8 +59,10 @@ export default function NewServiceOrder() {
         getClientMotorcycles,
         addMotorcycle,
         addOrder,
+        users,
     } = useData();
     const toast = useToast();
+    const [searchParams] = useSearchParams();
 
     // Format currency as Mexican Pesos
     const formatMXN = (amount) => {
@@ -125,6 +127,69 @@ export default function NewServiceOrder() {
     const [clientMotos, setClientMotos] = useState([]);
     const [searchPerformed, setSearchPerformed] = useState(false);
 
+    // Mecánico responsable de la orden. Por defecto: el mecánico preferido del cliente (si tiene)
+    // o quien la está creando. Se puede cambiar en el último paso.
+    const [orderMechanicId, setOrderMechanicId] = useState('');
+    const mechanicTouched = useRef(false);
+    const activeUsers = (users || []).filter(u => u.is_active !== false);
+
+    // Elegir cliente: preselecciona la moto si solo tiene una y el mecánico preferido.
+    const pickClient = (client, { goToStep = null, motoId = null } = {}) => {
+        const motos = client.motorcycles || getClientMotorcycles(client.id);
+        const wanted = motoId ? motos.find(m => m.id === motoId) : null;
+        const only = !wanted && motos.length === 1 ? motos[0] : null;
+        setFormData(prev => ({
+            ...prev,
+            selectedClient: client,
+            clientName: client.full_name,
+            clientPhone: client.phone,
+            clientNotes: client.notes || '',
+            isNewClient: false,
+            selectedMoto: wanted || only || null,
+            isNewMoto: false,
+        }));
+        setClientMotos(motos);
+        setSearchPerformed(true);
+        if (!mechanicTouched.current && client.preferred_mechanic_id && activeUsers.some(u => u.id === client.preferred_mechanic_id)) {
+            setOrderMechanicId(client.preferred_mechanic_id);
+        }
+        if (goToStep) setCurrentStep(goToStep);
+        return wanted || only || null;
+    };
+
+    // Precarga desde una cita (Crear orden) o desde Buscar cliente:
+    // ?client=<id>&moto=<id>&mechanic=<id>&cita=<id>  (o ?phone=&name= si la cita no tiene cliente).
+    const prefilled = useRef(false);
+    useEffect(() => {
+        if (prefilled.current) return;
+        const clientParam = searchParams.get('client');
+        const phoneParam = searchParams.get('phone');
+        if (!clientParam && !phoneParam) { prefilled.current = true; return; }
+        if (!clients || clients.length === 0) return; // espera a que carguen los clientes
+
+        prefilled.current = true;
+        const mechParam = searchParams.get('mechanic');
+        if (mechParam && activeUsers.some(u => u.id === mechParam)) {
+            mechanicTouched.current = true;
+            setOrderMechanicId(mechParam);
+        }
+        let client = clientParam ? clients.find(c => c.id === clientParam) : null;
+        if (!client && phoneParam) client = findClientByPhone(phoneParam);
+        if (client) {
+            const picked = pickClient(client, { motoId: searchParams.get('moto') });
+            // Con cliente y moto definidos (viene de una cita o del historial) se salta a los servicios.
+            setCurrentStep(picked && searchParams.get('moto') ? 3 : 2);
+        } else if (phoneParam) {
+            setFormData(prev => ({
+                ...prev,
+                clientPhone: phoneParam.replace(/\D/g, '').slice(-10),
+                clientName: searchParams.get('name') || '',
+                isNewClient: true,
+            }));
+            setSearchPerformed(true);
+        }
+    }, [clients, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // Master mechanics for auxiliary flow
     const [masterMechanics, setMasterMechanics] = useState([]);
     const [selectedMaster, setSelectedMaster] = useState(null);
@@ -157,15 +222,7 @@ export default function NewServiceOrder() {
         setSearchPerformed(true);
 
         if (client) {
-            setFormData(prev => ({
-                ...prev,
-                selectedClient: client,
-                clientName: client.full_name,
-                clientNotes: client.notes || '',
-                isNewClient: false,
-            }));
-            const motos = getClientMotorcycles(client.id);
-            setClientMotos(motos);
+            pickClient(client);
         } else {
             setFormData(prev => ({
                 ...prev,
@@ -603,8 +660,8 @@ export default function NewServiceOrder() {
             const order = await addOrder({
                 client_id: clientId,
                 motorcycle_id: motoId,
-                mechanic_id: user.id,
-                mechanic_name: user.full_name,
+                mechanic_id: orderMechanicId || user.id,
+                mechanic_name: activeUsers.find(u => u.id === (orderMechanicId || user.id))?.full_name || user.full_name,
                 services: orderServices,
                 custom_service: formData.customService,
                 custom_service_labor: formData.customService ? (parseFloat(formData.customServiceLabor) || 0) : 0,
@@ -1049,20 +1106,7 @@ export default function NewServiceOrder() {
                                                     <button
                                                         key={client.id}
                                                         className="cl-card"
-                                                        onClick={() => {
-                                                            setFormData(prev => ({
-                                                                ...prev,
-                                                                selectedClient: client,
-                                                                clientName: client.full_name,
-                                                                clientPhone: client.phone,
-                                                                clientNotes: client.notes || '',
-                                                                isNewClient: false,
-                                                            }));
-                                                            const motos = getClientMotorcycles(client.id);
-                                                            setClientMotos(motos);
-                                                            setSearchPerformed(true);
-                                                            setCurrentStep(2);
-                                                        }}
+                                                        onClick={() => pickClient(client, { goToStep: 2 })}
                                                     >
                                                         <div className="cl-card-avatar" data-initial={initial}>
                                                             {initial}
@@ -1677,6 +1721,24 @@ export default function NewServiceOrder() {
                                         No hay mecánicos maestros disponibles
                                     </p>
                                 )}
+                            </div>
+                        )}
+
+                        {/* Mecánico responsable (el preferido del cliente viene marcado) */}
+                        {!isAuxiliary && activeUsers.length > 0 && (
+                            <div className="form-group mt-lg">
+                                <label className="form-label">Mecánico responsable</label>
+                                <select
+                                    className="form-select"
+                                    value={orderMechanicId || user?.id || ''}
+                                    onChange={(e) => { mechanicTouched.current = true; setOrderMechanicId(e.target.value); }}
+                                >
+                                    {activeUsers.map(u => (
+                                        <option key={u.id} value={u.id}>
+                                            {u.full_name}{u.id === formData.selectedClient?.preferred_mechanic_id ? ' (el que pide el cliente)' : ''}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         )}
 

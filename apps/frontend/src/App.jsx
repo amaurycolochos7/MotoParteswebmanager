@@ -1,5 +1,6 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { nextFromSearch } from './lib/safeNext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import { ToastProvider } from './context/ToastContext';
@@ -75,6 +76,9 @@ import {
   QuotationDetail
 } from './pages/mechanic/index.jsx';
 
+// Buscar cliente por teléfono (admin y mecánico)
+import LookupClient from './pages/shared/LookupClient';
+
 // Public Pages
 import ClientPortal from './pages/public/ClientPortal';
 import Landing from './pages/public/Landing';
@@ -99,6 +103,7 @@ import './index.css';
 // Componente principal de rutas
 function AppRoutes() {
   const { isAuthenticated, user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -123,7 +128,8 @@ function AppRoutes() {
         path="/login"
         element={
           isAuthenticated ? (
-            <Navigate to={getDefaultRoute()} replace />
+            // Con sesión abierta, /login?next=... regresa a donde iba el usuario.
+            <Navigate to={nextFromSearch(location.search) || getDefaultRoute()} replace />
           ) : (
             <Login />
           )
@@ -164,6 +170,7 @@ function AppRoutes() {
         <Route path="order/:id" element={<MechanicOrderDetail />} />
         <Route path="orders/:id" element={<MechanicOrderDetail />} />
         <Route path="clients" element={<AdminClients />} />
+        <Route path="lookup" element={<LookupClient />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="users/:id/orders" element={<AdminMechanicOrders />} />
         <Route path="mechanics" element={<AdminMechanics />} />
@@ -197,6 +204,7 @@ function AppRoutes() {
         <Route path="orders" element={<MechanicOrders />} />
         <Route path="order/:id" element={<MechanicOrderDetail />} />
         <Route path="clients" element={<MechanicClients />} />
+        <Route path="lookup" element={<LookupClient />} />
         <Route path="appointments" element={<MechanicAppointments />} />
         <Route path="history" element={<MechanicHistory />} />
         <Route path="earnings" element={<MechanicEarnings />} />

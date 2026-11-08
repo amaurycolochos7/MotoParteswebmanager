@@ -149,3 +149,28 @@ Por favor contáctanos para reagendar 📞
 - **WhatsApp taller:** _(pendiente confirmar número)_
 - **Horario:** Lun–Sáb 9:00–18:00
 - **Promo junio:** Servicio completo $1,500 → $1,200 MXN (vigente 1–30 jun 2026)
+
+---
+
+## Cita en línea por pasos (WhatsApp primero, elige quién te atiende)
+
+Formulario de `apps/landing-vc` en 6 pasos: 1) WhatsApp, 2) reconoce al cliente (nombre completo + sus motos) o pide
+nombre y moto, 3) servicio, 4) **quién te atiende** (obligatorio; no hay opción "cualquiera"; solo se muestra el nombre,
+nunca rol ni teléfono), 5) día y hora (horarios de esa persona), 6) revisar y enviar.
+
+API pública (`apps/api/src/routes/public.js`):
+
+| Ruta | Qué hace |
+|---|---|
+| `POST /api/public/lookup {telefono}` | `{found:false}` o `{found:true, nombre, motos:[{id,marca,modelo,anio}]}`. Sin placas, serie, teléfono ni historial. Límite: 8/min por IP (`LOOKUP_IP_PER_MIN`) y 20/día por teléfono (`LOOKUP_PHONE_PER_DAY`). |
+| `GET /api/public/mechanics` | `[{id, nombre}]` de integrantes activos con `Membership.online_booking_visible` (cualquier rol). |
+| `GET /api/public/appointments/availability?fecha=&mecanico_id=&token=` | Con mecánico: 1 cita por hora para esa persona + cupo global del taller. Con `token` y sin `mecanico_id` usa el mecánico de esa cita. |
+| `POST /api/public/appointments` | `mecanico_id` obligatorio; `moto_id` (del cliente) o `moto_marca`+`moto_modelo`[+`moto_anio`]; cliente nuevo además `nombre`. Crea/reutiliza Client (`origin='cita_web'`, `web_unconfirmed=true`) y Motorcycle (sin duplicar) y la cita con `assigned_mechanic_id`, `mechanic_requested=true`. |
+
+- Al enviar se avisa por WhatsApp al cliente y al **mecánico elegido** (sin emojis) con el enlace
+  `PANEL_URL/mechanic/appointments?cita=<id>` (`PANEL_URL`, por defecto `https://motopartes.cloud`). Si no tiene teléfono o el
+  bot falla queda un evento `wa_failed` en la cita; el panel igual la muestra.
+- Al confirmar la cita (el taller o el cliente aceptando una propuesta) el cliente deja de estar `web_unconfirmed`.
+- Panel: `GET /api/appointments?mine=1` (solo las del usuario) y `GET /api/appointments/:id` (cita completa).
+- En desarrollo la landing usa la API local si se abre desde `localhost` (`?apiport=3101`).
+- Pruebas: `cd apps/api && node --test test/*.test.js` y `node test/_public_booking_e2e.mjs` (necesita la BD local).

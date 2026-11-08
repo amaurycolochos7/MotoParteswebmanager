@@ -3,6 +3,8 @@
 // Misma interfaz, implementación via REST API
 // =============================================
 
+import { loginUrlFor } from './safeNext';
+
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 const WA_BOT_URL = import.meta.env.VITE_WHATSAPP_BOT_URL || '/api/whatsapp-bot';
 
@@ -48,7 +50,9 @@ async function apiFetch(path, options = {}) {
 
     if (res.status === 401 && !path.includes('/auth/login') && !path.includes('/auth/register')) {
         setToken(null);
-        window.location.href = '/login';
+        // Recuerda la pantalla actual para volver a ella despues de entrar de nuevo.
+        const here = window.location.pathname + window.location.search;
+        window.location.href = loginUrlFor(here);
         throw new Error('Sesión expirada');
     }
 
@@ -147,6 +151,19 @@ export const authService = {
         }
     },
 
+    // Interruptor "Aparecer en citas en línea" (solo dueño / admin).
+    async setOnlineBooking(id, visible) {
+        try {
+            const data = await apiFetch(`/auth/users/${id}/online-booking`, {
+                method: 'PATCH',
+                body: JSON.stringify({ visible })
+            });
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
     async deleteUser(id) {
         return apiFetch(`/auth/users/${id}`, { method: 'DELETE' });
     },
@@ -202,6 +219,17 @@ export const clientsService = {
         }
     },
 
+    // "Buscar cliente": por teléfono (3+ dígitos, también los últimos 4), nombre, placas o marca/modelo.
+    // Devuelve clientes con sus motos (services_count, last_service_at, open_orders) y mecánico preferido.
+    async lookup(query) {
+        try {
+            const data = await apiFetch(`/clients/lookup?q=${encodeURIComponent(query || '')}`);
+            return { data, error: null };
+        } catch (error) {
+            return { data: [], error };
+        }
+    },
+
     // Historial del cliente (órdenes, cotizaciones, saldo pendiente, última visita).
     async getHistory(id) {
         try {
@@ -250,6 +278,16 @@ export const clientsService = {
 // MOTORCYCLES SERVICE
 // =============================================
 export const motorcyclesService = {
+    // Línea de tiempo de servicios de una moto: { motorcycle, client, summary, timeline[] }.
+    async history(id) {
+        try {
+            const data = await apiFetch(`/motorcycles/${id}/history`);
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    },
+
     async getByClient(clientId) {
         try {
             const data = await apiFetch(`/motorcycles?clientId=${clientId}`);
@@ -1267,6 +1305,10 @@ export const appointmentsService = {
     getAll(params = {}) {
         const qs = new URLSearchParams(params).toString();
         return apiFetch(`/appointments${qs ? '?' + qs : ''}`);
+    },
+    // Una cita completa (cliente, moto, mecánico, historial, enlace). Para abrirla desde ?cita=<id>.
+    get(id) {
+        return apiFetch(`/appointments/${id}`);
     },
     create(data) {
         return apiFetch('/appointments', { method: 'POST', body: JSON.stringify(data) });

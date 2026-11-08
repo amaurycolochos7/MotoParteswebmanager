@@ -5,6 +5,8 @@
 // las tareas automaticas (recordatorios y vencimientos).
 import crypto from 'node:crypto';
 import prisma from './prisma.js';
+import { occupancy, isSlotOpen, UUID_RE, mechanicNoticeText } from './booking.js';
+import { formatPhone } from './phone.js';
 
 // ── Configuracion ────────────────────────────────────────────────────────
 // Chiapas = CST (UTC-6), sin horario de verano desde 2022.
@@ -19,6 +21,9 @@ export const PUBLIC_BASE = (process.env.PUBLIC_APPT_BASE || 'https://vc.motopart
 export const MAPS_URL = process.env.SHOP_MAPS_URL || 'https://maps.app.goo.gl/5ettAZT7YhUaKfCT8';
 export const SHOP_NAME = 'MOTOPARTES';
 export const WORKSPACE_ID = process.env.LANDING_VC_WORKSPACE_ID || 'c4bca2c8-1ca2-49c0-a084-8b677439c731';
+// Panel de MotoPartes (donde cada mecanico entra con su usuario). Los avisos a mecanicos enlazan aqui.
+export const PANEL_URL = (process.env.PANEL_URL || 'https://motopartes.cloud').replace(/\/$/, '');
+export const panelLinkFor = (appointmentId) => `${PANEL_URL}/mechanic/appointments?cita=${appointmentId}`;
 const BOT_URL = process.env.WHATSAPP_BOT_INTERNAL_URL || 'http://whatsapp-bot:3002';
 const BOT_KEY = process.env.WHATSAPP_API_KEY || 'motopartes-whatsapp-key';
 
@@ -77,7 +82,8 @@ export async function blockedReason(workspaceId, fecha) {
 
 // Citas por hora de un dia. Una propuesta vigente aparta SU horario propuesto; si la
 // propuesta cambia una cita ya confirmada, tambien sigue apartando la original.
-export async function slotLoad(workspaceId, fecha, { excludeId } = {}) {
+// Devuelve { total: {hora: n}, byMechanic: {mecanicoId: {hora: n}} } (ver lib/booking.js).
+export async function slotOccupancy(workspaceId, fecha, { excludeId } = {}) {
     const start = new Date(`${fecha}T00:00:00${TZ_OFFSET}`);
     const end = new Date(start.getTime() + 24 * 3600 * 1000);
     const notSelf = excludeId ? { id: { not: excludeId } } : {};
@@ -88,25 +94,31 @@ export async function slotLoad(workspaceId, fecha, { excludeId } = {}) {
                 scheduled_date: { gte: start, lt: end },
                 OR: [{ status: { in: BLOCKING_STATUSES } }, { status: 'proposal_sent', proposal_from_confirmed: true }],
             },
-            select: { scheduled_date: true },
+            select: { scheduled_date: true, assigned_mechanic_id: true },
         }),
         prisma.appointment.findMany({
             where: {
                 workspace_id: workspaceId, ...notSelf, status: 'proposal_sent',
                 proposal_expires_at: { gt: new Date() }, proposed_date: { gte: start, lt: end },
             },
-            select: { proposed_date: true },
+            select: { proposed_date: true, assigned_mechanic_id: true },
         }),
     ]);
-    const counts = {};
-    const add = (d) => { const slot = `${localParts(d).hora.slice(0, 2)}:00`; counts[slot] = (counts[slot] || 0) + 1; };
-    byDate.forEach(r => add(r.scheduled_date));
-    byProposal.forEach(r => add(r.proposed_date));
-    return counts;
+    const slotOf = (d) => `${localParts(d).hora.slice(0, 2)}:00`;
+    return occupancy([
+        ...byDate.map(r => ({ slot: slotOf(r.scheduled_date), mechanic_id: r.assigned_mechanic_id })),
+        ...byProposal.map(r => ({ slot: slotOf(r.proposed_date), mechanic_id: r.assigned_mechanic_id })),
+    ]);
+}
+
+// Citas por hora de un dia (cupo global del taller). Se conserva por compatibilidad.
+export async function slotLoad(workspaceId, fecha, opts = {}) {
+    return (await slotOccupancy(workspaceId, fecha, opts)).total;
 }
 
 // Valida una fecha/hora elegida por un CLIENTE (formulario o enlace).
-export async function validateCustomerSlot(workspaceId, fecha, hora, { excludeId } = {}) {
+// Con `mechanicId` tambien exige que ese mecanico no tenga otra cita a esa hora.
+export async function validateCustomerSlot(workspaceId, fecha, hora, { excludeId, mechanicId } = {}) {
     const date = slotDate(fecha, hora);
     if (!date) return { ok: false, status: 400, error: 'Fecha u hora inválida.' };
     if (isSunday(fecha)) return { ok: false, status: 400, error: 'No atendemos domingos. Elige otro día.' };
@@ -116,23 +128,59 @@ export async function validateCustomerSlot(workspaceId, fecha, hora, { excludeId
     if (date.getTime() < now + 3600 * 1000) return { ok: false, status: 400, error: 'Elige una fecha y hora futuras.' };
     if (date.getTime() > now + MAX_DAYS_AHEAD * 24 * 3600 * 1000)
         return { ok: false, status: 400, error: 'Solo puedes agendar con hasta 4 meses de anticipación.' };
-    const load = await slotLoad(workspaceId, fecha, { excludeId });
-    if ((load[hora] || 0) >= SLOT_CAPACITY)
+    const occ = await slotOccupancy(workspaceId, fecha, { excludeId });
+    if (!isSlotOpen(occ, hora, { capacity: SLOT_CAPACITY, mechanicId }))
         return { ok: false, status: 409, error: 'Ese horario ya se ocupó. Elige otra hora, por favor.' };
     return { ok: true, date };
 }
 
-// Horarios de un dia para mostrar al cliente.
-export async function availabilityFor(workspaceId, fecha, { excludeId } = {}) {
+// Horarios de un dia para mostrar al cliente (opcionalmente segun el mecanico elegido).
+export async function availabilityFor(workspaceId, fecha, { excludeId, mechanicId } = {}) {
     if (isSunday(fecha)) return { fecha, closed: true, reason: 'No atendemos domingos.', slots: SLOTS.map(h => ({ hora: h, available: false })) };
     const blocked = await blockedReason(workspaceId, fecha);
     if (blocked) return { fecha, closed: true, reason: blocked, slots: SLOTS.map(h => ({ hora: h, available: false })) };
-    const load = await slotLoad(workspaceId, fecha, { excludeId });
+    const occ = await slotOccupancy(workspaceId, fecha, { excludeId });
     const now = Date.now();
     return {
         fecha, closed: false,
-        slots: SLOTS.map(h => ({ hora: h, available: slotDate(fecha, h).getTime() > now + 3600 * 1000 && (load[h] || 0) < SLOT_CAPACITY })),
+        slots: SLOTS.map(h => ({
+            hora: h,
+            available: slotDate(fecha, h).getTime() > now + 3600 * 1000 && isSlotOpen(occ, h, { capacity: SLOT_CAPACITY, mechanicId }),
+        })),
     };
+}
+
+// ── Mecanicos que el cliente puede elegir ────────────────────────────────
+// Integrantes activos del taller que no se ocultaron de las citas en linea (cualquier rol).
+export async function listBookableMechanics(workspaceId) {
+    const rows = await prisma.membership.findMany({
+        where: { workspace_id: workspaceId, online_booking_visible: true, profile: { is_active: true } },
+        select: { profile: { select: { id: true, full_name: true } } },
+    });
+    return rows
+        .map(r => ({ id: r.profile.id, nombre: String(r.profile.full_name || '').trim() }))
+        .filter(m => m.nombre)
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+}
+
+// El mecanico (con telefono, para avisarle) solo si el cliente puede elegirlo; si no, null.
+export async function findBookableMechanic(workspaceId, profileId) {
+    if (!UUID_RE.test(profileId || '')) return null;
+    const m = await prisma.membership.findFirst({
+        where: { workspace_id: workspaceId, profile_id: profileId, online_booking_visible: true, profile: { is_active: true } },
+        select: { profile: { select: { id: true, full_name: true, phone: true } } },
+    });
+    return m?.profile || null;
+}
+
+// El cliente ya tiene una cita confirmada: deja de ser "cita web por confirmar".
+export async function markClientConfirmed(appt) {
+    if (!appt?.client_id) return;
+    try {
+        await prisma.client.updateMany({ where: { id: appt.client_id, web_unconfirmed: true }, data: { web_unconfirmed: false } });
+    } catch (e) {
+        console.error('[appt] no se pudo quitar "por confirmar" al cliente', e.message);
+    }
 }
 
 // ── Historial ────────────────────────────────────────────────────────────
@@ -148,17 +196,19 @@ export async function logEvent(appt, type, actor, detail) {
 
 // ── Textos de WhatsApp ───────────────────────────────────────────────────
 const motoLine = (m) => (m ? `🏍️ ${m}\n` : '');
+// "Te atiende: Elihu Hernández (WhatsApp 961 123 4567)": el cliente sabe quién es y puede escribirle directo.
+export const mecLine = (m, tel) => (m ? `👤 Te atiende: ${m}${tel ? ` (WhatsApp ${tel})` : ''}\n` : '');
 
 export const MSG = {
-    received: ({ nombre, date, servicio, moto, link }) =>
+    received: ({ nombre, date, servicio, moto, mecanico, mecanicoTel, link }) =>
         `¡Hola ${nombre}! 👋\nRecibimos tu solicitud de cita en *${SHOP_NAME}* 🏍️\n\n` +
-        `📅 ${fmtFecha(date)}\n⏰ ${fmtHora(date)}\n🔧 ${servicio}\n${motoLine(moto)}\n` +
+        `📅 ${fmtFecha(date)}\n⏰ ${fmtHora(date)}\n🔧 ${servicio}\n${motoLine(moto)}${mecLine(mecanico, mecanicoTel)}\n` +
         `Tu solicitud está *en revisión*. Tan pronto la revisemos te responderemos por aquí para confirmarla o proponerte otro horario.\n\n` +
         `Puedes ver el estado de tu cita aquí:\n${link}`,
 
-    confirmed: ({ nombre, date, servicio, moto, link }) =>
+    confirmed: ({ nombre, date, servicio, moto, mecanico, mecanicoTel, link }) =>
         `✅ *¡Tu cita está confirmada!*\n\n${nombre}, te esperamos en *${SHOP_NAME}*:\n` +
-        `📅 ${fmtFecha(date)}\n⏰ ${fmtHora(date)}\n🔧 ${servicio}\n${motoLine(moto)}` +
+        `📅 ${fmtFecha(date)}\n⏰ ${fmtHora(date)}\n🔧 ${servicio}\n${motoLine(moto)}${mecLine(mecanico, mecanicoTel)}` +
         `📍 Venustiano Carranza, Chiapas\n${MAPS_URL}\n\n` +
         `Si necesitas cambiarla o cancelarla entra aquí:\n${link}\n\n¡Gracias por confiar en nosotros! 🙌`,
 
@@ -246,6 +296,8 @@ export function ctxOf(appt, extra = {}) {
         date: appt.scheduled_date,
         servicio: appt.service_type || 'Servicio',
         moto: appt.moto_label || (appt.motorcycle ? `${appt.motorcycle.brand} ${appt.motorcycle.model}` : ''),
+        mecanico: appt.mechanic?.full_name || '',
+        mecanicoTel: formatPhone(appt.mechanic?.phone),
         link: appt.public_token ? linkFor(appt.public_token) : '',
         ...extra,
     };
@@ -263,8 +315,46 @@ export async function notifyCustomer(appt, kind, extra = {}, opts = {}) {
     return { ...result, text, link: linkFor(token), phone: phone ? normalizePhone(phone) : null };
 }
 
+// Aviso por WhatsApp al MECANICO de la cita (el elegido por el cliente o el asignado por el taller).
+// Nunca lanza: si no hay telefono, el bot esta desconectado o falla el envio, queda un evento
+// 'wa_failed' en la cita y el panel igual la muestra. Texto sin emojis.
+// kind: 'requested' | 'assigned' | 'customerChose' | 'customerCancelled'
+export async function notifyMechanic(appt, kind) {
+    try {
+        if (!appt?.assigned_mechanic_id) return { sent: false, reason: 'sin_mecanico' };
+        const mech = await prisma.profile.findUnique({
+            where: { id: appt.assigned_mechanic_id },
+            select: { full_name: true, phone: true },
+        });
+        if (!mech) return { sent: false, reason: 'mecanico_no_existe' };
+        if (!mech.phone) {
+            await logEvent(appt, 'wa_failed', 'system', `aviso al mecánico (${mech.full_name}): sin teléfono guardado`);
+            return { sent: false, reason: 'sin_telefono' };
+        }
+        const text = mechanicNoticeText(kind, {
+            mecanico: mech.full_name,
+            cliente: appt.client?.full_name || appt.client_name_ext,
+            telefono: phoneOf(appt),
+            moto: appt.moto_label || (appt.motorcycle ? `${appt.motorcycle.brand} ${appt.motorcycle.model}` : ''),
+            servicio: appt.service_type,
+            fecha: fmtFecha(appt.scheduled_date),
+            hora: fmtHora(appt.scheduled_date),
+            notas: appt.notes,
+            link: panelLinkFor(appt.id),
+            shop: SHOP_NAME,
+        });
+        const result = await sendWhatsApp(appt.workspace_id, mech.phone, text);
+        await logEvent(appt, result.sent ? 'mechanic_notified' : 'wa_failed', 'system',
+            result.sent ? `Se avisó a ${mech.full_name} (${kind})` : `aviso al mecánico (${mech.full_name}): ${result.reason}`);
+        return result;
+    } catch (e) {
+        console.error('[appt] aviso al mecanico:', e.message);
+        return { sent: false, reason: e.message };
+    }
+}
+
 // ── Tareas automaticas ───────────────────────────────────────────────────
-const FULL_INCLUDE = { client: true, motorcycle: true };
+const FULL_INCLUDE = { client: true, motorcycle: true, mechanic: { select: { full_name: true, phone: true } } };
 
 async function hasReminderAutomation(workspaceId) {
     const n = await prisma.automation.count({

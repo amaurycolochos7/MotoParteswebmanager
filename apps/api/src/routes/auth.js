@@ -475,10 +475,40 @@ export default async function authRoutes(fastify) {
                 orderBy: { joined_at: 'asc' },
             })
         );
-        return memberships.map(({ profile, role, permissions }) => {
+        return memberships.map(({ profile, role, permissions, online_booking_visible }) => {
             const { password_hash, ...rest } = profile;
-            return { ...rest, workspace_role: role, workspace_permissions: permissions };
+            return {
+                ...rest,
+                workspace_role: role,
+                workspace_permissions: permissions,
+                // Aparece en la lista "quien te atiende" de la landing (citas en linea).
+                online_booking_visible,
+            };
         });
+    });
+
+    // PATCH /api/auth/users/:id/online-booking { visible: boolean }
+    // Interruptor "Aparecer en citas en línea" (Membership del taller activo).
+    // Solo dueño / admin del taller.
+    fastify.patch('/users/:id/online-booking', { preHandler: [authenticate, resolveWorkspace] }, async (request, reply) => {
+        const allowed = ['owner', 'admin'].includes(request.workspaceRole) || request.user?.role === 'admin';
+        if (!allowed) {
+            return reply.status(403).send({ error: 'Solo el dueño o el administrador puede cambiar esto.' });
+        }
+        const visible = request.body?.visible;
+        if (typeof visible !== 'boolean') {
+            return reply.status(400).send({ error: 'visible debe ser true o false.' });
+        }
+        const membership = await unscoped(() =>
+            prisma.membership.findUnique({
+                where: { workspace_id_profile_id: { workspace_id: request.workspace.id, profile_id: request.params.id } },
+            })
+        );
+        if (!membership) return reply.status(404).send({ error: 'Usuario no encontrado en este taller.' });
+        const updated = await unscoped(() =>
+            prisma.membership.update({ where: { id: membership.id }, data: { online_booking_visible: visible } })
+        );
+        return { id: request.params.id, online_booking_visible: updated.online_booking_visible };
     });
 
     // POST /api/auth/users — admin creates a user INSIDE their workspace.
