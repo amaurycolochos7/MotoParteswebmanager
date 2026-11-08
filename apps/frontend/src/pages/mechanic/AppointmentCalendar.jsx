@@ -1,3 +1,4 @@
+import './AppointmentsV2.css';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -38,7 +39,7 @@ const STATUS_COLORS = {
 
 // Lo que el cliente hizo y el taller aun no ha visto
 const ALERT_TEXT = {
-    customer_accepted: 'El cliente aceptó tu propuesta y la cita quedó confirmada ✓',
+    customer_accepted: 'El cliente aceptó tu propuesta y la cita quedó confirmada',
     customer_chose: 'El cliente pidió otra fecha — revísala',
     customer_cancelled: 'El cliente canceló su cita',
     customer_declined: 'El cliente rechazó la propuesta',
@@ -155,8 +156,9 @@ export default function AppointmentCalendar() {
     const [notice, setNotice] = useState(null);           // resultado del ultimo envio por WhatsApp
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState('all');          // 'all' | 'external' | 'internal' | 'closed'
-    const [showList, setShowList] = useState(false);
+    const [filter, setFilter] = useState('review');       // 'review' | 'today' | 'upcoming' | 'all' | 'closed'
+    const startedRef = useRef(false);
+    const [showList, setShowList] = useState(true); // la bandeja es la pantalla principal (sin menú intermedio)
     const [showNewModal, setShowNewModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [selectedApt, setSelectedApt] = useState(null);
@@ -202,13 +204,28 @@ export default function AppointmentCalendar() {
     const alerts = scoped.filter(a => a.shop_alert);
     const attention = new Set([...toReview, ...alerts].map(a => a.id)).size;
 
-    const filtered = filter === 'external'
-        ? active.filter(a => a.source === 'external')
-        : filter === 'internal'
-            ? active.filter(a => a.source !== 'external')
-            : filter === 'closed'
-                ? closed
-                : active;
+    // Bandeja: por revisar (lo que espera respuesta), hoy y próximas.
+    const needsReview = (a) => a.status === 'pending_external' || a.shop_alert;
+    const todayKey = new Date().toLocaleDateString('en-CA', { timeZone: MX });
+    const dayKey = (iso) => new Date(iso).toLocaleDateString('en-CA', { timeZone: MX });
+    const inbox = {
+        review: active.filter(needsReview),
+        today: active.filter(a => !needsReview(a) && dayKey(effDate(a)) === todayKey),
+        upcoming: active.filter(a => !needsReview(a) && dayKey(effDate(a)) > todayKey),
+    };
+    const filtered = filter === 'review' ? inbox.review
+        : filter === 'today' ? active.filter(a => dayKey(effDate(a)) === todayKey)
+            : filter === 'upcoming' ? active.filter(a => dayKey(effDate(a)) > todayKey)
+                : filter === 'closed' ? closed
+                    : active;
+
+    // La primera vez abre en "Por revisar" si hay algo pendiente; si no, en "Hoy".
+    useEffect(() => {
+        if (loading || startedRef.current) return;
+        startedRef.current = true;
+        if (!searchParams.get('cita')) setFilter(inbox.review.length > 0 ? 'review' : (inbox.today.length > 0 ? 'today' : 'upcoming'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loading]);
 
     // Abrir la cita del aviso: se muestra primero en la lista, sin importar filtros.
     useEffect(() => {
@@ -446,47 +463,39 @@ export default function AppointmentCalendar() {
                 </div>
             ) : (
                 <div className="list-view">
-                    <div className="list-header">
-                        <button className="btn-back" onClick={() => setShowList(false)}>← Volver</button>
-                        <div className="list-title-row">
-                            <div className="list-title">
-                                <h2>Citas</h2>
-                                <p>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</p>
-                            </div>
-                            <button className="btn-icon" onClick={() => loadAppointments()} title="Actualizar">
-                                <RefreshCw size={18} />
-                            </button>
+                    <header className="k-pagehead">
+                        <div>
+                            <h1>Citas</h1>
+                            <p>{inbox.review.length > 0 ? `${inbox.review.length} por revisar` : 'Sin pendientes por revisar'} · {active.length} activa{active.length !== 1 ? 's' : ''}</p>
                         </div>
-                    </div>
+                        <div className="k-pagehead__actions">
+                            <button type="button" className="k-btn k-btn--red" onClick={() => setShowNewModal(true)}><Plus size={18} /> Agendar cita</button>
+                            <button type="button" className="k-btn k-btn--ghost" onClick={() => setShowBlocked(true)}><CalendarOff size={17} /> Días sin servicio</button>
+                            <button type="button" className="k-btn k-btn--ghost" onClick={() => loadAppointments()} title="Actualizar" aria-label="Actualizar"><RefreshCw size={17} /></button>
+                        </div>
+                    </header>
 
-                    {scopeTabs}
+                    <div className="apt-bar">
+                        {scopeTabs}
+                    </div>
 
                     {linkError && <div className="apt-error" role="alert">{linkError} <button type="button" className="apt-pinned-close" onClick={clearCita}>Cerrar</button></div>}
 
-                    {/* Filtros */}
-                    <div className="filter-tabs">
+                    <div className="k-tabs k-tabs--line apt-tabs" role="tablist">
                         {[
-                            { key: 'all', label: 'Todas' },
-                            { key: 'external', label: 'Del sitio web', badge: attention },
-                            { key: 'internal', label: 'Internas' },
-                            { key: 'closed', label: 'Cerradas' },
+                            { key: 'review', label: 'Por revisar', count: inbox.review.length, hot: true },
+                            { key: 'today', label: 'Hoy', count: active.filter(a => dayKey(effDate(a)) === todayKey).length },
+                            { key: 'upcoming', label: 'Próximas', count: active.filter(a => dayKey(effDate(a)) > todayKey).length },
+                            { key: 'all', label: 'Todas', count: active.length },
+                            { key: 'closed', label: 'Cerradas', count: closed.length },
                         ].map(f => (
-                            <button
-                                key={f.key}
-                                className={`filter-tab ${filter === f.key ? 'active' : ''}`}
-                                onClick={() => setFilter(f.key)}
-                            >
-                                {f.label}
-                                {f.badge > 0 && <span className="tab-badge">{f.badge}</span>}
+                            <button key={f.key} type="button" role="tab" aria-selected={filter === f.key} className={`k-tab${filter === f.key ? ' is-active' : ''}${f.hot && f.count > 0 ? ' is-hot' : ''}`} onClick={() => setFilter(f.key)}>
+                                <span>{f.label}</span><span className="k-tab__count">{f.count}</span>
                             </button>
                         ))}
                     </div>
 
                     {notices}
-
-                    <button className="btn-new-appointment" onClick={() => setShowNewModal(true)}>
-                        <Plus size={20} /> Agendar Nueva Cita
-                    </button>
 
                     {bookingLink && <BookingLinkCard link={bookingLink} />}
 

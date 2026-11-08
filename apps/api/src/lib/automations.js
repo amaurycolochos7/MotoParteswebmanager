@@ -1,6 +1,7 @@
 import prisma, { workspaceContext } from './prisma.js';
 import { incrementUsageAsync } from './billing.js';
 import { formatPhone } from './phone.js';
+import { sendToClient } from './wa-send.js';
 
 function unscoped(fn) {
     return workspaceContext.run({ workspaceId: null }, fn);
@@ -179,36 +180,16 @@ async function actionWhatsappSendTemplate({ automation, context, workspace_id })
     const phone = await resolveRecipient(params.to || 'client', context, vars);
     if (!phone) throw new Error('no recipient phone resolvable');
 
-    // Need a connected mechanic session to send. Pick the order's mechanic
-    // if there is one, otherwise the workspace's first connected session.
-    let mechanicId = null;
-    if (context.order_id) {
-        const o = await unscoped(() => prisma.order.findUnique({ where: { id: context.order_id } }));
-        mechanicId = o?.mechanic_id || o?.approved_by || null;
-    }
-    if (!mechanicId) {
-        const fallback = await unscoped(() =>
-            prisma.whatsappSession.findFirst({
-                where: { workspace_id, is_connected: true },
-            })
-        );
-        mechanicId = fallback?.mechanic_id || null;
-    }
-    if (!mechanicId) throw new Error('no active WhatsApp session for this workspace');
-
-    const res = await fetch(`${BOT_URL}/send-message`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': BOT_KEY },
-        body: JSON.stringify({ mechanicId, phone, message: body }),
-        signal: AbortSignal.timeout(25000),
+    // V2: sesion UNICA del taller + cola de reintentos (lib/wa-send.js). Si el bot no esta listo el mensaje queda
+    // en cola y sale solo: el trabajo se da por hecho (no se reintenta aqui, para no duplicar).
+    const sent = await sendToClient(workspace_id, phone, body, {
+        origin: 'auto',
+        context: { automation_id: automation.id, order_id: context.order_id || null, appointment_id: context.appointment_id || null },
     });
-    const text = await res.text();
-    if (!res.ok) throw new Error(`bot ${res.status}: ${text.slice(0, 200)}`);
-    let data = {};
-    try { data = JSON.parse(text); } catch { /* ignore */ }
+    if (!sent.sent && !sent.queued) throw new Error(`whatsapp: ${sent.reason || sent.error || 'no se pudo enviar'}`);
 
     incrementUsageAsync(workspace_id, 'whatsapp_messages', 1);
-    return { success: true, messageId: data.messageId || null };
+    return { success: true, messageId: sent.messageId || null, queued: !!sent.queued };
 }
 
 async function actionTaskCreate({ automation, context, workspace_id }) {
@@ -370,17 +351,17 @@ export async function runAutomationSweep() {
     );
     if (!jobs.length) return { processed: 0 };
 
-    // Mark as running so concurrent sweeps don't double-run.
-    const ids = jobs.map((j) => j.id);
-    await unscoped(() =>
-        prisma.automationJob.updateMany({
-            where: { id: { in: ids }, status: 'pending' },
-            data: { status: 'running' },
-        })
-    );
-
+    // V2: reclamo ATOMICO por trabajo. Antes se leian todos, se marcaban "running" en bloque y se procesaban
+    // todos aunque otra pasada ya los hubiera tomado: dos pasadas simultaneas podian mandar el mismo mensaje dos veces.
     let processed = 0;
     for (const job of jobs) {
+        const claimed = await unscoped(() =>
+            prisma.automationJob.updateMany({
+                where: { id: job.id, status: 'pending' },
+                data: { status: 'running' },
+            })
+        );
+        if (claimed.count === 0) continue; // otra pasada ya lo tomo
         await processJob(job);
         processed += 1;
     }

@@ -213,3 +213,6 @@ export function Modal({ open, onClose, title, footer = null, size = 'md', childr
     </div>
   );
 }
+
+/* Kit "taller" */
+export * from './kit.jsx';

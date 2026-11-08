@@ -25,6 +25,12 @@ export function phoneVariants(raw) {
     return [p, `52${p}`, `+52${p}`, `521${p}`, `+521${p}`];
 }
 
+/** Número que entiende el bot de WhatsApp: 52 + 10 dígitos (MX) o los dígitos tal cual (otro país). */
+export function toWaNumber(raw) {
+    const local = toLocal10(raw);
+    return local ? `52${local}` : digits(raw);
+}
+
 /** 9611234567 -> "961 123 4567" (para mostrarlo en mensajes). Si no es de 10 dígitos devuelve ''. */
 export function formatPhone(raw) {
     const p = toLocal10(raw);

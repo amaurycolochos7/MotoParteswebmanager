@@ -38,6 +38,9 @@ import publicRoutes from './routes/public.js';
 import questionsRoutes from './routes/questions.js';
 import printRoutes from './routes/print.js';
 import printAgentRoutes from './routes/print-agent.js';
+import teamRoutes from './routes/team.js';
+import inboxRoutes from './routes/inbox.js';
+import internalWaRoutes from './routes/internal-wa.js';
 import { installWorkspaceStore } from './middleware/workspace.js';
 
 // trustProxy: la API vive detrás de nginx (frontend) y del túnel de Cloudflare; sin esto
@@ -145,6 +148,10 @@ await fastify.register(publicRoutes, { prefix: '/api/public' });
 // Impresión de tickets: panel (JWT) y agente de Windows (clave propia, sin JWT).
 await fastify.register(printRoutes, { prefix: '/api/print' });
 await fastify.register(printAgentRoutes, { prefix: '/api/print-agent' });
+// V2: equipo, bandeja de WhatsApp y webhook interno del bot
+await fastify.register(teamRoutes, { prefix: '/api/team' });
+await fastify.register(inboxRoutes, { prefix: '/api/inbox' });
+await fastify.register(internalWaRoutes, { prefix: '/api/internal/wa' });
 // Módulo interno "MotoPartes Questions" — cuestionario privado por PIN.
 // Aislado: no usa el middleware de workspace ni toca el auth principal.
 await fastify.register(questionsRoutes, { prefix: '/api/questions' });
@@ -170,6 +177,17 @@ setInterval(() => {
 // Citas en linea: recordatorio/vencimiento de propuestas y recordatorios de cita (cada 5 min).
 import { startAppointmentJobs } from './lib/appointment-flow.js';
 startAppointmentJobs(fastify.log);
+
+// WhatsApp V2: cola de reintentos de envios (cada 15 s), migraciones de datos al arrancar y limpieza de imagenes viejas.
+import { startOutboxWorker } from './lib/wa-send.js';
+import { runStartupMigrations } from './lib/startup-migrations.js';
+import { purgeOldMedia } from './lib/wa-inbox.js';
+startOutboxWorker(fastify.log);
+runStartupMigrations(fastify.log).catch((e) => console.error('[migraciones] fallo:', e.message));
+purgeOldMedia().catch((e) => console.error('[wa-media] limpieza fallo:', e.message));
+setInterval(() => {
+    purgeOldMedia().catch((e) => console.error('[wa-media] limpieza fallo:', e.message));
+}, 24 * 60 * 60 * 1000).unref();
 
 // Referral payout sweep — corre 1× por día. Internamente solo genera
 // payouts si es día 1 del mes. Barato, idempotente por @@unique.

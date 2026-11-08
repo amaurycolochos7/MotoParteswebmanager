@@ -5,6 +5,7 @@ import { EventEmitter } from 'events';
 import { createHash } from 'crypto';
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth, MessageMedia } = pkg;
+import { attachInboxListeners } from './inbox-events.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -476,6 +477,13 @@ class WhatsAppSession extends EventEmitter {
                 this.emit('disconnected', 'auth_failure');
             });
 
+            // V2 bandeja: reenvia mensajes entrantes/salientes y acuses a la API (nunca debe romper la sesion).
+            try {
+                attachInboxListeners(this.client, this.mechanicId);
+            } catch (e) {
+                console.warn(`⚠️ No se pudieron enganchar los eventos de la bandeja: ${e.message}`);
+            }
+
             console.log(`🚀 Step 2: Launching Puppeteer for mechanic ${this.mechanicId}...`);
 
             // Initialize with a hard timeout. If WhatsApp Web hangs, destroy the
@@ -811,13 +819,13 @@ class WhatsAppSession extends EventEmitter {
 
     /**
      * Reloj de control: si la sesión no llega a "ready" en WA_READY_TIMEOUT_MS
-     * (120 s) y NO está esperando que escaneen un QR, se destruye el cliente y se
+     * (180 s por defecto; antes 60 s, que reiniciaba en bucle sesiones que sí iban a conectar) y NO está esperando que escaneen un QR, se destruye el cliente y se
      * emite 'disconnected' con motivo 'ready_timeout'; el SessionManager reinicia
      * la sesión con retroceso exponencial. No borra los datos de sesión.
      */
     _armReadyWatchdog(origin) {
         this._clearReadyWatchdog();
-        const ms = parsePositiveInt(process.env.WA_READY_TIMEOUT_MS, 60000);
+        const ms = parsePositiveInt(process.env.WA_READY_TIMEOUT_MS, 180000);
         this._readyTimer = setTimeout(() => {
             this._readyTimer = null;
             if (this.isConnected || this.lastQr || !this.client) return;

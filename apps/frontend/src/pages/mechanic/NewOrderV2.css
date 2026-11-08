@@ -1,0 +1,58 @@
+/* Nueva orden · una sola pantalla (sobrescribe el estilo por pasos de NewServiceOrder) */
+.page-content:has(.new-order.no-v2) { overflow-y: auto; overflow-x: hidden; padding: 24px 32px 56px; }
+.page-content .new-order.no-v2 {
+  display: block; overflow: visible; min-height: 0; background: transparent; padding: 0; flex: none; width: 100%;
+}
+.no-v2 .no-header { margin-bottom: 18px; gap: 14px; }
+.no-v2 .no-back-btn { width: 42px; height: 42px; border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+.no-v2 .no-back-btn:hover { background: var(--paper-2); }
+.no-v2 .no-title { font-family: var(--font-display); font-size: 2.1rem; text-transform: uppercase; letter-spacing: 0.02em; font-weight: 600; line-height: 1; }
+.no-v2 .no-step-indicator { font-size: 14px; color: var(--ink-3); }
+
+.no-v2 .no-layout { display: grid; gap: 20px; grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 1040px) { .no-v2 .no-layout { grid-template-columns: minmax(0, 1fr) 340px; } }
+.no-v2 .step-content { display: flex; flex-direction: column; gap: 16px; overflow: visible; padding: 0; min-height: 0; flex: none; }
+
+/* Sección */
+.no-sec { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-card); overflow: hidden; transition: opacity 160ms ease; }
+.no-sec.is-locked { opacity: 0.45; pointer-events: none; }
+.no-sec__head { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--line-soft); background: linear-gradient(#fffefb, #fbf9f4); }
+.no-sec__n { flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--ink); color: #fff; font: 600 13px var(--font-mono); }
+.no-sec.is-done .no-sec__n { background: var(--ok); }
+.no-sec__t { font-family: var(--font-display); font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.no-sec__s { margin-left: auto; font-size: 12.5px; color: var(--ink-3); max-width: 50%; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.no-sec > div { padding: 16px; }
+@media (max-width: 640px) { .no-sec__s { display: none; } .no-sec > div { padding: 14px; } }
+
+/* Los pasos viejos dejan de ser contenedores a pantalla completa */
+.no-v2 .step-client, .no-v2 .step-moto, .no-v2 .step-services, .no-v2 .step-photos, .no-v2 .step-payment {
+  display: flex; flex-direction: column; gap: 14px; flex: none; min-height: 0; overflow: visible; padding: 16px;
+}
+
+/* Resumen */
+.no-aside { display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 1040px) { .no-aside { position: sticky; top: 16px; } }
+.no-aside__card { background: var(--card); border: 1px solid var(--ink); border-radius: var(--radius-card); padding: 16px; box-shadow: 4px 4px 0 var(--ink); }
+.no-aside__t { font-family: var(--font-display); font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+.no-aside__list { list-style: none; display: flex; flex-direction: column; }
+.no-aside__list li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 13.5px; }
+.no-aside__list li:last-child { border-bottom: none; }
+.no-aside__list span { color: var(--ink-3); flex: 0 0 auto; }
+.no-aside__list b { font-weight: 600; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.no-aside__list b.is-missing { color: var(--red); }
+.no-aside__note { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-soft); font-size: 12.5px; color: var(--ink-3); line-height: 1.45; }
+.no-submit {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 54px; width: 100%;
+  border: 1px solid var(--red-dark); background: var(--red); color: #fff; border-radius: var(--radius-md);
+  font: 700 16px var(--font-text); cursor: pointer; letter-spacing: 0.01em; transition: background 120ms ease, transform 120ms ease;
+}
+.no-submit:hover:not(:disabled) { background: var(--red-dark); }
+.no-submit:active:not(:disabled) { transform: translateY(1px); }
+.no-submit:disabled { background: var(--paper-3); border-color: var(--line); color: var(--ink-4); cursor: not-allowed; }
+
+/* Móvil: el botón queda fijo abajo; el resumen se compacta */
+@media (max-width: 1039px) {
+  .no-aside__card { box-shadow: none; border-color: var(--line); }
+  .no-aside { padding-bottom: 76px; }
+  .no-submit { position: fixed; left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); width: auto; z-index: 60; box-shadow: 0 8px 24px rgba(23, 20, 15, 0.28); }
+}

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Send, MessageCircle, Phone, AlertCircle, CheckCircle, Loader, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sendDirectMessage, formatPhoneForDisplay } from '../../utils/whatsappHelper';
-import { whatsappBotService } from '../../lib/api';
+import { waService } from '../../lib/api';
 import './WhatsAppSendModal.css';
 
 /**
@@ -27,8 +27,8 @@ export default function WhatsAppSendModal({ isOpen, onClose, phone = '', clientN
     useEffect(() => {
         if (isOpen && user?.id) {
             setBotStatus(null);
-            whatsappBotService.getSessionStatus(user.id).then(status => {
-                setBotStatus(status.isConnected === true);
+            waService.status().then(status => {
+                setBotStatus(status.connected === true);
             }).catch(() => setBotStatus(false));
         }
     }, [isOpen, user?.id]);

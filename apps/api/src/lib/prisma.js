@@ -40,6 +40,11 @@ const SCOPED_MODELS = new Set([
     'OrderPayment',
     'PrintJob',
     'PrintAgent',
+    // WhatsApp V2
+    'WaConversation',
+    'WaMessage',
+    'WaMedia',
+    'WaOutbox',
 ]);
 
 const CREATE_OPS = new Set(['create', 'createMany', 'upsert']);

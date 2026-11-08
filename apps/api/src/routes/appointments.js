@@ -2,6 +2,7 @@ import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
 import { fireEvent } from '../lib/events.js';
+import { loadActor, isAdminRole } from '../lib/permissions.js';
 import { syncAppointmentToCalendar, removeAppointmentFromCalendar } from '../lib/calendar-sync.js';
 import {
     FINAL_STATUSES, DATE_RE, PROPOSAL_TTL_H, TZ_OFFSET,
@@ -52,12 +53,53 @@ export default async function appointmentsRoutes(fastify) {
         return rows.map(withLink);
     });
 
-    // GET /api/appointments/attention-count — globo del menu: solicitudes por revisar + respuestas del cliente
-    fastify.get('/attention-count', async () => {
-        const count = await prisma.appointment.count({
-            where: { OR: [{ status: 'pending_external' }, { shop_alert: true }] },
-        });
-        return { count };
+    // GET /api/appointments/attention-count — globo / campanita: solicitudes por revisar + respuestas del cliente.
+    // count = de todo el taller; mine = las asignadas al usuario actual (V2).
+    const NEEDS_ATTENTION = [{ status: 'pending_external' }, { shop_alert: true }];
+    fastify.get('/attention-count', async (request) => {
+        const [count, mine] = await Promise.all([
+            prisma.appointment.count({ where: { OR: NEEDS_ATTENTION } }),
+            prisma.appointment.count({ where: { OR: NEEDS_ATTENTION, assigned_mechanic_id: request.user.id } }),
+        ]);
+        return { count, mine };
+    });
+
+    // GET /api/appointments/inbox — bandeja de citas del usuario actual (V2):
+    //   pending  = solicitudes por revisar o con respuesta del cliente sin ver
+    //   today    = confirmadas/agendadas para hoy (dia local de Chiapas)
+    //   upcoming = confirmadas/agendadas/propuestas despues de hoy
+    // owner/admin ven todo el taller; mecanico, maestro y auxiliar solo las asignadas a ellos.
+    fastify.get('/inbox', async (request) => {
+        const actor = await loadActor(request);
+        const scope = isAdminRole(actor.role) ? {} : { assigned_mechanic_id: actor.id };
+        const todayStr = localParts(new Date()).fecha; // YYYY-MM-DD en hora local
+        const start = new Date(`${todayStr}T00:00:00${TZ_OFFSET}`);
+        const end = new Date(start.getTime() + 24 * 3600 * 1000);
+
+        const [pending, today, upcoming] = await Promise.all([
+            prisma.appointment.findMany({
+                where: { ...scope, OR: NEEDS_ATTENTION, status: { notIn: FINAL_STATUSES } },
+                include: INCLUDE, orderBy: { scheduled_date: 'asc' }, take: 100,
+            }),
+            prisma.appointment.findMany({
+                where: { ...scope, status: { in: ['confirmed', 'scheduled'] }, scheduled_date: { gte: start, lt: end } },
+                include: INCLUDE, orderBy: { scheduled_date: 'asc' }, take: 100,
+            }),
+            prisma.appointment.findMany({
+                where: { ...scope, status: { in: ['confirmed', 'scheduled', 'proposal_sent'] }, scheduled_date: { gte: end } },
+                include: INCLUDE, orderBy: { scheduled_date: 'asc' }, take: 100,
+            }),
+        ]);
+        // Una cita pendiente que ademas cae hoy se muestra solo en "pendientes".
+        const pendingIds = new Set(pending.map((a) => a.id));
+        const todayOnly = today.filter((a) => !pendingIds.has(a.id));
+        const upcomingOnly = upcoming.filter((a) => !pendingIds.has(a.id));
+        return {
+            pending: pending.map(withLink),
+            today: todayOnly.map(withLink),
+            upcoming: upcomingOnly.map(withLink),
+            counts: { pending: pending.length, today: todayOnly.length, upcoming: upcomingOnly.length },
+        };
     });
 
     // GET /api/appointments/:id — una cita completa (cliente, moto, mecanico, historial y enlace).

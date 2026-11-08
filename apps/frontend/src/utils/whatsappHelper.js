@@ -1,4 +1,4 @@
-﻿import { whatsappBotService } from '../lib/api';
+﻿import { waService, whatsappBotService } from '../lib/api';
 
 // ============================================================
 // CORE: Envio directo de mensajes via WhatsApp Bot
@@ -14,56 +14,24 @@
  * @param {string} message - Mensaje a enviar
  * @returns {Promise<{success: boolean, automated: boolean, error?: string}>}
  */
-export const sendDirectMessage = async (mechanicId, phone, message, orderId = null) => {
+export const sendDirectMessage = async (_mechanicId, phone, message, orderId = null) => {
     if (!phone) {
         return { success: false, automated: false, error: 'El cliente no tiene numero de telefono registrado' };
     }
     if (!message) {
         return { success: false, automated: false, error: 'El mensaje esta vacio' };
     }
-
     try {
-        // Intento 1: enviar con la sesion del mecanico directamente
-        if (mechanicId) {
-            const status = await whatsappBotService.getSessionStatus(mechanicId);
-            if (status.isConnected) {
-                const result = await whatsappBotService.sendMessage(mechanicId, phone, message);
-                if (result.success) {
-                    return { success: true, automated: true };
-                }
-            }
-        }
-
-        // Intento 2: si hay orderId, usar sendForOrder (busca la sesion correcta automaticamente)
-        if (orderId) {
-            const result = await whatsappBotService.sendForOrder(orderId, phone, message);
-            if (result.success) {
-                return { success: true, automated: true };
-            }
-        }
-
-        // Intento 3: buscar cualquier sesion activa del bot
-        const sessions = await whatsappBotService.getBotSessions();
-        const activeSessions = (Array.isArray(sessions) ? sessions : []).filter(s => s.isConnected);
-
-        if (activeSessions.length > 0) {
-            const result = await whatsappBotService.sendMessage(activeSessions[0].mechanicId, phone, message);
-            if (result.success) {
-                return { success: true, automated: true };
-            }
-        }
-
-        return {
-            success: false,
-            automated: false,
-            error: 'El bot de WhatsApp no esta activo. Conectalo desde la seccion WhatsApp antes de enviar notificaciones.'
-        };
+        // Un solo WhatsApp para todo el taller: el servidor elige la sesion (CONTRATO-V2).
+        // Si WhatsApp esta reconectando, el servidor lo deja en cola y lo reintenta (queued).
+        const res = await waService.send({ phone, message, order_id: orderId || undefined });
+        return { success: res?.success !== false, automated: true, queued: !!res?.queued };
     } catch (err) {
-        console.error('[WhatsApp] Error al enviar mensaje directo:', err);
+        console.error('[WhatsApp] Error al enviar mensaje:', err);
         return {
             success: false,
             automated: false,
-            error: 'Error de conexion con el bot de WhatsApp.'
+            error: err?.message || 'No se pudo enviar. Revisa la conexion de WhatsApp del taller.'
         };
     }
 };

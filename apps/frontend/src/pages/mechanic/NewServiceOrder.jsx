@@ -30,8 +30,7 @@ import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
 import { saveOrderPhotos } from '../../services/photoStorageService';
 import { orderRequestsService } from '../../lib/api';
-import { sendDirectMessage, getOrderCreatedMessage } from '../../utils/whatsappHelper';
-import { Stepper } from '../../components/ui';
+import './NewOrderV2.css';
 
 const STEPS = [
     { id: 1, title: 'Cliente', icon: User },
@@ -699,40 +698,9 @@ export default function NewServiceOrder() {
                 await saveOrderPhotos(order.id, photoData);
             }
 
-            // === AUTO WHATSAPP: Notificar al cliente que la orden fue registrada ===
-            try {
-                const orderPhone = clientPhone;
-                if (orderPhone) {
-                    const motoInfo = `${motoBrand} ${motoModel}`;
-                    const baseUrl = window.location.origin;
-                    // SUSPENDIDO: enlaces de seguimiento deshabilitados temporalmente
-                    // const trackingLink = order.client_link ? `${baseUrl}${order.client_link}` : null;
-                    const trackingLink = null;
-                    const advanceAmt = formData.hasAdvance ? (parseFloat(formData.advanceAmount) || 0) : 0;
-                    const waMessage = getOrderCreatedMessage(clientName, motoInfo, order.order_number, trackingLink, {
-                        services: orderServices,
-                        laborTotal,
-                        partsTotal,
-                        totalAmount,
-                        advancePayment: advanceAmt,
-                        paymentMethod: formData.paymentMethod,
-                        isPaid: advanceAmt >= totalAmount && totalAmount > 0,
-                        customerComplaint: formData.customerComplaint,
-                    });
+            // El aviso "orden registrada" al cliente lo manda el servidor (un solo mensaje, editable en Plantillas).
+            if (clientPhone) toast.success('Orden creada. El cliente será notificado por WhatsApp automáticamente.');
 
-                    console.log('📤 Enviando notificación de orden creada via WhatsApp...');
-                    const waResult = await sendDirectMessage(user.id, orderPhone, waMessage, order.id);
-
-                    if (waResult.success && waResult.automated) {
-                        toast.success('Cliente notificado por WhatsApp');
-                    } else {
-                        console.warn('⚠️ WhatsApp no enviado:', waResult.error);
-                    }
-                }
-            } catch (waError) {
-                console.error('Error enviando WhatsApp de orden creada:', waError);
-                // No bloquear la navegación por fallo de WhatsApp
-            }
 
             navigate(`/mechanic/order/${order.id}`);
         } catch (error) {
@@ -746,42 +714,19 @@ export default function NewServiceOrder() {
         }
     };
 
-    // Navigation
-    const canProceed = () => {
-        switch (currentStep) {
-            case 1:
-                return formData.selectedClient || (formData.isNewClient && formData.clientName.trim());
-            case 2:
-                return formData.selectedMoto || (formData.isNewMoto && formData.motoData.brand && formData.motoData.model);
-            case 3:
-                // Services are now optional - can skip if cost/service unknown
-                return true;
-            case 4:
-                // Fotos recomendadas pero NO obligatorias — si el usuario no tiene
-                // tiempo o la cámara falla, puede avanzar. Se advierte en la UI
-                // sobre el beneficio legal de tener fotos del ingreso.
-                return true;
-            case 5:
-                return !formData.hasAdvance || (formData.advanceAmount && parseFloat(formData.advanceAmount) > 0);
-            default:
-                return true;
-        }
-    };
-
-    const nextStep = () => {
-        if (currentStep < 5 && canProceed()) {
-            setCurrentStep(prev => prev + 1);
-        }
-    };
-
-    const prevStep = () => {
-        if (currentStep > 1) {
-            setCurrentStep(prev => prev - 1);
-        }
-    };
+    // Validación única (una sola pantalla): cliente + moto + anticipo coherente.
+    const clientOk = !!(formData.selectedClient || (formData.isNewClient && formData.clientName.trim()));
+    const motoOk = !!(formData.selectedMoto || (formData.isNewMoto && formData.motoData.brand && formData.motoData.model));
+    const payOk = !formData.hasAdvance || !!(formData.advanceAmount && parseFloat(formData.advanceAmount) > 0);
+    const canProceed = () => clientOk && motoOk && payOk;
+    const photoCount = Object.values(formData.entryPhotos || {}).filter(Boolean).length;
+    const motoLabel = formData.selectedMoto
+        ? `${formData.selectedMoto.brand} ${formData.selectedMoto.model}`
+        : [formData.motoData.brand, formData.motoData.model].filter(Boolean).join(' ');
+    const mechanicLabel = activeUsers.find(u => u.id === (orderMechanicId || user.id))?.full_name || user.full_name;
 
     return (
-        <div className="new-order">
+        <div className="new-order no-v2">
             {/* Download Status Overlay */}
             {downloadStatus && (
                 <div className="download-overlay">
@@ -892,28 +837,21 @@ export default function NewServiceOrder() {
                 </button>
                 <div className="no-header-text">
                     <h1 className="no-title">Nueva Orden</h1>
-                    <span className="no-step-indicator">Paso {currentStep} de {STEPS.length}</span>
+                    <span className="no-step-indicator">Todo en una pantalla: completa lo necesario y crea la orden</span>
                 </div>
             </div>
 
-            {/* Stepper */}
-            <div className="no-stepper">
-                <Stepper steps={STEPS.map(s => s.title)} current={currentStep - 1} />
-            </div>
-
-            {/* Step Context */}
-            <p className="no-step-context">
-                {currentStep === 1 && 'Selecciona o crea un cliente'}
-                {currentStep === 2 && 'Selecciona o registra la moto'}
-                {currentStep === 3 && 'Servicios a realizar'}
-                {currentStep === 4 && 'Documenta el estado de ingreso'}
-                {currentStep === 5 && 'Información de pago'}
-            </p>
-
             {/* Step Content */}
+            <div className="no-layout">
             <div className="step-content">
                 {/* Step 1: Client */}
-                {currentStep === 1 && (
+                {(
+                <section id="no-sec-1" className={`no-sec${(false) ? ' is-locked' : ''}${(clientOk) ? ' is-done' : ''}`}>
+                    <header className="no-sec__head">
+                        <span className="no-sec__n">{(clientOk) ? <Check size={15} strokeWidth={3} /> : 1}</span>
+                        <h2 className="no-sec__t">Cliente</h2>
+                        <span className="no-sec__s">{clientOk ? (formData.selectedClient?.full_name || formData.clientName) : 'Obligatorio'}</span>
+                    </header>
                     <div className="step-client">
                         {/* Selected Client Card */}
                         {formData.selectedClient && (
@@ -1160,10 +1098,17 @@ export default function NewServiceOrder() {
                             );
                         })()}
                     </div>
+                </section>
                 )}
 
                 {/* Step 2: Motorcycle */}
-                {currentStep === 2 && (
+                {(
+                <section id="no-sec-2" className={`no-sec${(!clientOk) ? ' is-locked' : ''}${(motoOk) ? ' is-done' : ''}`}>
+                    <header className="no-sec__head">
+                        <span className="no-sec__n">{(motoOk) ? <Check size={15} strokeWidth={3} /> : 2}</span>
+                        <h2 className="no-sec__t">Moto</h2>
+                        <span className="no-sec__s">{motoOk ? motoLabel : (clientOk ? 'Obligatorio' : 'Primero elige al cliente')}</span>
+                    </header>
                     <div className="step-moto">
                         {clientMotos.length > 0 && !formData.isNewMoto && (
                             <>
@@ -1306,10 +1251,17 @@ export default function NewServiceOrder() {
                             </div>
                         )}
                     </div>
+                </section>
                 )}
 
                 {/* Step 3: Service description (catálogo eliminado — texto libre + costo manual opcional) */}
-                {currentStep === 3 && (
+                {(
+                <section id="no-sec-3" className={`no-sec${(false) ? ' is-locked' : ''}${(!!formData.customerComplaint.trim()) ? ' is-done' : ''}`}>
+                    <header className="no-sec__head">
+                        <span className="no-sec__n">{(!!formData.customerComplaint.trim()) ? <Check size={15} strokeWidth={3} /> : 3}</span>
+                        <h2 className="no-sec__t">Falla y servicio</h2>
+                        <span className="no-sec__s">{formData.customerComplaint.trim() ? 'Capturada' : 'Recomendado'}</span>
+                    </header>
                     <div className="step-services">
                         <p className="text-secondary mb-md">
                             Describe el servicio a realizar. El costo final puedes registrarlo después con "Agregar costos" desde la orden.
@@ -1422,10 +1374,17 @@ export default function NewServiceOrder() {
                             </div>
                         )}
                     </div>
+                </section>
                 )}
 
                 {/* Step 4: Photos - Documentación de Ingreso */}
-                {currentStep === 4 && (
+                {(
+                <section id="no-sec-4" className={`no-sec${(false) ? ' is-locked' : ''}${(photoCount >= 4) ? ' is-done' : ''}`}>
+                    <header className="no-sec__head">
+                        <span className="no-sec__n">{(photoCount >= 4) ? <Check size={15} strokeWidth={3} /> : 4}</span>
+                        <h2 className="no-sec__t">Ingreso y evidencias</h2>
+                        <span className="no-sec__s">{photoCount + ' de 4 fotos'}</span>
+                    </header>
                     <div className="step-photos">
                         {/* Estado de Ingreso Section */}
                         <div className="entry-status-section">
@@ -1646,10 +1605,17 @@ export default function NewServiceOrder() {
                             </div>
                         </div>
                     </div>
+                </section>
                 )}
 
                 {/* Step 5: Payment */}
-                {currentStep === 5 && (
+                {(
+                <section id="no-sec-5" className={`no-sec${(false) ? ' is-locked' : ''}${(payOk) ? ' is-done' : ''}`}>
+                    <header className="no-sec__head">
+                        <span className="no-sec__n">{(payOk) ? <Check size={15} strokeWidth={3} /> : 5}</span>
+                        <h2 className="no-sec__t">Pago y confirmación</h2>
+                        <span className="no-sec__s">{formData.hasAdvance ? 'Con anticipo' : 'Sin anticipo'}</span>
+                    </header>
                     <div className="step-payment">
                         <div className="advance-toggle">
                             <span>¿El cliente dejó anticipo?</span>
@@ -1874,65 +1840,43 @@ export default function NewServiceOrder() {
                             </button>
                         </div>
                     </div>
+                </section>
                 )}
             </div>
 
-            {/* Navigation Buttons - Steps 1-4 */}
-            {currentStep < 5 && (
-                <div className="step-navigation">
-                    {currentStep > 1 && (
-                        <button
-                            className="no-nav-back"
-                            onClick={prevStep}
-                        >
-                            <ArrowLeft size={18} />
-                            Atrás
-                        </button>
+            {/* Resumen fijo + crear orden */}
+            <aside className="no-aside">
+                <div className="no-aside__card">
+                    <h3 className="no-aside__t">Resumen</h3>
+                    <ul className="no-aside__list">
+                        <li><span>Cliente</span><b className={clientOk ? '' : 'is-missing'}>{clientOk ? (formData.selectedClient?.full_name || formData.clientName) : 'Falta elegir'}</b></li>
+                        <li><span>Moto</span><b className={motoOk ? '' : 'is-missing'}>{motoOk ? motoLabel : 'Falta elegir'}</b></li>
+                        <li><span>Falla</span><b>{formData.customerComplaint.trim() ? formData.customerComplaint.trim().slice(0, 48) + (formData.customerComplaint.trim().length > 48 ? '…' : '') : 'Sin capturar'}</b></li>
+                        <li><span>Fotos</span><b>{photoCount} de 4</b></li>
+                        <li><span>Anticipo</span><b className={payOk ? '' : 'is-missing'}>{formData.hasAdvance ? (formData.advanceAmount ? formatMXN(parseFloat(formData.advanceAmount) || 0) : 'Falta el monto') : 'Sin anticipo'}</b></li>
+                        {!isAuxiliary && <li><span>Mecánico</span><b>{mechanicLabel}</b></li>}
+                    </ul>
+                    <p className="no-aside__note">
+                        {isAuxiliary
+                            ? 'Se enviará como solicitud a tu mecánico maestro. El cliente recibe el aviso cuando la apruebe.'
+                            : 'El cliente recibirá un WhatsApp automático al crear la orden.'}
+                    </p>
+                </div>
+                <button
+                    className="no-submit"
+                    onClick={handleSubmit}
+                    disabled={loading || !canProceed()}
+                >
+                    {loading ? (
+                        <><span className="spinner" /> Creando...</>
+                    ) : isAuxiliary ? (
+                        <><Send size={19} /> Enviar solicitud</>
+                    ) : (
+                        <><Check size={19} /> Crear orden</>
                     )}
-                    <button
-                        className="no-nav-cta"
-                        onClick={nextStep}
-                        disabled={!canProceed()}
-                        style={{ flex: currentStep === 1 ? 1 : 2 }}
-                    >
-                        Continuar
-                        <ArrowRight size={18} />
-                    </button>
-                </div>
-            )}
-
-            {/* Submit Button - Solo en paso 5 */}
-            {currentStep === 5 && (
-                <div className="step-navigation">
-                    <button
-                        className="no-nav-cta"
-                        onClick={handleSubmit}
-                        disabled={loading || !canProceed()}
-                        style={{ flex: 1 }}
-                    >
-                        {loading ? (
-                            <>
-                                <span className="spinner" />
-                                Creando...
-                            </>
-                        ) : (
-                            <>
-                                {isAuxiliary ? (
-                                    <>
-                                        <Send size={20} />
-                                        Enviar Solicitud
-                                    </>
-                                ) : (
-                                    <>
-                                        <Check size={20} />
-                                        Crear Orden
-                                    </>
-                                )}
-                            </>
-                        )}
-                    </button>
-                </div>
-            )}
+                </button>
+            </aside>
+            </div>
 
             <style>{`
         .new-order {

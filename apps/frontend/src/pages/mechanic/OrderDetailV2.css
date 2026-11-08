@@ -1,0 +1,68 @@
+/* Detalle de orden · escritorio en dos columnas, celular con pestañas */
+.order-detail {
+  --od-radius: 12px; --od-radius-sm: 8px;
+  --od-line: var(--line); --od-line-soft: var(--line-soft); --od-bg: transparent; --od-card: var(--card);
+  --od-shadow: none;
+  max-width: 1340px; padding: 0 0 96px; background: transparent;
+}
+.od-topbar { position: static; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 12px 16px; margin-bottom: 14px; }
+.od-topbar__id h1 { font-family: var(--font-mono); font-size: 1.25rem; letter-spacing: -0.01em; font-weight: 600; text-transform: none; }
+.od-topbar__id span { color: var(--ink-3); }
+.od-back { border: 1px solid var(--line); background: var(--card); border-radius: var(--radius-md); }
+.od-back:hover { background: var(--paper-2); }
+
+.od-cols { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+.od-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (min-width: 1100px) { .od-cols { grid-template-columns: minmax(340px, 5fr) minmax(0, 7fr); gap: 18px; } }
+.od-slot { min-width: 0; }
+
+/* Pestañas (solo celular / tableta) */
+.od-tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); margin: 0 0 14px; position: sticky; top: 0; z-index: 15; background: var(--paper); }
+.od-tabs::-webkit-scrollbar { display: none; }
+.od-tab { position: relative; border: none; background: none; padding: 12px 14px; min-height: 44px; font: 600 14px var(--font-text); color: var(--ink-3); cursor: pointer; white-space: nowrap; }
+.od-tab.is-active { color: var(--ink); }
+.od-tab.is-active::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; background: var(--red); }
+@media (min-width: 1100px) { .od-tabs { display: none; } }
+@media (max-width: 1099px) {
+  .order-detail[data-tab="estado"] .od-slot:not([data-tab="estado"]),
+  .order-detail[data-tab="datos"] .od-slot:not([data-tab="datos"]),
+  .order-detail[data-tab="costos"] .od-slot:not([data-tab="costos"]),
+  .order-detail[data-tab="fotos"] .od-slot:not([data-tab="fotos"]),
+  .order-detail[data-tab="historial"] .od-slot:not([data-tab="historial"]) { display: none; }
+}
+
+/* Bloques con borde definido */
+.od-acc, .od-block, .od-actions { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: none; }
+.od-acc__head { background: linear-gradient(#fffefb, #fbf9f4); border-radius: var(--radius-card) var(--radius-card) 0 0; }
+.od-acc:not(.is-open) .od-acc__head { border-radius: var(--radius-card); }
+.od-acc__title, .od-block__label { font-family: var(--font-display); font-size: 1.1rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.od-acc__summary { color: var(--ink-3); }
+.od-moto-hero h2 { font-family: var(--font-display); font-size: 1.7rem; text-transform: uppercase; letter-spacing: 0.02em; }
+.od-kv > div { background: var(--paper); border: 1px solid var(--line-soft); border-radius: var(--radius-md); }
+.od-kv span { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; }
+.od-status-pills .od-pill, .od-status-pills button { border-radius: var(--radius-md); }
+.od-actions { padding: 14px; }
+
+/* Paleta coherente: tinta + rojo; verde solo para WhatsApp y "pagado" */
+.od-action-btn { border-radius: var(--radius-md); font-family: var(--font-text); letter-spacing: 0; }
+.od-action-btn.primary { background: var(--ink); border-color: var(--ink); }
+.od-action-btn.primary:hover:not(:disabled) { background: var(--red); }
+.od-action-btn.wa { background: #1f9d55; }
+.od-action-btn.wa:hover:not(:disabled) { background: #187a43; }
+.od-action-btn.success { background: var(--ok); }
+.od-send-choice__hdr, .od-send-choice__hdr button { color: var(--ink); }
+.od-pill { border-radius: 4px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; }
+.od-pill--registrada { background: var(--paper-2); color: var(--ink); border-color: var(--line); }
+.od-pill--en-reparación { background: var(--warn-soft); color: var(--warn); border-color: #ecd2a4; }
+.od-pill--lista-para-entregar { background: var(--ok-soft); color: var(--ok); border-color: #b9dcc4; }
+.od-pill--entregada { background: var(--ink); color: #fff; border-color: var(--ink); }
+.od-pill--cancelada { background: var(--red-soft); color: var(--red-dark); border-color: var(--red-line); }
+
+/* Estados: un solo lenguaje de color (tinta = actual; el resto, borde) */
+.od-status-pill { border-radius: var(--radius-md); background: var(--card); min-height: 40px; padding: 8px 14px; }
+.od-status-pill.is-active { border-color: transparent; color: #fff; }
+.od-status-pill--registrada.is-active { background: var(--ink); }
+.od-status-pill--en-reparación.is-active { background: var(--warn); }
+.od-status-pill--lista.is-active, .od-status-pill--lista-para-entregar.is-active { background: var(--ok); }
+.od-status-pill--entregada.is-active { background: #2d2a24; }
+.od-tab { flex: 0 0 auto; }

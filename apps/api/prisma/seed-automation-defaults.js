@@ -150,6 +150,103 @@ export const DEFAULTS = [
             },
         },
     },
+    // ── V2: mensajes por cambio de estado (antes los mandaba la pantalla; ahora SOLO el servidor) ──
+    {
+        key: 'estado_en_revision',
+        template: {
+            name: 'Estado: en revisión',
+            channel: 'whatsapp',
+            body: "*{cliente}*,\n\n*{folio} - EN REVISIÓN*\n\nSu motocicleta *{moto}* se encuentra en revisión por nuestro equipo técnico.{atiende}\n\nEstamos evaluando los trabajos necesarios. Le mantendremos informado.\n\n*{taller}*",
+        },
+        automation: {
+            name: 'Estado: en revisión',
+            description: 'Al pasar la orden a diagnóstico / revisión, avisa al cliente (una vez por orden).',
+            trigger: 'order.status_changed',
+            filter: { status_key: 'en_revision' },
+            action: 'whatsapp.send_template',
+            params: { to: 'client', dedup_per_order: true },
+        },
+    },
+    {
+        key: 'estado_autorizada',
+        template: {
+            name: 'Estado: autorizada',
+            channel: 'whatsapp',
+            body: "*{cliente}*,\n\n*{folio} - AUTORIZADA*\n\nSu cotización fue autorizada y abrimos la orden de servicio para su *{moto}*.{atiende}\n\nEn breve comenzamos el trabajo.\n\n*{taller}*",
+        },
+        automation: {
+            name: 'Estado: autorizada',
+            description: 'Al autorizarse la orden, avisa al cliente (una vez por orden).',
+            trigger: 'order.status_changed',
+            filter: { status_key: 'autorizada' },
+            action: 'whatsapp.send_template',
+            params: { to: 'client', dedup_per_order: true },
+        },
+    },
+    {
+        key: 'estado_en_proceso',
+        template: {
+            name: 'Estado: en proceso',
+            channel: 'whatsapp',
+            body: "Hola *{cliente}*\n\n*Orden {folio} · En proceso*\n\nYa estamos trabajando en su *{moto}*. Nuestro equipo la está atendiendo para dejarla en óptimas condiciones.{atiende}\n\nLe avisaremos en cuanto esté lista.\n\n*{taller}*",
+        },
+        automation: {
+            name: 'Estado: en proceso',
+            description: 'Al pasar la orden a proceso / reparación, avisa al cliente (una vez por orden).',
+            trigger: 'order.status_changed',
+            filter: { status_key: 'en_proceso' },
+            action: 'whatsapp.send_template',
+            params: { to: 'client', dedup_per_order: true },
+        },
+    },
+    {
+        key: 'estado_esperando_refacciones',
+        template: {
+            name: 'Estado: esperando refacciones',
+            channel: 'whatsapp',
+            body: "*{cliente}*,\n\n*{folio} - ESPERANDO REFACCIONES*\n\nLe informamos que el servicio de su motocicleta *{moto}* requiere refacciones que ya fueron solicitadas.{atiende}\n\nEn cuanto estén disponibles, continuaremos con la reparación.\n\n*{taller}*",
+        },
+        automation: {
+            name: 'Estado: esperando refacciones',
+            description: 'Al quedar la orden esperando refacciones, avisa al cliente (una vez por orden).',
+            trigger: 'order.status_changed',
+            filter: { status_key: 'esperando_refacciones' },
+            action: 'whatsapp.send_template',
+            params: { to: 'client', dedup_per_order: true },
+        },
+    },
+    {
+        key: 'estado_entregada',
+        template: {
+            name: 'Estado: entregada',
+            channel: 'whatsapp',
+            body: "Hola *{cliente}*\n\n*Orden {folio} · Entregada*\n\nSu *{moto}* fue entregada. Fue un gusto atenderle.{atiende}\n\nSi más adelante necesita mantenimiento o cualquier ajuste, estamos a sus órdenes. ¡Buen camino!\n\n*{taller}*",
+        },
+        automation: {
+            name: 'Estado: entregada',
+            description: 'Al entregar la orden, agradece al cliente (una vez por orden).',
+            trigger: 'order.status_changed',
+            filter: { status_key: 'entregada' },
+            action: 'whatsapp.send_template',
+            params: { to: 'client', dedup_per_order: true },
+        },
+    },
+    {
+        key: 'estado_cancelada',
+        template: {
+            name: 'Estado: cancelada',
+            channel: 'whatsapp',
+            body: "*{cliente}*,\n\n*{folio} - CANCELADA*\n\nLa orden de servicio de su motocicleta *{moto}* ha sido cancelada.\n\nSi tiene alguna duda, estamos a sus órdenes.\n\n*{taller}*",
+        },
+        automation: {
+            name: 'Estado: cancelada',
+            description: 'Al cancelar la orden, avisa al cliente (una vez por orden).',
+            trigger: 'order.status_changed',
+            filter: { status_key: 'cancelada' },
+            action: 'whatsapp.send_template',
+            params: { to: 'client', dedup_per_order: true },
+        },
+    },
 ];
 
 /**

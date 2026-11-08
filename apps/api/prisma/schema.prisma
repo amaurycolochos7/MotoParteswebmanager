@@ -46,6 +46,8 @@ model Workspace {
   settings           Json      @default("{}")              // { business_hours, default_notification_templates, ... }
   is_active          Boolean   @default(true)
   is_flagship        Boolean   @default(false)             // motoblaker's original taller — exempt from any plan limit check
+  // Sesión única de WhatsApp del taller: id del Profile cuyo id usa el bot como `mechanicId` (V2).
+  whatsapp_session_profile_id String? @db.Uuid
   onboarding_completed Boolean @default(false)
   // Fase 6.2 — Programa de afiliados
   referral_slug      String?   @unique                     // slug usado en motopartes.cloud/?ref=<slug>
@@ -80,6 +82,12 @@ model Workspace {
   // Impresión de tickets (cola + agente de Windows)
   print_agents       PrintAgent[]
   print_jobs         PrintJob[]
+
+  // WhatsApp V2: bandeja de conversaciones + cola de envíos
+  wa_conversations   WaConversation[]
+  wa_messages        WaMessage[]
+  wa_media           WaMedia[]
+  wa_outbox          WaOutbox[]
 
   // Every data table has a back-reference so cascade-deletes work if a
   // workspace is nuked. ON DELETE behavior is set at the table end.
@@ -1257,4 +1265,89 @@ model PrintJob {
   @@index([workspace_id, status])
   @@index([order_id])
   @@map("print_jobs")
+}
+
+
+// =============================================
+// WHATSAPP V2 — bandeja de conversaciones y cola de envíos
+// =============================================
+model WaConversation {
+  id                   String    @id @default(uuid()) @db.Uuid
+  workspace_id         String    @db.Uuid
+  phone                String                          // 10 dígitos (MX) o dígitos completos si es otro país / id no resuelto
+  wa_chat_id           String?                         // 5219611234567@c.us | ...@lid
+  display_name         String?
+  client_id            String?   @db.Uuid
+  last_message_preview String?
+  last_message_at      DateTime? @db.Timestamptz
+  last_direction       String?                         // in | out
+  unread_count         Int       @default(0)
+  hidden               Boolean   @default(false)
+  created_at           DateTime  @default(now()) @db.Timestamptz
+  updated_at           DateTime  @default(now()) @updatedAt @db.Timestamptz
+
+  workspace Workspace   @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  messages  WaMessage[]
+
+  @@unique([workspace_id, phone])
+  @@index([workspace_id, last_message_at])
+  @@map("wa_conversations")
+}
+
+model WaMessage {
+  id              String   @id @default(uuid()) @db.Uuid
+  workspace_id    String   @db.Uuid
+  conversation_id String   @db.Uuid
+  wa_message_id   String?                              // id de WhatsApp (dedupe)
+  direction       String                               // in | out
+  origin          String                               // client | phone | panel | auto
+  body            String   @default("")
+  media_id        String?  @db.Uuid
+  status          String   @default("sent")            // queued | sent | delivered | read | failed
+  sent_by         String?  @db.Uuid                    // Profile que escribió desde el panel
+  error           String?
+  created_at      DateTime @default(now()) @db.Timestamptz
+
+  workspace    Workspace      @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  conversation WaConversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+
+  @@unique([workspace_id, wa_message_id])
+  @@index([conversation_id, created_at])
+  @@map("wa_messages")
+}
+
+model WaMedia {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspace_id String   @db.Uuid
+  mime         String
+  size         Int      @default(0)
+  data         Bytes
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+
+  @@index([created_at])
+  @@map("wa_media")
+}
+
+// Cola de envíos del servidor: si el bot no está listo, el mensaje espera y se reintenta.
+model WaOutbox {
+  id              String    @id @default(uuid()) @db.Uuid
+  workspace_id    String    @db.Uuid
+  phone           String
+  body            String
+  kind            String    @default("text")           // text | auto | panel
+  status          String    @default("pending")        // pending | sent | failed
+  attempts        Int       @default(0)
+  next_attempt_at DateTime  @default(now()) @db.Timestamptz
+  last_error      String?
+  context         Json      @default("{}")             // { order_id, appointment_id, message_id, sent_by, ... }
+  created_at      DateTime  @default(now()) @db.Timestamptz
+  sent_at         DateTime? @db.Timestamptz
+
+  workspace Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+
+  @@index([status, next_attempt_at])
+  @@index([workspace_id, created_at])
+  @@map("wa_outbox")
 }

@@ -316,6 +316,23 @@ export function AuthProvider({ children }) {
         return user.can_view_approved_orders !== false; // Default true
     }, [user]);
 
+    // Rol normalizado segun CONTRATO-V2: owner | admin | maestro | mecanico | auxiliar.
+    // Solo para la interfaz; la API decide siempre los permisos reales.
+    const teamRole = (() => {
+        if (!user) return null;
+        if (workspaceRole === 'owner') return 'owner';
+        if (workspaceRole === 'admin' || user.role === 'admin') return 'admin';
+        if (user.requires_approval === true || workspaceRole === 'auxiliary') return 'auxiliar';
+        if (user.is_master_mechanic === true || user.role === 'admin_mechanic') return 'maestro';
+        return 'mecanico';
+    })();
+    const isManager = teamRole === 'owner' || teamRole === 'admin';
+    // Bandeja de WhatsApp: gerencia y maestros; auxiliar solo con la casilla activada al crearlo.
+    const activeMembership = memberships.find((m) => m.workspace?.id === activeWorkspace?.id) || null;
+    const canViewInbox = isManager || teamRole === 'maestro'
+        || (teamRole === 'auxiliar' && (activeMembership?.permissions?.can_view_inbox === true || user?.can_view_inbox === true));
+    const canManageTeam = isManager || teamRole === 'maestro';
+
     const value = {
         user,
         memberships,
@@ -342,6 +359,10 @@ export function AuthProvider({ children }) {
         canCreateClients,
         canEditClients,
         canDeleteOrders,
+        teamRole,
+        isManager,
+        canViewInbox,
+        canManageTeam,
         isAuthenticated: !!user,
     };
 

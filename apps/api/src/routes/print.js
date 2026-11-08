@@ -8,6 +8,8 @@ import { assertWithinLimit, incrementUsageAsync, PlanLimitError } from '../lib/b
 import { resolvePrintSettings, sanitizePrintSettings } from '../lib/print-settings.js';
 import { buildTicketDoc, buildTestDoc, toEscPos, toPlainText, toPdf80 } from '../lib/ticket.js';
 
+import { resolveSessionId } from '../lib/wa-session.js';
+import { logOutbound } from '../lib/wa-send.js';
 const BOT_URL = process.env.WHATSAPP_BOT_INTERNAL_URL || 'http://whatsapp-bot:3002';
 const BOT_KEY = process.env.WHATSAPP_API_KEY || 'motopartes-whatsapp-key';
 const AGENT_ONLINE_MS = 15 * 1000;
@@ -244,7 +246,9 @@ export default async function printRoutes(fastify) {
         const pdf = await toPdf80(buildTicketDoc(input, { accents: true }));
         const o = input.order;
         const caption = `*TICKET DE SERVICIO*\n${o.order_number}\nTotal: $${Number(o.total_amount || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}\n\n-- ${request.workspace.name || 'MotoPartes'}`;
-        const mechanicId = o.approved_by || o.mechanic_id || request.user.id;
+        // V2: siempre la sesion UNICA del taller (antes: la del maestro/mecanico de la orden).
+        const mechanicId = await resolveSessionId(request.workspace.id);
+        if (!mechanicId) return reply.send({ success: false, fallback: true, error: 'WhatsApp del taller no está configurado.' });
         try {
             const res = await fetch(`${BOT_URL}/send-document`, {
                 method: 'POST',
@@ -259,6 +263,10 @@ export default async function printRoutes(fastify) {
             let body; try { body = JSON.parse(text); } catch { body = { error: text }; }
             if (!res.ok) return reply.send({ success: false, fallback: true, error: body.error || 'WhatsApp no disponible', botStatus: res.status });
             incrementUsageAsync(request.workspace.id, 'whatsapp_messages', 1);
+            await logOutbound(request.workspace.id, input.client.phone, `[Documento] ${o.order_number}_ticket.pdf
+${caption}`, {
+                origin: 'panel', sentBy: request.user.id, waMessageId: body.messageId || null,
+            });
             return reply.send({ success: true, automated: true, messageId: body.messageId });
         } catch (err) {
             fastify.log.error(`[TICKET-WA] ${err.message}`);

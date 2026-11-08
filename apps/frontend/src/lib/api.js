@@ -1484,3 +1484,74 @@ export const printService = {
         return printCall(`/print/jobs/${jobId}/cancel`, { method: 'POST' });
     },
 };
+
+/* =============================================================================
+   CONTRATO-V2: equipo, WhatsApp del taller, bandeja de conversaciones,
+   resumen de comisiones y bandeja de citas.
+   ============================================================================= */
+const jbody = (o) => JSON.stringify(o || {});
+
+export const teamService = {
+    list() { return apiFetch('/team'); },
+    create(body) { return apiFetch('/team', { method: 'POST', body: jbody(body) }); },
+    update(id, body) { return apiFetch(`/team/${id}`, { method: 'PUT', body: jbody(body) }); },
+    setActive(id, active) { return apiFetch(`/team/${id}/active`, { method: 'PATCH', body: jbody({ active }) }); },
+    remove(id) { return apiFetch(`/team/${id}`, { method: 'DELETE' }); },
+    removePermanent(id) { return apiFetch(`/team/${id}/permanent`, { method: 'DELETE' }); },
+    getSettings() { return apiFetch('/team/settings'); },
+    saveSettings(body) { return apiFetch('/team/settings', { method: 'PUT', body: jbody(body) }); },
+    setOnlineBooking(id, visible) { return apiFetch(`/auth/users/${id}/online-booking`, { method: 'PATCH', body: jbody({ visible }) }); },
+};
+
+// Sesión única de WhatsApp del taller
+export const waService = {
+    status() { return apiFetch('/whatsapp/status'); },
+    start() { return apiFetch('/whatsapp/start', { method: 'POST' }); },
+    logout() { return apiFetch('/whatsapp/logout', { method: 'POST' }); },
+    send(body) { return apiFetch('/whatsapp/send', { method: 'POST', body: jbody(body) }); },
+};
+
+// Bandeja "Conversaciones"
+export const inboxService = {
+    conversations({ q = '', unread = false, cursor = '', limit = 30 } = {}) {
+        const p = new URLSearchParams();
+        if (q) p.set('q', q);
+        if (unread) p.set('unread', '1');
+        if (cursor) p.set('cursor', cursor);
+        p.set('limit', String(limit));
+        return apiFetch(`/inbox/conversations?${p.toString()}`);
+    },
+    conversation(id) { return apiFetch(`/inbox/conversations/${id}`); },
+    messages(id, { before = '', limit = 40 } = {}) {
+        const p = new URLSearchParams({ limit: String(limit) });
+        if (before) p.set('before', before);
+        return apiFetch(`/inbox/conversations/${id}/messages?${p.toString()}`);
+    },
+    send(id, text) { return apiFetch(`/inbox/conversations/${id}/messages`, { method: 'POST', body: jbody({ text }) }); },
+    markRead(id) { return apiFetch(`/inbox/conversations/${id}/read`, { method: 'POST' }); },
+    hide(id) { return apiFetch(`/inbox/conversations/${id}/hide`, { method: 'POST' }); },
+    unreadCount() { return apiFetch('/inbox/unread-count'); },
+    updates(since) { return apiFetch(`/inbox/updates?since=${encodeURIComponent(since)}`); },
+    // Las imágenes llevan JWT: se bajan como blob y se muestran con URL de objeto.
+    async mediaBlobUrl(id) {
+        const headers = {};
+        const token = getToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        if (activeWorkspaceId) headers['x-workspace-id'] = activeWorkspaceId;
+        const res = await fetch(`${API_URL}/inbox/media/${id}`, { headers });
+        if (!res.ok) throw new Error('No se pudo cargar la imagen');
+        return URL.createObjectURL(await res.blob());
+    },
+};
+
+// Resumen de comisión real (por cobrar / liberada / pagada)
+export const commissionService = {
+    summary({ mechanicId = '', period = 'week' } = {}) {
+        const p = new URLSearchParams({ period });
+        if (mechanicId) p.set('mechanicId', mechanicId);
+        return apiFetch(`/earnings/summary?${p.toString()}`);
+    },
+};
+
+// Bandeja de citas
+appointmentsService.inbox = function inbox() { return apiFetch('/appointments/inbox'); };

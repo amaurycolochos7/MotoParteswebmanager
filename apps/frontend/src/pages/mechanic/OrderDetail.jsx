@@ -39,6 +39,7 @@ import OrderPhotosDownload from '../../components/ui/OrderPhotosDownload';
 import OrderPaymentsSection from '../../components/orders/OrderPaymentsSection';
 import { TicketPrintModal, TicketButtons } from '../../components/orders/TicketActions';
 import './OrderDetail.css';
+import './OrderDetailV2.css';
 
 /* =========================================================================
    Helpers
@@ -173,13 +174,15 @@ export default function OrderDetail() {
     // Accordions: todos cerrados por defecto para bajar la carga cognitiva.
     // Permitimos varios abiertos a la vez (el mecánico suele comparar costos y
     // evidencias sin cerrar uno para abrir otro).
+    // Con pestañas (celular) y dos columnas (escritorio) todo arranca abierto: nada queda escondido.
+    const [tab, setTab] = useState('estado');
     const [open, setOpen] = useState({
-        moto: true, // la moto es lo primero: arranca abierta
-        cliente: false,
-        evidencias: false,
-        costos: false,
-        pagos: false,
-        historial: false,
+        moto: true,
+        cliente: true,
+        evidencias: true,
+        costos: true,
+        pagos: true,
+        historial: true,
     });
     const toggle = (k) => setOpen((p) => ({ ...p, [k]: !p[k] }));
 
@@ -357,25 +360,9 @@ export default function OrderDetail() {
             showToast(`Estado actualizado: ${statusObj.name}`, 'success');
             if (isDelivered) setShowTicketModal(true);
 
-            if (statusObj.name !== statusName && client?.phone) {
-                try {
-                    const servicesTotal = (order.services || []).reduce((sum, svc) => sum + (svc.price || 0), 0);
-                    const message = getStatusChangeMessage(statusObj.name, {
-                        clientName: client.full_name,
-                        motorcycle: motoTitle,
-                        orderNumber: order.order_number,
-                        trackingLink: null,
-                        totalAmount: order.total_amount || servicesTotal,
-                        services: order.services,
-                    });
-                    const result = await sendDirectMessage(user.id, client.phone, message, order.id);
-                    if (result.success && result.automated) {
-                        showToast('Cliente notificado por WhatsApp', 'success');
-                    }
-                } catch (e) {
-                    console.error('Error enviando notificación:', e);
-                }
-            }
+            // El cliente recibe el aviso del cambio de estado automáticamente desde el servidor (sin duplicados).
+            if (client?.phone) showToast('El cliente será notificado por WhatsApp automáticamente', 'success');
+
             refreshOrders?.();
         } catch (e) {
             console.error('Error cambiando estado:', e);
@@ -623,7 +610,7 @@ export default function OrderDetail() {
        ===================================================================== */
 
     return (
-        <div className="order-detail">
+        <div className="order-detail" data-tab={tab}>
             {/* Header compacto sticky */}
             <header className="od-topbar">
                 <button className="od-back" onClick={() => navigate(-1)} aria-label="Volver">
@@ -665,444 +652,475 @@ export default function OrderDetail() {
                 </div>
             )}
 
-            {/* 1 · Datos de la moto (prioridad) */}
-            <Accordion
-                icon={<Bike size={16} />}
-                title="Datos de la moto"
-                summary={!open.moto ? motoSummary : null}
-                open={open.moto}
-                onToggle={() => toggle('moto')}
-                tone="moto"
-            >
-                <div className="od-moto-hero">
-                    <h2>{motoTitle}</h2>
-                    <div className="od-kv">
-                        <div><span>Año</span><strong>{motorcycle?.year || '—'}</strong></div>
-                        <div><span>Placas</span><strong>{motorcycle?.plates || 'Sin placas'}</strong></div>
-                        {motorcycle?.color && <div><span>Color</span><strong>{motorcycle.color}</strong></div>}
-                        {motorcycle?.vin && <div><span>Serie</span><strong>{motorcycle.vin}</strong></div>}
-                    </div>
-                    {order.customer_complaint && (
-                        <div className="od-complaint">
-                            <span className="od-complaint__label">Falla reportada</span>
-                            <p>{order.customer_complaint}</p>
-                        </div>
-                    )}
-                </div>
-            </Accordion>
+            {/* Pestañas (solo celular): una sección a la vez */}
+            <nav className="od-tabs" role="tablist" aria-label="Secciones de la orden">
+                {[['estado', 'Estado'], ['datos', 'Moto y cliente'], ['costos', 'Costos y pagos'], ['fotos', 'Evidencias'], ...(history.length > 0 ? [['historial', 'Historial']] : [])].map(([id, label]) => (
+                    <button key={id} type="button" role="tab" aria-selected={tab === id} className={`od-tab${tab === id ? ' is-active' : ''}`} onClick={() => setTab(id)}>{label}</button>
+                ))}
+            </nav>
 
-            {/* 2 · Estado + Tiempo (siempre visible, sin colapsar) */}
-            <section className="od-block">
-                <div className="od-block__label">Estado de la orden</div>
-                <div className="od-status-pills">
-                    {CANON.map((s) => {
-                        const active = currentCanonical === s.key;
-                        return (
-                            <button
-                                key={s.key}
-                                type="button"
-                                className={`od-status-pill${active ? ' is-active' : ''} od-status-pill--${s.key.replace(/\s+/g, '-').toLowerCase()}`}
-                                onClick={() => handleStatusChange(s.key)}
-                                disabled={active || changingStatus}
-                            >
-                                {active && <Check size={13} />}
-                                {s.label}
+            <div className="od-cols">
+            <div className="od-col od-col--a">
+                <div className="od-slot" data-tab="estado">
+                {/* 2 · Estado + Tiempo (siempre visible, sin colapsar) */}
+                <section className="od-block">
+                    <div className="od-block__label">Estado de la orden</div>
+                    <div className="od-status-pills">
+                        {CANON.map((s) => {
+                            const active = currentCanonical === s.key;
+                            return (
+                                <button
+                                    key={s.key}
+                                    type="button"
+                                    className={`od-status-pill${active ? ' is-active' : ''} od-status-pill--${s.key.replace(/\s+/g, '-').toLowerCase()}`}
+                                    onClick={() => handleStatusChange(s.key)}
+                                    disabled={active || changingStatus}
+                                >
+                                    {active && <Check size={13} />}
+                                    {s.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+    
+                    <div className="od-time">
+                        <div className="od-time__metric">
+                            <Clock size={15} />
+                            <div>
+                                <span>Tiempo en taller</span>
+                                <strong>{timeInShop}</strong>
+                            </div>
+                        </div>
+                        <div className="od-time__metric">
+                            <Wrench size={15} />
+                            <div>
+                                <span>Tiempo en reparación</span>
+                                <strong>{timeInRepair}</strong>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <label className="od-eta">
+                        <span>Entrega estimada</span>
+                        <span className="od-eta__field">
+                            <input
+                                type="date"
+                                defaultValue={order.estimated_delivery_at ? new Date(order.estimated_delivery_at).toISOString().slice(0, 10) : ''}
+                                disabled={savingDelivery}
+                                onChange={async (e) => {
+                                    const val = e.target.value ? new Date(e.target.value + 'T12:00:00').toISOString() : null;
+                                    setSavingDelivery(true);
+                                    try {
+                                        await updateOrder(order.id, { estimated_delivery_at: val });
+                                        showToast('Fecha de entrega actualizada', 'success');
+                                    } catch {
+                                        showToast('No se pudo actualizar la fecha', 'error');
+                                    } finally {
+                                        setSavingDelivery(false);
+                                    }
+                                }}
+                            />
+                            {savingDelivery && <Loader2 size={14} className="spinner" />}
+                        </span>
+                    </label>
+                </section>
+                </div>
+
+                <div className="od-slot" data-tab="estado">
+                {/* 7 · Acciones principales */}
+                <section className="od-actions">
+                    {canManageMoney && !isTerminal && (
+                        <button className="od-action-btn success block" onClick={openPagos}>
+                            <DollarSign size={18} /> Registrar pago
+                        </button>
+                    )}
+    
+                    {!showSendChoice ? (
+                        <div className="od-actions__row">
+                            <button className="od-action-btn primary" onClick={() => setShowSendChoice(true)} disabled={sendingPDF}>
+                                {sendingPDF ? <Loader2 size={16} className="spinner" /> : <FileText size={16} />}
+                                Enviar resumen
                             </button>
-                        );
-                    })}
-                </div>
-
-                <div className="od-time">
-                    <div className="od-time__metric">
-                        <Clock size={15} />
-                        <div>
-                            <span>Tiempo en taller</span>
-                            <strong>{timeInShop}</strong>
-                        </div>
-                    </div>
-                    <div className="od-time__metric">
-                        <Wrench size={15} />
-                        <div>
-                            <span>Tiempo en reparación</span>
-                            <strong>{timeInRepair}</strong>
-                        </div>
-                    </div>
-                </div>
-
-                <label className="od-eta">
-                    <span>Entrega estimada</span>
-                    <span className="od-eta__field">
-                        <input
-                            type="date"
-                            defaultValue={order.estimated_delivery_at ? new Date(order.estimated_delivery_at).toISOString().slice(0, 10) : ''}
-                            disabled={savingDelivery}
-                            onChange={async (e) => {
-                                const val = e.target.value ? new Date(e.target.value + 'T12:00:00').toISOString() : null;
-                                setSavingDelivery(true);
-                                try {
-                                    await updateOrder(order.id, { estimated_delivery_at: val });
-                                    showToast('Fecha de entrega actualizada', 'success');
-                                } catch {
-                                    showToast('No se pudo actualizar la fecha', 'error');
-                                } finally {
-                                    setSavingDelivery(false);
+                            <button
+                                className="od-action-btn outline"
+                                onClick={async () =>
+                                    await downloadOrderPDF(
+                                        { ...order, _paid: orderFinance?.paid ?? null, _balance: orderFinance?.balance ?? null },
+                                        client,
+                                        motorcycle
+                                    )
                                 }
-                            }}
-                        />
-                        {savingDelivery && <Loader2 size={14} className="spinner" />}
-                    </span>
-                </label>
-            </section>
-
-            {/* 3 · Cliente */}
-            <Accordion
-                icon={<User size={16} />}
-                title="Cliente"
-                summary={!open.cliente ? `${client?.full_name || 'Sin nombre'}${client?.phone ? ' · ' + client.phone : ''}` : null}
-                open={open.cliente}
-                onToggle={() => toggle('cliente')}
-            >
-                <div className="od-client">
-                    <div className="od-client__info">
-                        <strong>{client?.full_name || 'Sin nombre'}</strong>
-                        <span>{client?.phone || 'Sin teléfono'}</span>
-                    </div>
-                    {client?.phone && (
-                        <div className="od-client__actions">
-                            <a className="od-contact-btn call" href={`tel:${client.phone}`}>
-                                <Phone size={16} /> Llamar
-                            </a>
-                            <a className="od-contact-btn wa" href={waHref} target="_blank" rel="noreferrer">
-                                <MessageCircle size={16} /> WhatsApp
-                            </a>
+                            >
+                                <Download size={16} /> PDF
+                            </button>
                         </div>
-                    )}
-                </div>
-            </Accordion>
-
-            {/* 4 · Evidencias */}
-            <Accordion
-                icon={<Camera size={16} />}
-                title="Evidencias"
-                summary={!open.evidencias ? (evidence.length > 0 ? `${evidence.length} imagen${evidence.length > 1 ? 'es' : ''}` : 'Sin evidencias') : null}
-                open={open.evidencias}
-                onToggle={() => toggle('evidencias')}
-            >
-                <div className="od-evidence">
-                    {evidence.length === 0 ? (
-                        <p className="od-empty">Aún no hay evidencias registradas.</p>
                     ) : (
-                        <div className="od-evidence__grid">
-                            {evidence.map((ev, i) => (
-                                <figure key={i} className="od-evidence__thumb">
-                                    <img src={ev.url} alt={ev.caption || `Evidencia ${i + 1}`} />
-                                    {ev.caption && <figcaption>{ev.caption}</figcaption>}
-                                </figure>
-                            ))}
-                        </div>
-                    )}
-
-                    <div className="od-evidence__add">
-                        {evFile ? (
-                            <div className="od-evidence__preview">
-                                <img src={evFile.url} alt="Nueva evidencia" />
-                                <button className="od-evidence__remove" onClick={() => setEvFile(null)} aria-label="Quitar">
+                        <div className="od-send-choice">
+                            <div className="od-send-choice__hdr">
+                                <span>Enviar resumen como</span>
+                                <button onClick={() => setShowSendChoice(false)} aria-label="Cerrar">
                                     <X size={16} />
                                 </button>
                             </div>
-                        ) : (
-                            <label className="od-evidence__pick">
-                                <input type="file" accept="image/*" capture="environment" onChange={handleEvidenceFile} hidden />
-                                <Camera size={18} />
-                                <span>Agregar evidencia</span>
-                            </label>
-                        )}
-
-                        <textarea
-                            className="od-textarea"
-                            placeholder="Explicación breve (ej. pastillas desgastadas)…"
-                            value={evNote}
-                            onChange={(e) => setEvNote(e.target.value)}
-                            rows={2}
-                        />
-
-                        <button className="od-action-btn wa" onClick={handleSendEvidence} disabled={!evFile || sendingEv}>
-                            {sendingEv ? <Loader2 size={16} className="spinner" /> : <Send size={16} />}
-                            {sendingEv ? 'Enviando…' : 'Enviar por WhatsApp'}
+                            <div className="od-actions__row">
+                                <button className="od-action-btn primary" onClick={handleSendPDF} disabled={sendingPDF}>
+                                    <FileText size={16} /> PDF
+                                </button>
+                                <button className="od-action-btn wa" onClick={handleSendText} disabled={sendingPDF}>
+                                    <MessageCircle size={16} /> Texto
+                                </button>
+                            </div>
+                        </div>
+                    )}
+    
+                    {currentCanonical !== 'Cancelada' && <TicketButtons order={order} client={client} />}
+    
+                    {!isTerminal && (
+                        <button className="od-cancel-link" onClick={handleBeginCancellation}>
+                            <Trash2 size={13} /> Cancelar orden
                         </button>
-                    </div>
-
-                    <div className="od-evidence__entry">
-                        <OrderPhotosDownload orderId={order.id} order={order} />
-                    </div>
+                    )}
+                </section>
                 </div>
-            </Accordion>
 
-            {/* 5 · Costos */}
-            <Accordion
-                icon={<DollarSign size={16} />}
-                title="Costos"
-                summary={!open.costos ? costsSummary : null}
-                open={open.costos}
-                onToggle={() => toggle('costos')}
-                trailing={
-                    canManageMoney && !editingCosts ? (
-                        <span
-                            className="od-acc__cta"
-                            role="button"
-                            tabIndex={0}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleStartEditCosts();
-                            }}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.stopPropagation();
-                                    handleStartEditCosts();
-                                }
-                            }}
-                        >
-                            <Edit2 size={13} /> {hasCosts ? 'Editar' : 'Agregar'}
-                        </span>
-                    ) : null
-                }
-            >
-                {editingCosts ? (
-                    <div className="od-costs-form">
-                        <div className="od-costs-group">
-                            <div className="od-costs-group__hdr">
-                                <label>Mano de obra</label>
-                                <button onClick={() => setCostsLabor((p) => [...p, { id: `labor-${Date.now()}`, name: '', price: '' }])}>
-                                    <Plus size={13} /> Agregar
-                                </button>
-                            </div>
-                            {costsLabor.map((item, idx) => (
-                                <div key={item.id || idx} className="od-cost-input-row">
-                                    <input
-                                        type="text"
-                                        placeholder="Ej. Cambio de bujes"
-                                        value={item.name}
-                                        onChange={(e) => setCostsLabor((p) => p.map((l, i) => (i === idx ? { ...l, name: e.target.value } : l)))}
-                                    />
-                                    <div className="od-money">
-                                        <span>$</span>
-                                        <input
-                                            type="number"
-                                            placeholder="0"
-                                            min="0"
-                                            value={item.price}
-                                            onChange={(e) => setCostsLabor((p) => p.map((l, i) => (i === idx ? { ...l, price: e.target.value } : l)))}
-                                        />
+                <div className="od-slot" data-tab="historial">
+                {/* 8 · Historial */}
+                {history.length > 0 && (
+                    <Accordion
+                        icon={<Clock size={16} />}
+                        title="Historial"
+                        summary={!open.historial ? `${history.length} movimiento${history.length > 1 ? 's' : ''}` : null}
+                        open={open.historial}
+                        onToggle={() => toggle('historial')}
+                    >
+                        <div className="od-timeline">
+                            {history.map((entry, idx) => (
+                                <div key={idx} className="od-timeline__item">
+                                    <span className="od-timeline__dot" />
+                                    <div>
+                                        <div className="od-timeline__top">
+                                            <strong>{entry.new_status}</strong>
+                                            <span>
+                                                {new Date(entry.created_at).toLocaleString('es-MX', {
+                                                    day: 'numeric',
+                                                    month: 'short',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit',
+                                                })}
+                                            </span>
+                                        </div>
+                                        {entry.notes && <p>{entry.notes}</p>}
                                     </div>
-                                    <button className="od-rm" onClick={() => setCostsLabor((p) => p.filter((_, i) => i !== idx))}>
-                                        <X size={15} />
-                                    </button>
                                 </div>
                             ))}
                         </div>
+                    </Accordion>
+                )}
+                </div>
 
-                        <div className="od-costs-group">
-                            <div className="od-costs-group__hdr">
-                                <label>Refacciones</label>
-                                <button onClick={() => setCostsParts((p) => [...p, { id: `new-${Date.now()}`, name: '', price: '', quantity: 1 }])}>
-                                    <Plus size={13} /> Agregar
-                                </button>
-                            </div>
-                            {costsParts.map((part, idx) => (
-                                <div key={part.id || idx} className="od-cost-input-row">
-                                    <input
-                                        type="text"
-                                        placeholder="Ej. Filtro de aceite"
-                                        value={part.name}
-                                        onChange={(e) => setCostsParts((p) => p.map((l, i) => (i === idx ? { ...l, name: e.target.value } : l)))}
-                                    />
-                                    <div className="od-money">
-                                        <span>$</span>
-                                        <input
-                                            type="number"
-                                            placeholder="0"
-                                            min="0"
-                                            value={part.price}
-                                            onChange={(e) => setCostsParts((p) => p.map((l, i) => (i === idx ? { ...l, price: e.target.value } : l)))}
-                                        />
-                                    </div>
-                                    <button className="od-rm" onClick={() => setCostsParts((p) => p.filter((_, i) => i !== idx))}>
-                                        <X size={15} />
-                                    </button>
-                                </div>
-                            ))}
+            </div>
+            <div className="od-col od-col--b">
+                <div className="od-slot" data-tab="datos">
+                {/* 1 · Datos de la moto (prioridad) */}
+                <Accordion
+                    icon={<Bike size={16} />}
+                    title="Datos de la moto"
+                    summary={!open.moto ? motoSummary : null}
+                    open={open.moto}
+                    onToggle={() => toggle('moto')}
+                    tone="moto"
+                >
+                    <div className="od-moto-hero">
+                        <h2>{motoTitle}</h2>
+                        <div className="od-kv">
+                            <div><span>Año</span><strong>{motorcycle?.year || '—'}</strong></div>
+                            <div><span>Placas</span><strong>{motorcycle?.plates || 'Sin placas'}</strong></div>
+                            {motorcycle?.color && <div><span>Color</span><strong>{motorcycle.color}</strong></div>}
+                            {motorcycle?.vin && <div><span>Serie</span><strong>{motorcycle.vin}</strong></div>}
                         </div>
-
-                        <div className="od-costs-total">
-                            <span>Total estimado</span>
-                            <strong>
-                                {fmtMXN(
-                                    costsLabor.reduce((s, l) => s + (parseFloat(l.price) || 0), 0) +
-                                        costsParts.reduce((s, p) => s + (parseFloat(p.price) || 0) * (parseInt(p.quantity) || 1), 0)
-                                )}
-                            </strong>
-                        </div>
-                        <label className="od-check">
-                            <input type="checkbox" checked={costsMarkAsPaid} onChange={(e) => setCostsMarkAsPaid(e.target.checked)} />
-                            <span>Marcar como pagada (cobrada al cliente)</span>
-                        </label>
-                        <div className="od-costs-form__actions">
-                            <button className="od-action-btn secondary" onClick={() => setEditingCosts(false)}>
-                                Cancelar
-                            </button>
-                            <button className="od-action-btn success" onClick={handleSaveCosts} disabled={savingCosts}>
-                                {savingCosts ? <Loader2 size={16} className="spinner" /> : <Save size={16} />}
-                                Guardar
-                            </button>
-                        </div>
-                    </div>
-                ) : hasCosts ? (
-                    <div className="od-costs-view">
-                        {order.mechanic_notes && order.mechanic_notes.includes('|') ? (
-                            order.mechanic_notes.split(' | ').map((item, idx) => (
-                                <div key={`labor-${idx}`} className="od-cost-line">
-                                    <span>{item.split(':')[0]}</span>
-                                    <span className="od-cost-line__val">{item.split(':')[1]?.trim()}</span>
-                                </div>
-                            ))
-                        ) : laborTotal > 0 ? (
-                            <div className="od-cost-line">
-                                <span>Mano de obra</span>
-                                <span className="od-cost-line__val">{fmtMXN(laborTotal)}</span>
-                            </div>
-                        ) : null}
-                        {partsList.map((p, idx) => (
-                            <div key={p.id || idx} className="od-cost-line part">
-                                <span>{p.name}</span>
-                                <span>{fmtMXN(p.price)}</span>
-                            </div>
-                        ))}
-                        <div className="od-cost-line total">
-                            <span>Total</span>
-                            <span>{fmtMXN(orderTotal)}</span>
-                        </div>
-                        {order.is_paid && (
-                            <div className="od-paid">
-                                <Check size={14} /> Pagado
+                        {order.customer_complaint && (
+                            <div className="od-complaint">
+                                <span className="od-complaint__label">Falla reportada</span>
+                                <p>{order.customer_complaint}</p>
                             </div>
                         )}
                     </div>
-                ) : (
-                    <p className="od-empty">No se han registrado costos aún.</p>
-                )}
-            </Accordion>
+                </Accordion>
+                </div>
 
-            {/* 6 · Pagos / Abonos */}
-            <div ref={pagosRef}>
+                <div className="od-slot" data-tab="datos">
+                {/* 3 · Cliente */}
+                <Accordion
+                    icon={<User size={16} />}
+                    title="Cliente"
+                    summary={!open.cliente ? `${client?.full_name || 'Sin nombre'}${client?.phone ? ' · ' + client.phone : ''}` : null}
+                    open={open.cliente}
+                    onToggle={() => toggle('cliente')}
+                >
+                    <div className="od-client">
+                        <div className="od-client__info">
+                            <strong>{client?.full_name || 'Sin nombre'}</strong>
+                            <span>{client?.phone || 'Sin teléfono'}</span>
+                        </div>
+                        {client?.phone && (
+                            <div className="od-client__actions">
+                                <a className="od-contact-btn call" href={`tel:${client.phone}`}>
+                                    <Phone size={16} /> Llamar
+                                </a>
+                                <a className="od-contact-btn wa" href={waHref} target="_blank" rel="noreferrer">
+                                    <MessageCircle size={16} /> WhatsApp
+                                </a>
+                            </div>
+                        )}
+                    </div>
+                </Accordion>
+                </div>
+
+                <div className="od-slot" data-tab="costos">
+                {/* 5 · Costos */}
                 <Accordion
                     icon={<DollarSign size={16} />}
-                    title="Pagos y abonos"
-                    summary={!open.pagos ? pagosSummary : null}
-                    open={open.pagos}
-                    onToggle={() => toggle('pagos')}
+                    title="Costos"
+                    summary={!open.costos ? costsSummary : null}
+                    open={open.costos}
+                    onToggle={() => toggle('costos')}
+                    trailing={
+                        canManageMoney && !editingCosts ? (
+                            <span
+                                className="od-acc__cta"
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleStartEditCosts();
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.stopPropagation();
+                                        handleStartEditCosts();
+                                    }
+                                }}
+                            >
+                                <Edit2 size={13} /> {hasCosts ? 'Editar' : 'Agregar'}
+                            </span>
+                        ) : null
+                    }
                 >
-                    <OrderPaymentsSection
-                        order={order}
-                        client={client}
-                        motorcycle={motorcycle}
-                        workshopName={activeWorkspace?.name}
-                        canManage={canManageMoney}
-                        embedded
-                        onFinance={setOrderFinance}
-                        onChanged={() => {
-                            refreshOrders?.();
-                        }}
-                    />
+                    {editingCosts ? (
+                        <div className="od-costs-form">
+                            <div className="od-costs-group">
+                                <div className="od-costs-group__hdr">
+                                    <label>Mano de obra</label>
+                                    <button onClick={() => setCostsLabor((p) => [...p, { id: `labor-${Date.now()}`, name: '', price: '' }])}>
+                                        <Plus size={13} /> Agregar
+                                    </button>
+                                </div>
+                                {costsLabor.map((item, idx) => (
+                                    <div key={item.id || idx} className="od-cost-input-row">
+                                        <input
+                                            type="text"
+                                            placeholder="Ej. Cambio de bujes"
+                                            value={item.name}
+                                            onChange={(e) => setCostsLabor((p) => p.map((l, i) => (i === idx ? { ...l, name: e.target.value } : l)))}
+                                        />
+                                        <div className="od-money">
+                                            <span>$</span>
+                                            <input
+                                                type="number"
+                                                placeholder="0"
+                                                min="0"
+                                                value={item.price}
+                                                onChange={(e) => setCostsLabor((p) => p.map((l, i) => (i === idx ? { ...l, price: e.target.value } : l)))}
+                                            />
+                                        </div>
+                                        <button className="od-rm" onClick={() => setCostsLabor((p) => p.filter((_, i) => i !== idx))}>
+                                            <X size={15} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+    
+                            <div className="od-costs-group">
+                                <div className="od-costs-group__hdr">
+                                    <label>Refacciones</label>
+                                    <button onClick={() => setCostsParts((p) => [...p, { id: `new-${Date.now()}`, name: '', price: '', quantity: 1 }])}>
+                                        <Plus size={13} /> Agregar
+                                    </button>
+                                </div>
+                                {costsParts.map((part, idx) => (
+                                    <div key={part.id || idx} className="od-cost-input-row">
+                                        <input
+                                            type="text"
+                                            placeholder="Ej. Filtro de aceite"
+                                            value={part.name}
+                                            onChange={(e) => setCostsParts((p) => p.map((l, i) => (i === idx ? { ...l, name: e.target.value } : l)))}
+                                        />
+                                        <div className="od-money">
+                                            <span>$</span>
+                                            <input
+                                                type="number"
+                                                placeholder="0"
+                                                min="0"
+                                                value={part.price}
+                                                onChange={(e) => setCostsParts((p) => p.map((l, i) => (i === idx ? { ...l, price: e.target.value } : l)))}
+                                            />
+                                        </div>
+                                        <button className="od-rm" onClick={() => setCostsParts((p) => p.filter((_, i) => i !== idx))}>
+                                            <X size={15} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+    
+                            <div className="od-costs-total">
+                                <span>Total estimado</span>
+                                <strong>
+                                    {fmtMXN(
+                                        costsLabor.reduce((s, l) => s + (parseFloat(l.price) || 0), 0) +
+                                            costsParts.reduce((s, p) => s + (parseFloat(p.price) || 0) * (parseInt(p.quantity) || 1), 0)
+                                    )}
+                                </strong>
+                            </div>
+                            <label className="od-check">
+                                <input type="checkbox" checked={costsMarkAsPaid} onChange={(e) => setCostsMarkAsPaid(e.target.checked)} />
+                                <span>Marcar como pagada (cobrada al cliente)</span>
+                            </label>
+                            <div className="od-costs-form__actions">
+                                <button className="od-action-btn secondary" onClick={() => setEditingCosts(false)}>
+                                    Cancelar
+                                </button>
+                                <button className="od-action-btn success" onClick={handleSaveCosts} disabled={savingCosts}>
+                                    {savingCosts ? <Loader2 size={16} className="spinner" /> : <Save size={16} />}
+                                    Guardar
+                                </button>
+                            </div>
+                        </div>
+                    ) : hasCosts ? (
+                        <div className="od-costs-view">
+                            {order.mechanic_notes && order.mechanic_notes.includes('|') ? (
+                                order.mechanic_notes.split(' | ').map((item, idx) => (
+                                    <div key={`labor-${idx}`} className="od-cost-line">
+                                        <span>{item.split(':')[0]}</span>
+                                        <span className="od-cost-line__val">{item.split(':')[1]?.trim()}</span>
+                                    </div>
+                                ))
+                            ) : laborTotal > 0 ? (
+                                <div className="od-cost-line">
+                                    <span>Mano de obra</span>
+                                    <span className="od-cost-line__val">{fmtMXN(laborTotal)}</span>
+                                </div>
+                            ) : null}
+                            {partsList.map((p, idx) => (
+                                <div key={p.id || idx} className="od-cost-line part">
+                                    <span>{p.name}</span>
+                                    <span>{fmtMXN(p.price)}</span>
+                                </div>
+                            ))}
+                            <div className="od-cost-line total">
+                                <span>Total</span>
+                                <span>{fmtMXN(orderTotal)}</span>
+                            </div>
+                            {order.is_paid && (
+                                <div className="od-paid">
+                                    <Check size={14} /> Pagado
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <p className="od-empty">No se han registrado costos aún.</p>
+                    )}
                 </Accordion>
+                </div>
+
+                <div className="od-slot" data-tab="costos">
+                {/* 6 · Pagos / Abonos */}
+                <div ref={pagosRef}>
+                    <Accordion
+                        icon={<DollarSign size={16} />}
+                        title="Pagos y abonos"
+                        summary={!open.pagos ? pagosSummary : null}
+                        open={open.pagos}
+                        onToggle={() => toggle('pagos')}
+                    >
+                        <OrderPaymentsSection
+                            order={order}
+                            client={client}
+                            motorcycle={motorcycle}
+                            workshopName={activeWorkspace?.name}
+                            canManage={canManageMoney}
+                            embedded
+                            onFinance={setOrderFinance}
+                            onChanged={() => {
+                                refreshOrders?.();
+                            }}
+                        />
+                    </Accordion>
+                </div>
+                </div>
+
+                <div className="od-slot" data-tab="fotos">
+                {/* 4 · Evidencias */}
+                <Accordion
+                    icon={<Camera size={16} />}
+                    title="Evidencias"
+                    summary={!open.evidencias ? (evidence.length > 0 ? `${evidence.length} imagen${evidence.length > 1 ? 'es' : ''}` : 'Sin evidencias') : null}
+                    open={open.evidencias}
+                    onToggle={() => toggle('evidencias')}
+                >
+                    <div className="od-evidence">
+                        {evidence.length === 0 ? (
+                            <p className="od-empty">Aún no hay evidencias registradas.</p>
+                        ) : (
+                            <div className="od-evidence__grid">
+                                {evidence.map((ev, i) => (
+                                    <figure key={i} className="od-evidence__thumb">
+                                        <img src={ev.url} alt={ev.caption || `Evidencia ${i + 1}`} />
+                                        {ev.caption && <figcaption>{ev.caption}</figcaption>}
+                                    </figure>
+                                ))}
+                            </div>
+                        )}
+    
+                        <div className="od-evidence__add">
+                            {evFile ? (
+                                <div className="od-evidence__preview">
+                                    <img src={evFile.url} alt="Nueva evidencia" />
+                                    <button className="od-evidence__remove" onClick={() => setEvFile(null)} aria-label="Quitar">
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <label className="od-evidence__pick">
+                                    <input type="file" accept="image/*" capture="environment" onChange={handleEvidenceFile} hidden />
+                                    <Camera size={18} />
+                                    <span>Agregar evidencia</span>
+                                </label>
+                            )}
+    
+                            <textarea
+                                className="od-textarea"
+                                placeholder="Explicación breve (ej. pastillas desgastadas)…"
+                                value={evNote}
+                                onChange={(e) => setEvNote(e.target.value)}
+                                rows={2}
+                            />
+    
+                            <button className="od-action-btn wa" onClick={handleSendEvidence} disabled={!evFile || sendingEv}>
+                                {sendingEv ? <Loader2 size={16} className="spinner" /> : <Send size={16} />}
+                                {sendingEv ? 'Enviando…' : 'Enviar por WhatsApp'}
+                            </button>
+                        </div>
+    
+                        <div className="od-evidence__entry">
+                            <OrderPhotosDownload orderId={order.id} order={order} />
+                        </div>
+                    </div>
+                </Accordion>
+                </div>
+
+            </div>
             </div>
 
-            {/* 7 · Acciones principales */}
-            <section className="od-actions">
-                {canManageMoney && !isTerminal && (
-                    <button className="od-action-btn success block" onClick={openPagos}>
-                        <DollarSign size={18} /> Registrar pago
-                    </button>
-                )}
-
-                {!showSendChoice ? (
-                    <div className="od-actions__row">
-                        <button className="od-action-btn primary" onClick={() => setShowSendChoice(true)} disabled={sendingPDF}>
-                            {sendingPDF ? <Loader2 size={16} className="spinner" /> : <FileText size={16} />}
-                            Enviar resumen
-                        </button>
-                        <button
-                            className="od-action-btn outline"
-                            onClick={async () =>
-                                await downloadOrderPDF(
-                                    { ...order, _paid: orderFinance?.paid ?? null, _balance: orderFinance?.balance ?? null },
-                                    client,
-                                    motorcycle
-                                )
-                            }
-                        >
-                            <Download size={16} /> PDF
-                        </button>
-                    </div>
-                ) : (
-                    <div className="od-send-choice">
-                        <div className="od-send-choice__hdr">
-                            <span>Enviar resumen como</span>
-                            <button onClick={() => setShowSendChoice(false)} aria-label="Cerrar">
-                                <X size={16} />
-                            </button>
-                        </div>
-                        <div className="od-actions__row">
-                            <button className="od-action-btn primary" onClick={handleSendPDF} disabled={sendingPDF}>
-                                <FileText size={16} /> PDF
-                            </button>
-                            <button className="od-action-btn wa" onClick={handleSendText} disabled={sendingPDF}>
-                                <MessageCircle size={16} /> Texto
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {currentCanonical !== 'Cancelada' && <TicketButtons order={order} client={client} />}
-
-                {!isTerminal && (
-                    <button className="od-cancel-link" onClick={handleBeginCancellation}>
-                        <Trash2 size={13} /> Cancelar orden
-                    </button>
-                )}
-            </section>
-
-            {/* 8 · Historial */}
-            {history.length > 0 && (
-                <Accordion
-                    icon={<Clock size={16} />}
-                    title="Historial"
-                    summary={!open.historial ? `${history.length} movimiento${history.length > 1 ? 's' : ''}` : null}
-                    open={open.historial}
-                    onToggle={() => toggle('historial')}
-                >
-                    <div className="od-timeline">
-                        {history.map((entry, idx) => (
-                            <div key={idx} className="od-timeline__item">
-                                <span className="od-timeline__dot" />
-                                <div>
-                                    <div className="od-timeline__top">
-                                        <strong>{entry.new_status}</strong>
-                                        <span>
-                                            {new Date(entry.created_at).toLocaleString('es-MX', {
-                                                day: 'numeric',
-                                                month: 'short',
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                            })}
-                                        </span>
-                                    </div>
-                                    {entry.notes && <p>{entry.notes}</p>}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </Accordion>
-            )}
 
             {/* Modal: solicitar cancelación */}
             {showCancelModal && (

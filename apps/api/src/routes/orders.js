@@ -5,6 +5,8 @@ import { assertWithinLimit, incrementUsageAsync, PlanLimitError } from '../lib/b
 import { fireEvent } from '../lib/events.js';
 import { generateOrderNumber } from '../lib/order-number.js';
 import { computeOrderFinance } from '../lib/payments.js';
+import { recalcEarnings } from '../lib/commissions.js';
+import { statusKeyOf } from '../lib/default-messages.js';
 import { sendWhatsApp } from '../lib/appointment-flow.js';
 
 // Helper: recalculate order totals
@@ -395,12 +397,18 @@ export default async function ordersRoutes(fastify) {
             // Fire status-change event; the filter { status_name: '...' } on
             // an automation decides whether it reacts. If the new status is
             // terminal, also fire order.completed.
-            fireEvent('order.status_changed', {
-                workspaceId: request.workspace.id,
-                order_id: id,
-                client_id: order.client_id,
-                status_name: newStatus?.name || null,
-            });
+            // V2: el SERVIDOR es el unico que avisa al cliente del cambio de estado (la pantalla ya no manda
+            // WhatsApp). status_key permite filtrar por estado aunque cada taller lo nombre distinto.
+            // Solo si el estado realmente cambio (re-aplicar el mismo no vuelve a disparar nada).
+            if (oldOrder?.status_id !== status_id) {
+                fireEvent('order.status_changed', {
+                    workspaceId: request.workspace.id,
+                    order_id: id,
+                    client_id: order.client_id,
+                    status_name: newStatus?.name || null,
+                    status_key: statusKeyOf(newStatus?.name),
+                });
+            }
             if (newStatus?.is_terminal) {
                 fireEvent('order.completed', {
                     workspaceId: request.workspace.id,
@@ -446,88 +454,13 @@ export default async function ordersRoutes(fastify) {
                     include: ORDER_INCLUDE,
                 });
 
-                // ── Create mechanic earnings (same logic as PUT /:id/costs) ──
-                if (updated.mechanic_id && laborTotal > 0) {
-                    const mechanic = await tx.profile.findUnique({
-                        where: { id: updated.mechanic_id },
-                        select: {
-                            id: true,
-                            commission_percentage: true,
-                            requires_approval: true,
-                            supervised_by: true,
-                        },
-                    });
-
-                    if (mechanic) {
-                        const now = new Date();
-                        const dow = now.getDay();
-                        const offsetToMonday = (dow === 0 ? -6 : 1 - dow);
-                        const weekStart = new Date(now);
-                        weekStart.setDate(now.getDate() + offsetToMonday);
-                        weekStart.setHours(0, 0, 0, 0);
-
-                        // Clean previous earnings to avoid duplicates
-                        await tx.mechanicEarning.deleteMany({ where: { order_id: id } });
-
-                        const auxRate = parseFloat(mechanic.commission_percentage || 0);
-                        const isAuxiliary = mechanic.requires_approval === true;
-                        const supervisorId = mechanic.supervised_by || null;
-
-                        if (isAuxiliary && supervisorId) {
-                            const supervisor = await tx.profile.findUnique({
-                                where: { id: supervisorId },
-                                select: { id: true, commission_percentage: true },
-                            });
-                            let auxEffectiveRate = auxRate;
-                            let masterEffectiveRate = supervisor?.commission_percentage != null
-                                ? parseFloat(supervisor.commission_percentage)
-                                : (100 - auxRate);
-                            const sumRates = auxEffectiveRate + masterEffectiveRate;
-                            if (sumRates > 100 && sumRates > 0) {
-                                const scale = 100 / sumRates;
-                                auxEffectiveRate *= scale;
-                                masterEffectiveRate *= scale;
-                            }
-                            const earningsRows = [{
-                                workspace_id: updated.workspace_id,
-                                order_id: id,
-                                mechanic_id: mechanic.id,
-                                labor_amount: laborTotal,
-                                commission_rate: auxEffectiveRate,
-                                earned_amount: laborTotal * (auxEffectiveRate / 100),
-                                is_paid: false,
-                                week_start: weekStart,
-                            }];
-                            if (supervisor) {
-                                earningsRows.push({
-                                    workspace_id: updated.workspace_id,
-                                    order_id: id,
-                                    mechanic_id: supervisor.id,
-                                    labor_amount: laborTotal,
-                                    commission_rate: masterEffectiveRate,
-                                    earned_amount: laborTotal - earningsRows[0].earned_amount,
-                                    is_paid: false,
-                                    week_start: weekStart,
-                                });
-                            }
-                            await tx.mechanicEarning.createMany({ data: earningsRows });
-                        } else {
-                            const earned = laborTotal * (auxRate / 100);
-                            await tx.mechanicEarning.create({
-                                data: {
-                                    workspace_id: updated.workspace_id,
-                                    order_id: id,
-                                    mechanic_id: mechanic.id,
-                                    labor_amount: laborTotal,
-                                    commission_rate: auxRate,
-                                    earned_amount: earned,
-                                    is_paid: false,
-                                    week_start: weekStart,
-                                },
-                            });
-                        }
-                    }
-                }
+                // Comisiones del mecanico (y de su maestro si es auxiliar): lib/commissions.js
+                await recalcEarnings(tx, {
+                    orderId: id,
+                    workspaceId: updated.workspace_id,
+                    mechanicId: updated.mechanic_id,
+                    laborTotal,
+                });
 
                 return updated;
             });
@@ -701,124 +634,16 @@ export default async function ordersRoutes(fastify) {
                         include: ORDER_INCLUDE,
                     });
 
-                    // ============ REPARTO AUTOMÁTICO DE GANANCIAS ============
-                    // Cuando la orden se marca como pagada, repartimos `labor_total`
-                    // entre el mecánico que hizo el trabajo y, si es auxiliar con
-                    // supervisor, también el maestro que lo respalda.
+                    // ============ REPARTO AUTOMATICO DE GANANCIAS (lib/commissions.js) ============
+                    // Al marcar la orden como pagada se reparte labor_total entre el mecanico y,
+                    // si es auxiliar con supervisor, tambien su maestro.
                     if (mark_as_paid === true) {
-                        // Cargar la orden con su mecánico (datos comerciales).
-                        const orderForEarnings = await tx.order.findUnique({
-                            where: { id },
-                            select: {
-                                id: true,
-                                workspace_id: true,
-                                mechanic_id: true,
-                                labor_total: true,
-                                mechanic: {
-                                    select: {
-                                        id: true,
-                                        commission_percentage: true,
-                                        requires_approval: true,
-                                        is_master_mechanic: true,
-                                        supervised_by: true,
-                                    },
-                                },
-                            },
+                        await recalcEarnings(tx, {
+                            orderId: id,
+                            workspaceId: updated.workspace_id,
+                            mechanicId: updated.mechanic_id,
+                            laborTotal: updated.labor_total,
                         });
-
-                        const labor = parseFloat(orderForEarnings?.labor_total || 0);
-                        const mechanic = orderForEarnings?.mechanic || null;
-
-                        // Skip silencioso: sin mecánico o sin labor_total no hay nada que repartir.
-                        if (mechanic && labor > 0) {
-                            // Calcular inicio de la semana (lunes 00:00 local del server).
-                            const now = new Date();
-                            const dow = now.getDay(); // 0=Dom .. 6=Sab
-                            const offsetToMonday = (dow === 0 ? -6 : 1 - dow);
-                            const weekStart = new Date(now);
-                            weekStart.setDate(now.getDate() + offsetToMonday);
-                            weekStart.setHours(0, 0, 0, 0);
-
-                            // Limpiar earnings previos para evitar duplicados si se re-marca paga.
-                            await tx.mechanicEarning.deleteMany({ where: { order_id: id } });
-
-                            const auxRate = parseFloat(mechanic.commission_percentage || 0);
-
-                            const isAuxiliary = mechanic.requires_approval === true;
-                            const supervisorId = mechanic.supervised_by || null;
-
-                            // Caso B: auxiliar con supervisor → reparto auxiliar + maestro.
-                            if (isAuxiliary && supervisorId) {
-                                // Cargar al maestro para conocer su commission_percentage.
-                                const supervisor = await tx.profile.findUnique({
-                                    where: { id: supervisorId },
-                                    select: { id: true, commission_percentage: true },
-                                });
-
-                                let auxEffectiveRate = auxRate;
-                                let masterEffectiveRate = supervisor?.commission_percentage != null
-                                    ? parseFloat(supervisor.commission_percentage)
-                                    : (100 - auxRate);
-
-                                // Escalar si la suma excede 100% para no pasar labor_total.
-                                const sumRates = auxEffectiveRate + masterEffectiveRate;
-                                if (sumRates > 100 && sumRates > 0) {
-                                    const scale = 100 / sumRates;
-                                    auxEffectiveRate = auxEffectiveRate * scale;
-                                    masterEffectiveRate = masterEffectiveRate * scale;
-                                }
-
-                                const auxEarned = labor * (auxEffectiveRate / 100);
-                                const masterEarned = labor - auxEarned;
-
-                                const earningsRows = [
-                                    {
-                                        workspace_id: orderForEarnings.workspace_id,
-                                        order_id: id,
-                                        mechanic_id: mechanic.id,
-                                        labor_amount: labor,
-                                        commission_rate: auxEffectiveRate,
-                                        earned_amount: auxEarned,
-                                        is_paid: false,
-                                        week_start: weekStart,
-                                    },
-                                ];
-                                if (supervisor) {
-                                    earningsRows.push({
-                                        workspace_id: orderForEarnings.workspace_id,
-                                        order_id: id,
-                                        mechanic_id: supervisor.id,
-                                        labor_amount: labor,
-                                        commission_rate: masterEffectiveRate,
-                                        earned_amount: masterEarned,
-                                        is_paid: false,
-                                        week_start: weekStart,
-                                    });
-                                }
-                                await tx.mechanicEarning.createMany({ data: earningsRows });
-                            } else {
-                                // Caso A (normal) y Caso C (auxiliar sin supervisor → fallback A).
-                                if (isAuxiliary && !supervisorId) {
-                                    request.log.warn(
-                                        { orderId: id, mechanicId: mechanic.id },
-                                        '[EARNINGS] Auxiliar sin supervised_by; aplicando fallback Caso A.'
-                                    );
-                                }
-                                const earned = labor * (auxRate / 100);
-                                await tx.mechanicEarning.create({
-                                    data: {
-                                        workspace_id: orderForEarnings.workspace_id,
-                                        order_id: id,
-                                        mechanic_id: mechanic.id,
-                                        labor_amount: labor,
-                                        commission_rate: auxRate,
-                                        earned_amount: earned,
-                                        is_paid: false,
-                                        week_start: weekStart,
-                                    },
-                                });
-                            }
-                        }
                     }
 
                     return updated;

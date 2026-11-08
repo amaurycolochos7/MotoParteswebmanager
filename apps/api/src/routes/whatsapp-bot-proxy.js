@@ -1,6 +1,10 @@
 /**
  * Proxy hacia el bot de WhatsApp: /api/whatsapp-bot/* → http://whatsapp-bot:3002/*
  *
+ * V2 — SESIÓN ÚNICA: sea cual sea el `mechanicId` / `:mechanicId` que mande el cliente, TODAS estas rutas se
+ * resuelven a la sesión del taller (Workspace.whatsapp_session_profile_id). Los envíos de texto pasan por
+ * lib/wa-send.js (bandeja + cola de reintentos). Administrar la sesión (QR/iniciar/cerrar) es solo owner/admin.
+ *
  * El frontend (estático) llama a /api/whatsapp-bot/... y esta ruta reenvía al
  * contenedor del bot agregando la API key del bot, que NUNCA sale al navegador.
  *
@@ -21,6 +25,10 @@
 
 import prisma, { workspaceContext } from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
+import { resolveWorkspace } from '../middleware/workspace.js';
+import { loadActor } from '../lib/permissions.js';
+import { resolveSessionId, startWorkspaceSession, clearSessionCache } from '../lib/wa-session.js';
+import { sendToClient, logOutbound } from '../lib/wa-send.js';
 
 const BOT_URL = process.env.WHATSAPP_BOT_INTERNAL_URL || 'http://whatsapp-bot:3002';
 const BOT_KEY = process.env.WHATSAPP_API_KEY || 'motopartes-whatsapp-key';
@@ -127,97 +135,110 @@ export default async function whatsappBotProxy(fastify) {
         forward(reply, 'GET', '/health')
     );
 
-    // ---- Listado: solo sesiones de tu(s) workspace(s) ------------------------
-    fastify.get('/sessions', { config: rl(120), preHandler: [authenticate] }, async (request, reply) => {
+    // V2: todas las rutas necesitan el taller activo para resolver la sesion unica.
+    const pre = [authenticate, resolveWorkspace];
+    const noSession = (reply) => reply.code(200).header('content-type', 'application/json')
+        .send(JSON.stringify({ exists: false, isConnected: false, qr: null, notConfigured: true }));
+    const canManage = async (request) => (await loadActor(request)).can_manage_whatsapp === true;
+    const canSend = async (request) => (await loadActor(request)).can_send_messages === true;
+
+    // ---- Listado: solo la sesion del taller ------------------------------
+    fastify.get('/sessions', { config: rl(120), preHandler: pre }, async (request, reply) => {
+        const sessionId = await resolveSessionId(request.workspace.id);
         const response = await fetch(`${BOT_URL}/sessions`, { headers: { 'x-api-key': BOT_KEY } }).catch(() => null);
         if (!response || !response.ok) {
             return reply.code(502).send({ error: 'WhatsApp Bot service unavailable' });
         }
         const sessions = await response.json().catch(() => []);
-        if (!Array.isArray(sessions)) return reply.send([]);
-        if (isSuper(request)) return reply.send(sessions);
-
-        const callerMemberships = await unscoped(() =>
-            prisma.membership.findMany({
-                where: { profile_id: request.user.id },
-                select: { workspace_id: true },
-            })
-        );
-        const ids = sessions.map((s) => s.mechanicId).filter((id) => UUID_RE.test(String(id)));
-        const visible = new Set([request.user.id]);
-        if (callerMemberships.length > 0 && ids.length > 0) {
-            const rows = await unscoped(() =>
-                prisma.membership.findMany({
-                    where: {
-                        profile_id: { in: ids },
-                        workspace_id: { in: callerMemberships.map((m) => m.workspace_id) },
-                    },
-                    select: { profile_id: true },
-                })
-            );
-            rows.forEach((r) => visible.add(r.profile_id));
-        }
-        return reply.send(sessions.filter((s) => visible.has(s.mechanicId)));
+        if (!Array.isArray(sessions) || !sessionId) return reply.send([]);
+        return reply.send(sessions.filter((s) => s.mechanicId === sessionId));
     });
 
-    // ---- Estado de una sesión (uso) -----------------------------------------
-    fastify.get('/sessions/:mechanicId/status', { config: rl(240), preHandler: [authenticate] }, async (request, reply) => {
-        const { mechanicId } = request.params;
-        if (!(await canOperateSession(request, mechanicId))) return deny(reply);
-        return forward(reply, 'GET', `/sessions/${mechanicId}/status`);
+    // ---- Estado de la sesion (cualquier integrante del taller) -------------
+    fastify.get('/sessions/:mechanicId/status', { config: rl(240), preHandler: pre }, async (request, reply) => {
+        const sessionId = await resolveSessionId(request.workspace.id);
+        if (!sessionId) return noSession(reply);
+        return forward(reply, 'GET', `/sessions/${sessionId}/status`);
     });
 
-    // ---- Administrar sesión (QR / iniciar / cerrar) --------------------------
-    fastify.get('/sessions/:mechanicId/qr', { config: rl(240), preHandler: [authenticate] }, async (request, reply) => {
-        const { mechanicId } = request.params;
-        if (!(await canOperateSession(request, mechanicId, { manage: true }))) return deny(reply);
-        return forward(reply, 'GET', `/sessions/${mechanicId}/qr`);
+    // ---- Administrar la sesion (QR / iniciar / cerrar): solo owner/admin ---
+    fastify.get('/sessions/:mechanicId/qr', { config: rl(240), preHandler: pre }, async (request, reply) => {
+        if (!(await canManage(request))) return deny(reply);
+        const sessionId = await resolveSessionId(request.workspace.id);
+        if (!sessionId) return reply.send({ qr: null, isConnected: false });
+        return forward(reply, 'GET', `/sessions/${sessionId}/qr`);
     });
 
-    fastify.post('/sessions/:mechanicId/start', { config: rl(30), preHandler: [authenticate] }, async (request, reply) => {
-        const { mechanicId } = request.params;
-        if (!(await canOperateSession(request, mechanicId, { manage: true }))) return deny(reply);
-        return forward(reply, 'POST', `/sessions/${mechanicId}/start`);
+    fastify.post('/sessions/:mechanicId/start', { config: rl(30), preHandler: pre }, async (request, reply) => {
+        if (!(await canManage(request))) return deny(reply);
+        const actor = await loadActor(request);
+        const r = await startWorkspaceSession(request.workspace.id, actor.id);
+        if (!r.ok) return reply.code(502).send({ error: r.error || 'No se pudo iniciar WhatsApp.' });
+        return reply.send({ success: true, message: 'Session starting...' });
     });
 
-    fastify.post('/sessions/:mechanicId/logout', { config: rl(30), preHandler: [authenticate] }, async (request, reply) => {
-        const { mechanicId } = request.params;
-        if (!(await canOperateSession(request, mechanicId, { manage: true }))) return deny(reply);
-        return forward(reply, 'POST', `/sessions/${mechanicId}/logout`);
+    fastify.post('/sessions/:mechanicId/logout', { config: rl(30), preHandler: pre }, async (request, reply) => {
+        if (!(await canManage(request))) return deny(reply);
+        const sessionId = await resolveSessionId(request.workspace.id);
+        if (!sessionId) return reply.send({ success: true });
+        clearSessionCache(request.workspace.id);
+        return forward(reply, 'POST', `/sessions/${sessionId}/logout`);
     });
 
-    // ---- Envío de mensajes ---------------------------------------------------
-    // El mecánico puede enviar por su propia sesión o por la de un miembro de su
-    // taller (p. ej. el dueño), nunca por la de otro taller.
-    for (const path of ['/send-message', '/send-media']) {
-        fastify.post(path, { config: rl(60), preHandler: [authenticate] }, async (request, reply) => {
-            const body = parseJsonBody(request);
-            if (!body) return reply.code(400).send({ error: 'JSON inválido' });
-            if (!(await canOperateSession(request, body.mechanicId))) return deny(reply);
-            return forward(reply, 'POST', path, body);
-        });
-    }
-
-    // send-for-order: el bot elige la sesión; validamos que la orden sea de tu taller.
-    fastify.post('/send-for-order', { config: rl(60), preHandler: [authenticate] }, async (request, reply) => {
+    // ---- Envio de mensajes -------------------------------------------------
+    // Texto: por lib/wa-send.js (queda en la bandeja y, si el bot esta reconectando, en la cola de reintentos).
+    fastify.post('/send-message', { config: rl(60), preHandler: pre }, async (request, reply) => {
         const body = parseJsonBody(request);
-        if (!body) return reply.code(400).send({ error: 'JSON inválido' });
+        if (!body) return reply.code(400).send({ error: 'JSON invalido' });
+        if (!(await canSend(request))) return deny(reply, 403, 'No tienes permiso para enviar mensajes.');
+        if (!body.phone || !body.message) return reply.code(400).send({ error: 'phone y message son requeridos' });
+        const r = await sendToClient(request.workspace.id, body.phone, String(body.message), { origin: 'panel', sentBy: request.user.id });
+        if (r.sent) return reply.send({ success: true, messageId: r.messageId || null });
+        if (r.queued) return reply.send({ success: true, queued: true });
+        return reply.code(r.reason === 'whatsapp_desconectado' ? 503 : 500).send({ error: r.error || r.reason || 'No se pudo enviar', fallback: true });
+    });
+
+    // Multimedia: directo al bot con la sesion del taller (y constancia en la bandeja).
+    fastify.post('/send-media', { config: rl(60), preHandler: pre }, async (request, reply) => {
+        const body = parseJsonBody(request);
+        if (!body) return reply.code(400).send({ error: 'JSON invalido' });
+        if (!(await canSend(request))) return deny(reply, 403, 'No tienes permiso para enviar mensajes.');
+        const sessionId = await resolveSessionId(request.workspace.id);
+        if (!sessionId) return reply.code(503).send({ error: 'WhatsApp del taller no esta configurado', fallback: true });
+        const out = await fetch(`${BOT_URL}/send-media`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-api-key': BOT_KEY },
+            body: JSON.stringify({ ...body, mechanicId: sessionId }),
+            signal: AbortSignal.timeout(30000),
+        }).catch((e) => ({ ok: false, status: 502, text: async () => JSON.stringify({ error: e.message }) }));
+        const text = await out.text();
+        if (out.ok && body.phone) {
+            let parsed = {}; try { parsed = JSON.parse(text); } catch { /* ignore */ }
+            await logOutbound(request.workspace.id, body.phone, `[Imagen]${body.message ? ` ${body.message}` : ''}`, {
+                origin: 'panel', sentBy: request.user.id, waMessageId: parsed.messageId || null,
+            });
+        }
+        return reply.code(out.status).header('content-type', 'application/json').send(text);
+    });
+
+    // send-for-order: ahora es un envio de texto normal por la sesion del taller (valida que la orden sea del taller).
+    fastify.post('/send-for-order', { config: rl(60), preHandler: pre }, async (request, reply) => {
+        const body = parseJsonBody(request);
+        if (!body) return reply.code(400).send({ error: 'JSON invalido' });
         if (!UUID_RE.test(String(body.orderId || ''))) {
-            return reply.code(400).send({ error: 'orderId inválido' });
+            return reply.code(400).send({ error: 'orderId invalido' });
         }
-        if (!isSuper(request)) {
-            const order = await unscoped(() =>
-                prisma.order.findUnique({ where: { id: body.orderId }, select: { workspace_id: true } })
-            );
-            if (!order || !order.workspace_id) return deny(reply, 404, 'Orden no encontrada.');
-            const member = await unscoped(() =>
-                prisma.membership.findFirst({
-                    where: { profile_id: request.user.id, workspace_id: order.workspace_id },
-                    select: { id: true },
-                })
-            );
-            if (!member) return deny(reply, 404, 'Orden no encontrada.');
-        }
-        return forward(reply, 'POST', '/send-for-order', body);
+        if (!(await canSend(request))) return deny(reply, 403, 'No tienes permiso para enviar mensajes.');
+        const order = await unscoped(() =>
+            prisma.order.findUnique({ where: { id: body.orderId }, select: { workspace_id: true } })
+        );
+        if (!order || order.workspace_id !== request.workspace.id) return deny(reply, 404, 'Orden no encontrada.');
+        if (!body.phone || !body.message) return reply.code(400).send({ error: 'phone y message son requeridos' });
+        const r = await sendToClient(request.workspace.id, body.phone, String(body.message), {
+            origin: 'panel', sentBy: request.user.id, context: { order_id: body.orderId },
+        });
+        if (r.sent) return reply.send({ success: true, messageId: r.messageId || null });
+        if (r.queued) return reply.send({ success: true, queued: true });
+        return reply.code(r.reason === 'whatsapp_desconectado' ? 503 : 500).send({ error: r.error || r.reason || 'No se pudo enviar', fallback: true });
     });
 }

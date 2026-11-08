@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import prisma from './prisma.js';
 import { occupancy, isSlotOpen, UUID_RE, mechanicNoticeText } from './booking.js';
 import { formatPhone } from './phone.js';
+import { sendToClient } from './wa-send.js';
 
 // ── Configuracion ────────────────────────────────────────────────────────
 // Chiapas = CST (UTC-6), sin horario de verano desde 2022.
@@ -269,20 +270,12 @@ export function normalizePhone(raw) {
     return d;
 }
 
-export async function sendWhatsApp(workspaceId, phone, text) {
+// V2: todo envio del servidor sale por la sesion UNICA del taller (lib/wa-send.js). Si el bot no esta
+// listo, el mensaje queda en la cola de reintentos (queued:true) en vez de perderse.
+// Devuelve { sent, queued?, reason? }.
+export async function sendWhatsApp(workspaceId, phone, text, ctx = {}) {
     try {
-        const to = normalizePhone(phone);
-        if (!to) return { sent: false, reason: 'sin_telefono' };
-        const session = await prisma.whatsappSession.findFirst({ where: { workspace_id: workspaceId, is_connected: true } });
-        if (!session?.mechanic_id) return { sent: false, reason: 'whatsapp_desconectado' };
-        const res = await fetch(`${BOT_URL}/send-message`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-key': BOT_KEY },
-            body: JSON.stringify({ mechanicId: session.mechanic_id, phone: to, message: text }),
-            signal: AbortSignal.timeout(25000),
-        });
-        if (!res.ok) return { sent: false, reason: `bot_${res.status}` };
-        return { sent: true };
+        return await sendToClient(workspaceId, phone, text, { origin: 'auto', ...ctx });
     } catch (e) {
         return { sent: false, reason: e.message };
     }
@@ -311,7 +304,11 @@ export async function notifyCustomer(appt, kind, extra = {}, opts = {}) {
     const text = MSG[kind](ctxOf(appt, extra));
     const phone = phoneOf(appt);
     const result = phone ? await sendWhatsApp(appt.workspace_id, phone, text) : { sent: false, reason: 'sin_telefono' };
-    if (!result.sent && !opts.quiet) await logEvent(appt, 'wa_failed', 'system', `${kind}: ${result.reason}`);
+    if (!result.sent && !opts.quiet) {
+        // 'wa_queued': el bot no estaba listo; el mensaje sale solo en cuanto se reconecte (hasta 30 min).
+        if (result.queued) await logEvent(appt, 'wa_queued', 'system', `${kind}: en cola, se enviará al reconectar WhatsApp`);
+        else await logEvent(appt, 'wa_failed', 'system', `${kind}: ${result.reason}`);
+    }
     return { ...result, text, link: linkFor(token), phone: phone ? normalizePhone(phone) : null };
 }
 
@@ -344,8 +341,11 @@ export async function notifyMechanic(appt, kind) {
             shop: SHOP_NAME,
         });
         const result = await sendWhatsApp(appt.workspace_id, mech.phone, text);
-        await logEvent(appt, result.sent ? 'mechanic_notified' : 'wa_failed', 'system',
-            result.sent ? `Se avisó a ${mech.full_name} (${kind})` : `aviso al mecánico (${mech.full_name}): ${result.reason}`);
+        const notified = result.sent || result.queued;
+        await logEvent(appt, notified ? 'mechanic_notified' : 'wa_failed', 'system',
+            result.sent ? `Se avisó a ${mech.full_name} (${kind})`
+                : result.queued ? `Aviso a ${mech.full_name} en cola (${kind}): se enviará al reconectar WhatsApp`
+                    : `aviso al mecánico (${mech.full_name}): ${result.reason}`);
         return result;
     } catch (e) {
         console.error('[appt] aviso al mecanico:', e.message);

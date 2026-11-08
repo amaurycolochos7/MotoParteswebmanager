@@ -1,0 +1,58 @@
+/* Citas · bandeja (sobrescribe el estilo previo de AppointmentCalendar) */
+.appointments-page { min-height: 0; padding: 0 0 48px; width: 100%; }
+.appointments-page .list-view { max-width: none; width: 100%; }
+.apt-bar { margin-bottom: 4px; }
+.appointments-page .scope-tabs { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius-md); margin: 0 0 12px; padding: 3px; }
+.appointments-page .scope-tabs button { border-radius: 6px; font-family: var(--font-text); font-weight: 600; font-size: 13.5px; color: var(--ink-2); }
+.appointments-page .scope-tabs button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(23, 20, 15, 0.12); }
+.apt-tabs { margin-bottom: 16px; }
+.apt-tabs .k-tab.is-hot .k-tab__count { background: var(--red); color: #fff; animation: apt-pulse 2.2s ease-in-out infinite; }
+@keyframes apt-pulse { 50% { box-shadow: 0 0 0 5px rgba(215, 25, 32, 0.15); } }
+@media (prefers-reduced-motion: reduce) { .apt-tabs .k-tab.is-hot .k-tab__count { animation: none; } }
+
+.appointments-page .appointments-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 14px; }
+.appointments-page .appointment-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: none; }
+.appointments-page .appointment-card:hover { box-shadow: var(--shadow-md); }
+.appointments-page .appointment-card.is-external { border-color: var(--line); }
+.appointments-page .appointment-card.is-pending { border-color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+.appointments-page .appointment-card.is-pinned { border-color: var(--red); box-shadow: 0 0 0 3px var(--red-soft); }
+.appointments-page .apt-date-badge { background: var(--ink); min-width: 78px; }
+.appointments-page .apt-date-badge .badge-day { font-family: var(--font-display); font-size: 2.3rem; font-weight: 600; }
+.appointments-page .apt-date-badge .badge-month-year { font-family: var(--font-mono); letter-spacing: 0.12em; }
+.appointments-page .apt-date-badge .badge-time { font-family: var(--font-mono); color: #ffb3ae; }
+.appointments-page .apt-client-row strong { font-size: 1.02rem; }
+.appointments-page .badge-web { background: var(--paper-2); color: var(--ink-2); border: 1px solid var(--line); border-radius: 4px; font-family: var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; }
+.appointments-page .badge-asked { background: var(--red-soft); color: var(--red-dark); border: 1px solid var(--red-line); border-radius: 4px; }
+.appointments-page .apt-status-chip { border-radius: 4px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.appointments-page .apt-meta { font-size: 13.5px; }
+.appointments-page .apt-actions { gap: 8px; }
+.appointments-page .apt-actions button, .appointments-page .btn-order { min-height: 40px; border-radius: var(--radius-md); font-family: var(--font-text); font-weight: 600; font-size: 13.5px; }
+.appointments-page .btn-confirm { background: var(--ink); }
+.appointments-page .btn-confirm:hover:not(:disabled) { background: var(--ok); }
+.appointments-page .btn-reject { background: var(--card); color: var(--red-dark); border: 1px solid var(--red-line); }
+.appointments-page .btn-reject:hover:not(:disabled) { background: var(--red); color: #fff; }
+.appointments-page .btn-order { background: var(--red); }
+.appointments-page .btn-order:hover { background: var(--red-dark); }
+.appointments-page .apt-alert { border-radius: var(--radius-md); background: var(--warn-soft); border: 1px solid #ecd2a4; }
+.appointments-page .apt-proposal { border-radius: var(--radius-md); background: var(--info-soft); color: #1f4668; border: 1px solid #bcd0e3; }
+.appointments-page .apt-pinned { background: var(--red-soft); color: var(--red-deep); }
+.appointments-page .empty-state { background: var(--card); border: 1px dashed var(--ink-4); border-radius: var(--radius-card); }
+.appointments-page .empty-state h3 { font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; }
+.appointments-page .booking-card { border-radius: var(--radius-card); border: 1px dashed var(--ink-4); max-width: none; }
+.appointments-page .apt-error { max-width: none; }
+@media (max-width: 640px) {
+  .appointments-page .appointments-list { grid-template-columns: 1fr; }
+  .appointments-page .k-pagehead__actions .k-btn { flex: 1 1 auto; }
+}
+
+/* Un solo lenguaje de color: tinta, rojo y bordes */
+.appointments-page .apt-date-badge { background: var(--ink) !important; }
+.appointments-page .appointment-card.is-pending .apt-date-badge { background: var(--red) !important; }
+.appointments-page .appointment-card.is-pending .apt-date-badge .badge-time { color: #fff; }
+.appointments-page .apt-actions .btn-propose { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+.appointments-page .apt-actions .btn-propose:hover { background: var(--paper-2); border-color: var(--ink-4); }
+.appointments-page .apt-actions .btn-plain { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+.appointments-page .apt-status-chip { background: var(--paper-2) !important; color: var(--ink-2) !important; border: 1px solid var(--line); }
+.appointments-page .appointment-card.is-pending .apt-status-chip { background: var(--warn-soft) !important; color: var(--warn) !important; border-color: #ecd2a4; }
+
+.appointments-page .k-pagehead__actions .k-btn[aria-label="Actualizar"] { flex: 0 0 auto; }

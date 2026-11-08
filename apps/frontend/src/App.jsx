@@ -16,6 +16,10 @@ import Onboarding from './pages/auth/Onboarding';
 
 // Workspace + billing settings
 import AdminWorkspace from './pages/admin/AdminWorkspace';
+// Equipo, WhatsApp del taller y Conversaciones (V2)
+import Team from './pages/shared/Team';
+import WhatsAppSettings from './pages/shared/WhatsAppSettings';
+import Inbox from './pages/shared/Inbox';
 import AdminBilling from './pages/admin/AdminBilling';
 import AdminAutomations from './pages/admin/AdminAutomations';
 import AdminTemplates from './pages/admin/AdminTemplates';
@@ -171,7 +175,10 @@ function AppRoutes() {
         <Route path="orders/:id" element={<MechanicOrderDetail />} />
         <Route path="clients" element={<AdminClients />} />
         <Route path="lookup" element={<LookupClient />} />
-        <Route path="users" element={<AdminUsers />} />
+        <Route path="users" element={<Navigate to="/admin/team" replace />} />
+        <Route path="team" element={<Team />} />
+        <Route path="whatsapp" element={<WhatsAppSettings />} />
+        <Route path="inbox" element={<Inbox />} />
         <Route path="users/:id/orders" element={<AdminMechanicOrders />} />
         <Route path="mechanics" element={<AdminMechanics />} />
         <Route path="analytics" element={<AdminAnalytics />} />
@@ -213,7 +220,9 @@ function AppRoutes() {
         <Route path="my-requests" element={<MyRequests />} />
         <Route path="my-payments" element={<AuxiliaryPayments />} />
         <Route path="auxiliary/:id/orders" element={<AuxiliaryOrders />} />
-        <Route path="whatsapp" element={<WhatsAppConnect />} />
+        <Route path="whatsapp" element={<Navigate to="/admin/whatsapp" replace />} />
+        <Route path="team" element={<Team />} />
+        <Route path="inbox" element={<Inbox />} />
         <Route path="quotations" element={<Quotations />} />
         <Route path="quotations/new" element={<NewQuotation />} />
         <Route path="quotations/:id" element={<QuotationDetail />} />

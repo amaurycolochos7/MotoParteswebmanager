@@ -1,429 +1,277 @@
-import { useState, useEffect, useRef } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { appointmentsService } from '../../lib/api';
+import { useBadges } from '../../hooks/useBadges';
+import NotificationBell from './NotificationBell';
 import {
-    LayoutDashboard,
-    ClipboardList,
-    Users,
-    Wrench,
-    MessageSquare,
-    BarChart3,
-    Calendar,
-    PlusCircle,
-    History,
-    DollarSign,
-    ChevronLeft,
-    LogOut,
-    Menu,
-    Bike,
-    Crown,
-    Send,
-    CreditCard,
-    Gift,
-    Zap,
-    FileText,
-    Activity,
-    CheckSquare,
-    Store,
-    QrCode,
-    Plug,
-    LifeBuoy,
-    ShieldCheck,
-    Printer,
-    Search,
+    LayoutDashboard, ClipboardList, Users, Wrench, MessageSquare, BarChart3, Calendar, PlusCircle,
+    History, DollarSign, LogOut, Menu, Crown, Send, CreditCard, Gift, Zap, FileText, Activity,
+    CheckSquare, Store, QrCode, Plug, LifeBuoy, ShieldCheck, Printer, Search, UserCog, MessagesSquare,
+    ChevronDown, X,
 } from 'lucide-react';
 import ConnectionStatus from '../ui/ConnectionStatus';
+import { initialsOf } from '../ui/kit';
+
+const ROLE_LABEL = {
+    owner: 'Dueño',
+    admin: 'Administrador',
+    maestro: 'Mecánico maestro',
+    mecanico: 'Mecánico',
+    auxiliar: 'Auxiliar',
+};
+
+/* -----------------------------------------------------------------------------
+   Estructura del menú. `badge` enlaza con los contadores de la campanita.
+   ----------------------------------------------------------------------------- */
+function buildAdminGroups({ canViewInbox, isSuper }) {
+    const groups = [
+        {
+            id: 'operacion', title: 'Operación', items: [
+                { to: '/admin', icon: LayoutDashboard, label: 'Panel', end: true },
+                { to: '/admin/orders', icon: ClipboardList, label: 'Órdenes' },
+                { to: '/mechanic/new-order', icon: PlusCircle, label: 'Nueva orden' },
+                { to: '/mechanic/appointments', icon: Calendar, label: 'Citas', badge: 'appts' },
+                { to: '/mechanic/quotations', icon: FileText, label: 'Cotizaciones' },
+            ],
+        },
+        {
+            id: 'clientes', title: 'Clientes', items: [
+                { to: '/admin/lookup', icon: Search, label: 'Buscar cliente' },
+                { to: '/admin/clients', icon: Users, label: 'Clientes' },
+            ],
+        },
+        {
+            id: 'equipo', title: 'Equipo y WhatsApp', items: [
+                { to: '/admin/team', icon: UserCog, label: 'Equipo' },
+                { to: '/admin/mechanics', icon: Wrench, label: 'Rendimiento' },
+                ...(canViewInbox ? [{ to: '/admin/inbox', icon: MessagesSquare, label: 'Conversaciones', badge: 'unread' }] : []),
+                { to: '/admin/whatsapp', icon: MessageSquare, label: 'WhatsApp del taller' },
+            ],
+        },
+        {
+            id: 'negocio', title: 'Negocio', items: [
+                { to: '/admin/analytics', icon: BarChart3, label: 'Reportes' },
+                { to: '/admin/automations', icon: Zap, label: 'Automatizaciones' },
+                { to: '/admin/templates', icon: FileText, label: 'Plantillas' },
+                { to: '/admin/tasks', icon: CheckSquare, label: 'Tareas' },
+                { to: '/admin/printing', icon: Printer, label: 'Impresión' },
+            ],
+        },
+        {
+            id: 'ajustes', title: 'Ajustes', collapsedByDefault: true, items: [
+                { to: '/admin/workspace', icon: Store, label: 'Mi taller' },
+                { to: '/admin/billing', icon: CreditCard, label: 'Suscripción' },
+                { to: '/admin/referrals', icon: Gift, label: 'Referidos' },
+                { to: '/admin/shop-qr', icon: QrCode, label: 'QR del taller' },
+                { to: '/admin/integrations', icon: Plug, label: 'Integraciones' },
+                { to: '/admin/support', icon: LifeBuoy, label: 'Soporte' },
+                { to: '/admin/bot-health', icon: Activity, label: 'Estado del bot' },
+            ],
+        },
+    ];
+    if (isSuper) groups.push({ id: 'super', title: 'Super', items: [{ to: '/super', icon: ShieldCheck, label: 'Panel Super' }] });
+    return groups;
+}
+
+function buildWorkGroups({ teamRole, isManager, canViewInbox }) {
+    const groups = [
+        {
+            id: 'trabajo', title: 'Trabajo', items: [
+                { to: '/mechanic', icon: LayoutDashboard, label: 'Inicio', end: true },
+                { to: '/mechanic/new-order', icon: PlusCircle, label: 'Nueva orden' },
+                { to: '/mechanic/orders', icon: ClipboardList, label: 'Mis órdenes' },
+                { to: '/mechanic/quotations', icon: FileText, label: 'Cotizaciones' },
+                { to: '/mechanic/appointments', icon: Calendar, label: 'Citas', badge: 'appts' },
+            ],
+        },
+        {
+            id: 'clientes', title: 'Clientes', items: [
+                { to: '/mechanic/lookup', icon: Search, label: 'Buscar cliente' },
+                { to: '/mechanic/clients', icon: Users, label: 'Clientes' },
+                ...(canViewInbox ? [{ to: '/mechanic/inbox', icon: MessagesSquare, label: 'Conversaciones', badge: 'unread' }] : []),
+            ],
+        },
+    ];
+    if (teamRole === 'maestro' || isManager) {
+        groups.push({
+            id: 'maestro', title: 'Mi equipo', items: [
+                { to: '/mechanic/requests', icon: Crown, label: 'Solicitudes' },
+                { to: '/mechanic/auxiliaries', icon: Users, label: 'Mis auxiliares' },
+                { to: '/mechanic/team', icon: UserCog, label: 'Alta y comisiones' },
+            ],
+        });
+    }
+    if (teamRole === 'auxiliar') {
+        groups.push({
+            id: 'auxiliar', title: 'Auxiliar', items: [
+                { to: '/mechanic/my-requests', icon: Send, label: 'Mis solicitudes' },
+                { to: '/mechanic/my-payments', icon: DollarSign, label: 'Mis pagos' },
+            ],
+        });
+    }
+    groups.push({
+        id: 'cuenta', title: 'Mi cuenta', items: [
+            { to: '/mechanic/history', icon: History, label: 'Historial' },
+            { to: '/mechanic/earnings', icon: DollarSign, label: 'Mis ganancias' },
+        ],
+    });
+    if (isManager) {
+        groups.push({
+            id: 'admin', title: 'Administración', items: [
+                { to: '/admin', icon: LayoutDashboard, label: 'Panel del taller', end: true },
+                { to: '/admin/team', icon: UserCog, label: 'Equipo' },
+                { to: '/admin/whatsapp', icon: MessageSquare, label: 'WhatsApp del taller' },
+                { to: '/admin/printing', icon: Printer, label: 'Impresión' },
+            ],
+        });
+    }
+    return groups;
+}
+
+const COLLAPSE_KEY = 'mp_nav_collapsed_v2';
+const readCollapsed = () => { try { return JSON.parse(localStorage.getItem(COLLAPSE_KEY) || 'null'); } catch { return null; } };
 
 export default function AppLayout() {
-    const { user, logout, isAdmin, isMechanic, isMasterMechanic, requiresApproval, hasPermission, workspaceRole } = useAuth();
-    // Only the global Profile.role === 'admin' user gets the full admin sidebar.
-    // The shop owner whose Profile.role is "mechanic" stays on the mechanic
-    // sidebar; they get a single extra "Usuarios" link below to manage their
-    // team — see the Maestro section. Showing the entire admin nav broke
-    // the maestro because most admin pages assume admin context.
-    //
-    // "Workshop owner" is anyone who can manage the team. We accept both the
-    // workspace membership (preferred) AND the legacy is_master_mechanic flag
-    // so the link still renders if the AuthContext lost the active workspace
-    // (stale localStorage / hydration race).
-    const isWorkspaceOwner =
-        workspaceRole === 'owner' ||
-        workspaceRole === 'admin' ||
-        user?.is_master_mechanic === true;
-    const hasAdminAccess = isAdmin();
+    const { user, logout, isAdmin, teamRole, isManager, canViewInbox } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    // Citas web por revisar + respuestas del cliente sin ver (globo en "Citas").
-    // Cuando sube el numero suena un aviso corto para que no se pase una solicitud.
-    const [pendingWebAppts, setPendingWebAppts] = useState(0);
-    const lastCount = useRef(null);
-    useEffect(() => {
-        if (!user?.id) return undefined;
-        let alive = true;
-        const beep = () => {
-            try {
-                const Ctx = window.AudioContext || window.webkitAudioContext;
-                if (!Ctx) return;
-                const ctx = new Ctx();
-                const play = (freq, at, dur) => {
-                    const o = ctx.createOscillator(); const g = ctx.createGain();
-                    o.type = 'sine'; o.frequency.value = freq;
-                    g.gain.setValueAtTime(0.0001, ctx.currentTime + at);
-                    g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + at + 0.02);
-                    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + at + dur);
-                    o.connect(g); g.connect(ctx.destination);
-                    o.start(ctx.currentTime + at); o.stop(ctx.currentTime + at + dur + 0.05);
-                };
-                play(880, 0, 0.18); play(1175, 0.2, 0.3);
-                setTimeout(() => ctx.close().catch(() => {}), 900);
-            } catch { /* el navegador bloquea el audio hasta que el usuario interactua */ }
-        };
-        const load = async () => {
-            try {
-                const { count } = await appointmentsService.attentionCount();
-                if (!alive) return;
-                if (lastCount.current !== null && count > lastCount.current) beep();
-                lastCount.current = count;
-                setPendingWebAppts(count);
-            } catch { /* sin workspace activo o sin red: sin globo */ }
-        };
-        load();
-        const timer = setInterval(() => { if (!document.hidden) load(); }, 15000);
-        return () => { alive = false; clearInterval(timer); };
-    }, [user?.id]);
+    // Panel de administración: perfil admin global, o gerencia dentro de /admin.
+    const adminMode = isAdmin() || (isManager && location.pathname.startsWith('/admin'));
+    const inboxPath = adminMode ? '/admin/inbox' : '/mechanic/inbox';
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
-
-    // Navegación para Admin
-    const adminNavItems = [
-        { section: 'Principal' },
-        { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
-        { to: '/admin/orders', icon: ClipboardList, label: 'Órdenes' },
-        { to: '/admin/mechanics', icon: Wrench, label: 'Mecánicos' },
-
-        { section: 'Gestión' },
-        { to: '/admin/lookup', icon: Search, label: 'Buscar cliente' },
-        { to: '/admin/clients', icon: Users, label: 'Clientes' },
-        { to: '/mechanic/appointments', icon: Calendar, label: 'Citas' },
-        { to: '/admin/users', icon: Users, label: 'Usuarios' },
-
-        { section: 'Herramientas' },
-        { to: '/admin/analytics', icon: BarChart3, label: 'Reportes' },
-        { to: '/admin/automations', icon: Zap, label: 'Automatizaciones' },
-        { to: '/admin/templates', icon: FileText, label: 'Plantillas' },
-        { to: '/admin/tasks', icon: CheckSquare, label: 'Tareas' },
-        { to: '/admin/printing', icon: Printer, label: 'Impresión' },
-
-        { section: 'Cuenta' },
-        { to: '/admin/workspace', icon: Store, label: 'Mi taller' },
-        { to: '/admin/billing', icon: CreditCard, label: 'Suscripción' },
-        { to: '/admin/referrals', icon: Gift, label: 'Referidos' },
-        { to: '/admin/shop-qr', icon: QrCode, label: 'QR del taller' },
-        { to: '/admin/integrations', icon: Plug, label: 'Integraciones' },
-        { to: '/admin/support', icon: LifeBuoy, label: 'Soporte' },
-        { to: '/admin/bot-health', icon: Activity, label: 'Estado bot' },
-    ];
-
-    // Si el usuario es super-admin, agregar enlace al panel super.
-    if (user?.is_super_admin) {
-        adminNavItems.push(
-            { section: 'Super' },
-            { to: '/super', icon: ShieldCheck, label: 'Panel Super' },
-        );
-    }
-
-    // Navegación para Mecánico - construida dinámicamente basada en permisos
-    const baseMechanicNavItems = [
-        { section: 'Principal' },
-        { to: '/mechanic', icon: LayoutDashboard, label: 'Inicio', end: true },
-        { to: '/mechanic/new-order', icon: PlusCircle, label: 'Nueva Orden' },
-        { to: '/mechanic/orders', icon: ClipboardList, label: 'Mis Órdenes' },
-        { to: '/mechanic/quotations', icon: FileText, label: 'Cotizaciones' },
-
-        { section: 'Consultas' },
-        { to: '/mechanic/lookup', icon: Search, label: 'Buscar cliente' },
-        { to: '/mechanic/clients', icon: Users, label: 'Clientes' },
-        { to: '/mechanic/appointments', icon: Calendar, label: 'Citas' },
-    ];
-
-    // Agregar sección de Maestro si es mecánico maestro
-    if (isMasterMechanic && isMasterMechanic()) {
-        baseMechanicNavItems.push(
-            { section: 'Maestro' },
-            { to: '/mechanic/requests', icon: Crown, label: 'Solicitudes' },
-            { to: '/mechanic/auxiliaries', icon: Users, label: 'Mis Auxiliares' },
-            { to: '/mechanic/whatsapp', icon: MessageSquare, label: 'Conectar Bot' }
-        );
-        // Workspace owners (Membership.role === 'owner') get a single extra
-        // entry to manage users — without exposing the full admin panel.
-        if (isWorkspaceOwner) {
-            baseMechanicNavItems.push(
-                { to: '/admin/users', icon: Users, label: 'Gestionar Usuarios' },
-                { to: '/admin/printing', icon: Printer, label: 'Impresión' }
-            );
-        }
-    }
-
-    // Agregar sección de Auxiliar si requiere aprobación
-    if (requiresApproval && requiresApproval()) {
-        baseMechanicNavItems.push(
-            { section: 'Auxiliar' },
-            { to: '/mechanic/my-requests', icon: Send, label: 'Mis Solicitudes' },
-            { to: '/mechanic/my-payments', icon: DollarSign, label: 'Mis Pagos' }
-        );
-    }
-
-    baseMechanicNavItems.push(
-        { section: 'Historial' },
-        { to: '/mechanic/history', icon: History, label: 'Historial' },
-        { to: '/mechanic/earnings', icon: DollarSign, label: 'Mis Ganancias' },
+    const groups = useMemo(
+        () => (adminMode
+            ? buildAdminGroups({ canViewInbox, isSuper: !!user?.is_super_admin })
+            : buildWorkGroups({ teamRole, isManager, canViewInbox })),
+        [adminMode, canViewInbox, user?.is_super_admin, teamRole, isManager],
     );
 
-    const mechanicNavItems = baseMechanicNavItems;
+    // Grupos plegables (los de uso poco frecuente empiezan cerrados). El que contiene la ruta actual siempre se ve.
+    const [collapsed, setCollapsed] = useState(() => {
+        const saved = readCollapsed();
+        if (saved) return saved;
+        const init = {};
+        [...buildAdminGroups({ canViewInbox: true, isSuper: false }), ...buildWorkGroups({ teamRole: 'maestro', isManager: true, canViewInbox: true })]
+            .forEach((g) => { if (g.collapsedByDefault) init[g.id] = true; });
+        return init;
+    });
+    const toggleGroup = (id) => setCollapsed((c) => {
+        const next = { ...c, [id]: !c[id] };
+        try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(next)); } catch { /* sin almacenamiento */ }
+        return next;
+    });
 
-    // Determinar qué navegación mostrar
-    const navItems = hasAdminAccess ? adminNavItems : mechanicNavItems;
+    const badges = useBadges({ userId: user?.id, isManager, canViewInbox });
 
-    // Obtener iniciales para el avatar
-    const getInitials = (name) => {
-        if (!name) return 'U';
-        const parts = name.split(' ');
-        if (parts.length >= 2) {
-            return (parts[0][0] + parts[1][0]).toUpperCase();
-        }
-        return name.substring(0, 2).toUpperCase();
-    };
+    // Cierra el cajón al navegar
+    useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 
-    // Nombre del rol en español
-    const getRoleName = (role) => {
-        const roles = {
-            admin: 'Administrador',
-            mechanic: 'Mecánico',
-            admin_mechanic: 'Mecánico Maestro'
-        };
-        return roles[role] || role;
-    };
+    const pathMatches = (item) => (item.end ? location.pathname === item.to : location.pathname === item.to || location.pathname.startsWith(item.to + '/'));
+    const currentTitle = useMemo(() => {
+        let best = null;
+        groups.forEach((g) => g.items.forEach((it) => {
+            if (pathMatches(it) && (!best || it.to.length > best.to.length)) best = it;
+        }));
+        return best?.label || '';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [groups, location.pathname]);
+
+    const handleLogout = () => { logout(); navigate('/login'); };
 
     return (
         <div className="app-layout">
             <ConnectionStatus />
-            {/* Overlay para móvil */}
-            {sidebarOpen && (
-                <div
-                    className="sidebar-overlay"
-                    onClick={() => setSidebarOpen(false)}
-                />
-            )}
+            {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
 
-            {/* Sidebar */}
-            <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+            <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label="Menú principal">
                 <div className="sidebar-header">
                     <div className="sidebar-logo">
-                        <img
-                            src="/logo-motopartes.png"
-                            alt="MotoPartes Club"
-                            className="logo-image"
-                        />
+                        <img src="/logo-motopartes.png" alt="MotoPartes Club" className="logo-image" />
                     </div>
+                    <button type="button" className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Cerrar menú"><X size={20} /></button>
                 </div>
 
                 <nav className="sidebar-nav">
-                    {navItems.map((item, index) => {
-                        if (item.section) {
-                            return (
-                                <div key={index} className="nav-section-title">
-                                    {item.section}
-                                </div>
-                            );
-                        }
-
-                        const Icon = item.icon;
+                    {groups.map((g) => {
+                        const hasActive = g.items.some(pathMatches);
+                        const isCollapsed = !!collapsed[g.id] && !hasActive;
                         return (
-                            <NavLink
-                                key={item.to}
-                                to={item.to}
-                                end={item.end}
-                                className={({ isActive }) =>
-                                    `nav-item ${isActive ? 'active' : ''}`
-                                }
-                                onClick={() => setSidebarOpen(false)}
-                            >
-                                <Icon size={20} />
-                                <span>{item.label}</span>
-                                {item.to === '/mechanic/appointments' && pendingWebAppts > 0 && (
-                                    <span
-                                        title="Citas por atender"
-                                        style={{
-                                            marginLeft: 'auto', minWidth: 20, height: 20, padding: '0 6px',
-                                            borderRadius: 10, background: '#f59e0b', color: '#fff',
-                                            fontSize: '0.7rem', fontWeight: 700,
-                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                        }}
-                                    >
-                                        {pendingWebAppts > 9 ? '9+' : pendingWebAppts}
-                                    </span>
-                                )}
-                            </NavLink>
+                            <div key={g.id} className="nav-group">
+                                <button type="button" className="nav-section-title nav-group-btn" onClick={() => toggleGroup(g.id)} aria-expanded={!isCollapsed}>
+                                    <span>{g.title}</span>
+                                    <ChevronDown size={14} style={{ transform: isCollapsed ? 'rotate(-90deg)' : 'none', transition: 'transform 140ms ease' }} />
+                                </button>
+                                {!isCollapsed && g.items.map((item) => {
+                                    const Icon = item.icon;
+                                    const n = item.badge ? badges[item.badge] : 0;
+                                    return (
+                                        <NavLink
+                                            key={item.to + item.label}
+                                            to={item.to}
+                                            end={item.end}
+                                            className={() => `nav-item ${pathMatches(item) ? 'active' : ''}`}
+                                        >
+                                            <Icon size={18} />
+                                            <span>{item.label}</span>
+                                            {n > 0 && <span className="nav-count">{n > 9 ? '9+' : n}</span>}
+                                        </NavLink>
+                                    );
+                                })}
+                            </div>
                         );
                     })}
                 </nav>
 
                 <div className="sidebar-footer">
                     <div className="user-menu">
-                        <div className="user-avatar">
-                            {getInitials(user?.full_name)}
-                        </div>
+                        <div className="user-avatar">{initialsOf(user?.full_name)}</div>
                         <div className="user-info">
                             <div className="user-name">{user?.full_name}</div>
-                            <div className="user-role-badge">
-                                {isMasterMechanic && isMasterMechanic() && (
-                                    <span className="role-chip master"><Crown size={12} /> Maestro</span>
-                                )}
-                                {requiresApproval && requiresApproval() && (
-                                    <span className="role-chip auxiliary">Auxiliar</span>
-                                )}
-                                {!isMasterMechanic?.() && !requiresApproval?.() && (
-                                    <span className="role-chip">{getRoleName(user?.role)}</span>
-                                )}
-                            </div>
+                            <div className="user-role-badge"><span className="role-chip">{ROLE_LABEL[teamRole] || 'Usuario'}</span></div>
                         </div>
                     </div>
-                    <button
-                        className="btn btn-ghost w-full mt-sm"
-                        onClick={handleLogout}
-                        style={{ justifyContent: 'flex-start' }}
-                    >
+                    <button className="btn btn-ghost w-full mt-sm" onClick={handleLogout} style={{ justifyContent: 'flex-start' }}>
                         <LogOut size={18} />
-                        <span>Cerrar Sesión</span>
+                        <span>Cerrar sesión</span>
                     </button>
                 </div>
             </aside>
 
-            {/* Contenido Principal */}
             <main className="main-content">
-                {/* Header Bar (móvil) */}
-                <div className="page-header-bar">
-                    <button
-                        className="btn btn-ghost btn-icon mobile-menu-btn"
-                        onClick={() => setSidebarOpen(true)}
-                    >
-                        <Menu size={24} />
+                <header className="shell-topbar">
+                    <button type="button" className="bell shell-topbar__menu" onClick={() => setSidebarOpen(true)} aria-label="Abrir menú">
+                        <Menu size={22} />
                     </button>
-                    <div className="header-logo">
-                        <img
-                            src="/logo-motopartes.png"
-                            alt="MotoPartes"
-                            style={{ height: 32, width: 'auto' }}
+                    <img className="shell-topbar__logo" src="/logo-motopartes.png" alt="MotoPartes" />
+                    <h2 className="shell-topbar__title">{currentTitle}</h2>
+                    <div className="shell-topbar__spacer" />
+                    <div className="shell-topbar__actions">
+                        <NotificationBell
+                            appts={badges.appts}
+                            unread={badges.unread}
+                            showInbox={canViewInbox}
+                            appointmentsPath="/mechanic/appointments"
+                            inboxPath={inboxPath}
                         />
                     </div>
-                    <div style={{ width: 40 }} />
-                </div>
+                </header>
 
-                {/* Contenido de la página */}
                 <div className="page-content">
                     <Outlet />
                 </div>
             </main>
 
             <style>{`
-                .sidebar-overlay {
-                    display: none;
-                    position: fixed;
-                    inset: 0;
-                    background: rgba(0, 0, 0, 0.5);
-                    z-index: 99;
-                }
-
-                .header-logo {
-                    display: none;
-                    align-items: center;
-                    gap: var(--spacing-sm);
-                    font-weight: 700;
-                    color: var(--text-primary);
-                }
-
-                .header-logo svg {
-                    color: var(--primary);
-                }
-
-                .mobile-menu-btn {
-                    display: none;
-                }
-
+                .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(23, 20, 15, 0.55); z-index: 999; }
+                .sidebar-close { display: none; margin-left: auto; width: 36px; height: 36px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: transparent; color: #fff; align-items: center; justify-content: center; cursor: pointer; }
+                .sidebar-header { display: flex; align-items: center; }
+                .nav-group-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; background: transparent; border: none; cursor: pointer; text-align: left; }
+                .nav-group-btn:hover { color: #fff; }
                 @media (max-width: 768px) {
-                    .sidebar-overlay {
-                        display: block;
-                    }
-
-                    .header-logo {
-                        display: flex;
-                    }
-
-                    .mobile-menu-btn {
-                        display: flex;
-                    }
-
-                    .page-header-bar {
-                        display: flex !important;
-                    }
-                }
-
-                @media (min-width: 769px) {
-                    .page-header-bar {
-                        display: none;
-                    }
-                }
-
-                /* Logo image styling */
-                .sidebar-logo .logo-image {
-                    height: 52px;
-                    width: auto;
-                    transition: opacity 0.2s ease;
-                }
-
-                .sidebar-logo:hover .logo-image {
-                    opacity: 0.85;
-                }
-
-                /* Role chips */
-                .user-role-badge {
-                    margin-top: 4px;
-                }
-
-                .role-chip {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 4px;
-                    padding: 2px 9px;
-                    border-radius: 999px;
-                    font-size: 0.625rem;
-                    font-weight: 600;
-                    letter-spacing: 0.02em;
-                    text-transform: uppercase;
-                    background: var(--surface-recessed);
-                    color: var(--text-secondary);
-                    border: 1px solid var(--border-color);
-                }
-
-                .role-chip.master {
-                    background: var(--warning-light);
-                    color: var(--warning-hover);
-                    border-color: transparent;
-                }
-
-                .role-chip.master svg {
-                    color: var(--warning-hover);
-                }
-
-                .role-chip.auxiliary {
-                    background: var(--success-light);
-                    color: var(--success-hover);
-                    border-color: transparent;
+                    .sidebar-overlay { display: block; }
+                    .sidebar-close { display: inline-flex; }
                 }
             `}</style>
         </div>

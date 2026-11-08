@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { orderRequestsService, ordersService } from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
-import { sendDirectMessage, getOrderCreatedMessage } from '../../utils/whatsappHelper';
 import {
     ArrowLeft,
     Clock,
@@ -71,36 +70,8 @@ export default function MasterRequests() {
             // 2. Approve the request and save the created order ID
             await orderRequestsService.approve(request.id, user.id, 'Aprobado', newOrder.id);
 
-            // 3. Send WhatsApp notification to the client (only after maestro approval)
-            try {
-                const clientPhone = orderData.client_phone;
-                if (clientPhone) {
-                    const motoInfo = `${orderData.moto_brand || ''} ${orderData.moto_model || ''}`.trim();
-                    const orderSvcs = orderData.services || [];
-                    const oLaborTotal = orderSvcs.reduce((sum, s) => sum + (parseFloat(s.labor_cost) || 0), 0);
-                    const oPartsTotal = orderSvcs.reduce((sum, s) => sum + (parseFloat(s.materials_cost) || 0), 0);
-                    const oTotalAmount = orderSvcs.reduce((sum, s) => sum + (parseFloat(s.price) || 0), 0);
-                    const oAdvance = parseFloat(orderData.advance_payment) || 0;
-                    const waMessage = getOrderCreatedMessage(orderData.client_name, motoInfo, newOrder.order_number, null, {
-                        services: orderSvcs,
-                        laborTotal: oLaborTotal,
-                        partsTotal: oPartsTotal,
-                        totalAmount: oTotalAmount,
-                        advancePayment: oAdvance,
-                        paymentMethod: orderData.payment_method,
-                        isPaid: oAdvance >= oTotalAmount && oTotalAmount > 0,
-                        customerComplaint: orderData.customer_complaint,
-                    });
-                    console.log('Enviando WhatsApp al cliente tras aprobacion del maestro...');
-                    const waResult = await sendDirectMessage(user.id, clientPhone, waMessage, newOrder.id);
-                    if (waResult.success && waResult.automated) {
-                        toast.success('Cliente notificado por WhatsApp');
-                    }
-                }
-            } catch (waError) {
-                console.error('Error enviando WhatsApp tras aprobación:', waError);
-                // Don't block the flow if WhatsApp fails
-            }
+            // 3. El aviso al cliente lo manda el servidor al crear la orden (un solo mensaje, sin duplicados).
+
 
             toast.success('Solicitud aprobada - Orden creada: ' + newOrder.order_number);
             loadRequests();

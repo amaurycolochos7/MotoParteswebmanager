@@ -2,6 +2,8 @@ import prisma, { workspaceContext } from '../lib/prisma.js';
 import bcrypt from 'bcryptjs';
 import { generateToken, authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
+import { loadActor, normalizeRole, isAdminRole } from '../lib/permissions.js';
+import { auxCommissionCap, validateAuxRate, editableFieldsFor, pickFields, ADMIN_EDITABLE } from '../lib/team-rules.js';
 import { seedDefaultsForWorkspace } from '../../prisma/seed-automation-defaults.js';
 
 // Run a callback WITHOUT any workspace scoping — used for queries that span
@@ -454,6 +456,17 @@ export default async function authRoutes(fastify) {
         if (!user) {
             return reply.status(404).send({ error: 'Usuario no encontrado' });
         }
+        // V2: antes cualquier sesión podía leer el perfil de cualquier id (otros talleres incluidos).
+        if (user.id !== request.user.id && request.user.is_super_admin !== true) {
+            const mine = await unscoped(() => prisma.membership.findMany({
+                where: { profile_id: request.user.id }, select: { workspace_id: true },
+            }));
+            const shared = mine.length > 0 && await unscoped(() => prisma.membership.findFirst({
+                where: { profile_id: user.id, workspace_id: { in: mine.map((m) => m.workspace_id) } },
+                select: { id: true },
+            }));
+            if (!shared) return reply.status(404).send({ error: 'Usuario no encontrado' });
+        }
         const memberships = await unscoped(() =>
             prisma.membership.findMany({
                 where: { profile_id: user.id },
@@ -461,13 +474,15 @@ export default async function authRoutes(fastify) {
                 orderBy: { joined_at: 'asc' },
             })
         );
-        const { password_hash, ...userData } = user;
+        const { password_hash, super_2fa_secret, ...userData } = user;
         return { ...userData, memberships };
     });
 
     // GET /api/auth/users — list profiles with a membership in the caller's
     // workspace. Requires the caller to have an active workspace context.
     fastify.get('/users', { preHandler: [authenticate, resolveWorkspace] }, async (request) => {
+        const actor = await loadActor(request);
+        const privileged = isAdminRole(actor.role) || actor.role === 'maestro';
         const memberships = await unscoped(() =>
             prisma.membership.findMany({
                 where: { workspace_id: request.workspace.id },
@@ -476,7 +491,12 @@ export default async function authRoutes(fastify) {
             })
         );
         return memberships.map(({ profile, role, permissions, online_booking_visible }) => {
-            const { password_hash, ...rest } = profile;
+            const { password_hash, super_2fa_secret, super_2fa_enabled, super_admin_added_at, super_admin_added_by, ...safe } = profile;
+            let rest = safe;
+            if (!privileged && profile.id !== actor.id) {
+                const { email, phone, commission_percentage, can_create_services, can_edit_clients, can_delete_orders, ...minimal } = safe;
+                rest = minimal;
+            }
             return {
                 ...rest,
                 workspace_role: role,
@@ -516,13 +536,34 @@ export default async function authRoutes(fastify) {
     // workspace. If the email already exists (for another workspace), we
     // attach a new membership instead of rejecting.
     fastify.post('/users', { preHandler: [authenticate, resolveWorkspace] }, async (request, reply) => {
-        const data = request.body || {};
+        const data = { ...(request.body || {}) };
         if (!data.email || !data.full_name) {
             return reply.status(400).send({ error: 'email y full_name son obligatorios.' });
         }
 
+        // V2: solo owner/admin crean cualquier rol; un maestro solo crea auxiliares suyos (con tope de comisión).
+        const actor = await loadActor(request);
+        if (!actor.can_create_auxiliares) {
+            return reply.status(403).send({ error: 'No tienes permiso para crear usuarios.' });
+        }
+        let targetRole = data.workspace_role || data.role || 'mechanic';
+        if (actor.role === 'maestro') {
+            const cap = auxCommissionCap(request.workspace.settings);
+            const check = validateAuxRate(actor, data.commission_percentage ?? 10, cap);
+            if (!check.ok) return reply.status(400).send({ error: check.error });
+            data.role = 'mechanic';
+            data.is_master_mechanic = false;
+            data.requires_approval = true;
+            data.supervised_by = actor.id;
+            data.commission_percentage = check.rate;
+            targetRole = 'mechanic';
+        } else {
+            const allowedMembershipRoles = actor.role === 'owner' ? ['owner', 'admin', 'mechanic', 'auxiliary'] : ['admin', 'mechanic', 'auxiliary'];
+            if (targetRole === 'admin_mechanic') targetRole = 'mechanic';
+            if (!allowedMembershipRoles.includes(targetRole)) targetRole = 'mechanic';
+            if (!['mechanic', 'admin_mechanic', 'admin'].includes(data.role || 'mechanic')) data.role = 'mechanic';
+        }
         const normalizedEmail = String(data.email).trim().toLowerCase();
-        const targetRole = data.workspace_role || data.role || 'mechanic';
 
         // Resolver supervised_by sólo si requires_approval=true.
         // Validar que el supuesto maestro exista como miembro del workspace activo.
@@ -607,22 +648,49 @@ export default async function authRoutes(fastify) {
     // caller-workspace Membership role. Only admins/owners can bump roles.
     fastify.put('/users/:id', { preHandler: [authenticate, resolveWorkspace] }, async (request, reply) => {
         const { id } = request.params;
-        const updates = { ...(request.body || {}) };
+        const body = { ...(request.body || {}) };
 
         // Membership must exist in the caller's workspace.
         const membership = await unscoped(() =>
             prisma.membership.findUnique({
                 where: { workspace_id_profile_id: { workspace_id: request.workspace.id, profile_id: id } },
+                include: { profile: true },
             })
         );
         if (!membership) {
             return reply.status(404).send({ error: 'Usuario no encontrado en este taller.' });
         }
 
-        const newRole = updates.workspace_role;
-        delete updates.workspace_role;
-        delete updates.id;
-        delete updates.created_at;
+        // V2: lista blanca de campos por rol (antes cualquier integrante podia reescribir cualquier campo del perfil).
+        const actor = await loadActor(request);
+        const target = { id, role: normalizeRole(membership.role, membership.profile), supervised_by: membership.profile.supervised_by || null };
+        const allowedFields = editableFieldsFor(actor, target);
+        if (!allowedFields) {
+            return reply.status(403).send({ error: 'No tienes permiso para editar a este usuario.' });
+        }
+        const updates = pickFields(body, allowedFields);
+        if (isAdminRole(actor.role)) {
+            // Compatibilidad con la pantalla actual: rol global del perfil (solo valores conocidos).
+            if (['mechanic', 'admin_mechanic', 'admin'].includes(body.role)) updates.role = body.role;
+        }
+        if ('commission_percentage' in updates) {
+            const rate = Number(updates.commission_percentage);
+            if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+                return reply.status(400).send({ error: 'La comisión debe ser un número entre 0 y 100.' });
+            }
+            if (target.role === 'auxiliar') {
+                const check = validateAuxRate(actor, rate, auxCommissionCap(request.workspace.settings));
+                if (!check.ok) return reply.status(400).send({ error: check.error });
+            }
+            updates.commission_percentage = rate;
+        }
+        let newRole = isAdminRole(actor.role) ? body.workspace_role : undefined;
+        if (newRole !== undefined) {
+            if (target.role === 'owner' && actor.role !== 'owner') {
+                return reply.status(403).send({ error: 'No se puede cambiar el rol del dueño.' });
+            }
+            if (!['admin', 'mechanic', 'auxiliary'].includes(newRole) && !(newRole === 'owner' && actor.role === 'owner')) newRole = undefined;
+        }
 
         if (updates.password) {
             updates.password_hash = await bcrypt.hash(updates.password, 10);
@@ -688,6 +756,20 @@ export default async function authRoutes(fastify) {
     fastify.delete('/users/:id', { preHandler: [authenticate, resolveWorkspace] }, async (request, reply) => {
         const { id } = request.params;
 
+        // V2: solo owner/admin (o el maestro sobre sus auxiliares); nunca a uno mismo.
+        const actorDel = await loadActor(request);
+        const targetM = await unscoped(() => prisma.membership.findUnique({
+            where: { workspace_id_profile_id: { workspace_id: request.workspace.id, profile_id: id } },
+            include: { profile: true },
+        }));
+        if (!targetM) return reply.status(404).send({ error: 'Usuario no encontrado en este taller.' });
+        if (id === actorDel.id) return reply.status(400).send({ error: 'No puedes eliminarte a ti mismo.' });
+        const targetDel = { id, role: normalizeRole(targetM.role, targetM.profile), supervised_by: targetM.profile.supervised_by || null };
+        const canDelete = isAdminRole(actorDel.role)
+            ? !(targetDel.role === 'owner' && actorDel.role !== 'owner')
+            : (actorDel.role === 'maestro' && targetDel.role === 'auxiliar' && targetDel.supervised_by === actorDel.id);
+        if (!canDelete) return reply.status(403).send({ error: 'No tienes permiso para eliminar a este usuario.' });
+
         const result = await unscoped(() =>
             prisma.$transaction(async (tx) => {
                 const membership = await tx.membership.findUnique({
@@ -742,6 +824,13 @@ export default async function authRoutes(fastify) {
                 if (memCount > 1) {
                     return { multi: true };
                 }
+                const ownMembership = await tx.membership.findFirst({ where: { profile_id: id, workspace_id: request.workspace.id } });
+                if (ownMembership?.role === 'owner') {
+                    const owners = await tx.membership.count({ where: { workspace_id: request.workspace.id, role: 'owner' } });
+                    if (owners <= 1) return { lastOwner: true };
+                }
+                await tx.workspace.updateMany({ where: { whatsapp_session_profile_id: id }, data: { whatsapp_session_profile_id: null } });
+                await tx.profile.updateMany({ where: { supervised_by: id }, data: { supervised_by: null } });
                 await tx.mechanicEarning.deleteMany({ where: { mechanic_id: id } });
                 await tx.orderRequest.deleteMany({ where: { OR: [{ requested_by: id }, { requested_to: id }] } });
                 await tx.paymentRequest.deleteMany({ where: { OR: [{ master_id: id }, { auxiliary_id: id }] } });
@@ -753,6 +842,7 @@ export default async function authRoutes(fastify) {
             })
         );
 
+        if (result.lastOwner) return reply.status(400).send({ error: 'No puedes eliminar al último propietario.' });
         if (result.multi) return reply.status(409).send({ error: 'Ese usuario pertenece a otros talleres; sólo puedes eliminar su membresía.' });
         return result;
     });
