@@ -93,10 +93,11 @@ export function computeCommission(laborTotalRaw, ratePercentRaw) {
  * Lifecycle: PENDING_PAYMENT -> READY_TO_PAY (on full liquidation) -> PAID.
  * CANCELLED is terminal. We never downgrade PAID/CANCELLED here.
  */
-export function nextCommissionStatus(current, finance, { orderCancelled = false } = {}) {
+export function nextCommissionStatus(current, finance, { orderCancelled = false, selfPaid = false } = {}) {
     if (current === 'PAID' || current === 'CANCELLED') return current;
     if (orderCancelled) return 'CANCELLED';
-    if (finance.is_fully_paid) return 'READY_TO_PAY';
+    // selfPaid: el mecánico es el dueño/administrador, que se queda con el cobro: al liquidar la orden su comisión queda pagada
+    if (finance.is_fully_paid) return selfPaid ? 'PAID' : 'READY_TO_PAY';
     return 'PENDING_PAYMENT';
 }
 

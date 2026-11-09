@@ -38,3 +38,25 @@ export async function backfillMissingEarnings(workspaceId, { since = monthStart(
     }
     return fixed;
 }
+
+/**
+ * Las comisiones LIBERADAS del dueño/administrador pasan a pagadas: él se queda con el cobro, nadie se la "entrega".
+ * (A partir de ahora esto ocurre solo al liquidar la orden; aquí se corrigen las que ya estaban liberadas.) Idempotente.
+ */
+export async function settleSelfPaidEarnings(workspaceId) {
+    const owners = await unscoped(() => prisma.membership.findMany({
+        where: { workspace_id: workspaceId, role: { in: ['owner', 'admin'] } }, select: { profile_id: true },
+    }));
+    if (!owners.length) return 0;
+    const rows = await unscoped(() => prisma.mechanicEarning.findMany({
+        where: { workspace_id: workspaceId, commission_status: 'READY_TO_PAY', mechanic_id: { in: owners.map((o) => o.profile_id) } },
+        select: { id: true, commission_released_at: true },
+    }));
+    for (const r of rows) {
+        await unscoped(() => prisma.mechanicEarning.updateMany({
+            where: { id: r.id },
+            data: { commission_status: 'PAID', is_paid: true, paid_at: r.commission_released_at || new Date() },
+        }));
+    }
+    return rows.length;
+}

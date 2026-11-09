@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
-import { ordersService } from '../../lib/api';
+import { ordersService, orderPaymentsService } from '../../lib/api';
 import {
     getStatusChangeMessage,
     getEvidenceMessage,
@@ -37,6 +37,7 @@ import { getOrderPhotos, saveOrderPhotos } from '../../services/photoStorageServ
 import Toast from '../../components/ui/Toast';
 import OrderPhotosDownload from '../../components/ui/OrderPhotosDownload';
 import OrderPaymentsSection from '../../components/orders/OrderPaymentsSection';
+import DeliveryPaymentModal from '../../components/orders/DeliveryPaymentModal';
 import { TicketPrintModal, TicketButtons } from '../../components/orders/TicketActions';
 import './OrderDetail.css';
 import './OrderDetailV2.css';
@@ -163,6 +164,9 @@ export default function OrderDetail() {
         (typeof isAdmin === 'function' && isAdmin());
 
     const [orderFinance, setOrderFinance] = useState(null);
+    // Entregar con saldo: cuadro "¿el cliente ya pagó?" (guarda el estado que se quiere poner) y llave para recargar los abonos
+    const [deliverAsk, setDeliverAsk] = useState(null);
+    const [paymentsKey, setPaymentsKey] = useState(0);
     const [savingDelivery, setSavingDelivery] = useState(false);
 
     const [fetchedOrder, setFetchedOrder] = useState(null);
@@ -339,21 +343,41 @@ export default function OrderDetail() {
         }
         if (statusObj.name === statusName) return;
 
-        // Entregar con saldo pendiente requiere autorización del maestro/dueño.
-        let note = '';
+        // Entregar con saldo pendiente: se pregunta si el cliente ya pagó (y se registra el pago ahí mismo).
+        // Solo el maestro/dueño puede cobrar o autorizar la entrega con saldo.
         const isDelivered = /entregada/i.test(statusObj.name);
         if (isDelivered && balance > 0) {
             if (!canManageMoney) {
-                showToast('Hay saldo pendiente. Solo el maestro puede autorizar la entrega.', 'error');
+                showToast('Hay saldo pendiente. Solo el maestro puede cobrar o autorizar la entrega.', 'error');
                 return;
             }
-            const reason = window.prompt(
-                `Esta orden tiene un SALDO PENDIENTE de ${fmtMXN(balance)}.\nEscribe el motivo/autorización para entregar con saldo:`
-            );
-            if (!reason) return;
-            note = `[ENTREGA CON SALDO ${fmtMXN(balance)}] ${reason}`;
+            setDeliverAsk(statusObj);
+            return;
         }
+        await applyStatus(statusObj, '');
+    };
 
+    // Respuesta del cuadro "¿El cliente ya pagó?": registra el pago (si lo hubo) y entrega la orden.
+    const confirmDelivery = async ({ mode, amount, method, reason }) => {
+        const statusObj = deliverAsk;
+        if (!statusObj) return null;
+        let remaining = balance;
+        if (mode !== 'none') {
+            const { data, error } = await orderPaymentsService.create({
+                order_id: order.id, amount, payment_method: method, note: 'Pago al entregar la orden',
+            });
+            if (error) return { error: error.message || 'No se pudo registrar el pago' };
+            if (data?.finance) { setOrderFinance(data.finance); remaining = Number(data.finance.balance || 0); }
+            setPaymentsKey((k) => k + 1); // la lista de abonos se vuelve a cargar
+        }
+        const note = remaining > 0 ? `[ENTREGA CON SALDO ${fmtMXN(remaining)}] ${reason}` : '';
+        setDeliverAsk(null);
+        await applyStatus(statusObj, note);
+        return null;
+    };
+
+    const applyStatus = async (statusObj, note) => {
+        const isDelivered = /entregada/i.test(statusObj.name);
         setChangingStatus(true);
         try {
             await updateOrderStatus(order.id, statusObj.id, note);
@@ -1047,6 +1071,7 @@ export default function OrderDetail() {
                             client={client}
                             motorcycle={motorcycle}
                             workshopName={activeWorkspace?.name}
+                            key={paymentsKey}
                             canManage={canManageMoney}
                             embedded
                             onFinance={setOrderFinance}
@@ -1123,6 +1148,17 @@ export default function OrderDetail() {
 
 
             {/* Modal: solicitar cancelación */}
+            {deliverAsk && (
+                <DeliveryPaymentModal
+                    orderNumber={order?.order_number}
+                    total={orderFinance?.total ?? orderTotal}
+                    paid={orderFinance?.paid ?? 0}
+                    balance={balance}
+                    onCancel={() => setDeliverAsk(null)}
+                    onConfirm={confirmDelivery}
+                />
+            )}
+
             {showCancelModal && (
                 <div className="od-modal-overlay" onClick={() => setShowCancelModal(false)}>
                     <div className="od-modal" onClick={(e) => e.stopPropagation()}>

@@ -122,8 +122,38 @@ export async function syncOrderEarnings(tx, { orderId, workspaceId, mechanicId, 
     return tx.mechanicEarning.findMany({ where: { order_id: orderId } });
 }
 
+/** ¿Este mecánico es el dueño/administrador del taller? Nadie le "entrega" su comisión: el cobro ya lo tiene él. */
+export async function isSelfPaidMechanic(tx, workspaceId, profileId) {
+    if (!workspaceId || !profileId) return false;
+    const m = await tx.membership.findUnique({
+        where: { workspace_id_profile_id: { workspace_id: workspaceId, profile_id: profileId } }, select: { role: true },
+    });
+    return m?.role === 'owner' || m?.role === 'admin';
+}
+
 /**
- * Libera (READY_TO_PAY) las comisiones de una orden ya liquidada y deja pendientes las de una que no. Nunca baja una PAID/CANCELLED.
+ * Pone al día el estado de las comisiones de una orden según su pago:
+ *   por cobrar (PENDING_PAYMENT) -> liberada (READY_TO_PAY, el cliente ya liquidó) -> pagada (PAID).
+ * Si el mecánico es el dueño/administrador, al liquidar la orden su comisión pasa directo a PAID. Nunca baja una PAID/CANCELLED.
+ * Usa updateMany (no update): el filtro por taller de Prisma lee la fila fuera de la transacción y NO ve las recién creadas en ella.
+ */
+export async function applyCommissionStatuses(tx, order, finance) {
+    const rows = await tx.mechanicEarning.findMany({ where: { order_id: order.id } });
+    for (const e of rows) {
+        const selfPaid = await isSelfPaidMechanic(tx, order.workspace_id, e.mechanic_id);
+        const next = nextCommissionStatus(e.commission_status, finance, { selfPaid });
+        if (next === e.commission_status) continue;
+        const data = {
+            commission_status: next,
+            commission_released_at: next === 'PENDING_PAYMENT' ? null : (e.commission_released_at || new Date()),
+        };
+        if (next === 'PAID') { data.is_paid = true; data.paid_at = new Date(); }
+        await tx.mechanicEarning.updateMany({ where: { id: e.id }, data });
+    }
+}
+
+/**
+ * Libera las comisiones de una orden ya liquidada y deja pendientes las de una que no.
  * Una orden marcada pagada sin abonos (flujo anterior) cuenta como liquidada.
  */
 export async function releaseCommissionIfPaid(tx, orderId) {
@@ -132,17 +162,7 @@ export async function releaseCommissionIfPaid(tx, orderId) {
     const payments = await tx.orderPayment.findMany({ where: { order_id: orderId } });
     const finance = computeOrderFinance(order, payments);
     const settled = order.is_paid === true && payments.filter((p) => !p.cancelled_at).length === 0;
-    const effective = settled ? { ...finance, is_fully_paid: true } : finance;
-    const rows = await tx.mechanicEarning.findMany({ where: { order_id: orderId } });
-    for (const e of rows) {
-        const next = nextCommissionStatus(e.commission_status, effective);
-        if (next === e.commission_status) continue;
-        // updateMany (no update): el filtro por taller de Prisma lee la fila fuera de la transacción y NO ve las recién creadas en ella
-        await tx.mechanicEarning.updateMany({
-            where: { id: e.id },
-            data: { commission_status: next, commission_released_at: next === 'READY_TO_PAY' ? new Date() : null },
-        });
-    }
+    await applyCommissionStatuses(tx, order, settled ? { ...finance, is_fully_paid: true } : finance);
 }
 
 // ── Resumen para el inicio / "Mis ganancias" ──────────────────────────────

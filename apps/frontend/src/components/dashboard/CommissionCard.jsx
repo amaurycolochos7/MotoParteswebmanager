@@ -36,12 +36,11 @@ export default function CommissionCard({ mechanicId = '', title = 'Tu comisión'
   useEffect(() => { load(); }, [load]);
 
   const total = Number(data?.total_comision) || 0;
-  // Vista simple: Pagada (ya cobrada) y Pendiente (liberada + por cobrar). El estado exacto por orden está en el detalle.
-  const pagada = Number(data?.pagada) || 0;
-  const pendiente = (Number(data?.liberada) || 0) + (Number(data?.por_cobrar) || 0);
+  // Tres estados: Pagada (ya la recibiste), Liberada (el cliente ya pagó la orden; falta que se te entregue) y Por cobrar (el cliente aún no liquida).
   const parts = [
-    { id: 'pagada', label: 'Pagada', hint: 'Ya te la entregaron', value: pagada, cls: 'is-paid' },
-    { id: 'pendiente', label: 'Pendiente', hint: 'Aún no se te paga (incluye lo que falta que el cliente liquide)', value: pendiente, cls: 'is-pending' },
+    { id: 'pagada', label: 'Pagada', hint: 'Ya la recibiste', value: Number(data?.pagada) || 0, cls: 'is-paid' },
+    { id: 'liberada', label: 'Liberada', hint: 'El cliente ya pagó la orden; falta que se te entregue tu comisión', value: Number(data?.liberada) || 0, cls: 'is-ready' },
+    { id: 'por_cobrar', label: 'Por cobrar', hint: 'El cliente aún no liquida la orden', value: Number(data?.por_cobrar) || 0, cls: 'is-pending' },
   ];
   const sum = parts.reduce((a, p) => a + p.value, 0) || 1;
 

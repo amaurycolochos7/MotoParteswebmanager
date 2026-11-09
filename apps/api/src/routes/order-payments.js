@@ -6,10 +6,9 @@ import {
     computeOrderFinance,
     validateNewPayment,
     normalizePaymentMethod,
-    nextCommissionStatus,
     money,
 } from '../lib/payments.js';
-import { syncOrderEarnings } from '../lib/commissions.js';
+import { syncOrderEarnings, applyCommissionStatuses } from '../lib/commissions.js';
 
 // Who may touch money? ELIHU 14: the auxiliary can create orders but must NOT
 // register/edit/cancel payments nor mark as paid. Owner/admin/master-mechanic
@@ -43,21 +42,8 @@ async function reconcileOrder(tx, orderId) {
     // se crea aquí con su mano de obra y enseguida se libera si ya quedó liquidada.
     await syncOrderEarnings(tx, { orderId, workspaceId: order.workspace_id, mechanicId: order.mechanic_id, laborTotal: order.labor_total });
 
-    // Commission lifecycle: release only when fully paid; never downgrade PAID.
-    const earnings = await tx.mechanicEarning.findMany({ where: { order_id: orderId } });
-    for (const e of earnings) {
-        const next = nextCommissionStatus(e.commission_status, finance);
-        if (next !== e.commission_status) {
-            // updateMany (no update): la comisión pudo crearse hace un instante en esta misma transacción y el filtro por taller no la vería
-            await tx.mechanicEarning.updateMany({
-                where: { id: e.id },
-                data: {
-                    commission_status: next,
-                    commission_released_at: next === 'READY_TO_PAY' ? new Date() : (next === 'PENDING_PAYMENT' ? null : e.commission_released_at),
-                },
-            });
-        }
-    }
+    // Ciclo de la comisión: se libera solo cuando el cliente liquida todo (y queda pagada si el mecánico es el dueño/administrador).
+    await applyCommissionStatuses(tx, order, finance);
     return finance;
 }
 

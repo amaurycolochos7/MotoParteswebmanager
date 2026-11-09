@@ -485,7 +485,7 @@ try {
     const o1 = await mkPaidOrder(mecanico.id, 1000, 200); // mano de obra 800, 40 % = 320
     ok(o1.paid.status === 200, 'orden pagada');
     r = await call('GET', '/api/earnings/summary?period=all', undefined, T.mecanico);
-    ok(r.status === 200 && r.json.rate === 40 && r.json.total_comision === 320 && r.json.por_cobrar === 320 && r.json.liberada === 0 && r.json.pagada === 0 && r.json.orders_count === 1, 'mecánico: comisión 40 % de 800 = 320 (por cobrar)', r.text.slice(0, 250));
+    ok(r.status === 200 && r.json.rate === 40 && r.json.total_comision === 320 && r.json.por_cobrar === 0 && r.json.liberada === 320 && r.json.pagada === 0 && r.json.orders_count === 1, 'mecánico: comisión 40 % de 800 = 320 (orden pagada: liberada)', r.text.slice(0, 250));
     ok(r.json.labor_total === 800 && r.json.items.length === 1 && r.json.items[0].earned_amount === 320, 'detalle por orden');
     r = await call('GET', '/api/earnings/summary?period=week', undefined, T.mecanico); ok(r.json.total_comision === 320, 'periodo semana incluye lo de hoy');
     const o2 = await mkPaidOrder(aux1.id, 500, 0); // 500: auxiliar 35 % (editado) = 175; maestro el resto 325

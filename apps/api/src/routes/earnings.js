@@ -52,6 +52,8 @@ export default async function earningsRoutes(fastify) {
             period_end: end.toISOString(),
             ...totals,
             items: rows.slice(0, 100).map((r) => ({
+                id: r.id,
+                mechanic_id: r.mechanic_id,
                 order_id: r.order_id,
                 order_number: r.order?.order_number || null,
                 date: r.created_at,

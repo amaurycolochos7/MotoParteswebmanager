@@ -106,6 +106,37 @@ try {
     if (G4) ok((await rowsOf(G4.id)).length === 0, 'una orden cancelada no se toca');
     const again = await backfillMissingEarnings(ws.id);
     ok(again === 0 && (await rowsOf(G1.id)).length === 1, 'repetirla no duplica nada');
+
+    console.log('== H) si el mecánico es el dueño/administrador, su comisión queda PAGADA al liquidar la orden');
+    const { settleSelfPaidEarnings } = await import('../src/lib/commission-backfill.js');
+    await prisma.membership.update({ where: { workspace_id_profile_id: { workspace_id: ws.id, profile_id: mech.id } }, data: { role: 'owner' } });
+    const OH = await mkOrder('H'); orders.push(OH);
+    await call('PUT', `/orders/${OH.id}/costs`, { labor_total: 50, parts: [] });
+    ok((await rowsOf(OH.id))[0].commission_status === 'PENDING_PAYMENT', 'antes de cobrar sigue "por cobrar"');
+    await call('POST', '/order-payments', { order_id: OH.id, amount: 50, payment_method: 'efectivo' });
+    rows = await rowsOf(OH.id);
+    ok(rows[0].commission_status === 'PAID' && rows[0].is_paid === true && !!rows[0].paid_at, `al liquidar queda PAGADA (${rows[0]?.commission_status})`);
+    s = await summary();
+    ok(s.pagada >= 50, `la tarjeta la cuenta como pagada ($${s.pagada})`);
+    // las que ya estaban liberadas antes de esta regla se corrigen con la migración
+    await prisma.mechanicEarning.updateMany({ where: { order_id: OH.id }, data: { commission_status: 'READY_TO_PAY', is_paid: false, paid_at: null } });
+    const settled = await settleSelfPaidEarnings(ws.id);
+    rows = await rowsOf(OH.id);
+    ok(settled >= 1 && rows[0].commission_status === 'PAID', `la migración paga las liberadas del dueño (${settled})`);
+    ok(await settleSelfPaidEarnings(ws.id) === 0, 'y es idempotente');
+    await prisma.membership.update({ where: { workspace_id_profile_id: { workspace_id: ws.id, profile_id: mech.id } }, data: { role: 'mechanic' } });
+    const I = await mkOrder('I'); orders.push(I);
+    await call('PUT', `/orders/${I.id}/costs`, { labor_total: 30, parts: [] });
+    await call('POST', '/order-payments', { order_id: I.id, amount: 30, payment_method: 'efectivo' });
+    ok((await rowsOf(I.id))[0].commission_status === 'READY_TO_PAY', 'un mecánico que NO es dueño sigue en "liberada" hasta que se le pague');
+
+    console.log('== J) marcar como pagada desde la pantalla (mark-paid) y el resumen trae los ids');
+    s = await summary();
+    const item = (s.items || []).find((x) => x.order_id === I.id);
+    ok(!!item?.id && item.commission_status === 'READY_TO_PAY', 'el resumen incluye el id de cada comisión');
+    r = await call('PUT', '/earnings/mark-paid', { earningIds: [item.id] });
+    ok(r.status === 200, `marcar pagada (${r.status})`);
+    ok((await rowsOf(I.id))[0].commission_status === 'PAID', 'queda PAGADA');
 } finally {
     api.kill();
     await new Promise((x) => setTimeout(x, 300));
