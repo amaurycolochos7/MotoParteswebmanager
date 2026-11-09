@@ -291,3 +291,28 @@
   .ib-owner--head { max-width: 80px; }
   .ib-chat__head { padding: 8px 10px; }
 }
+
+/* =====================================================================
+   Formato de WhatsApp en los mensajes (negritas, cursivas, listas, enlaces) y palomitas
+   ===================================================================== */
+.wa-text { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+.ib-bubble .wa-text { margin: 0; color: inherit; }
+.wa-line { min-height: 1em; }
+.wa-text strong { font-weight: 700; }
+.wa-text s { text-decoration: line-through; }
+.wa-code { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: rgba(11, 20, 26, 0.07); border-radius: 4px; padding: 1px 4px; }
+.wa-pre { margin: 4px 0; padding: 8px 10px; background: rgba(11, 20, 26, 0.07); border-radius: 6px; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.wa-li { display: flex; gap: 8px; padding-left: 4px; }
+.wa-li__dot { flex: 0 0 auto; }
+.wa-li > span:last-child { flex: 1; min-width: 0; }
+.wa-quote { margin: 2px 0; padding: 2px 0 2px 8px; border-left: 4px solid rgba(11, 20, 26, 0.25); background: rgba(11, 20, 26, 0.05); border-radius: 0 4px 4px 0; color: #54656f; }
+.wa-link { color: #027eb5; text-decoration: none; }
+.wa-link:hover { text-decoration: underline; }
+
+/* Palomitas: gris = enviado/entregado, azul = leído (el cliente tiene activas las confirmaciones de lectura) */
+.ib-meta { align-items: center; gap: 4px; }
+.ib-tick { flex: 0 0 auto; }
+.ib-tick--wait { color: #8696a0; }
+.ib-tick--sent, .ib-tick--delivered { color: #667781; }
+.ib-tick--read { color: #34b7f1; }
+.ib-tick--fail { color: #ea0038; }

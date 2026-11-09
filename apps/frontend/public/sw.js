@@ -1,4 +1,4 @@
-const CACHE_NAME = 'motopartes-v3';
+const CACHE_NAME = 'motopartes-v4';
 const urlsToCache = [
     '/',
     '/index.html',

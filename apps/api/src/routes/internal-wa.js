@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import { BOT_KEY, workspaceOfSession } from '../lib/wa-session.js';
 import {
     isIgnoredChat, phoneFromChat, upsertConversation, recordMessage, claimPendingOutbound, applyAck, storeMedia,
-    claimHistoryOutbound, purgeUntaggedHistory,
+    claimHistoryOutbound, purgeUntaggedHistory, statusFromAck, betterStatus,
 } from '../lib/wa-inbox.js';
 import prisma from '../lib/prisma.js';
 
@@ -69,6 +69,12 @@ export async function handleBotEvent(ev) {
     return { ok: true };
 }
 
+/** Estado de un saliente del historial según su acuse de WhatsApp (sin acuse conocido = el actual). Nunca baja de estado. */
+export function historyStatus(ack, current = 'sent') {
+    if (typeof ack !== 'number' || ack < 1) return current;
+    return betterStatus(current, statusFromAck(ack));
+}
+
 /**
  * Historial de un chat (importado al conectar o a mano): se guarda en orden cronológico, sin duplicar (por wa_message_id)
  * y SIN marcar nada como no leído (son mensajes viejos, no novedades).
@@ -95,7 +101,12 @@ export async function handleHistoryEvent(workspaceId, ev) {
         if (m.wa_message_id) tagged += 1;
         if (out && m.wa_message_id) {
             const claimed = await claimHistoryOutbound(workspaceId, conv.id, m.body, m.wa_message_id, createdAt);
-            if (claimed) continue;
+            if (claimed) {
+                // El automático/del panel ya estaba guardado: se le sube el estado si WhatsApp ya lo entregó o leyó.
+                const better = historyStatus(m.ack, claimed.status);
+                if (better !== claimed.status) await prisma.waMessage.update({ where: { id: claimed.id }, data: { status: better } });
+                continue;
+            }
         }
         const r = await recordMessage(workspaceId, conv, {
             direction: out ? 'out' : 'in',
@@ -106,7 +117,7 @@ export async function handleHistoryEvent(workspaceId, ev) {
             mediaName: m.mediaName || null,
             mediaSeconds: m.mediaSeconds || null,
             waMessageId: m.wa_message_id || null,
-            status: out ? 'sent' : 'delivered',
+            status: out ? historyStatus(m.ack, 'sent') : 'delivered',
             createdAt,
             history: true,
         });

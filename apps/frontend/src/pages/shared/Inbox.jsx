@@ -10,6 +10,8 @@ import { useToast } from '../../context/ToastContext';
 import { Chip, Drawer, Segmented, Skeleton, fmtWhen } from '../../components/ui/kit';
 import { MessageMedia, captionOf, useVoiceRecorder, MAX_SECONDS } from './InboxMedia';
 import { ChatAvatar, SectionTabs, inSection, firstName } from './InboxParts';
+import WaText from './WaText';
+import { plainWa } from './waFormat';
 import { AttachButton, AttachPreview, prepareAttachment, attachmentKind, ATTACH_LABELS } from './InboxAttach';
 import './Inbox.css';
 
@@ -21,7 +23,7 @@ const fmtPhone = (p) => {
   return l.length === 10 ? `${l.slice(0, 3)} ${l.slice(3, 6)} ${l.slice(6)}` : (p || '');
 };
 /** '[Nota de voz]' -> 'Nota de voz'; '[Imagen] pie' -> 'Imagen: pie' */
-const cleanPreview = (p) => String(p || '').replace(/^\[([^\]]+)\]\s*(.*)$/, (_m, a, b) => (b ? a + ': ' + b : a));
+const cleanPreview = (p) => plainWa(String(p || '').replace(/^\[([^\]]+)\]\s*(.*)$/, (_m, a, b) => (b ? a + ': ' + b : a)));
 const nameOf = (c) => c?.client?.full_name || c?.display_name || fmtPhone(c?.phone) || 'Número sin nombre';
 
 function dayLabel(iso) {
@@ -33,12 +35,14 @@ function dayLabel(iso) {
   return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
+/* Palomitas como en WhatsApp: reloj (en cola), una gris (enviado), dos grises (entregado) y dos AZULES (leído).
+   Si el cliente tiene desactivadas las confirmaciones de lectura, WhatsApp nunca avisa que lo leyó: se queda en dos grises. */
 function Ticks({ status }) {
-  if (status === 'failed') return <AlertCircle size={13} className="ib-tick ib-tick--fail" aria-label="No se envió" />;
-  if (status === 'queued') return <Clock size={13} className="ib-tick" aria-label="En cola" />;
-  if (status === 'read') return <CheckCheck size={14} className="ib-tick ib-tick--read" aria-label="Leído" />;
-  if (status === 'delivered') return <CheckCheck size={14} className="ib-tick" aria-label="Entregado" />;
-  return <Check size={13} className="ib-tick" aria-label="Enviado" />;
+  if (status === 'failed') return <AlertCircle size={15} className="ib-tick ib-tick--fail" aria-label="No se envió" role="img"><title>No se envió</title></AlertCircle>;
+  if (status === 'queued') return <Clock size={14} className="ib-tick ib-tick--wait" aria-label="En cola" role="img"><title>En cola</title></Clock>;
+  if (status === 'read') return <CheckCheck size={17} strokeWidth={2.4} className="ib-tick ib-tick--read" aria-label="Leído" role="img"><title>Leído</title></CheckCheck>;
+  if (status === 'delivered') return <CheckCheck size={17} strokeWidth={2.4} className="ib-tick ib-tick--delivered" aria-label="Entregado" role="img"><title>Entregado (aún sin leer, o el cliente no manda confirmación de lectura)</title></CheckCheck>;
+  return <Check size={16} strokeWidth={2.4} className="ib-tick ib-tick--sent" aria-label="Enviado" role="img"><title>Enviado</title></Check>;
 }
 
 /* Imagen protegida: se baja con el JWT y se muestra como URL de objeto */
@@ -68,7 +72,7 @@ function Bubble({ m }) {
         {out && origin === 'phone' && <span className="ib-tag"><Smartphone size={11} /> Desde el teléfono</span>}
         {out && origin === 'panel' && m.sent_by?.full_name && <span className="ib-tag">{m.sent_by.full_name.split(' ')[0]}</span>}
         {m.media && <MessageMedia m={m} />}
-        {text && <p>{text}</p>}
+        {text && <WaText text={text} />}
         <span className="ib-meta">
           {new Date(m.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
           {out && <Ticks status={m.status} />}

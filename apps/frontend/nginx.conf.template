@@ -32,6 +32,12 @@ server {
         proxy_cache_bypass $http_upgrade;
     }
 
+    # Lo que decide qué versión de la app se carga NUNCA se guarda en caché (los .js/.css llevan hash y sí se guardan).
+    location = /index.html { add_header Cache-Control "no-store, must-revalidate"; }
+    location = /version.json { add_header Cache-Control "no-store, must-revalidate"; }
+    location = /sw.js { add_header Cache-Control "no-store, must-revalidate"; }
+    location = /manifest.json { add_header Cache-Control "no-cache"; }
+
     # SPA fallback (must be last)
     location / {
         try_files $uri $uri/ /index.html;

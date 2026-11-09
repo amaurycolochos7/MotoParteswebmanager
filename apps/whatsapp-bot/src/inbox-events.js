@@ -215,6 +215,7 @@ async function messagesFromStore(client, chatId, limit, deep = false) {
             type: m.type,
             body: typeof m.body === 'string' ? m.body : '',
             caption: typeof m.caption === 'string' ? m.caption : '',
+            ack: typeof m.ack === 'number' ? m.ack : null,
             t: m.t,
         }));
         return { msgs, deep: deepInfo };
@@ -223,7 +224,7 @@ async function messagesFromStore(client, chatId, limit, deep = false) {
     if (!Array.isArray(res) && res?.deep && !deepNote) { deepNote = res.deep; console.log(`📥 [inbox] carga de mensajes anteriores (primer chat): ${res.deep}`); }
     return rows.map((m) => ({
         id: { _serialized: m.sid }, fromMe: m.fromMe, type: m.type, body: m.body, caption: m.caption, timestamp: m.t,
-        duration: m.duration, filename: m.filename, mimetype: m.mimetype,
+        duration: m.duration, filename: m.filename, mimetype: m.mimetype, ack: m.ack,
         from: m.fromMe ? 'yo@c.us' : chatId, to: m.fromMe ? chatId : 'yo@c.us',
     }));
 }
@@ -254,6 +255,7 @@ export async function importChatHistory(client, sessionId, chatId, limit = 200) 
         mediaMime: m.mimetype || null,
         mediaSeconds: m.duration || null,
         mediaName: m.filename || null,
+        ack: typeof m.ack === 'number' ? m.ack : null,
     })).filter((m) => m.body);
     if (items.length) await post({ type: 'history', sessionId, chat: { id: chatId, name: null, numberHint: null }, messages: items, replaceUntagged: true });
     console.log(`📥 [inbox] chat ${chatId}: ${items.length} mensajes leídos (carga de anteriores: ${deepNote || 'n/d'})`);
@@ -301,6 +303,7 @@ export async function importHistory(client, sessionId, { maxChats = 200, perChat
                     mediaMime: m.mimetype || null,
                     mediaSeconds: m.duration || null,
                     mediaName: m.filename || null,
+                    ack: typeof m.ack === 'number' ? m.ack : null,
                 })).filter((m) => m.body);
                 if (items.length) {
                     await post({ type: 'history', sessionId, chat: { id: chat.id._serialized, name, numberHint }, messages: items, replaceUntagged: true });

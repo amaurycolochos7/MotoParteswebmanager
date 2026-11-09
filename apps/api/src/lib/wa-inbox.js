@@ -104,6 +104,7 @@ export async function recordMessage(workspaceId, conv, m) {
             if (m.mediaName && !dup.media_name) patch.media_name = m.mediaName;
             if (m.mediaSeconds && !dup.media_seconds) patch.media_seconds = Math.round(Number(m.mediaSeconds));
             if (m.mediaId && !dup.media_id) patch.media_id = m.mediaId;
+            if (dup.direction === 'out' && m.status && betterStatus(dup.status, m.status) !== dup.status) patch.status = betterStatus(dup.status, m.status);
             if (Object.keys(patch).length) return { message: await prisma.waMessage.update({ where: { id: dup.id }, data: patch }), created: false };
             return { message: dup, created: false };
         }
