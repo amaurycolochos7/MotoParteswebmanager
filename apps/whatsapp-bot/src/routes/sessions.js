@@ -117,6 +117,23 @@ router.post('/:mechanicId/fetch-media', async (req, res) => {
     }
 });
 
+// POST /api/sessions/:mechanicId/profile-pic { chatId } — foto de perfil del contacto ({ data, mime } | { none: true } | { error }).
+router.post('/:mechanicId/profile-pic', async (req, res) => {
+    const sessionManager = req.app.get('sessionManager');
+    const session = sessionManager.getSession(req.params.mechanicId);
+    if (!session || !session.isConnected || !session.client) {
+        return res.status(503).json({ error: 'Sesión de WhatsApp no disponible' });
+    }
+    try {
+        const r = await session.getProfilePic(req.body?.chatId);
+        if (r?.error) console.warn(`⚠️ [avatar] ${req.body?.chatId}: ${r.error}`);
+        res.json(r);
+    } catch (err) {
+        console.warn('⚠️ [avatar] profile-pic:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // POST /api/sessions/:mechanicId/start
 router.post('/:mechanicId/start', async (req, res) => {
     const sessionManager = req.app.get('sessionManager');

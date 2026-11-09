@@ -18,9 +18,13 @@ export function initialsOf(name = '') {
 
 /* Avatar con color estable por nombre */
 const AVATAR_TONES = ['ink', 'red', 'olive', 'steel', 'sand'];
-export function Avatar({ name = '', size = 'md', tone, className = '' }) {
+export function Avatar({ name = '', size = 'md', tone, className = '', src = null }) {
   const t = tone || AVATAR_TONES[[...String(name)].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_TONES.length];
-  return <span className={cx('k-avatar', `k-avatar--${size}`, `k-avatar--${t}`, className)} aria-hidden="true">{initialsOf(name)}</span>;
+  return (
+    <span className={cx('k-avatar', `k-avatar--${size}`, `k-avatar--${t}`, src && 'k-avatar--photo', className)} aria-hidden="true">
+      {src ? <img src={src} alt="" loading="lazy" draggable="false" /> : initialsOf(name)}
+    </span>
+  );
 }
 
 /* Chip / etiqueta compacta */

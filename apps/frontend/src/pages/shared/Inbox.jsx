@@ -2,13 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import {
   Search, ArrowLeft, Send, EyeOff, UserRound, Bike, ClipboardList, CalendarClock, Plus, Printer,
-  Check, CheckCheck, Clock, AlertCircle, MessageSquare, Bot, Smartphone, ImageOff, PanelRight, Loader2, RefreshCw, History, Mic, Trash2,
+  Check, CheckCheck, Clock, AlertCircle, MessageSquare, Bot, Smartphone, ImageOff, PanelRight, Loader2, RefreshCw, History, Mic, Trash2, UserCheck,
 } from 'lucide-react';
 import { inboxService, printService } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { Avatar, Chip, Drawer, Segmented, Skeleton, fmtWhen } from '../../components/ui/kit';
+import { Chip, Drawer, Segmented, Skeleton, fmtWhen } from '../../components/ui/kit';
 import { MessageMedia, captionOf, useVoiceRecorder, MAX_SECONDS } from './InboxMedia';
+import { ChatAvatar, SectionTabs, inSection, firstName } from './InboxParts';
+import { AttachButton, AttachPreview, prepareAttachment, attachmentKind, ATTACH_LABELS } from './InboxAttach';
 import './Inbox.css';
 
 const POLL_MS = 4000;
@@ -79,7 +81,7 @@ function Bubble({ m }) {
 function InboxView() {
   const { pathname } = useLocation();
   const base = pathname.startsWith('/admin') ? '/admin' : '/mechanic';
-  const { isManager } = useAuth();
+  const { isManager, teamRole } = useAuth();
   const toast = useToast();
   const [params, setParams] = useSearchParams();
 
@@ -87,6 +89,12 @@ function InboxView() {
   const [listState, setListState] = useState('loading');
   const [q, setQ] = useState('');
   const [onlyUnread, setOnlyUnread] = useState('todas');
+  // Sección del CRM: all | me | none | <id de maestro>. Un maestro empieza en "Mis chats"; el administrador, en "Todos".
+  const [section, setSection] = useState(params.get('s') || (teamRole && !['owner', 'admin'].includes(teamRole) ? 'me' : 'all'));
+  const [sections, setSections] = useState(null);
+  const sectionTouched = useRef(!!params.get('s'));
+  const [attach, setAttach] = useState(null); // { file, asDocument } esperando confirmar el envío
+  const [attachBusy, setAttachBusy] = useState(false);
   const [activeId, setActiveId] = useState(params.get('c') || null);
   const [info, setInfo] = useState(null); // ficha de la conversación abierta
   const [msgs, setMsgs] = useState([]);
@@ -104,24 +112,53 @@ function InboxView() {
   const scrollerRef = useRef(null);
   const activeRef = useRef(null);
   activeRef.current = activeId;
+  const sectionRef = useRef(section);
+  sectionRef.current = section;
+  const ownIdsRef = useRef([]);
+  ownIdsRef.current = sections?.own_ids || [];
 
   /* ---------------------------- Lista ---------------------------- */
   const loadList = useCallback(async () => {
     try {
-      const r = await inboxService.conversations({ q, unread: onlyUnread === 'no_leidas' });
+      const r = await inboxService.conversations({ q, unread: onlyUnread === 'no_leidas', owner: section });
       setList(r.items || []);
       setListState('ok');
       sinceRef.current = new Date().toISOString();
     } catch { setListState((s) => (s === 'ok' ? 'ok' : 'error')); }
-  }, [q, onlyUnread]);
+  }, [q, onlyUnread, section]);
 
   useEffect(() => { setListState((s) => (s === 'ok' ? s : 'loading')); const t = setTimeout(loadList, q ? 250 : 0); return () => clearTimeout(t); }, [loadList, q]);
+
+  /* Secciones (contadores por maestro): al abrir y cada 10 s */
+  const loadSections = useCallback(async () => {
+    try { setSections(await inboxService.sections()); } catch { /* se conserva lo último */ }
+  }, []);
+  useEffect(() => {
+    loadSections();
+    const t = setInterval(() => { if (!document.hidden) loadSections(); }, 10000);
+    return () => clearInterval(t);
+  }, [loadSections]);
+  // Un maestro sin chats asignados todavía no se queda en una lista vacía: pasa a "Todos" (si no eligió otra cosa).
+  useEffect(() => {
+    if (sections && !sectionTouched.current && section === 'me' && sections.mine.total === 0 && sections.all.total > 0) setSection('all');
+  }, [sections, section]);
+  const changeSection = (id) => {
+    sectionTouched.current = true;
+    setSection(id);
+    setParams((p) => { const n = new URLSearchParams(p); if (id === 'all') n.delete('s'); else n.set('s', id); return n; }, { replace: true });
+  };
 
   const mergeConv = useCallback((items) => {
     if (!items?.length) return;
     setList((prev) => {
       const map = new Map(prev.map((c) => [c.id, c]));
-      items.forEach((c) => map.set(c.id, { ...(map.get(c.id) || {}), ...c }));
+      items.forEach((c) => {
+        const merged = { ...(map.get(c.id) || {}), ...c };
+        // Con la ficha completa se respeta la sección activa; un cambio parcial (leído, vista previa) solo actualiza lo que ya está.
+        if (!('assigned_to' in merged) && !map.has(c.id)) return;
+        if ('assigned_to' in merged && !inSection(merged, sectionRef.current, ownIdsRef.current)) map.delete(c.id);
+        else map.set(c.id, merged);
+      });
       return [...map.values()].sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0));
     });
   }, []);
@@ -249,6 +286,61 @@ function InboxView() {
   useEffect(() => { recorder.cancel(); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
 
+  /* Foto, video o documento: se elige (clip, pegar o arrastrar), se previsualiza con pie de foto y se envía. */
+  const pickFile = (file, asDocument = false) => {
+    if (!activeId || !file) return;
+    if (file.size > 60 * 1024 * 1024) { toast.error('El archivo es demasiado grande (máximo 12 MB).'); return; }
+    const asDoc = asDocument || !/^(image|video)\//.test(file.type);
+    setAttach({ file, asDocument: asDoc, url: asDoc ? null : URL.createObjectURL(file) });
+  };
+  const closeAttach = () => { setAttach((a) => { if (a?.url) URL.revokeObjectURL(a.url); return null; }); };
+  const sendAttach = async (caption) => {
+    if (!attach || !activeId || attachBusy) return;
+    setAttachBusy(true);
+    let prepared;
+    try { prepared = await prepareAttachment(attach.file, attach.asDocument); } catch (e) { setAttachBusy(false); toast.error(e.message || 'No se pudo preparar el archivo'); return; }
+    const { blob, ...payload } = prepared;
+    const kind = attachmentKind(payload.mime, payload.as_document);
+    const localUrl = URL.createObjectURL(blob);
+    const body = caption ? `[${ATTACH_LABELS[kind]}] ${caption}` : `[${ATTACH_LABELS[kind]}]`;
+    const tmp = { id: `tmp-${Date.now()}`, direction: 'out', origin: 'panel', body, status: 'queued', created_at: new Date().toISOString(), sent_by: null,
+      media: { type: kind, name: payload.name, mime: payload.mime, available: true, localUrl, message_id: null } };
+    const id = activeId;
+    closeAttach(); setAttachBusy(false);
+    stickRef.current = true;
+    setMsgs((m) => [...m, tmp]);
+    try {
+      const saved = await inboxService.sendAttachment(id, { ...payload, caption });
+      setMsgs((m) => m.map((x) => (x.id === tmp.id ? { ...saved, media: { ...(saved.media || {}), localUrl } } : x)));
+      mergeConv([{ id, last_message_preview: body, last_message_at: new Date().toISOString(), last_direction: 'out' }]);
+    } catch (e) {
+      setMsgs((m) => m.map((x) => (x.id === tmp.id ? { ...x, status: 'failed' } : x)));
+      toast.error(e.message || 'No se pudo enviar el archivo');
+    }
+  };
+  const onPaste = (e) => {
+    const f = [...(e.clipboardData?.files || [])].find((x) => /^image\//.test(x.type));
+    if (f) { e.preventDefault(); pickFile(f, false); }
+  };
+  const onDrop = (e) => {
+    const f = e.dataTransfer?.files?.[0];
+    if (!f || !activeId) return;
+    e.preventDefault();
+    pickFile(f, false);
+  };
+
+  /* Pasar el chat a otro maestro (o dejar que se asigne solo) */
+  const assignTo = async (profileId) => {
+    if (!activeId) return;
+    try {
+      const r = await inboxService.assign(activeId, profileId);
+      setInfo((i) => (i ? { ...i, assigned_to: r.assigned_to } : i));
+      mergeConv([{ id: activeId, assigned_to: r.assigned_to }]);
+      loadSections();
+      toast.success(r.assigned_to ? `Chat asignado a ${firstName(r.assigned_to.full_name)}` : 'Chat sin responsable (se asigna solo)');
+    } catch (e) { toast.error(e.message || 'No se pudo asignar el chat'); }
+  };
+
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
 
   /* Importar los chats recientes de WhatsApp (corre en segundo plano en el bot). El polling de 4 s recoge lo nuevo. */
@@ -322,14 +414,27 @@ function InboxView() {
 
   const client = info?.client || null;
 
+  /* Pestañas: un maestro ve "Mis chats", "Todos" y "Sin asignar"; el administrador ve además una por cada maestro. */
+  const tabItems = useMemo(() => {
+    if (!sections) return [];
+    const admin = teamRole === 'owner' || teamRole === 'admin';
+    const items = [];
+    if (!admin || sections.mine.total > 0) items.push({ id: 'me', label: 'Mis chats', ...sections.mine });
+    items.push({ id: 'all', label: 'Todos', ...sections.all });
+    if (admin) sections.masters.filter((m) => !(sections.own_ids || []).includes(m.id)).forEach((m) => items.push({ id: m.id, label: firstName(m.full_name), total: m.total, unread: m.unread }));
+    if (sections.none.total > 0 || section === 'none') items.push({ id: 'none', label: 'Sin asignar', ...sections.none });
+    return items;
+  }, [sections, teamRole, section]);
+
   /* Ficha del cliente (columna derecha / cajón) */
   const CardBody = (
     <div className="ib-card">
       <div className="ib-card__who">
-        <Avatar name={nameOf(active)} size="lg" />
+        <ChatAvatar conv={active} name={nameOf(active)} size="lg" />
         <div>
           <h3>{nameOf(active)}</h3>
           <p className="mono">{fmtPhone(active.phone)}</p>
+          {active.assigned_to && <p className="ib-card__owner"><UserCheck size={13} /> Atiende {firstName(active.assigned_to.full_name)}</p>}
         </div>
       </div>
       {!client && (
@@ -396,6 +501,7 @@ function InboxView() {
             <span>{sync.msg}</span>
           </div>
         )}
+        {tabItems.length > 1 && <SectionTabs items={tabItems} value={section} onChange={changeSection} />}
         <div className="ib-list__tools">
           <label className="k-search"><Search size={17} /><input placeholder="Buscar nombre o número" value={q} onChange={(e) => setQ(e.target.value)} /></label>
           <Segmented items={[{ id: 'todas', label: 'Todas' }, { id: 'no_leidas', label: 'No leídas' }]} value={onlyUnread} onChange={setOnlyUnread} />
@@ -414,6 +520,14 @@ function InboxView() {
                   <h3>Sin resultados</h3>
                   <p>Prueba con otra búsqueda.</p>
                 </>
+              ) : section !== 'all' ? (
+                <>
+                  <h3>{section === 'me' ? 'Aún no tienes chats asignados' : section === 'none' ? 'Todo está asignado' : 'Sin chats en esta sección'}</h3>
+                  <p>{section === 'me'
+                    ? 'Aquí aparecen los clientes con una orden o cita contigo y los chats que respondes. Mira "Todos" para ver el resto.'
+                    : 'Los chats se reparten solos según las órdenes, citas y respuestas; también puedes asignarlos a mano.'}</p>
+                  <button type="button" className="k-btn k-btn--ghost k-btn--sm" onClick={() => changeSection('all')}>Ver todos los chats</button>
+                </>
               ) : (
                 <>
                   <h3>Aún no hay conversaciones</h3>
@@ -427,11 +541,12 @@ function InboxView() {
           )}
           {list.map((c) => (
             <button key={c.id} type="button" className={`ib-item${c.id === activeId ? ' is-active' : ''}${c.unread_count > 0 ? ' is-unread' : ''}`} onClick={() => open(c.id)}>
-              <Avatar name={nameOf(c)} size="md" />
+              <ChatAvatar conv={c} name={nameOf(c)} size="md" />
               <span className="ib-item__main">
                 <span className="ib-item__top"><strong>{nameOf(c)}</strong><time>{fmtWhen(c.last_message_at)}</time></span>
                 <span className="ib-item__bot">
                   <span className="ib-item__prev">{c.last_direction === 'out' ? 'Tú: ' : ''}{cleanPreview(c.last_message_preview) || 'Archivo'}</span>
+                  {c.assigned_to && section !== c.assigned_to.id && section !== 'me' && <span className="ib-owner" title={`Atiende ${c.assigned_to.full_name || ''}`}>{firstName(c.assigned_to.full_name)}</span>}
                   {c.unread_count > 0 && <span className="ib-badge">{c.unread_count > 99 ? '99+' : c.unread_count}</span>}
                 </span>
               </span>
@@ -441,7 +556,7 @@ function InboxView() {
       </section>
 
       {/* ------------------- Chat ------------------- */}
-      <section className="ib-chat">
+      <section className="ib-chat" onDragOver={(e) => { if (activeId && e.dataTransfer?.types?.includes('Files')) e.preventDefault(); }} onDrop={onDrop}>
         {!activeId ? (
           <div className="ib-chat__none">
             <div className="k-empty__ico"><MessageSquare size={26} /></div>
@@ -452,11 +567,20 @@ function InboxView() {
           <>
             <header className="ib-chat__head">
               <button type="button" className="ib-back" onClick={closeChat} aria-label="Volver a la lista"><ArrowLeft size={20} /></button>
-              <Avatar name={nameOf(active)} size="md" />
+              <ChatAvatar conv={active} name={nameOf(active)} size="md" />
               <div className="ib-chat__who">
                 <strong>{nameOf(active)}</strong>
                 <span className="ib-chat__sub">{active.phone ? fmtPhone(active.phone) : 'Contacto de WhatsApp'}</span>
               </div>
+              {sections?.can_assign ? (
+                <label className="ib-assign" title="Maestro a cargo de este chat">
+                  <UserCheck size={15} />
+                  <select value={active.assigned_to?.id || ''} onChange={(e) => assignTo(e.target.value || null)} aria-label="Maestro a cargo">
+                    <option value="">Sin asignar</option>
+                    {(sections.assignable || []).map((m) => <option key={m.id} value={m.id}>{firstName(m.full_name)}</option>)}
+                  </select>
+                </label>
+              ) : active.assigned_to && <span className="ib-owner ib-owner--head"><UserCheck size={13} /> {firstName(active.assigned_to.full_name)}</span>}
               <button type="button" className="ib-iconbtn ib-cardbtn" onClick={() => setShowCard(true)} aria-label="Ver ficha del cliente"><PanelRight size={18} /></button>
             </header>
 
@@ -492,10 +616,12 @@ function InboxView() {
                 </div>
               ) : (
                 <>
+                  <AttachButton disabled={voiceBusy} onPick={pickFile} />
                   <textarea
                     rows={1}
                     placeholder="Escribe un mensaje…"
                     value={text}
+                    onPaste={onPaste}
                     onChange={(e) => { setText(e.target.value); e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`; }}
                     onKeyDown={onKey}
                     aria-label="Mensaje"
@@ -510,6 +636,8 @@ function InboxView() {
           </>
         )}
       </section>
+
+      {attach && <AttachPreview file={attach.file} asDocument={attach.asDocument} url={attach.url} who={nameOf(active)} busy={attachBusy} onCancel={closeAttach} onSend={sendAttach} />}
 
       {/* ------------------- Ficha ------------------- */}
       {activeId && <aside className="ib-side">{CardBody}</aside>}

@@ -1513,9 +1513,10 @@ export const waService = {
 
 // Bandeja "Conversaciones"
 export const inboxService = {
-    conversations({ q = '', unread = false, cursor = '', limit = 30 } = {}) {
+    conversations({ q = '', unread = false, cursor = '', limit = 30, owner = '' } = {}) {
         const p = new URLSearchParams();
         if (q) p.set('q', q);
+        if (owner && owner !== 'all') p.set('owner', owner);
         if (unread) p.set('unread', '1');
         if (cursor) p.set('cursor', cursor);
         p.set('limit', String(limit));
@@ -1529,6 +1530,24 @@ export const inboxService = {
     },
     send(id, text) { return apiFetch(`/inbox/conversations/${id}/messages`, { method: 'POST', body: jbody({ text }) }); },
     markRead(id) { return apiFetch(`/inbox/conversations/${id}/read`, { method: 'POST' }); },
+    // Secciones del CRM (Todos, Mis chats, Sin asignar y un maestro por sección) con sus contadores.
+    sections() { return apiFetch('/inbox/sections'); },
+    // Pasa el chat a un maestro (profileId) o, con null, deja que se asigne solo.
+    assign(id, profileId) { return apiFetch(`/inbox/conversations/${id}/assign`, { method: 'POST', body: jbody({ profile_id: profileId }) }); },
+    // Foto, video o documento (base64) con pie de foto opcional.
+    sendAttachment(id, { file_base64, mime, name, caption = '', as_document = false }) {
+        return apiFetch(`/inbox/conversations/${id}/attachment`, { method: 'POST', body: jbody({ file_base64, mime, name, caption, as_document }) });
+    },
+    // Foto de perfil de WhatsApp (URL de objeto) o null si no tiene.
+    async avatarBlobUrl(id) {
+        const headers = {};
+        const token = getToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        if (activeWorkspaceId) headers['x-workspace-id'] = activeWorkspaceId;
+        const res = await fetch(`${API_URL}/inbox/conversations/${id}/avatar`, { headers });
+        if (!res.ok) return null;
+        return URL.createObjectURL(await res.blob());
+    },
     hide(id) { return apiFetch(`/inbox/conversations/${id}/hide`, { method: 'POST' }); },
     unreadCount() { return apiFetch('/inbox/unread-count'); },
     // Pide al bot importar el historial reciente (corre en segundo plano). 409 si WhatsApp no está conectado.

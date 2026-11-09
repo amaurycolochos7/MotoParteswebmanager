@@ -745,6 +745,67 @@ class WhatsAppSession extends EventEmitter {
         ));
     }
 
+    /**
+     * Envía una foto, un video o un documento a un chat por su id real (…@lid / …@c.us), con pie de foto opcional.
+     * `asDocument` manda cualquier archivo como documento (sin compresión de WhatsApp).
+     */
+    async sendFile(chatId, base64Data, { mimetype, filename, caption = '', asDocument = false } = {}) {
+        if (!this.isConnected || !this.client) {
+            throw new Error(`Session ${this.mechanicId} not connected`);
+        }
+        if (!/^\d+@(lid|c\.us)$/.test(String(chatId || ''))) throw new Error('chatId inválido');
+        const media = new MessageMedia(mimetype || 'application/octet-stream', base64Data, filename || 'archivo');
+        console.log(`📎 Sending file "${filename}" (${mimetype}) to ${chatId}...`);
+        const key = createHash('sha1').update(String(base64Data)).digest('hex');
+        return this._dedupeSend('file', chatId, `${key}|${caption}`, async () => this._sendAndConfirm(
+            chatId,
+            () => this.client.sendMessage(chatId, media, { caption: caption || undefined, sendMediaAsDocument: !!asDocument }),
+            { kind: 'media' },
+            'file'
+        ));
+    }
+
+    /**
+     * Foto de perfil de un contacto: { data (base64), mime } | { none: true } (sin foto o con foto oculta) | { error }.
+     * Prueba la función de la librería y, si no sirve con la versión fija de WhatsApp Web, el módulo interno.
+     */
+    async getProfilePic(chatId) {
+        if (!this.isConnected || !this.client) {
+            throw new Error(`Session ${this.mechanicId} not connected`);
+        }
+        if (!/^\d+@(lid|c\.us)$/.test(String(chatId || ''))) throw new Error('chatId inválido');
+        let url = null; let answered = false; const notes = [];
+        const noPhoto = (e) => e && (e.name === 'ServerStatusCodeError' || /404|401|item-not-found|not-authorized/i.test(String(e.message || e)));
+        try {
+            url = await this.client.getProfilePicUrl(chatId);
+            answered = true;
+        } catch (e) {
+            if (noPhoto(e)) answered = true; else notes.push(`lib: ${String(e.message || e).slice(0, 80)}`);
+        }
+        if (!url && !answered) {
+            try {
+                const r = await this.client.pupPage.evaluate(async (id) => {
+                    const wid = window.require('WAWebWidFactory').createWid(id);
+                    try {
+                        const r = await window.require('WAWebContactProfilePicThumbBridge').requestProfilePicFromServer(wid);
+                        return { url: (r && (r.eurl || r.img)) || null };
+                    } catch (e) {
+                        return { none: e && e.name === 'ServerStatusCodeError', err: String((e && e.message) || e).slice(0, 80) };
+                    }
+                }, chatId);
+                if (r?.url) { url = r.url; answered = true; } else if (r?.none) answered = true; else notes.push(`store: ${r?.err}`);
+            } catch (e) {
+                notes.push(`evaluate: ${String(e.message || e).slice(0, 80)}`);
+            }
+        }
+        if (!url) return answered ? { none: true } : { error: notes.join(' | ') || 'sin_respuesta' };
+        const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+        if (!res.ok) return { error: `descarga ${res.status}` };
+        const buf = Buffer.from(await res.arrayBuffer());
+        if (!buf.length || buf.length > 2 * 1024 * 1024) return { none: true };
+        return { data: buf.toString('base64'), mime: (res.headers.get('content-type') || 'image/jpeg').split(';')[0] };
+    }
+
     async sendDocument(phone, message, base64Data, filename, mimetype) {
         if (!this.isConnected || !this.client) {
             throw new Error(`Session ${this.mechanicId} not connected`);

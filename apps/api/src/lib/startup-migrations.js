@@ -4,6 +4,7 @@
 //      y ordenarlas: apagar duplicadas activas y corregir filtros que nunca coinciden (p. ej. "Lista" vs "Lista para Entregar").
 import { migrateWorkspaceSessions } from './wa-session.js';
 import { mergeDuplicateConversations } from './wa-inbox.js';
+import { syncAssignments } from './wa-assign.js';
 import { ensureDefaultMessages, reconcileOrderAutomations, workspacesWithWhatsApp } from './default-messages.js';
 
 export async function runStartupMigrations(log = console) {
@@ -20,6 +21,8 @@ export async function runStartupMigrations(log = console) {
             summary.defaults[wsId].reconcile = await reconcileOrderAutomations(wsId);
             // Une chats de WhatsApp duplicados (mismo wa_chat_id) sin perder mensajes.
             summary.defaults[wsId].conversations_merged = await mergeDuplicateConversations(wsId);
+            // Reparte los chats entre los maestros según sus órdenes, citas y respuestas (los asignados a mano no se tocan).
+            summary.defaults[wsId].conversations_assigned = await syncAssignments(wsId);
         }
     } catch (e) {
         log.error?.(`[migraciones] mensajes por defecto fallaron: ${e.message}`);

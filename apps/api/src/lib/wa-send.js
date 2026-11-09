@@ -195,15 +195,19 @@ export async function logOutbound(workspaceId, phone, body, { origin = 'panel', 
     }
 }
 
+/** Id de chat real de una conversación (el @lid/@c.us guardado o, si hay teléfono real, el @c.us). null si no se conoce. */
+export function chatIdForConversation(conv) {
+    if (conv.wa_chat_id && /^\d+@(lid|c\.us)$/.test(conv.wa_chat_id)) return conv.wa_chat_id;
+    return isRealPhone(conv.phone) ? `${toWaNumber(conv.phone)}@c.us` : null;
+}
+
 /**
  * Nota de voz escrita desde el panel: se guarda el audio (para poder oírlo en la conversación), se manda por el bot
  * (que lo convierte a ogg/opus, el formato de WhatsApp) y se registra el mensaje. No se reintenta: si falla, queda como fallido.
  * @returns {{ sent:boolean, id?:string, reason?:string, error?:string }}
  */
 export async function sendVoiceToClient(workspaceId, conv, { base64, mime, seconds }, ctx = {}) {
-    const chatId = conv.wa_chat_id && /^\d+@(lid|c\.us)$/.test(conv.wa_chat_id)
-        ? conv.wa_chat_id
-        : (isRealPhone(conv.phone) ? `${toWaNumber(conv.phone)}@c.us` : null);
+    const chatId = chatIdForConversation(conv);
     if (!chatId) return { sent: false, reason: 'sin_chat', error: 'No se conoce el chat de WhatsApp de esta conversación.' };
     const mediaId = await storeMedia(workspaceId, { mime: mime || 'audio/webm', base64 });
     if (!mediaId) return { sent: false, reason: 'archivo_invalido', error: 'El audio está vacío o es demasiado grande.' };
@@ -224,4 +228,67 @@ export async function sendVoiceToClient(workspaceId, conv, { base64, mime, secon
     const reason = reasonOf(r);
     await markMessage(record.id, { status: 'failed', error: String(r.error || reason).slice(0, 300) });
     return { sent: false, id: record.id, reason, error: r.error };
+}
+
+// Videos que WhatsApp reproduce como video; cualquier otro formato se manda como documento para que no falle.
+const PLAYABLE_VIDEO = /^video\/(mp4|quicktime|3gpp)/i;
+const FILE_LABELS = { image: 'Imagen', video: 'Video', document: 'Documento' };
+
+/** Cómo se envía un archivo: 'image' | 'video' | 'document' (puro). */
+export function fileKindOf(mime, asDocument = false) {
+    const m = String(mime || '').toLowerCase();
+    if (asDocument) return 'document';
+    if (/^image\/(jpeg|jpg|png|webp|gif)/.test(m)) return 'image';
+    if (PLAYABLE_VIDEO.test(m)) return 'video';
+    return 'document';
+}
+
+/** Texto con el que el bot reporta el mensaje (debe coincidir para no duplicarlo): "[Imagen] pie de foto". */
+export function fileBody(kind, caption) {
+    const c = String(caption || '').trim();
+    return c ? `[${FILE_LABELS[kind]}] ${c}` : `[${FILE_LABELS[kind]}]`;
+}
+
+/** Nombre de archivo seguro (sin rutas ni caracteres raros). */
+export function safeFileName(name, kind) {
+    // eslint-disable-next-line no-control-regex
+    const clean = String(name || '').replace(/[\/:*?"<>|\u0000-\u001f]/g, '_').trim().slice(0, 120);
+    return clean || (kind === 'image' ? 'imagen.jpg' : kind === 'video' ? 'video.mp4' : 'documento');
+}
+
+/**
+ * Foto, video o documento escrito desde el panel, con pie de foto opcional. Se guarda la copia (para verlo en la
+ * conversación), se manda por el bot y se registra el mensaje. No se reintenta: si falla, queda como fallido.
+ * @returns {{ sent:boolean, id?:string, kind?:string, reason?:string, error?:string }}
+ */
+export async function sendFileToClient(workspaceId, conv, { base64, mime, name, caption, asDocument }, ctx = {}) {
+    const chatId = chatIdForConversation(conv);
+    if (!chatId) return { sent: false, reason: 'sin_chat', error: 'No se conoce el chat de WhatsApp de esta conversación.' };
+    const kind = fileKindOf(mime, asDocument);
+    const mimetype = mime || 'application/octet-stream';
+    const filename = safeFileName(name, kind);
+    const text = String(caption || '').trim().slice(0, 1000);
+    const mediaId = await storeMedia(workspaceId, { mime: mimetype, base64 });
+    if (!mediaId) return { sent: false, reason: 'archivo_invalido', error: 'El archivo está vacío o es demasiado grande (máximo 12 MB).' };
+    const { message: record } = await recordMessage(workspaceId, conv, {
+        direction: 'out', origin: 'panel', body: fileBody(kind, text), mediaId, mediaType: kind, mediaMime: mimetype,
+        mediaName: kind === 'document' ? filename : null, status: 'queued', sentBy: ctx.sentBy || null,
+    });
+    const sessionId = await resolveSessionId(workspaceId);
+    if (!sessionId) {
+        await markMessage(record.id, { status: 'failed', error: 'No hay sesión de WhatsApp configurada.' });
+        return { sent: false, id: record.id, kind, reason: 'whatsapp_desconectado', error: 'No hay sesión de WhatsApp configurada.' };
+    }
+    const r = await botCall('/send-file', {
+        method: 'POST',
+        body: { mechanicId: sessionId, chatId, base64, mimetype, filename, caption: text, asDocument: kind === 'document' },
+        timeoutMs: 90_000,
+    });
+    if (r.ok) {
+        await markMessage(record.id, { wa_message_id: r.data?.messageId || undefined, status: 'sent' });
+        return { sent: true, id: record.id, kind };
+    }
+    const reason = reasonOf(r);
+    await markMessage(record.id, { status: 'failed', error: String(r.error || reason).slice(0, 300) });
+    return { sent: false, id: record.id, kind, reason, error: r.error };
 }

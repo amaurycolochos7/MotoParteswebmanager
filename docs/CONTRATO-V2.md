@@ -60,6 +60,16 @@ Acceso: owner, admin, maestro, o auxiliar con `can_view_inbox`.
 `POST /api/internal/wa/event` (interno, header `x-api-key` del bot) eventos del bot: `{ workspaceSessionId, type:'message'|'ack', direction, from, to, body, wa_message_id, timestamp, media?:{mime,base64}, ack? }`. Ignora grupos y estados (`@g.us`, `status@broadcast`). Las imágenes se guardan en BD con tope 2 MB y retención de 30 días.
 Modelos: `WaConversation`, `WaMessage`, `WaMedia`, `WaOutbox` (ver schema).
 
+### CRM: chats por maestro, adjuntos y foto de perfil
+Un solo número del taller; los chats se reparten entre los maestros (`WaConversation.assigned_to`). Los items de la lista y la ficha traen `assigned_to:{id,full_name,manual}|null` y `avatar` (id de la copia de la foto, sirve de versión de caché; `null` = sin foto).
+**Quién atiende un chat** (`lib/wa-assign.js`, la primera regla que aplique): a mano (`assigned_manually`, nunca se toca) > mecánico de la orden abierta del cliente > mecánico de su próxima cita > quien respondió desde el panel por última vez (un dueño/admin que contesta NO se queda el chat) > mecánico de su última orden > mecánico preferido del cliente. Si es un auxiliar, queda a cargo de su maestro (`supervised_by`). Se recalcula al arrancar la API y al consultar la lista (máx. cada 45 s por taller); quien contesta un chat sin responsable se lo queda al instante.
+`GET /api/inbox/sections` -> `{ me:{id,role}, own_ids:[...], can_assign, all:{total,unread}, none:{...}, mine:{...}, masters:[{id,full_name,avatar_url,role,total,unread}], assignable:[{id,full_name}] }`. Un dueño/admin recibe todos los maestros; los demás solo su propia sección (un auxiliar, la de su maestro).
+`GET /api/inbox/conversations?owner=all|me|none|<profileId>` filtra por responsable (`me` = los míos). Pedir la sección de OTRO maestro sin ser dueño/admin -> 403; `all` (todos los chats) lo ve cualquiera con acceso a la bandeja.
+`POST /api/inbox/conversations/:id/assign { profile_id }` (owner/admin/maestro) pasa el chat a un integrante del taller (queda manual); `profile_id: null` quita la asignación manual y vuelve a asignarse solo.
+`POST /api/inbox/conversations/:id/attachment { file_base64, mime, name, caption?, as_document? }` -> el mensaje creado. Foto (jpeg/png/webp/gif) o video mp4/mov/3gp se mandan como tal; cualquier otro archivo, como documento. Máx. 12 MB. El texto guardado es `[Imagen] pie`, `[Video] pie` o `[Documento] pie` (igual al que reporta el bot, para no duplicar).
+`GET /api/inbox/conversations/:id/avatar` -> imagen (404 si no tiene); `POST .../avatar/refresh` la vuelve a pedir ahora. La foto se pide al bot en segundo plano (`POST /sessions/:id/profile-pic { chatId }` -> `{data,mime}|{none:true}|{error}`), de una en una, y se revisa de nuevo cada 7 días.
+Bot: `POST /send-file { mechanicId, chatId, base64, mimetype, filename, caption, asDocument }`.
+
 ## Comisiones
 `GET /api/earnings/summary?mechanicId=&period=week|month|all` (cada quien su propio resumen; admin/maestro pueden pedir de otros dentro de su alcance) ->
 `{ rate, period_start, period_end, orders_count, por_cobrar, liberada, pagada, total_comision, labor_total, items:[{ order_id, order_number, date, labor_amount, commission_rate, earned_amount, commission_status }] }`

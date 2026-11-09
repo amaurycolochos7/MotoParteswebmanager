@@ -113,6 +113,23 @@ router.post('/send-voice', async (req, res) => {
     }
 });
 
+// POST /api/send-file — foto, video o documento desde el panel.
+// Body: { mechanicId, chatId, base64, mimetype, filename, caption, asDocument }
+router.post('/send-file', async (req, res) => {
+    const sessionManager = req.app.get('sessionManager');
+    const { mechanicId, chatId, base64, mimetype, filename, caption, asDocument } = req.body || {};
+    if (!chatId || !base64) return res.status(400).json({ error: 'chatId y base64 son requeridos' });
+    const session = mechanicId ? sessionManager.getSession(mechanicId) : null;
+    if (!session || !session.isConnected) return res.status(503).json({ error: 'Sesión de WhatsApp no disponible', fallback: true });
+    try {
+        const result = await session.sendFile(chatId, String(base64), { mimetype, filename, caption: caption || '', asDocument: !!asDocument });
+        res.json(result);
+    } catch (err) {
+        console.warn('⚠️ send-file:', err.message);
+        res.status(500).json({ error: err.message, fallback: true });
+    }
+});
+
 // POST /api/send-for-order
 // Automatic: finds the correct session for an order (master or approved_by)
 // Body: { orderId, phone, message }

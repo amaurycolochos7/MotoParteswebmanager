@@ -3,8 +3,10 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
-import { loadActor, requirePermission } from '../lib/permissions.js';
-import { sendToClient, sendVoiceToClient } from '../lib/wa-send.js';
+import { loadActor, requirePermission, isAdminRole } from '../lib/permissions.js';
+import { sendToClient, sendVoiceToClient, sendFileToClient } from '../lib/wa-send.js';
+import { ensureFreshAssignments, syncAssignments, claimByReply, getSections, loadMembers, ownIdsOf } from '../lib/wa-assign.js';
+import { queueAvatarRefresh, refreshAvatar } from '../lib/wa-avatar.js';
 import { digits } from '../lib/phone.js';
 import { botCall, resolveSessionId } from '../lib/wa-session.js';
 import { isRealPhone, storeMedia, MEDIA_MAX_BYTES } from '../lib/wa-inbox.js';
@@ -15,7 +17,7 @@ const bad = (reply, code, error) => reply.status(code).send({ error });
 const mediaType = (mime) => (String(mime || '').startsWith('image/') ? 'image' : String(mime || '').split('/')[0] || 'file');
 
 /** Fila de lista de conversaciones (forma del contrato). */
-function toConversationItem(c, clientsById) {
+function toConversationItem(c, clientsById, profilesById = new Map()) {
     const client = c.client_id ? clientsById.get(c.client_id) : null;
     return {
         id: c.id,
@@ -28,8 +30,20 @@ function toConversationItem(c, clientsById) {
         last_message_at: c.last_message_at,
         last_direction: c.last_direction,
         unread_count: c.unread_count,
+        // Maestro a cargo del chat y foto de perfil (el valor de avatar cambia cuando cambia la foto: sirve de versión de caché).
+        assigned_to: c.assigned_to ? { id: c.assigned_to, full_name: profilesById.get(c.assigned_to) || null, manual: !!c.assigned_manually } : null,
+        avatar: c.avatar_media_id || null,
     };
 }
+
+async function profilesMap(rows) {
+    const ids = [...new Set(rows.map((r) => r.assigned_to).filter(Boolean))];
+    if (!ids.length) return new Map();
+    const profiles = await prisma.profile.findMany({ where: { id: { in: ids } }, select: { id: true, full_name: true } });
+    return new Map(profiles.map((p) => [p.id, p.full_name]));
+}
+
+const MAX_FILE_B64 = 17 * 1024 * 1024; // 12 MB de archivo en base64 + margen
 
 async function clientsMap(rows) {
     const ids = [...new Set(rows.map((r) => r.client_id).filter(Boolean))];
@@ -81,11 +95,22 @@ export default async function inboxRoutes(fastify) {
         return Promise.all(rows.map((r) => toMessage(r, names, mimes)));
     }
 
-    // GET /api/inbox/conversations?q=&unread=1&limit=30&cursor=
-    fastify.get('/conversations', async (request) => {
+    // GET /api/inbox/conversations?q=&unread=1&owner=all|me|none|<profileId>&limit=30&cursor=
+    // owner: "me" = chats a cargo de quien consulta (un auxiliar ve los de su maestro); "none" = sin responsable;
+    // el id de un maestro solo lo puede pedir un dueño/administrador.
+    fastify.get('/conversations', async (request, reply) => {
         const { q, unread, cursor } = request.query;
         const limit = Math.min(Math.max(parseInt(request.query.limit, 10) || 30, 1), 100);
         const where = { hidden: false };
+        const actor = await loadActor(request);
+        await ensureFreshAssignments(request.workspace.id);
+        const owner = String(request.query.owner || 'all');
+        if (owner === 'me') where.assigned_to = { in: ownIdsOf(actor) };
+        else if (owner === 'none') where.assigned_to = null;
+        else if (UUID_RE.test(owner)) {
+            if (!isAdminRole(actor.role) && !ownIdsOf(actor).includes(owner)) return bad(reply, 403, 'Solo puedes ver tus chats o todos.');
+            where.assigned_to = owner;
+        }
         if (unread === '1' || unread === 'true') where.unread_count = { gt: 0 };
         if (cursor) {
             const d = new Date(String(cursor));
@@ -105,10 +130,33 @@ export default async function inboxRoutes(fastify) {
         const rows = await prisma.waConversation.findMany({
             where, orderBy: { last_message_at: { sort: 'desc', nulls: 'last' } }, take: limit,
         });
-        const clients = await clientsMap(rows);
-        const items = rows.map((r) => toConversationItem(r, clients));
+        const [clients, profiles] = await Promise.all([clientsMap(rows), profilesMap(rows)]);
+        const items = rows.map((r) => toConversationItem(r, clients, profiles));
+        queueAvatarRefresh(request.workspace.id, rows);
         const last = rows[rows.length - 1];
         return { items, next_cursor: rows.length === limit && last?.last_message_at ? new Date(last.last_message_at).toISOString() : null };
+    });
+
+    // GET /api/inbox/sections — secciones del CRM con contadores: Todos, Sin asignar y un maestro por sección.
+    // Un dueño/administrador ve a todos los maestros; los demás solo "Mis chats" (los suyos) y Todos.
+    fastify.get('/sections', async (request) => {
+        const actor = await loadActor(request);
+        await ensureFreshAssignments(request.workspace.id);
+        const s = await getSections(request.workspace.id);
+        const own = ownIdsOf(actor);
+        const mine = s.masters.filter((m) => own.includes(m.id)).reduce((a, m) => ({ total: a.total + m.total, unread: a.unread + m.unread }), { total: 0, unread: 0 });
+        const admin = isAdminRole(actor.role);
+        return {
+            me: { id: actor.id, role: actor.role },
+            own_ids: own,
+            can_assign: admin || actor.role === 'maestro',
+            all: s.all,
+            none: s.none,
+            mine,
+            masters: admin ? s.masters : s.masters.filter((m) => own.includes(m.id)),
+            // A quién se le puede pasar un chat (para el selector "Asignar a")
+            assignable: (admin || actor.role === 'maestro') ? s.masters.map((m) => ({ id: m.id, full_name: m.full_name })) : [],
+        };
     });
 
     // POST /api/inbox/sync — vuelve a importar el historial de chats del teléfono (corre en el bot, en segundo plano).
@@ -132,8 +180,9 @@ export default async function inboxRoutes(fastify) {
         const now = new Date();
         const where = Number.isNaN(since.getTime()) ? { hidden: false } : { updated_at: { gt: since } };
         const rows = await prisma.waConversation.findMany({ where, orderBy: { updated_at: 'desc' }, take: 100 });
-        const clients = await clientsMap(rows);
-        return { conversations: rows.filter((r) => !r.hidden).map((r) => toConversationItem(r, clients)), now: now.toISOString() };
+        const [clients, profiles] = await Promise.all([clientsMap(rows), profilesMap(rows)]);
+        queueAvatarRefresh(request.workspace.id, rows);
+        return { conversations: rows.filter((r) => !r.hidden).map((r) => toConversationItem(r, clients, profiles)), now: now.toISOString() };
     });
 
     // GET /api/inbox/conversations/:id — ficha de la conversación + cliente
@@ -170,7 +219,55 @@ export default async function inboxRoutes(fastify) {
                 };
             }
         }
-        return { id: conv.id, phone: isRealPhone(conv.phone) ? conv.phone : null, phone_known: isRealPhone(conv.phone), display_name: conv.display_name || client?.full_name || null, client };
+        const profiles = await profilesMap([conv]);
+        queueAvatarRefresh(request.workspace.id, [conv]);
+        return {
+            id: conv.id, phone: isRealPhone(conv.phone) ? conv.phone : null, phone_known: isRealPhone(conv.phone),
+            display_name: conv.display_name || client?.full_name || null, client,
+            assigned_to: conv.assigned_to ? { id: conv.assigned_to, full_name: profiles.get(conv.assigned_to) || null, manual: !!conv.assigned_manually } : null,
+            avatar: conv.avatar_media_id || null,
+        };
+    });
+
+    // POST /api/inbox/conversations/:id/assign { profile_id } — pasa el chat a otro maestro (o lo deja sin responsable).
+    // Con profile_id null el chat vuelve a asignarse solo según sus órdenes, citas y respuestas.
+    fastify.post('/conversations/:id/assign', async (request, reply) => {
+        const conv = await loadConversation(request.params.id);
+        if (!conv) return bad(reply, 404, 'Conversación no encontrada.');
+        const actor = await loadActor(request);
+        if (!isAdminRole(actor.role) && actor.role !== 'maestro') return bad(reply, 403, 'Solo un maestro o el administrador puede asignar chats.');
+        const target = request.body?.profile_id ?? null;
+        if (target !== null) {
+            if (!UUID_RE.test(String(target))) return bad(reply, 400, 'Maestro inválido.');
+            const members = await loadMembers(request.workspace.id);
+            if (!members.has(target)) return bad(reply, 404, 'Ese usuario no es parte del taller.');
+            await prisma.waConversation.update({ where: { id: conv.id }, data: { assigned_to: target, assigned_manually: true } });
+        } else {
+            await prisma.waConversation.update({ where: { id: conv.id }, data: { assigned_to: null, assigned_manually: false } });
+            await syncAssignments(request.workspace.id);
+        }
+        const fresh = await loadConversation(conv.id);
+        const profiles = await profilesMap([fresh]);
+        return { assigned_to: fresh.assigned_to ? { id: fresh.assigned_to, full_name: profiles.get(fresh.assigned_to) || null, manual: !!fresh.assigned_manually } : null };
+    });
+
+    // GET /api/inbox/conversations/:id/avatar — foto de perfil de WhatsApp (404 si no tiene o aún no se ha pedido).
+    fastify.get('/conversations/:id/avatar', async (request, reply) => {
+        const conv = await loadConversation(request.params.id);
+        if (!conv?.avatar_media_id) return bad(reply, 404, 'Sin foto de perfil.');
+        const media = await prisma.waMedia.findFirst({ where: { id: conv.avatar_media_id } });
+        if (!media) return bad(reply, 404, 'Sin foto de perfil.');
+        reply.header('content-type', media.mime).header('cache-control', 'private, max-age=3600');
+        return reply.send(Buffer.from(media.data));
+    });
+
+    // POST /api/inbox/conversations/:id/avatar/refresh — vuelve a pedir la foto de perfil ahora mismo.
+    fastify.post('/conversations/:id/avatar/refresh', async (request, reply) => {
+        const conv = await loadConversation(request.params.id);
+        if (!conv) return bad(reply, 404, 'Conversación no encontrada.');
+        const result = await refreshAvatar(request.workspace.id, conv.id);
+        const fresh = await loadConversation(conv.id);
+        return { result, avatar: fresh?.avatar_media_id || null };
     });
 
     // GET /api/inbox/conversations/:id/messages?before=<iso>&limit=40 (ascendente dentro de la página)
@@ -216,6 +313,7 @@ export default async function inboxRoutes(fastify) {
         // Se responde por el id REAL del chat (importa en chats @lid, donde no hay teléfono conocido).
         const r = await sendToClient(request.workspace.id, conv.phone, text, { origin: 'panel', sentBy: actor.id, chatId: conv.wa_chat_id || null });
         await prisma.waConversation.update({ where: { id: conv.id }, data: { unread_count: 0, hidden: false } });
+        await claimByReply(request.workspace.id, conv, actor);
         const row = r.id ? await prisma.waMessage.findFirst({ where: { id: r.id } }) : null;
         const [message] = row ? await toMessages([row]) : [null];
         if (!r.sent && !r.queued) return reply.status(502).send({ error: r.error || r.reason || 'No se pudo enviar el mensaje.', message });
@@ -282,9 +380,36 @@ export default async function inboxRoutes(fastify) {
         const seconds = Math.min(Math.max(Math.round(Number(request.body?.seconds) || 0), 0), 3600);
         const r = await sendVoiceToClient(request.workspace.id, conv, { base64: b64, mime: String(request.body?.mime || 'audio/webm').slice(0, 80), seconds }, { sentBy: actor.id });
         await prisma.waConversation.update({ where: { id: conv.id }, data: { unread_count: 0, hidden: false } });
+        await claimByReply(request.workspace.id, conv, actor);
         const row = r.id ? await prisma.waMessage.findFirst({ where: { id: r.id } }) : null;
         const [message] = row ? await toMessages([row]) : [null];
         if (!r.sent) return reply.status(502).send({ error: r.error || 'No se pudo enviar la nota de voz.', message });
+        reply.status(201);
+        return message;
+    });
+
+    // POST /api/inbox/conversations/:id/attachment { file_base64, mime, name, caption, as_document } — foto, video o documento
+    // desde el panel (con pie de foto opcional). Máximo 12 MB.
+    fastify.post('/conversations/:id/attachment', { bodyLimit: 20 * 1024 * 1024 }, async (request, reply) => {
+        const conv = await loadConversation(request.params.id);
+        if (!conv) return bad(reply, 404, 'Conversación no encontrada.');
+        const actor = await loadActor(request);
+        if (!actor.can_send_messages && !['owner', 'admin', 'maestro'].includes(actor.role)) return bad(reply, 403, 'No tienes permiso para enviar mensajes.');
+        const b64 = String(request.body?.file_base64 || '').replace(/^data:[^,]*,/, '');
+        if (!b64) return bad(reply, 400, 'No llegó el archivo.');
+        if (b64.length > MAX_FILE_B64 || Math.ceil(b64.length * 0.75) > MEDIA_MAX_BYTES) return bad(reply, 413, 'El archivo es demasiado grande (máximo 12 MB).');
+        const r = await sendFileToClient(request.workspace.id, conv, {
+            base64: b64,
+            mime: String(request.body?.mime || 'application/octet-stream').slice(0, 100),
+            name: String(request.body?.name || '').slice(0, 200),
+            caption: String(request.body?.caption || '').slice(0, 1000),
+            asDocument: request.body?.as_document === true,
+        }, { sentBy: actor.id });
+        await prisma.waConversation.update({ where: { id: conv.id }, data: { unread_count: 0, hidden: false } });
+        await claimByReply(request.workspace.id, conv, actor);
+        const row = r.id ? await prisma.waMessage.findFirst({ where: { id: r.id } }) : null;
+        const [message] = row ? await toMessages([row]) : [null];
+        if (!r.sent) return reply.status(502).send({ error: r.error || 'No se pudo enviar el archivo.', message });
         reply.status(201);
         return message;
     });

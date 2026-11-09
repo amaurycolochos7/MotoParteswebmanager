@@ -1283,6 +1283,12 @@ model WaConversation {
   last_direction       String?                         // in | out
   unread_count         Int       @default(0)
   hidden               Boolean   @default(false)
+  // Maestro (Profile.id) a cargo del chat: se deduce de sus órdenes/citas/mensajes o se asigna a mano (assigned_manually).
+  assigned_to          String?   @db.Uuid
+  assigned_manually    Boolean   @default(false)
+  // Foto de perfil de WhatsApp del contacto (copia en WaMedia). avatar_checked_at = última vez que se pidió al bot.
+  avatar_media_id      String?   @db.Uuid
+  avatar_checked_at    DateTime? @db.Timestamptz
   created_at           DateTime  @default(now()) @db.Timestamptz
   updated_at           DateTime  @default(now()) @updatedAt @db.Timestamptz
 
@@ -1291,6 +1297,7 @@ model WaConversation {
 
   @@unique([workspace_id, phone])
   @@index([workspace_id, last_message_at])
+  @@index([workspace_id, assigned_to])
   @@map("wa_conversations")
 }
 
