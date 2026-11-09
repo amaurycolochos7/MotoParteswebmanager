@@ -138,10 +138,35 @@ export async function downloadMediaFromStore(client, serializedId, { maxBytes = 
 /** ¿Este mime ya es una nota de voz de WhatsApp (ogg + opus)? */
 export const isOggOpus = (mime) => /ogg/i.test(String(mime || ''));
 
+/**
+ * Argumentos de ffmpeg para una nota de voz de WhatsApp: Ogg + Opus, UN canal y entrada a 16 kHz (como las que graba el propio
+ * WhatsApp). Con 48 kHz el mensaje llegaba al teléfono pero al tocarlo decía "este audio no está disponible porque algo falló
+ * con el archivo de audio": el rate de entrada que va en la cabecera OpusHead tiene que ser 16000.
+ */
+export const voiceFfmpegArgs = (inputPath, outputPath) => [
+    '-y', '-hide_banner', '-loglevel', 'error', '-i', inputPath, '-vn', '-map_metadata', '-1',
+    '-c:a', 'libopus', '-b:a', '24k', '-ar', '16000', '-ac', '1', '-application', 'voip', '-f', 'ogg', outputPath,
+];
+
+/**
+ * Revisa que el archivo convertido sea una nota de voz válida: Ogg, con cabecera Opus de 1 canal y rate de entrada 16000.
+ * Devuelve { ok, reason?, channels?, inputRate? } (puro, se prueba sin ffmpeg).
+ */
+export function checkVoiceOgg(buf) {
+    if (!buf || buf.length < 64 || buf.subarray(0, 4).toString('latin1') !== 'OggS') return { ok: false, reason: 'no es un archivo Ogg' };
+    const at = buf.indexOf('OpusHead');
+    if (at < 0 || at > 200 || buf.length < at + 16) return { ok: false, reason: 'no tiene cabecera Opus' };
+    const channels = buf[at + 9];
+    const inputRate = buf.readUInt32LE(at + 12);
+    if (channels !== 1) return { ok: false, reason: `tiene ${channels} canales (debe ser 1)`, channels, inputRate };
+    if (inputRate !== 16000) return { ok: false, reason: `rate de entrada ${inputRate} (debe ser 16000)`, channels, inputRate };
+    return { ok: true, channels, inputRate };
+}
+
 /** Ejecuta ffmpeg (entrada y salida por archivo temporal). Reemplazable en pruebas. */
 export async function runFfmpeg(inputPath, outputPath) {
     await new Promise((resolve, reject) => {
-        const p = spawn('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', '-i', inputPath, '-vn', '-c:a', 'libopus', '-b:a', '32k', '-ar', '48000', '-ac', '1', '-f', 'ogg', outputPath]);
+        const p = spawn('ffmpeg', voiceFfmpegArgs(inputPath, outputPath));
         let err = '';
         p.stderr.on('data', (d) => { err += d; });
         p.on('error', (e) => reject(new Error(`ffmpeg no está disponible: ${e.message}`)));

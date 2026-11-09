@@ -83,3 +83,45 @@ test('importHistory (almacén): arma el id, y pasa tipo, duración, nombre y mim
         assert.deepEqual(items.map((m) => m.body), ['[Nota de voz]', '[Sticker]', '[Documento] Cotización']);
     } finally { globalThis.fetch = original; }
 });
+
+// ── Notas de voz: formato que WhatsApp reproduce en el teléfono (Ogg/Opus, 1 canal, entrada a 16 kHz) ──
+import { voiceFfmpegArgs, checkVoiceOgg, runFfmpeg } from '../../whatsapp-bot/src/wa-media.js';
+import { spawnSync } from 'node:child_process';
+import fsSync from 'node:fs';
+import osSync from 'node:os';
+import pathSync from 'node:path';
+
+const fakeOgg = (channels, rate) => {
+    const head = Buffer.alloc(19); head.write('OpusHead', 0, 'latin1'); head[8] = 1; head[9] = channels; head.writeUInt32LE(rate, 12);
+    return Buffer.concat([Buffer.from('OggS\0\x02', 'latin1'), Buffer.alloc(22), head, Buffer.alloc(40)]);
+};
+
+test('voiceFfmpegArgs: mono, 16 kHz, libopus en contenedor ogg', () => {
+    const a = voiceFfmpegArgs('in.bin', 'out.ogg');
+    const val = (flag) => a[a.indexOf(flag) + 1];
+    assert.equal(val('-ar'), '16000');
+    assert.equal(val('-ac'), '1');
+    assert.equal(val('-c:a'), 'libopus');
+    assert.equal(val('-f'), 'ogg');
+    assert.equal(a.at(-1), 'out.ogg');
+});
+
+test('checkVoiceOgg: acepta 1 canal a 16 kHz y rechaza lo demás con el motivo', () => {
+    assert.deepEqual(checkVoiceOgg(fakeOgg(1, 16000)), { ok: true, channels: 1, inputRate: 16000 });
+    assert.match(checkVoiceOgg(fakeOgg(1, 48000)).reason, /48000/);
+    assert.match(checkVoiceOgg(fakeOgg(2, 16000)).reason, /2 canales/);
+    assert.match(checkVoiceOgg(Buffer.from('RIFF....WAVEfmt '.repeat(10))).reason, /Ogg/);
+    assert.match(checkVoiceOgg(null).reason, /Ogg/);
+});
+
+const ffmpegOk = spawnSync('ffmpeg', ['-version']).status === 0 || !!process.env.FFMPEG_TEST_BIN;
+test('convertToOggOpus con ffmpeg real: un webm/opus queda como nota de voz válida', { skip: !ffmpegOk && 'ffmpeg no está instalado' }, async () => {
+    const dir = fsSync.mkdtempSync(pathSync.join(osSync.tmpdir(), 'voice-test-'));
+    try {
+        const webm = pathSync.join(dir, 'in.webm');
+        const mk = spawnSync('ffmpeg', ['-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2', '-c:a', 'libopus', '-f', 'webm', webm]);
+        assert.equal(mk.status, 0);
+        const out = await convertToOggOpus(fsSync.readFileSync(webm), runFfmpeg);
+        assert.deepEqual(checkVoiceOgg(out), { ok: true, channels: 1, inputRate: 16000 });
+    } finally { fsSync.rmSync(dir, { recursive: true, force: true }); }
+});

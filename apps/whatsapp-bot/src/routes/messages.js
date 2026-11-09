@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { convertToOggOpus } from '../wa-media.js';
+import { convertToOggOpus, checkVoiceOgg } from '../wa-media.js';
 
 const router = Router();
 
@@ -104,7 +104,11 @@ router.post('/send-voice', async (req, res) => {
     const session = mechanicId ? sessionManager.getSession(mechanicId) : null;
     if (!session || !session.isConnected) return res.status(503).json({ error: 'Sesión de WhatsApp no disponible', fallback: true });
     try {
-        const ogg = await convertToOggOpus(Buffer.from(String(base64), 'base64'));
+        const input = Buffer.from(String(base64), 'base64');
+        const ogg = await convertToOggOpus(input);
+        const check = checkVoiceOgg(ogg);
+        console.log(`🎤 send-voice: entrada ${input.length} B -> ogg/opus ${ogg.length} B (${check.ok ? 'válido' : 'INVÁLIDO: ' + check.reason})`);
+        if (!check.ok) throw new Error(`La nota de voz no se pudo convertir bien (${check.reason}).`);
         const result = await session.sendVoice(chatId, ogg.toString('base64'));
         res.json({ ...result, converted: true });
     } catch (err) {
