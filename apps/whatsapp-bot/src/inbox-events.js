@@ -161,14 +161,33 @@ async function listChatsFromStore(client) {
     }));
 }
 
-/** Mensajes ya cargados de un chat, directo del almacén. */
-async function messagesFromStore(client, chatId, limit) {
+/**
+ * Mensajes de un chat directo del almacén. Con `deep` intenta antes cargar mensajes anteriores (equivale a hacer
+ * scroll hacia arriba en WhatsApp Web) hasta tener `limit`; si ese módulo no existe en la versión fija, sigue con lo ya cargado.
+ */
+let deepNote = null; // primer resultado/errores de la carga profunda, se registra una vez
+async function messagesFromStore(client, chatId, limit, deep = false) {
     if (!client?.pupPage?.evaluate) return [];
-    const rows = await withTimeout(client.pupPage.evaluate((id, n) => {
+    const res = await withTimeout(client.pupPage.evaluate(async (id, n, wantDeep) => {
         const wid = window.require('WAWebWidFactory').createWid(id);
         const chat = window.require('WAWebCollections').Chat.get(wid);
-        if (!chat) return [];
-        return chat.msgs.getModelsArray().slice(-n).map((m) => ({
+        if (!chat) return { msgs: [], deep: null };
+        let deepInfo = null;
+        if (wantDeep) {
+            try {
+                const mod = window.require('WAWebChatLoadMessages');
+                let rounds = 0;
+                while (chat.msgs.length < n && rounds < 8) {
+                    rounds += 1;
+                    const more = await mod.loadEarlierMsgs(chat);
+                    if (!more || !more.length) break;
+                }
+                deepInfo = 'rondas=' + rounds + ' total=' + chat.msgs.length;
+            } catch (e) {
+                deepInfo = 'ERR ' + String((e && e.message) || e).slice(0, 120);
+            }
+        }
+        const msgs = chat.msgs.getModelsArray().slice(-n).map((m) => ({
             sid: m.id && m.id._serialized,
             fromMe: !!(m.id ? m.id.fromMe : m.fromMe),
             type: m.type,
@@ -176,21 +195,27 @@ async function messagesFromStore(client, chatId, limit) {
             caption: typeof m.caption === 'string' ? m.caption : '',
             t: m.t,
         }));
-    }, chatId, limit), 30000, 'lectura de mensajes del almacén');
+        return { msgs, deep: deepInfo };
+    }, chatId, limit, deep), deep ? 45000 : 30000, 'lectura de mensajes del almacén');
+    const rows = Array.isArray(res) ? res : (res?.msgs || []);
+    if (!Array.isArray(res) && res?.deep && !deepNote) { deepNote = res.deep; console.log(`📥 [inbox] carga de mensajes anteriores (primer chat): ${res.deep}`); }
     return rows.map((m) => ({
         id: { _serialized: m.sid }, fromMe: m.fromMe, type: m.type, body: m.body, caption: m.caption, timestamp: m.t,
         from: m.fromMe ? 'yo@c.us' : chatId, to: m.fromMe ? chatId : 'yo@c.us',
     }));
 }
 
-async function messagesOf(client, chat, perChat) {
+let libErrorLogged = false;
+async function messagesOf(client, chat, perChat, deep = false) {
     const chatId = chat.id._serialized;
     try {
         const real = typeof chat.fetchMessages === 'function' ? chat : await client.getChatById(chatId);
         const msgs = await withTimeout(real.fetchMessages({ limit: perChat }), 30000, 'fetchMessages');
-        if (Array.isArray(msgs) && msgs.length) return msgs;
-    } catch { /* se intenta con el almacén */ }
-    return messagesFromStore(client, chatId, perChat);
+        if (Array.isArray(msgs) && msgs.length > 1) return msgs;
+    } catch (e) {
+        if (!libErrorLogged) { libErrorLogged = true; console.warn(`⚠️ [inbox] fetchMessages de la librería no sirve (${errText(e)}); se usa el almacén`); }
+    }
+    return messagesFromStore(client, chatId, perChat, deep);
 }
 
 export async function importHistory(client, sessionId, { maxChats = 200, perChat = 60, pauseMs = 200 } = {}) {
@@ -215,7 +240,7 @@ export async function importHistory(client, sessionId, { maxChats = 200, perChat
         let loggedChatError = false;
         for (const chat of list) {
             try {
-                const msgs = await messagesOf(client, chat, perChat);
+                const msgs = await messagesOf(client, chat, perChat, stats.chats < 120);
                 let name = chat.name || null;
                 let numberHint = chat._store?.phone || null;
                 if (typeof chat.getContact === 'function') {

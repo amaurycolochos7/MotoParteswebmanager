@@ -134,3 +134,27 @@ test('importHistory cae a getChats() si el almacén no está disponible', async 
         assert.equal(stats.chats, 1);
     } finally { cap.restore(); }
 });
+
+test('importHistory acepta la respuesta con carga de mensajes anteriores y pide deep en los primeros chats', async () => {
+    const cap = captureFetch();
+    try {
+        const deepFlags = [];
+        let call = 0;
+        const client = {
+            getChats: async () => { throw new Error('r'); },
+            getChatById: async () => { throw new Error('no disponible'); },
+            pupPage: {
+                evaluate: async (_fn, id, _n, deep) => {
+                    call += 1;
+                    if (call === 1) return [{ id: '5219613333333@c.us', server: 'c.us', user: '5219613333333', isGroup: false, name: 'Rosa', t: 9, phone: null }];
+                    deepFlags.push(deep);
+                    return { deep: 'rondas=2 total=30', msgs: Array.from({ length: 30 }, (_, i) => ({ sid: `d-${i}`, fromMe: i % 2 === 0, type: 'chat', body: `mensaje ${i}`, caption: '', t: 100 + i })) };
+                },
+            },
+        };
+        const stats = await importHistory(client, 'sesion-deep', { pauseMs: 0 });
+        assert.equal(stats.messages, 30);
+        assert.deepEqual(deepFlags, [true]); // el primer chat pide carga profunda
+        assert.equal(cap.sent[0].messages.length, 30);
+    } finally { cap.restore(); }
+});
