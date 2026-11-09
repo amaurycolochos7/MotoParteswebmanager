@@ -113,6 +113,12 @@ export function attachInboxListeners(client, sessionId) {
 // Al conectar (y cuando se pida a mano) se leen los chats recientes del teléfono para que "Conversaciones" muestre TODO,
 // no solo lo que llegue desde ahora. Solo texto y etiquetas de multimedia (no se descargan archivos históricos).
 // Nunca debe romper la sesión: cada paso va con tiempo límite y try/catch.
+//
+// Cómo se leen los chats (en este orden, porque `client.getChats()` falla con la versión fija de WhatsApp Web que usamos):
+//   1) directo del almacén interno de WhatsApp Web (`WAWebCollections`), el mismo camino que ya usa `recentMessages`;
+//   2) `client.getChats()` de la librería, como respaldo.
+// Y los mensajes de cada chat: primero `fetchMessages` de la librería (puede cargar más) y, si falla o viene vacío,
+// lo que ya está cargado en el almacén.
 const importing = new Set();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function withTimeout(promise, ms, what) {
@@ -122,6 +128,7 @@ function withTimeout(promise, ms, what) {
         new Promise((_, rej) => { t = setTimeout(() => rej(new Error(`${what} tardó más de ${Math.round(ms / 1000)} s`)), ms); }),
     ]).finally(() => clearTimeout(t));
 }
+const errText = (e) => `${e?.message || e}${e?.stack ? ' | ' + String(e.stack).split('\n').slice(1, 3).join(' ').trim().slice(0, 200) : ''}`;
 
 /** ¿Este chat entra al historial? (puro) Solo conversaciones 1 a 1: nada de grupos, estados, difusiones ni canales. */
 export function shouldImportChat(chat) {
@@ -132,25 +139,92 @@ export function shouldImportChat(chat) {
     return true;
 }
 
+/** Lista de chats directo del almacén de WhatsApp Web. Devuelve objetos con la forma mínima que usa la importación. */
+async function listChatsFromStore(client) {
+    if (!client?.pupPage?.evaluate) throw new Error('sin página de WhatsApp Web');
+    const rows = await withTimeout(client.pupPage.evaluate(() => {
+        const chats = window.require('WAWebCollections').Chat.getModelsArray();
+        return chats.map((c) => ({
+            id: c.id && c.id._serialized,
+            server: c.id && c.id.server,
+            user: c.id && c.id.user,
+            isGroup: !!c.isGroup,
+            name: c.name || c.formattedTitle || (c.contact && (c.contact.name || c.contact.pushname)) || null,
+            t: c.t || 0,
+            phone: (c.contact && c.contact.phoneNumber && c.contact.phoneNumber.user) || null,
+        })).filter((c) => c.id);
+    }), 60000, 'lectura del almacén de chats');
+    return rows.map((r) => ({
+        id: { _serialized: r.id, server: r.server, user: r.user },
+        isGroup: r.isGroup, name: r.name, timestamp: r.t,
+        _store: { phone: r.phone },
+    }));
+}
+
+/** Mensajes ya cargados de un chat, directo del almacén. */
+async function messagesFromStore(client, chatId, limit) {
+    if (!client?.pupPage?.evaluate) return [];
+    const rows = await withTimeout(client.pupPage.evaluate((id, n) => {
+        const wid = window.require('WAWebWidFactory').createWid(id);
+        const chat = window.require('WAWebCollections').Chat.get(wid);
+        if (!chat) return [];
+        return chat.msgs.getModelsArray().slice(-n).map((m) => ({
+            sid: m.id && m.id._serialized,
+            fromMe: !!(m.id ? m.id.fromMe : m.fromMe),
+            type: m.type,
+            body: typeof m.body === 'string' ? m.body : '',
+            caption: typeof m.caption === 'string' ? m.caption : '',
+            t: m.t,
+        }));
+    }, chatId, limit), 30000, 'lectura de mensajes del almacén');
+    return rows.map((m) => ({
+        id: { _serialized: m.sid }, fromMe: m.fromMe, type: m.type, body: m.body, caption: m.caption, timestamp: m.t,
+        from: m.fromMe ? 'yo@c.us' : chatId, to: m.fromMe ? chatId : 'yo@c.us',
+    }));
+}
+
+async function messagesOf(client, chat, perChat) {
+    const chatId = chat.id._serialized;
+    try {
+        const real = typeof chat.fetchMessages === 'function' ? chat : await client.getChatById(chatId);
+        const msgs = await withTimeout(real.fetchMessages({ limit: perChat }), 30000, 'fetchMessages');
+        if (Array.isArray(msgs) && msgs.length) return msgs;
+    } catch { /* se intenta con el almacén */ }
+    return messagesFromStore(client, chatId, perChat);
+}
+
 export async function importHistory(client, sessionId, { maxChats = 200, perChat = 60, pauseMs = 200 } = {}) {
     if (importing.has(sessionId)) return { running: true };
     importing.add(sessionId);
-    const stats = { chats: 0, messages: 0, errors: 0 };
+    const stats = { chats: 0, messages: 0, errors: 0, source: null };
     try {
         console.log(`📥 [inbox] importando historial de la sesión ${sessionId}…`);
-        const all = await withTimeout(client.getChats(), 120000, 'getChats');
+        let all;
+        try {
+            all = await listChatsFromStore(client);
+            stats.source = 'almacén';
+        } catch (e1) {
+            console.warn(`⚠️ [inbox] no se pudo leer el almacén de chats (${errText(e1)}); se intenta getChats()`);
+            all = await withTimeout(client.getChats(), 120000, 'getChats');
+            stats.source = 'getChats';
+        }
         const list = all.filter(shouldImportChat)
             .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
             .slice(0, maxChats);
+        console.log(`📥 [inbox] ${all.length} chats encontrados (${stats.source}); se importan ${list.length}`);
+        let loggedChatError = false;
         for (const chat of list) {
             try {
-                const msgs = await withTimeout(chat.fetchMessages({ limit: perChat }), 30000, 'fetchMessages');
-                let name = chat.name || null; let numberHint = null;
-                try {
-                    const c = await withTimeout(chat.getContact(), 10000, 'getContact');
-                    name = c?.pushname || c?.name || name;
-                    numberHint = c?.number || null;
-                } catch { /* sin datos del contacto: la API usa el id del chat */ }
+                const msgs = await messagesOf(client, chat, perChat);
+                let name = chat.name || null;
+                let numberHint = chat._store?.phone || null;
+                if (typeof chat.getContact === 'function') {
+                    try {
+                        const c = await withTimeout(chat.getContact(), 10000, 'getContact');
+                        name = c?.pushname || c?.name || name;
+                        numberHint = c?.number || numberHint;
+                    } catch { /* sin datos del contacto: la API usa el id del chat */ }
+                }
                 const items = (msgs || []).filter(shouldForward).map((m) => ({
                     direction: m.fromMe ? 'out' : 'in',
                     body: bodyOf(m),
@@ -165,14 +239,14 @@ export async function importHistory(client, sessionId, { maxChats = 200, perChat
                 stats.chats += 1;
             } catch (e) {
                 stats.errors += 1;
-                console.warn(`⚠️ [inbox] historial de un chat falló: ${e.message}`);
+                if (!loggedChatError) { loggedChatError = true; console.warn(`⚠️ [inbox] historial de un chat falló: ${errText(e)}`); }
             }
             await sleep(pauseMs);
         }
-        console.log(`✅ [inbox] historial importado: ${stats.chats} chats, ${stats.messages} mensajes, ${stats.errors} errores`);
+        console.log(`✅ [inbox] historial importado: ${stats.chats} chats, ${stats.messages} mensajes, ${stats.errors} errores (fuente: ${stats.source})`);
     } catch (e) {
         stats.errors += 1;
-        console.warn(`⚠️ [inbox] no se pudo importar el historial: ${e.message}`);
+        console.warn(`⚠️ [inbox] no se pudo importar el historial: ${errText(e)}`);
     } finally {
         importing.delete(sessionId);
     }
