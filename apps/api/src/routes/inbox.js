@@ -7,6 +7,7 @@ import { loadActor, requirePermission, isAdminRole } from '../lib/permissions.js
 import { sendToClient, sendVoiceToClient, sendFileToClient } from '../lib/wa-send.js';
 import { ensureFreshAssignments, syncAssignments, claimByReply, getSections, loadMembers, ownIdsOf } from '../lib/wa-assign.js';
 import { queueAvatarRefresh, refreshAvatar } from '../lib/wa-avatar.js';
+import { canRevokeForAll, deleteMessages } from '../lib/wa-delete.js';
 import { digits } from '../lib/phone.js';
 import { botCall, resolveSessionId } from '../lib/wa-session.js';
 import { isRealPhone, storeMedia, MEDIA_MAX_BYTES } from '../lib/wa-inbox.js';
@@ -61,7 +62,7 @@ export default async function inboxRoutes(fastify) {
         ? prisma.waConversation.findFirst({ where: { id } })
         : null);
 
-    async function toMessage(m, namesById, mimeById) {
+    async function toMessage(m, namesById, mimeById, actor) {
         const mime = m.media_id ? mimeById.get(m.media_id) : null;
         return {
             id: m.id,
@@ -76,12 +77,16 @@ export default async function inboxRoutes(fastify) {
                 }
                 : null,
             status: m.status,
+            // Eliminado para todos: el panel muestra "Eliminaste este mensaje" / "Se eliminó este mensaje"
+            revoked: !!m.revoked_at,
+            // ¿Puede quien consulta eliminarlo PARA TODOS? (el resto de los mensajes solo se pueden eliminar "para mí")
+            can_revoke: canRevokeForAll(m, actor),
             sent_by: m.sent_by ? { id: m.sent_by, full_name: namesById.get(m.sent_by) || null } : null,
             created_at: m.created_at,
         };
     }
 
-    async function toMessages(rows) {
+    async function toMessages(rows, actor) {
         const profileIds = [...new Set(rows.map((r) => r.sent_by).filter(Boolean))];
         const mediaIds = [...new Set(rows.map((r) => r.media_id).filter(Boolean))];
         const profiles = profileIds.length
@@ -92,7 +97,7 @@ export default async function inboxRoutes(fastify) {
             : [];
         const names = new Map(profiles.map((p) => [p.id, p.full_name]));
         const mimes = new Map(media.map((x) => [x.id, x.mime]));
-        return Promise.all(rows.map((r) => toMessage(r, names, mimes)));
+        return Promise.all(rows.map((r) => toMessage(r, names, mimes, actor)));
     }
 
     // GET /api/inbox/conversations?q=&unread=1&owner=all|me|none|<profileId>&limit=30&cursor=
@@ -275,14 +280,16 @@ export default async function inboxRoutes(fastify) {
         const conv = await loadConversation(request.params.id);
         if (!conv) return bad(reply, 404, 'Conversación no encontrada.');
         const limit = Math.min(Math.max(parseInt(request.query.limit, 10) || 40, 1), 100);
-        const where = { conversation_id: conv.id };
+        const actor = await loadActor(request);
+        // "Eliminar para mí": quien lo eliminó ya no lo ve
+        const where = { conversation_id: conv.id, NOT: { hidden_for: { has: actor.id } } };
         if (request.query.before) {
             const d = new Date(String(request.query.before));
             if (!Number.isNaN(d.getTime())) where.created_at = { lt: d };
         }
         const rows = await prisma.waMessage.findMany({ where, orderBy: { created_at: 'desc' }, take: limit });
         rows.reverse();
-        return { items: await toMessages(rows) };
+        return { items: await toMessages(rows, actor) };
     });
 
     // POST /api/inbox/conversations/:id/load-older — pide al bot cargar mensajes ANTERIORES de ese chat
@@ -315,7 +322,7 @@ export default async function inboxRoutes(fastify) {
         await prisma.waConversation.update({ where: { id: conv.id }, data: { unread_count: 0, hidden: false } });
         await claimByReply(request.workspace.id, conv, actor);
         const row = r.id ? await prisma.waMessage.findFirst({ where: { id: r.id } }) : null;
-        const [message] = row ? await toMessages([row]) : [null];
+        const [message] = row ? await toMessages([row], actor) : [null];
         if (!r.sent && !r.queued) return reply.status(502).send({ error: r.error || r.reason || 'No se pudo enviar el mensaje.', message });
         reply.status(201);
         return message;
@@ -335,6 +342,21 @@ export default async function inboxRoutes(fastify) {
         if (!conv) return bad(reply, 404, 'Conversación no encontrada.');
         await prisma.waConversation.update({ where: { id: conv.id }, data: { hidden: true, unread_count: 0 } });
         return { success: true };
+    });
+
+    // POST /api/inbox/messages/delete { ids:[...], scope:'me'|'everyone' } — eliminar mensajes como en WhatsApp.
+    //   'me'       solo deja de verse para quien lo pide (el resto del equipo lo sigue viendo);
+    //   'everyone' se revoca en WhatsApp (solo mensajes propios, máx. 2 días 12 h) y queda "Eliminaste este mensaje".
+    // Responde { scope, results:[{ id, ok, error? }] }: lo que no se puede eliminar trae su motivo y no frena al resto.
+    fastify.post('/messages/delete', async (request, reply) => {
+        const actor = await loadActor(request);
+        const scope = request.body?.scope === 'everyone' ? 'everyone' : 'me';
+        const ids = [...new Set((Array.isArray(request.body?.ids) ? request.body.ids : []).map(String))].filter((id) => UUID_RE.test(id));
+        if (!ids.length) return bad(reply, 400, 'No se eligió ningún mensaje.');
+        if (ids.length > 100) return bad(reply, 400, 'Elige máximo 100 mensajes a la vez.');
+        if (scope === 'everyone' && !actor.can_send_messages && !['owner', 'admin', 'maestro'].includes(actor.role)) return bad(reply, 403, 'No tienes permiso para eliminar mensajes para todos.');
+        const results = await deleteMessages(request.workspace.id, actor, ids, scope);
+        return { scope, results };
     });
 
     // GET /api/inbox/messages/:id/media — el archivo de un mensaje (audio, sticker, imagen, video, documento).
@@ -382,7 +404,7 @@ export default async function inboxRoutes(fastify) {
         await prisma.waConversation.update({ where: { id: conv.id }, data: { unread_count: 0, hidden: false } });
         await claimByReply(request.workspace.id, conv, actor);
         const row = r.id ? await prisma.waMessage.findFirst({ where: { id: r.id } }) : null;
-        const [message] = row ? await toMessages([row]) : [null];
+        const [message] = row ? await toMessages([row], actor) : [null];
         if (!r.sent) return reply.status(502).send({ error: r.error || 'No se pudo enviar la nota de voz.', message });
         reply.status(201);
         return message;
@@ -408,7 +430,7 @@ export default async function inboxRoutes(fastify) {
         await prisma.waConversation.update({ where: { id: conv.id }, data: { unread_count: 0, hidden: false } });
         await claimByReply(request.workspace.id, conv, actor);
         const row = r.id ? await prisma.waMessage.findFirst({ where: { id: r.id } }) : null;
-        const [message] = row ? await toMessages([row]) : [null];
+        const [message] = row ? await toMessages([row], actor) : [null];
         if (!r.sent) return reply.status(502).send({ error: r.error || 'No se pudo enviar el archivo.', message });
         reply.status(201);
         return message;

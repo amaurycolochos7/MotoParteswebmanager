@@ -7,6 +7,7 @@ import {
     claimHistoryOutbound, purgeUntaggedHistory, statusFromAck, betterStatus,
 } from '../lib/wa-inbox.js';
 import prisma from '../lib/prisma.js';
+import { applyRemoteRevoke } from '../lib/wa-delete.js';
 
 const safeEqual = (a, b) => {
     const x = Buffer.from(String(a || '')); const y = Buffer.from(String(b || ''));
@@ -26,6 +27,11 @@ export async function handleBotEvent(ev) {
         return { ok: true };
     }
     if (ev.type === 'history') return handleHistoryEvent(workspaceId, ev);
+    if (ev.type === 'revoke') {
+        // El contacto (o el teléfono) eliminó un mensaje para todos
+        const hit = await applyRemoteRevoke(workspaceId, [ev.wa_message_id, ...(Array.isArray(ev.alt_ids) ? ev.alt_ids : [])]);
+        return { ok: true, revoked: !!hit };
+    }
     if (ev.type !== 'message') return { ok: true, ignored: true };
 
     const direction = ev.direction === 'out' ? 'out' : 'in';

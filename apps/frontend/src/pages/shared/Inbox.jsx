@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import {
   Search, ArrowLeft, Send, EyeOff, UserRound, Bike, ClipboardList, CalendarClock, Plus, Printer,
-  Check, CheckCheck, Clock, AlertCircle, MessageSquare, Bot, Smartphone, ImageOff, PanelRight, Loader2, RefreshCw, History, Mic, Trash2, UserCheck,
+  Check, CheckCheck, Clock, AlertCircle, MessageSquare, Bot, Smartphone, ImageOff, PanelRight, Loader2, RefreshCw, History, Mic, Trash2, UserCheck, ChevronDown, Ban, X,
 } from 'lucide-react';
 import { inboxService, printService } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
@@ -11,6 +11,7 @@ import { Chip, Drawer, Segmented, Skeleton, fmtWhen } from '../../components/ui/
 import { MessageMedia, captionOf, useVoiceRecorder, MAX_SECONDS } from './InboxMedia';
 import { ChatAvatar, SectionTabs, inSection, firstName } from './InboxParts';
 import WaText from './WaText';
+import { MessageMenu, DeleteDialog } from './InboxDelete';
 import { plainWa } from './waFormat';
 import { AttachButton, AttachPreview, prepareAttachment, attachmentKind, ATTACH_LABELS } from './InboxAttach';
 import './Inbox.css';
@@ -60,21 +61,56 @@ function MediaImage({ media }) {
   return <a href={url} target="_blank" rel="noreferrer"><img className="ib-media" src={url} alt="Imagen del chat" /></a>;
 }
 
-function Bubble({ m }) {
+function Bubble({ m, selectMode, selected, menuOpen, onToggle, onMenu, onCloseMenu, onAction }) {
   const out = m.direction === 'out';
   const origin = m.origin;
   const isSticker = m.media?.type === 'sticker';
   const text = captionOf(m);
+  const pending = String(m.id).startsWith('tmp-');
+  const press = useRef(null);
+  // En el celular, mantener presionado un mensaje empieza la selección (como en WhatsApp)
+  const startPress = () => { if (pending || selectMode) return; press.current = setTimeout(() => onAction('select', m), 520); };
+  const endPress = () => clearTimeout(press.current);
+  const time = new Date(m.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  const rowProps = {
+    className: `ib-msg ${out ? 'is-out' : 'is-in'} ib-msg--${origin}${isSticker ? ' ib-msg--sticker' : ''}${selectMode ? ' is-selectable' : ''}${selected ? ' is-selected' : ''}`,
+    onClick: () => { if (selectMode && !pending) onToggle(m); },
+    onContextMenu: (e) => { if (!pending && !selectMode) { e.preventDefault(); onMenu(m.id); } },
+    onTouchStart: startPress, onTouchEnd: endPress, onTouchMove: endPress, onTouchCancel: endPress,
+    ...(selectMode ? { role: 'checkbox', 'aria-checked': !!selected, tabIndex: 0, onKeyDown: (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!pending) onToggle(m); } } } : {}),
+  };
+  const chevron = !pending && !selectMode && (
+    <>
+      <button type="button" className="ib-chev" onClick={(e) => { e.stopPropagation(); onMenu(m.id); }} aria-label="Opciones del mensaje" aria-haspopup="menu" aria-expanded={menuOpen}><ChevronDown size={17} /></button>
+      {menuOpen && <MessageMenu m={m} hasText={!!text && !m.revoked} onAction={onAction} onClose={onCloseMenu} />}
+    </>
+  );
+  const check = selectMode && <span className={`ib-check${selected ? ' is-on' : ''}`} aria-hidden="true">{selected ? '✓' : ''}</span>;
+  // Eliminado para todos: queda el aviso, como en WhatsApp
+  if (m.revoked) {
+    return (
+      <div {...rowProps}>
+        {check}
+        <div className="ib-bubble ib-bubble--revoked">
+          {chevron}
+          <span className="ib-revoked"><Ban size={14} /> {out ? 'Eliminaste este mensaje' : 'Se eliminó este mensaje'}</span>
+          <span className="ib-meta">{time}</span>
+        </div>
+      </div>
+    );
+  }
   return (
-    <div className={`ib-msg ${out ? 'is-out' : 'is-in'} ib-msg--${origin}${isSticker ? ' ib-msg--sticker' : ''}`}>
+    <div {...rowProps}>
+      {check}
       <div className="ib-bubble">
+        {chevron}
         {out && origin === 'auto' && <span className="ib-tag"><Bot size={11} /> Mensaje automático</span>}
         {out && origin === 'phone' && <span className="ib-tag"><Smartphone size={11} /> Desde el teléfono</span>}
         {out && origin === 'panel' && m.sent_by?.full_name && <span className="ib-tag">{m.sent_by.full_name.split(' ')[0]}</span>}
         {m.media && <MessageMedia m={m} />}
         {text && <WaText text={text} />}
         <span className="ib-meta">
-          {new Date(m.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+          {time}
           {out && <Ticks status={m.status} />}
         </span>
       </div>
@@ -99,6 +135,11 @@ function InboxView() {
   const sectionTouched = useRef(!!params.get('s'));
   const [attach, setAttach] = useState(null); // { file, asDocument } esperando confirmar el envío
   const [attachBusy, setAttachBusy] = useState(false);
+  const [selecting, setSelecting] = useState(false);    // modo selección de mensajes
+  const [selected, setSelected] = useState(() => new Set());
+  const [menuId, setMenuId] = useState(null);           // mensaje con el menú abierto
+  const [del, setDel] = useState(null);                 // { ids } esperando confirmar la eliminación
+  const [delBusy, setDelBusy] = useState(false);
   const [activeId, setActiveId] = useState(params.get('c') || null);
   const [info, setInfo] = useState(null); // ficha de la conversación abierta
   const [msgs, setMsgs] = useState([]);
@@ -195,6 +236,7 @@ function InboxView() {
     setParams((p) => { const n = new URLSearchParams(p); n.set('c', id); return n; }, { replace: true });
     setMsgs([]);
     setInfo(null);
+    setSelecting(false); setSelected(new Set()); setMenuId(null); setDel(null);
     setOlder({ loading: false, none: false, note: '' });
     stickRef.current = true;
     loadMsgs(id);
@@ -206,7 +248,7 @@ function InboxView() {
   }, []);
 
   const closeChat = () => {
-    setActiveId(null); setInfo(null); setMsgs([]);
+    setActiveId(null); setInfo(null); setMsgs([]); setSelecting(false); setSelected(new Set()); setMenuId(null); setDel(null);
     setParams((p) => { const n = new URLSearchParams(p); n.delete('c'); return n; }, { replace: true });
   };
 
@@ -331,6 +373,45 @@ function InboxView() {
     if (!f || !activeId) return;
     e.preventDefault();
     pickFile(f, false);
+  };
+
+  /* Eliminar mensajes (menú del mensaje, selección múltiple y cuadro de confirmación) */
+  const exitSelect = () => { setSelecting(false); setSelected(new Set()); };
+  useEffect(() => {
+    if (!selecting) return undefined;
+    const esc = (e) => { if (e.key === 'Escape' && !del) { setSelecting(false); setSelected(new Set()); } };
+    document.addEventListener('keydown', esc);
+    return () => document.removeEventListener('keydown', esc);
+  }, [selecting, del]);
+  const toggleSel = (m) => setSelected((prev) => { const n = new Set(prev); if (n.has(m.id)) n.delete(m.id); else n.add(m.id); return n; });
+  const closeMenu = useCallback(() => setMenuId(null), []);
+  const onMsgAction = (kind, m) => {
+    setMenuId(null);
+    if (kind === 'copy') {
+      navigator.clipboard?.writeText(captionOf(m)).then(() => toast.success('Mensaje copiado')).catch(() => toast.error('No se pudo copiar'));
+    } else if (kind === 'select') { setSelecting(true); setSelected(new Set([m.id])); }
+    else if (kind === 'delete') setDel({ ids: [m.id] });
+  };
+  const doDelete = async (scope) => {
+    if (!del || delBusy) return;
+    setDelBusy(true);
+    // Los que aún no se guardaron en el servidor (en envío) solo se quitan de la pantalla
+    const local = del.ids.filter((id) => String(id).startsWith('tmp-'));
+    const remote = del.ids.filter((id) => !String(id).startsWith('tmp-'));
+    try {
+      const r = remote.length ? await inboxService.deleteMessages(remote, scope) : { results: [] };
+      const okIds = r.results.filter((x) => x.ok).map((x) => x.id);
+      const bad = r.results.filter((x) => !x.ok);
+      setMsgs((prev) => prev
+        .filter((x) => !local.includes(x.id) && !(scope === 'me' && okIds.includes(x.id)))
+        .map((x) => (scope === 'everyone' && okIds.includes(x.id) ? { ...x, revoked: true, body: '', media: null, can_revoke: false } : x)));
+      if (bad.length) toast.error(bad[0].error + (bad.length > 1 ? ` (y ${bad.length - 1} más no se pudieron eliminar)` : ''));
+      else toast.success(del.ids.length === 1 ? 'Mensaje eliminado' : `${del.ids.length} mensajes eliminados`);
+      setDel(null);
+      if (bad.length) setSelected(new Set(bad.map((x) => x.id))); else exitSelect();
+      loadList(); // la vista previa de la lista puede haber cambiado
+    } catch (e) { toast.error(e.message || 'No se pudo eliminar'); }
+    finally { setDelBusy(false); }
   };
 
   /* Pasar el chat a otro maestro (o dejar que se asigne solo) */
@@ -549,7 +630,7 @@ function InboxView() {
               <span className="ib-item__main">
                 <span className="ib-item__top"><strong>{nameOf(c)}</strong><time>{fmtWhen(c.last_message_at)}</time></span>
                 <span className="ib-item__bot">
-                  <span className="ib-item__prev">{c.last_direction === 'out' ? 'Tú: ' : ''}{cleanPreview(c.last_message_preview) || 'Archivo'}</span>
+                  <span className="ib-item__prev">{c.last_direction === 'out' && !/^(Eliminaste|Se eliminó) este mensaje/.test(c.last_message_preview || '') ? 'Tú: ' : ''}{cleanPreview(c.last_message_preview) || 'Archivo'}</span>
                   {c.assigned_to && section !== c.assigned_to.id && section !== 'me' && <span className="ib-owner" title={`Atiende ${c.assigned_to.full_name || ''}`}>{firstName(c.assigned_to.full_name)}</span>}
                   {c.unread_count > 0 && <span className="ib-badge">{c.unread_count > 99 ? '99+' : c.unread_count}</span>}
                 </span>
@@ -569,6 +650,13 @@ function InboxView() {
           </div>
         ) : (
           <>
+            {selecting ? (
+              <header className="ib-chat__head ib-chat__head--select">
+                <button type="button" className="ib-iconbtn" onClick={exitSelect} aria-label="Cancelar selección"><X size={19} /></button>
+                <strong className="ib-selcount" aria-live="polite">{selected.size} seleccionado{selected.size === 1 ? '' : 's'}</strong>
+                <button type="button" className="ib-iconbtn ib-trash" onClick={() => setDel({ ids: [...selected] })} disabled={!selected.size} aria-label="Eliminar mensajes seleccionados"><Trash2 size={19} /></button>
+              </header>
+            ) : (
             <header className="ib-chat__head">
               <button type="button" className="ib-back" onClick={closeChat} aria-label="Volver a la lista"><ArrowLeft size={20} /></button>
               <ChatAvatar conv={active} name={nameOf(active)} size="md" />
@@ -587,6 +675,7 @@ function InboxView() {
               ) : active.assigned_to && <span className="ib-owner ib-owner--head"><UserCheck size={13} /> {firstName(active.assigned_to.full_name)}</span>}
               <button type="button" className="ib-iconbtn ib-cardbtn" onClick={() => setShowCard(true)} aria-label="Ver ficha del cliente"><PanelRight size={18} /></button>
             </header>
+            )}
 
             <div className="ib-chat__scroll" ref={scrollerRef} onScroll={onScroll}>
               {msgState === 'loading' && <div className="ib-chat__load"><Loader2 size={20} className="ib-spin" /> Cargando mensajes…</div>}
@@ -605,7 +694,8 @@ function InboxView() {
               )}
               {grouped.map((g) => (g.sep
                 ? <div key={g.key} className="ib-sep"><span>{g.sep}</span></div>
-                : <Bubble key={g.id} m={g} />))}
+                : <Bubble key={g.id} m={g} selectMode={selecting} selected={selected.has(g.id)} menuOpen={menuId === g.id}
+                    onToggle={toggleSel} onMenu={(id) => setMenuId((cur) => (cur === id ? null : id))} onCloseMenu={closeMenu} onAction={onMsgAction} />))}
               <div ref={endRef} />
             </div>
 
@@ -641,6 +731,15 @@ function InboxView() {
         )}
       </section>
 
+      {del && (
+        <DeleteDialog
+          count={del.ids.length}
+          canEveryone={del.ids.every((id) => msgs.find((x) => x.id === id)?.can_revoke === true)}
+          busy={delBusy}
+          onCancel={() => setDel(null)}
+          onDelete={doDelete}
+        />
+      )}
       {attach && <AttachPreview file={attach.file} asDocument={attach.asDocument} url={attach.url} who={nameOf(active)} busy={attachBusy} onCancel={closeAttach} onSend={sendAttach} />}
 
       {/* ------------------- Ficha ------------------- */}

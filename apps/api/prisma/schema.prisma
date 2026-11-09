@@ -1318,6 +1318,11 @@ model WaMessage {
   status          String   @default("sent")            // queued | sent | delivered | read | failed
   sent_by         String?  @db.Uuid                    // Profile que escribió desde el panel
   error           String?
+  // Eliminar para todos (revocado en WhatsApp): el contenido se borra y queda la marca. revoked_by null = lo borró el contacto o el teléfono.
+  revoked_at      DateTime? @db.Timestamptz
+  revoked_by      String?  @db.Uuid
+  // "Eliminar para mí": Profile.id de quienes ya no ven este mensaje en el panel
+  hidden_for      String[] @db.Uuid @default([])
   created_at      DateTime @default(now()) @db.Timestamptz
 
   workspace    Workspace      @relation(fields: [workspace_id], references: [id], onDelete: Cascade)

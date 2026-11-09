@@ -316,3 +316,51 @@
 .ib-tick--sent, .ib-tick--delivered { color: #667781; }
 .ib-tick--read { color: #34b7f1; }
 .ib-tick--fail { color: #ea0038; }
+
+/* =====================================================================
+   Eliminar mensajes: flechita y menú, selección múltiple, mensaje eliminado y cuadro de confirmación
+   ===================================================================== */
+.ib-bubble { position: relative; }
+.ib-chev { position: absolute; top: 3px; right: 3px; z-index: 2; width: 26px; height: 22px; border: 0; border-radius: 11px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: #54656f; cursor: pointer; opacity: 0; background: linear-gradient(to left, #ffffff 60%, rgba(255, 255, 255, 0)); transition: opacity .12s; }
+.is-out .ib-chev { background: linear-gradient(to left, #d9fdd3 60%, rgba(217, 253, 211, 0)); }
+.ib-msg:hover .ib-chev, .ib-chev:focus-visible, .ib-chev[aria-expanded="true"] { opacity: 1; }
+.ib-chev:focus-visible { outline: 2px solid #00a884; outline-offset: 1px; }
+@media (hover: none) { .ib-chev { display: none; } }
+.ib-msg--sticker .ib-chev { display: none; }
+
+.ib-menu { position: absolute; top: 26px; right: 4px; z-index: 30; min-width: 176px; padding: 6px; border-radius: 12px; background: #ffffff; box-shadow: 0 6px 24px rgba(11, 20, 26, 0.24); display: flex; flex-direction: column; gap: 1px; }
+.ib-menu button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 40px; padding: 6px 12px; border: 0; border-radius: 8px; background: transparent; color: #111b21; font: 500 14.5px/1 var(--font-sans); text-align: left; cursor: pointer; }
+.ib-menu button:hover, .ib-menu button:focus-visible { background: #f0f2f5; outline: none; }
+.ib-menu button.is-danger { color: #c4132b; }
+
+/* Mensaje eliminado para todos */
+.ib-bubble--revoked { padding-right: 12px; }
+.ib-revoked { display: inline-flex; align-items: center; gap: 6px; color: #667781; font-style: italic; font-size: 14px; }
+.ib-bubble--revoked .ib-meta { margin-top: 2px; }
+
+/* Selección múltiple */
+.ib-msg.is-selectable { cursor: pointer; position: relative; padding-left: 38px; border-radius: 6px; }
+.ib-msg.is-selected { background: rgba(0, 168, 132, 0.16); }
+.ib-msg.is-selectable:focus-visible { outline: 2px solid #00a884; outline-offset: -2px; }
+.ib-check { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; border-radius: 50%; border: 2px solid #8696a0; background: #ffffff; color: #ffffff; font-size: 13px; font-weight: 700; line-height: 16px; text-align: center; }
+.ib-check.is-on { background: #00a884; border-color: #00a884; }
+.ib-chat__head--select { background: #ffffff; gap: 12px; }
+.ib-selcount { flex: 1; font-size: 16px; font-weight: 600; color: #111b21; }
+.ib-trash { color: #c4132b; }
+.ib-trash:disabled { color: #aab4ba; cursor: default; }
+
+/* Cuadro "¿Eliminar mensaje?" */
+.ib-modal--center { padding: 16px; align-items: center; justify-content: center; }
+.ib-del { width: min(420px, 100%); background: #ffffff; border-radius: 16px; padding: 24px 24px 16px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35); color: #111b21; }
+.ib-del h3 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
+.ib-del p { margin: 0; font-size: 14px; line-height: 20px; color: #54656f; }
+.ib-del__btns { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; margin-top: 18px; }
+.ib-del__btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 20px; border-radius: 999px; border: 1px solid #d1d7db; background: #ffffff; color: #008069; font: 600 14px/1 var(--font-sans); cursor: pointer; }
+.ib-del__btn:hover:not(:disabled) { background: #f0f2f5; }
+.ib-del__btn:focus-visible { outline: 2px solid #00a884; outline-offset: 2px; }
+.ib-del__btn:disabled { opacity: 0.6; cursor: default; }
+.ib-del__btn--ghost { border-color: transparent; color: #54656f; }
+@media (max-width: 820px) {
+  .ib-modal--center { padding: 16px; align-items: center; }
+  .ib-del__btns { align-items: stretch; }
+}

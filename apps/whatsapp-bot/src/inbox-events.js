@@ -100,6 +100,40 @@ export async function fetchMedia(client, waMessageId) {
     return downloadMediaFromStore(client, waMessageId, { maxBytes: MAX_MEDIA_BYTES });
 }
 
+/**
+ * Elimina un mensaje en WhatsApp por su id completo. `everyone` = "para todos" (solo propios y dentro del tiempo que permite WhatsApp);
+ * si no, solo se quita de este dispositivo. Misma llamada interna que usa Message.delete() de la librería.
+ * @returns {{ ok?: true, error?: 'no_encontrado'|'no_permitido'|'fallo', detail?: string }}
+ */
+export async function deleteMessage(client, waMessageId, { everyone = true } = {}) {
+    if (!waMessageId) return { error: 'no_encontrado' };
+    if (!client?.pupPage?.evaluate) return { error: 'fallo', detail: 'sin página de WhatsApp Web' };
+    return withTimeout(client.pupPage.evaluate(async (msgId, all) => {
+        try {
+            const C = window.require('WAWebCollections');
+            const msg = C.Msg.get(msgId) || (await C.Msg.getMessagesById([msgId]))?.messages?.[0];
+            if (!msg) return { error: 'no_encontrado' };
+            const chat = C.Chat.get(msg.id.remote) || (await C.Chat.find(msg.id.remote));
+            if (!chat) return { error: 'no_encontrado' };
+            const cap = window.require('WAWebMsgActionCapability');
+            const canRevoke = cap.canSenderRevokeMsg(msg) || cap.canAdminRevokeMsg(msg);
+            if (all && !canRevoke) return { error: 'no_permitido' };
+            const { Cmd } = window.require('WAWebCmd');
+            const modern = window.WWebJS.compareWwebVersions(window.Debug.VERSION, '>=', '2.3000.0');
+            if (all) {
+                await (modern
+                    ? Cmd.sendRevokeMsgs(chat, { list: [msg], type: 'message' }, { clearMedia: true })
+                    : Cmd.sendRevokeMsgs(chat, [msg], { clearMedia: true, type: msg.id.fromMe ? 'Sender' : 'Admin' }));
+            } else {
+                await (modern ? Cmd.sendDeleteMsgs(chat, { list: [msg], type: 'message' }, true) : Cmd.sendDeleteMsgs(chat, [msg], true));
+            }
+            return { ok: true };
+        } catch (e) {
+            return { error: 'fallo', detail: String((e && e.message) || e).slice(0, 200) };
+        }
+    }, waMessageId, !!everyone), 40000, 'eliminar mensaje');
+}
+
 /** Engancha los eventos a un cliente de whatsapp-web.js. */
 export function attachInboxListeners(client, sessionId) {
     // Al quedar lista la sesion, se importa el historial reciente (con una pausa para no competir con el arranque).
@@ -112,6 +146,14 @@ export function attachInboxListeners(client, sessionId) {
     client.on('message_create', (msg) => {
         if (!msg.fromMe) return;
         forward(client, sessionId, msg, 'out').catch((e) => console.warn(`⚠️ [inbox] mensaje saliente: ${e.message}`));
+    });
+    // Alguien eliminó un mensaje para todos (el contacto, o nosotros desde el teléfono): el panel lo muestra como eliminado.
+    client.on('message_revoke_everyone', (after, before) => {
+        try {
+            const ids = [msgSerializedId(before), msgSerializedId(after), after?.protocolMessageKey ? msgSerializedId({ id: after.protocolMessageKey }) : null].filter(Boolean);
+            if (!ids.length) return;
+            post({ type: 'revoke', sessionId, wa_message_id: ids[0], alt_ids: ids.slice(1) }).catch(() => {});
+        } catch (e) { console.warn(`⚠️ [inbox] mensaje eliminado: ${e.message}`); }
     });
     client.on('message_ack', (msg, ack) => {
         const waId = msgSerializedId(msg);

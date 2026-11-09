@@ -1532,6 +1532,8 @@ export const inboxService = {
     markRead(id) { return apiFetch(`/inbox/conversations/${id}/read`, { method: 'POST' }); },
     // Secciones del CRM (Todos, Mis chats, Sin asignar y un maestro por sección) con sus contadores.
     sections() { return apiFetch('/inbox/sections'); },
+    // Eliminar mensajes: scope 'me' (solo para quien lo pide) o 'everyone' (se revoca en WhatsApp). Devuelve { results:[{ id, ok, error? }] }.
+    deleteMessages(ids, scope) { return apiFetch('/inbox/messages/delete', { method: 'POST', body: jbody({ ids, scope }) }); },
     // Pasa el chat a un maestro (profileId) o, con null, deja que se asigne solo.
     assign(id, profileId) { return apiFetch(`/inbox/conversations/${id}/assign`, { method: 'POST', body: jbody({ profile_id: profileId }) }); },
     // Foto, video o documento (base64) con pie de foto opcional.

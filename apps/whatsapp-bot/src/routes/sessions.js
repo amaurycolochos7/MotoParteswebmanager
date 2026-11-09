@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import QRCode from 'qrcode';
-import { importHistory, importChatHistory, fetchMedia } from '../inbox-events.js';
+import { importHistory, importChatHistory, fetchMedia, deleteMessage } from '../inbox-events.js';
 
 const router = Router();
 
@@ -113,6 +113,23 @@ router.post('/:mechanicId/fetch-media', async (req, res) => {
         res.json(r || { error: 'sin_respuesta' });
     } catch (err) {
         console.warn('⚠️ [inbox] fetch-media:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/sessions/:mechanicId/delete-message { waMessageId, everyone } — elimina un mensaje (para todos o solo en este dispositivo).
+router.post('/:mechanicId/delete-message', async (req, res) => {
+    const sessionManager = req.app.get('sessionManager');
+    const session = sessionManager.getSession(req.params.mechanicId);
+    if (!session || !session.isConnected || !session.client) {
+        return res.status(503).json({ error: 'Sesión de WhatsApp no disponible' });
+    }
+    try {
+        const r = await deleteMessage(session.client, req.body?.waMessageId, { everyone: req.body?.everyone !== false });
+        console.log(`🗑️ [inbox] eliminar ${req.body?.everyone === false ? 'para mí' : 'para todos'} ${req.body?.waMessageId}: ${r.ok ? 'ok' : (r.error + (r.detail ? ' ' + r.detail : ''))}`);
+        res.json(r);
+    } catch (err) {
+        console.warn('⚠️ [inbox] delete-message:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
