@@ -412,31 +412,52 @@ input, select, textarea, button { font-family: var(--font-sans); }
   .app-layout .sidebar { transition: none; }
 }
 
-/* Panel de avisos de la campanita */
+/* Panel de avisos de la campanita.
+   Escritorio: anclado bajo la campanita, con flechita. Celular: ocupa el ancho de la pantalla con márgenes parejos
+   (antes medía 340 px anclado al borde derecho de la campanita y se salía por la izquierda). */
 .bell-pop {
-  position: absolute; top: calc(100% + 8px); right: 0;
-  width: min(340px, calc(100vw - 24px));
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card);
-  box-shadow: var(--sh-2); z-index: 60; overflow: hidden;
+  position: absolute; top: calc(100% + 10px); right: -6px;
+  width: 360px; max-width: calc(100vw - 24px);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.16), 0 2px 6px rgba(16, 24, 40, 0.06);
+  z-index: 60; transform-origin: top right;
+  animation: bell-pop-in 140ms ease-out;
 }
-.bell-pop__head { padding: 12px 14px; border-bottom: 1px solid var(--line-soft); font-size: 14px; font-weight: 600; }
+.bell-pop::before {
+  content: ''; position: absolute; top: -6px; right: 17px; width: 12px; height: 12px;
+  background: var(--surface); border-left: 1px solid var(--line); border-top: 1px solid var(--line);
+  transform: rotate(45deg); border-top-left-radius: 3px;
+}
+@keyframes bell-pop-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .bell-pop { animation: none; } }
+@media (max-width: 640px) {
+  .bell-pop { position: fixed; top: calc(var(--topbar-h, 56px) + 8px); left: 12px; right: 12px; width: auto; max-width: none; }
+  .bell-pop::before { display: none; }
+}
+.bell-pop__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px 12px; border-bottom: 1px solid var(--line-soft); }
+.bell-pop__head strong { font-size: 15px; font-weight: 700; color: var(--text); }
+.bell-pop__count { min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: var(--brand-50); color: var(--brand); font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
 .bell-pop__item {
-  display: flex; align-items: center; gap: 12px; width: 100%;
-  padding: 12px 14px; border: none; background: transparent; text-align: left; cursor: pointer;
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px;
+  padding: 12px 16px; border: none; background: transparent; text-align: left; cursor: pointer;
   border-bottom: 1px solid var(--line-soft); color: var(--text); font-family: var(--font-sans);
 }
-.bell-pop__item:last-child { border-bottom: none; }
-.bell-pop__item:hover { background: var(--surface-2); }
+.bell-pop__item:hover, .bell-pop__item:focus-visible { background: var(--surface-2); outline: none; }
 .bell-pop__ico {
-  flex: 0 0 auto; width: 36px; height: 36px; border-radius: var(--r-control);
+  flex: 0 0 auto; width: 40px; height: 40px; border-radius: 12px;
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--brand-50); color: var(--brand);
 }
-.bell-pop__txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.bell-pop__txt strong { font-size: 14px; font-weight: 600; }
-.bell-pop__txt span { font-size: 13px; color: var(--ink-3); }
-.bell-pop__n { font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; }
-.bell-pop__empty { padding: 22px 14px; text-align: center; color: var(--ink-3); font-size: 13.5px; }
+.bell-pop__txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bell-pop__txt strong { font-size: 14.5px; font-weight: 600; }
+.bell-pop__txt span { font-size: 13px; line-height: 18px; color: var(--ink-3); }
+.bell-pop__go { flex: 0 0 auto; color: var(--ink-3); }
+.bell-pop__empty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 26px 20px 22px; text-align: center; }
+.bell-pop__empty-ico { width: 44px; height: 44px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #ecfdf3; color: #027a48; margin-bottom: 6px; }
+.bell-pop__empty strong { font-size: 15px; font-weight: 600; color: var(--text); }
+.bell-pop__empty span { font-size: 13.5px; line-height: 19px; color: var(--ink-3); max-width: 260px; }
+.bell-pop__foot { display: block; width: 100%; padding: 12px 16px; border: none; border-top: 1px solid var(--line-soft); background: var(--surface-2); color: var(--brand); font: 600 13.5px var(--font-sans); text-align: center; cursor: pointer; border-radius: 0 0 16px 16px; }
+.bell-pop__foot:hover, .bell-pop__foot:focus-visible { background: var(--surface-3); outline: none; }
 
 /* -----------------------------------------------------------------------------
    Páginas heredadas: títulos, KPIs y listas con el nuevo estilo
