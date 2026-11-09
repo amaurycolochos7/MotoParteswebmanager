@@ -179,7 +179,7 @@ async function messagesFromStore(client, chatId, limit, deep = false) {
                 let rounds = 0;
                 while (chat.msgs.length < n && rounds < 8) {
                     rounds += 1;
-                    const more = await mod.loadEarlierMsgs(chat);
+                    const more = await mod.loadEarlierMsgs(chat, chat.msgs);
                     if (!more || !more.length) break;
                 }
                 deepInfo = 'rondas=' + rounds + ' total=' + chat.msgs.length;
