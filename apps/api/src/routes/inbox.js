@@ -7,6 +7,7 @@ import { loadActor, requirePermission } from '../lib/permissions.js';
 import { sendToClient } from '../lib/wa-send.js';
 import { digits } from '../lib/phone.js';
 import { botCall, resolveSessionId } from '../lib/wa-session.js';
+import { isRealPhone } from '../lib/wa-inbox.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const bad = (reply, code, error) => reply.status(code).send({ error });
@@ -18,7 +19,9 @@ function toConversationItem(c, clientsById) {
     const client = c.client_id ? clientsById.get(c.client_id) : null;
     return {
         id: c.id,
-        phone: c.phone,
+        // Solo se muestra un teléfono REAL; los ids internos de WhatsApp (@lid) no son teléfonos y se ocultan.
+        phone: isRealPhone(c.phone) ? c.phone : null,
+        phone_known: isRealPhone(c.phone),
         display_name: c.display_name || client?.full_name || null,
         client: client ? { id: client.id, full_name: client.full_name } : null,
         last_message_preview: c.last_message_preview || '',
@@ -161,7 +164,7 @@ export default async function inboxRoutes(fastify) {
                 };
             }
         }
-        return { id: conv.id, phone: conv.phone, display_name: conv.display_name || client?.full_name || null, client };
+        return { id: conv.id, phone: isRealPhone(conv.phone) ? conv.phone : null, phone_known: isRealPhone(conv.phone), display_name: conv.display_name || client?.full_name || null, client };
     });
 
     // GET /api/inbox/conversations/:id/messages?before=<iso>&limit=40 (ascendente dentro de la página)
@@ -179,6 +182,21 @@ export default async function inboxRoutes(fastify) {
         return { items: await toMessages(rows) };
     });
 
+    // POST /api/inbox/conversations/:id/load-older — pide al bot cargar mensajes ANTERIORES de ese chat
+    // (como hacer scroll hacia arriba en WhatsApp Web) y los guarda. Devuelve cuántos mensajes nuevos entraron.
+    fastify.post('/conversations/:id/load-older', async (request, reply) => {
+        const conv = await loadConversation(request.params.id);
+        if (!conv) return bad(reply, 404, 'Conversación no encontrada.');
+        if (!conv.wa_chat_id) return bad(reply, 409, 'Esta conversación no tiene identificador de chat en WhatsApp.');
+        const sessionId = await resolveSessionId(request.workspace.id);
+        if (!sessionId) return bad(reply, 409, 'WhatsApp del taller no está configurado.');
+        const before = await prisma.waMessage.count({ where: { conversation_id: conv.id } });
+        const res = await botCall(`/sessions/${sessionId}/load-chat`, { method: 'POST', body: { chatId: conv.wa_chat_id, limit: 200 }, timeoutMs: 90_000 });
+        if (!res.ok) return bad(reply, res.status === 503 || res.unreachable ? 409 : 502, 'WhatsApp no está conectado en este momento. Intenta cuando aparezca como conectado.');
+        const after = await prisma.waMessage.count({ where: { conversation_id: conv.id } });
+        return { added: Math.max(0, after - before), total: after };
+    });
+
     // POST /api/inbox/conversations/:id/messages { text }
     fastify.post('/conversations/:id/messages', async (request, reply) => {
         const conv = await loadConversation(request.params.id);
@@ -189,7 +207,8 @@ export default async function inboxRoutes(fastify) {
         if (!text) return bad(reply, 400, 'El mensaje está vacío.');
         if (text.length > 4000) return bad(reply, 400, 'El mensaje es demasiado largo.');
 
-        const r = await sendToClient(request.workspace.id, conv.phone, text, { origin: 'panel', sentBy: actor.id });
+        // Se responde por el id REAL del chat (importa en chats @lid, donde no hay teléfono conocido).
+        const r = await sendToClient(request.workspace.id, conv.phone, text, { origin: 'panel', sentBy: actor.id, chatId: conv.wa_chat_id || null });
         await prisma.waConversation.update({ where: { id: conv.id }, data: { unread_count: 0, hidden: false } });
         const row = r.id ? await prisma.waMessage.findFirst({ where: { id: r.id } }) : null;
         const [message] = row ? await toMessages([row]) : [null];

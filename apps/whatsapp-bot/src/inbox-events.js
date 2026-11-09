@@ -179,7 +179,8 @@ async function messagesFromStore(client, chatId, limit, deep = false) {
                 let rounds = 0;
                 while (chat.msgs.length < n && rounds < 8) {
                     rounds += 1;
-                    const more = await mod.loadEarlierMsgs(chat, chat.msgs);
+                    // Misma llamada que usa la librería en Chat.fetchMessages: UN objeto { chat }.
+                    const more = await mod.loadEarlierMsgs({ chat });
                     if (!more || !more.length) break;
                 }
                 deepInfo = 'rondas=' + rounds + ' total=' + chat.msgs.length;
@@ -216,6 +217,22 @@ async function messagesOf(client, chat, perChat, deep = false) {
         if (!libErrorLogged) { libErrorLogged = true; console.warn(`⚠️ [inbox] fetchMessages de la librería no sirve (${errText(e)}); se usa el almacén`); }
     }
     return messagesFromStore(client, chatId, perChat, deep);
+}
+
+/** Carga mensajes anteriores de UN chat (botón "Cargar mensajes anteriores"). Devuelve { messages } importados. */
+export async function importChatHistory(client, sessionId, chatId, limit = 200) {
+    if (!/^\d+@(lid|c\.us)$/.test(String(chatId || ''))) throw new Error('chatId inválido');
+    const msgs = await messagesFromStore(client, chatId, Math.min(Math.max(parseInt(limit, 10) || 200, 20), 400), true);
+    const items = msgs.filter(shouldForward).map((m) => ({
+        direction: m.fromMe ? 'out' : 'in',
+        body: bodyOf(m),
+        wa_message_id: m.id?._serialized || null,
+        timestamp: m.timestamp || null,
+        mediaType: m.type === 'chat' ? null : m.type,
+    })).filter((m) => m.body);
+    if (items.length) await post({ type: 'history', sessionId, chat: { id: chatId, name: null, numberHint: null }, messages: items });
+    console.log(`📥 [inbox] chat ${chatId}: ${items.length} mensajes leídos (carga de anteriores: ${deepNote || 'n/d'})`);
+    return { messages: items.length };
 }
 
 export async function importHistory(client, sessionId, { maxChats = 200, perChat = 60, pauseMs = 200 } = {}) {

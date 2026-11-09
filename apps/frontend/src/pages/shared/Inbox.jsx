@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import {
   Search, ArrowLeft, Send, EyeOff, UserRound, Bike, ClipboardList, CalendarClock, Plus, Printer,
-  Check, CheckCheck, Clock, AlertCircle, MessageSquare, Bot, Smartphone, ImageOff, PanelRight, Loader2, RefreshCw,
+  Check, CheckCheck, Clock, AlertCircle, MessageSquare, Bot, Smartphone, ImageOff, PanelRight, Loader2, RefreshCw, History,
 } from 'lucide-react';
 import { inboxService, printService } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
@@ -90,6 +90,7 @@ function InboxView() {
   const [sending, setSending] = useState(false);
   const [showCard, setShowCard] = useState(false);
   const [sync, setSync] = useState({ busy: false, kind: '', msg: '' }); // importación manual de chats
+  const [older, setOlder] = useState({ loading: false, none: false, note: '' }); // mensajes anteriores del chat abierto
   const sinceRef = useRef(new Date(0).toISOString());
   const endRef = useRef(null);
   const stickRef = useRef(true);
@@ -146,6 +147,7 @@ function InboxView() {
     setParams((p) => { const n = new URLSearchParams(p); n.set('c', id); return n; }, { replace: true });
     setMsgs([]);
     setInfo(null);
+    setOlder({ loading: false, none: false, note: '' });
     stickRef.current = true;
     loadMsgs(id);
     try { setInfo(await inboxService.conversation(id)); } catch { /* sin ficha */ }
@@ -223,6 +225,32 @@ function InboxView() {
       setTimeout(() => setSync((s) => (s.kind === 'info' ? { busy: false, kind: '', msg: '' } : s)), 30000);
     } catch (e) {
       setSync({ busy: false, kind: 'error', msg: e?.message || 'No se pudo iniciar la importación.' });
+    }
+  };
+
+  /* Mensajes anteriores: primero los que ya están guardados; si no quedan, se piden a WhatsApp (como hacer scroll hacia arriba). */
+  const loadOlder = async () => {
+    const id = activeRef.current;
+    if (!id || older.loading) return;
+    const first = msgs.find((m) => !String(m.id).startsWith('tmp-'));
+    if (!first) return;
+    setOlder({ loading: true, none: false, note: '' });
+    try {
+      let items = (await inboxService.messages(id, { before: first.created_at, limit: 80 })).items || [];
+      if (!items.length) {
+        const r = await inboxService.loadOlder(id);
+        if (r?.added > 0) items = (await inboxService.messages(id, { before: first.created_at, limit: 120 })).items || [];
+      }
+      if (activeRef.current !== id) return;
+      if (!items.length) { setOlder({ loading: false, none: true, note: '' }); return; }
+      const el = scrollerRef.current;
+      const prevH = el ? el.scrollHeight : 0; const prevTop = el ? el.scrollTop : 0;
+      stickRef.current = false;
+      setMsgs((prev) => { const have = new Set(prev.map((m) => m.id)); return [...items.filter((m) => !have.has(m.id)), ...prev]; });
+      requestAnimationFrame(() => { const e2 = scrollerRef.current; if (e2) e2.scrollTop = e2.scrollHeight - prevH + prevTop; });
+      setOlder({ loading: false, none: false, note: '' });
+    } catch (e) {
+      setOlder({ loading: false, none: false, note: e?.message || 'No se pudieron cargar los mensajes anteriores.' });
     }
   };
 
@@ -390,7 +418,7 @@ function InboxView() {
               <Avatar name={nameOf(active)} size="md" />
               <div className="ib-chat__who">
                 <strong>{nameOf(active)}</strong>
-                <span className="mono">{fmtPhone(active.phone)}</span>
+                <span className="ib-chat__sub">{active.phone ? fmtPhone(active.phone) : 'Contacto de WhatsApp'}</span>
               </div>
               <button type="button" className="ib-iconbtn ib-cardbtn" onClick={() => setShowCard(true)} aria-label="Ver ficha del cliente"><PanelRight size={18} /></button>
             </header>
@@ -399,6 +427,17 @@ function InboxView() {
               {msgState === 'loading' && <div className="ib-chat__load"><Loader2 size={20} className="ib-spin" /> Cargando mensajes…</div>}
               {msgState === 'error' && <div className="ib-empty"><AlertCircle size={22} /><p>No se pudieron cargar los mensajes.</p><button type="button" className="k-btn k-btn--ghost k-btn--sm" onClick={() => loadMsgs(activeId)}>Reintentar</button></div>}
               {msgState === 'ok' && msgs.length === 0 && <div className="ib-chat__load">Sin mensajes todavía.</div>}
+              {msgState === 'ok' && msgs.length > 0 && (
+                <div className="ib-older">
+                  {older.none
+                    ? <span className="ib-older__end">Ya no hay mensajes anteriores disponibles</span>
+                    : <button type="button" className="ib-older__btn" onClick={loadOlder} disabled={older.loading}>
+                        {older.loading ? <Loader2 size={15} className="ib-spin" /> : <History size={15} />}
+                        {older.loading ? 'Cargando…' : 'Cargar mensajes anteriores'}
+                      </button>}
+                  {older.note && <span className="ib-older__err">{older.note}</span>}
+                </div>
+              )}
               {grouped.map((g) => (g.sep
                 ? <div key={g.key} className="ib-sep"><span>{g.sep}</span></div>
                 : <Bubble key={g.id} m={g} />))}

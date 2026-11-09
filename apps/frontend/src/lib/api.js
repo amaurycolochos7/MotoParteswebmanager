@@ -1533,6 +1533,8 @@ export const inboxService = {
     unreadCount() { return apiFetch('/inbox/unread-count'); },
     // Pide al bot importar el historial reciente (corre en segundo plano). 409 si WhatsApp no está conectado.
     sync() { return apiFetch('/inbox/sync', { method: 'POST' }); },
+    // Pide a WhatsApp mensajes ANTERIORES de una conversación (como hacer scroll hacia arriba). Devuelve { added, total }.
+    loadOlder(id) { return apiFetch(`/inbox/conversations/${id}/load-older`, { method: 'POST' }); },
     updates(since) { return apiFetch(`/inbox/updates?since=${encodeURIComponent(since)}`); },
     // Las imágenes llevan JWT: se bajan como blob y se muestran con URL de objeto.
     async mediaBlobUrl(id) {

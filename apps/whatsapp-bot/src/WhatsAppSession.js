@@ -518,16 +518,26 @@ class WhatsAppSession extends EventEmitter {
         }
     }
 
-    async sendMessage(phone, message) {
+    async sendMessage(phone, message, opts = {}) {
         if (!this.isConnected || !this.client) {
             throw new Error(`Session ${this.mechanicId} not connected`);
         }
 
         // Format phone: ensure it has country code and @c.us
-        const formatted = this._formatPhone(phone);
+        // Un id de chat real (…@lid / …@c.us) se usa tal cual: no se vuelve a "adivinar" por teléfono.
+        const directChatId = typeof opts.chatId === 'string' && /^\d+@(lid|c\.us)$/.test(opts.chatId) ? opts.chatId : null;
+        const formatted = directChatId || this._formatPhone(phone);
         console.log(`📤 Sending message to ${formatted}...`);
 
         return this._dedupeSend('text', formatted, message, async () => {
+            if (directChatId) {
+                return this._sendAndConfirm(
+                    directChatId,
+                    () => this.client.sendMessage(directChatId, message),
+                    { kind: 'text', body: message },
+                    'text'
+                );
+            }
             // 1) Resolver el ID real (puede ser un @lid). Si la consulta en sí falla
             //    (error de la librería), seguimos con el ID formateado.
             let chatId = formatted;

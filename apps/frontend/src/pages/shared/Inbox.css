@@ -112,7 +112,8 @@
   .ib-cardbtn { display: inline-flex; }
 }
 @media (max-width: 820px) {
-  .ib { grid-template-columns: minmax(0, 1fr); }
+  /* `.ib:not(.has-chat)` (arriba) es más específico: hay que igualarlo para que la lista ocupe TODO el ancho en celular */
+  .ib, .ib:not(.has-chat) { grid-template-columns: minmax(0, 1fr); }
   .ib .ib-chat { display: none; }
   .ib.has-chat .ib-list { display: none; }
   .ib.has-chat .ib-chat { display: flex; }
@@ -121,3 +122,53 @@
   .ib-bubble { max-width: 88%; }
   .ib-list__head { padding: 12px 16px 8px; }
 }
+
+/* =====================================================================
+   Aspecto WhatsApp en Conversaciones (solo esta pantalla): fondo con trama suave,
+   globos blancos (entrantes) y verde claro (salientes), ticks azules, caja redonda.
+   ===================================================================== */
+.ib-chat { background: #efeae2; }
+.ib-chat__head { background: #f0f2f5; border-bottom: 1px solid #e0e3e7; }
+.ib-chat__who strong { color: #111b21; }
+.ib-chat__sub { font-size: 13px; color: #667781; }
+.ib-chat__scroll {
+  background-color: #efeae2;
+  background-image: radial-gradient(rgba(11, 20, 26, 0.05) 1px, transparent 1.3px), radial-gradient(rgba(11, 20, 26, 0.035) 1px, transparent 1.3px);
+  background-size: 26px 26px, 26px 26px; background-position: 0 0, 13px 13px;
+  padding: 14px clamp(12px, 6%, 64px) 10px; gap: 2px;
+}
+.ib-sep span { background: #ffffff; border: 0; box-shadow: 0 1px 1px rgba(11, 20, 26, 0.13); color: #54656f; font-weight: 500; }
+
+.ib-bubble { background: #ffffff; border: 0; border-radius: 8px; box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13); padding: 6px 9px 4px; max-width: min(620px, 78%); font-size: 14.5px; line-height: 20px; color: #111b21; position: relative; }
+.ib-msg { margin-top: 2px; }
+.ib-msg.is-in .ib-bubble { border-top-left-radius: 8px; }
+.is-out .ib-bubble, .ib-msg--auto .ib-bubble, .ib-msg--phone .ib-bubble { background: #d9fdd3; border: 0; border-top-right-radius: 8px; }
+/* colita del primer globo de cada bloque */
+.ib-msg.is-in:not(.is-in + .is-in) .ib-bubble::before { content: ''; position: absolute; top: 0; left: -7px; border: 7px solid transparent; border-top-color: #ffffff; border-right-color: #ffffff; border-width: 0 8px 8px 0; border-style: solid; border-color: transparent #ffffff transparent transparent; }
+.ib-msg.is-out:not(.is-out + .is-out) .ib-bubble::before { content: ''; position: absolute; top: 0; right: -7px; border-width: 0 0 8px 8px; border-style: solid; border-color: transparent transparent transparent #d9fdd3; }
+.ib-tag { color: #667781; font-weight: 500; font-size: 11.5px; font-style: italic; }
+.ib-meta { color: #667781; font-size: 11px; margin-top: 1px; gap: 3px; }
+.ib-tick { color: #8696a0; }
+.ib-tick--read { color: #53bdeb; }
+.ib-tick--fail { color: var(--danger); }
+
+.ib-older { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 4px 0 10px; }
+.ib-older__btn { display: inline-flex; align-items: center; gap: 6px; border: 0; background: #ffffff; color: #00a884; font: 600 13px/1 var(--font-sans); padding: 9px 16px; border-radius: 999px; box-shadow: 0 1px 2px rgba(11, 20, 26, 0.18); cursor: pointer; min-height: 36px; }
+.ib-older__btn:hover:not(:disabled) { background: #f7fffd; }
+.ib-older__btn:disabled { opacity: 0.7; cursor: default; }
+.ib-older__end { font-size: 12px; color: #54656f; background: rgba(255, 255, 255, 0.8); padding: 5px 12px; border-radius: 999px; }
+.ib-older__err { font-size: 12px; color: var(--danger); background: #fff; padding: 4px 10px; border-radius: 8px; }
+
+.ib-compose { background: #f0f2f5; border-top: 0; padding: 8px 12px; align-items: center; }
+.ib-compose textarea { border: 0; border-radius: 22px; padding: 11px 16px; background: #ffffff; box-shadow: none; }
+.ib-compose textarea:focus { border: 0; box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.35); }
+.ib-send { background: #00a884; border-radius: 50%; width: 44px; height: 44px; }
+.ib-send:hover:not(:disabled) { background: #008069; }
+.ib-send:disabled { background: #d1d7db; color: #ffffff; }
+.ib-hint { background: #f0f2f5; padding: 0 16px 8px; }
+
+/* Lista de chats al estilo WhatsApp */
+.ib-item.is-active { background: #f0f2f5; }
+.ib-item.is-active::before { display: none; }
+.ib-item.is-unread .ib-item__top time { color: #1fa855; }
+.ib-badge { background: #25d366; color: #ffffff; }

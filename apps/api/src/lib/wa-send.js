@@ -37,10 +37,10 @@ export function reasonOf(result) {
 }
 
 /** Un intento de envío por el bot. Devuelve { ok, messageId, ack, failure?:'retry'|'permanent', reason, error }. */
-export async function deliverToBot(workspaceId, waNumber, text) {
+export async function deliverToBot(workspaceId, waNumber, text, chatId = null) {
     const sessionId = await resolveSessionId(workspaceId);
     if (!sessionId) return { ok: false, failure: 'retry', reason: 'whatsapp_desconectado', error: 'No hay sesión de WhatsApp configurada.' };
-    const r = await botCall('/send-message', { method: 'POST', body: { mechanicId: sessionId, phone: waNumber, message: text }, timeoutMs: 25_000 });
+    const r = await botCall('/send-message', { method: 'POST', body: { mechanicId: sessionId, phone: waNumber, message: text, ...(chatId ? { chatId } : {}) }, timeoutMs: 25_000 });
     if (r.ok) return { ok: true, messageId: r.data?.messageId || null, ack: r.data?.ack ?? null };
     return { ok: false, failure: classifyFailure(r), reason: reasonOf(r), error: r.error };
 }
@@ -72,7 +72,9 @@ async function markMessage(messageId, patch) {
  */
 export async function sendToClient(workspaceId, phone, text, ctx = {}) {
     const local = toLocal10(phone) || digits(phone);
-    if (!local || !text) return { sent: false, reason: 'sin_telefono' };
+    // Con `ctx.chatId` (p. ej. un chat @lid sin teléfono conocido) se responde por el id REAL del chat, no por un número inventado.
+    const chatId = typeof ctx.chatId === 'string' && /^\d+@(lid|c\.us)$/.test(ctx.chatId) ? ctx.chatId : null;
+    if ((!local && !chatId) || !text) return { sent: false, reason: 'sin_telefono' };
     const waNumber = toWaNumber(phone);
     const origin = ctx.origin || 'auto';
 
@@ -88,7 +90,7 @@ export async function sendToClient(workspaceId, phone, text, ctx = {}) {
     }
 
     // 2) Intentar enviar ahora.
-    const r = await deliverToBot(workspaceId, waNumber, text);
+    const r = await deliverToBot(workspaceId, waNumber, text, chatId);
     if (r.ok) {
         await markMessage(record?.id, { wa_message_id: r.messageId || undefined, status: 'sent' });
         return { sent: true, messageId: r.messageId, conversationId: conv?.id, id: record?.id };
@@ -109,7 +111,7 @@ export async function sendToClient(workspaceId, phone, text, ctx = {}) {
             attempts: 1,
             next_attempt_at: new Date(Date.now() + nextDelayMs(1)),
             last_error: String(r.error || r.reason).slice(0, 300),
-            context: { ...(ctx.context || {}), message_id: record?.id || null, sent_by: ctx.sentBy || null },
+            context: { ...(ctx.context || {}), message_id: record?.id || null, sent_by: ctx.sentBy || null, chat_id: chatId },
         },
     });
     return { sent: false, queued: true, reason: r.reason, conversationId: conv?.id, id: record?.id };
@@ -131,7 +133,7 @@ export async function runOutboxSweep(now = new Date()) {
             take: 20,
         });
         for (const row of due) {
-            const r = await deliverToBot(row.workspace_id, row.phone, row.body);
+            const r = await deliverToBot(row.workspace_id, row.phone, row.body, row.context?.chat_id || null);
             const messageId = row.context?.message_id || null;
             if (r.ok) {
                 await prisma.waOutbox.update({ where: { id: row.id }, data: { status: 'sent', sent_at: new Date(), attempts: { increment: 1 }, last_error: null } });

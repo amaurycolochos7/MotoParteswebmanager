@@ -6,10 +6,11 @@ const router = Router();
 // Body: { mechanicId, phone, message }
 router.post('/send-message', async (req, res) => {
     const sessionManager = req.app.get('sessionManager');
-    const { mechanicId, phone, message } = req.body;
+    const { mechanicId, phone, message, chatId } = req.body;
 
-    if (!phone || !message) {
-        return res.status(400).json({ error: 'phone y message son requeridos' });
+    // `chatId` (p. ej. 1234@lid) permite responder a un chat sin teléfono conocido.
+    if ((!phone && !chatId) || !message) {
+        return res.status(400).json({ error: 'phone (o chatId) y message son requeridos' });
     }
 
     // Find session for this mechanic
@@ -26,7 +27,7 @@ router.post('/send-message', async (req, res) => {
     }
 
     try {
-        const result = await session.sendMessage(phone, message);
+        const result = await session.sendMessage(phone, message, { chatId });
         res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message, fallback: true });

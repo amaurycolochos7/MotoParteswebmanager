@@ -14,6 +14,11 @@ export function phoneFromChat(chatId, hintNumber) {
     return toLocal10(candidate) || digits(candidate);
 }
 
+/** ¿Es un teléfono real (10 dígitos MX o con lada 52)? Los ids internos de WhatsApp (@lid, ~15 dígitos) NO lo son. */
+export function isRealPhone(phone) {
+    return toLocal10(phone) !== null;
+}
+
 /** ¿Es un chat que la bandeja debe ignorar (grupos, estados, listas de difusión)? */
 export function isIgnoredChat(chatId) {
     const id = String(chatId || '');
@@ -42,7 +47,9 @@ export const betterStatus = (current, next) => (STATUS_RANK[next] > STATUS_RANK[
 
 /** Busca/crea la conversación de un teléfono y la vincula con el cliente si existe. */
 export async function upsertConversation(workspaceId, { phone, waChatId = null, displayName = null }) {
-    let conv = await prisma.waConversation.findFirst({ where: { workspace_id: workspaceId, phone } });
+    let conv = await prisma.waConversation.findFirst({
+        where: { workspace_id: workspaceId, OR: [{ phone }, ...(waChatId ? [{ wa_chat_id: waChatId }] : [])] },
+    });
     if (!conv) {
         try {
             conv = await prisma.waConversation.create({

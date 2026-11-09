@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import QRCode from 'qrcode';
-import { importHistory } from '../inbox-events.js';
+import { importHistory, importChatHistory } from '../inbox-events.js';
 
 const router = Router();
 
@@ -82,6 +82,21 @@ router.post('/:mechanicId/sync-history', async (req, res) => {
     }
     importHistory(session.client, req.params.mechanicId).catch((err) => console.warn('⚠️ [inbox] sync-history:', err.message));
     res.json({ started: true });
+});
+
+// POST /api/sessions/:mechanicId/load-chat { chatId, limit } — carga mensajes anteriores de un chat y los manda a la bandeja.
+router.post('/:mechanicId/load-chat', async (req, res) => {
+    const sessionManager = req.app.get('sessionManager');
+    const session = sessionManager.getSession(req.params.mechanicId);
+    if (!session || !session.isConnected || !session.client) {
+        return res.status(503).json({ error: 'Sesión de WhatsApp no disponible' });
+    }
+    try {
+        res.json(await importChatHistory(session.client, req.params.mechanicId, req.body?.chatId, req.body?.limit));
+    } catch (err) {
+        console.warn('⚠️ [inbox] load-chat:', err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // POST /api/sessions/:mechanicId/start
