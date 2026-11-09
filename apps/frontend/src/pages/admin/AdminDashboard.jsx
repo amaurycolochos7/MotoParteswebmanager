@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { monthRevenue as calcMonthRevenue } from '../../utils/shopRevenue';
 import {
   ClipboardList,
   Users,
@@ -29,8 +30,6 @@ export default function AdminDashboard() {
 
     const now = new Date();
     const today = now.toDateString();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
 
     // Órdenes de hoy
     const todayOrders = orders.filter(o => {
@@ -41,15 +40,8 @@ export default function AdminDashboard() {
     // Órdenes activas (no terminales)
     const activeOrders = orders.filter(o => !o.status?.is_terminal).length;
 
-    // Ingresos del mes (solo pagadas)
-    const monthRevenue = orders
-      .filter(o => {
-        const orderDate = new Date(o.created_at);
-        return orderDate.getMonth() === currentMonth &&
-          orderDate.getFullYear() === currentYear &&
-          o.is_paid === true;
-      })
-      .reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
+    // Ingresos del mes: SOLO la mano de obra de las órdenes pagadas ese mes (las refacciones no son ganancia)
+    const monthRevenue = calcMonthRevenue(orders, now).labor;
 
     // Total de clientes
     const totalClients = clients.length;
@@ -178,7 +170,7 @@ export default function AdminDashboard() {
           </div>
           <div className="kpi-content">
             <div className="kpi-value">{formatCurrency(metrics.monthRevenue)}</div>
-            <div className="kpi-label">Ingresos Mes</div>
+            <div className="kpi-label">Ingresos Mes (mano de obra)</div>
           </div>
         </div>
 

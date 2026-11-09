@@ -12,3 +12,10 @@
 .ss__name { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ss__n { flex: 0 0 auto; min-width: 28px; text-align: right; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .ss__empty { padding: 20px 16px; color: var(--ink-3); font-size: 14px; }
+
+/* Desglose de lo cobrado: la mano de obra es el ingreso; las refacciones y el total van aparte */
+.ss__split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 20px; margin: 16px 0 0; padding-top: 14px; border-top: 1px dashed var(--line); }
+.ss__split > div { display: grid; gap: 2px; min-width: 0; }
+.ss__split dt { font-size: 12.5px; color: var(--ink-3); }
+.ss__split dd { margin: 0; font-size: 16px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.ss__split p { grid-column: 1 / -1; margin: 0; font-size: 12.5px; line-height: 18px; color: var(--ink-3); }

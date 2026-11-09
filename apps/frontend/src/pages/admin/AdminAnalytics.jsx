@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
+import { paidRevenue } from '../../utils/shopRevenue';
 import {
     BarChart3,
     TrendingUp,
@@ -25,13 +26,9 @@ export default function AdminAnalytics() {
         new Date(o.created_at) >= lastMonth && new Date(o.created_at) <= lastMonthEnd
     );
 
-    const thisMonthRevenue = orders
-        .filter(o => o.is_paid && new Date(o.paid_at) >= thisMonth)
-        .reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
-
-    const lastMonthRevenue = orders
-        .filter(o => o.is_paid && new Date(o.paid_at) >= lastMonth && new Date(o.paid_at) <= lastMonthEnd)
-        .reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
+    // Ingresos = SOLO mano de obra de las órdenes pagadas (las refacciones no son ganancia)
+    const thisMonthRevenue = paidRevenue(orders, thisMonth).labor;
+    const lastMonthRevenue = paidRevenue(orders, lastMonth, thisMonth).labor;
 
     const revenueChange = lastMonthRevenue > 0
         ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue * 100).toFixed(1)
@@ -85,7 +82,7 @@ export default function AdminAnalytics() {
                     </div>
                     <div className="kpi-content">
                         <div className="kpi-value">{formatCurrency(thisMonthRevenue)}</div>
-                        <div className="kpi-label">Ingresos del mes</div>
+                        <div className="kpi-label">Ingresos del mes (mano de obra)</div>
                         <div className={`kpi-change ${parseFloat(revenueChange) >= 0 ? 'positive' : 'negative'}`}>
                             {parseFloat(revenueChange) >= 0 ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
                             {Math.abs(revenueChange)}% vs mes anterior
