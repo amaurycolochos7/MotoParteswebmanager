@@ -7,7 +7,7 @@ import http from 'node:http';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const SECRET = 'local-dev-only-change-me';
-const PORT = 3101, BOT_PORT = 3199;
+const PORT = Number(process.env.E2E_API_PORT) || 3101, BOT_PORT = Number(process.env.E2E_BOT_PORT) || 3199;
 const BASE = `http://localhost:${PORT}`;
 process.env.WHATSAPP_BOT_INTERNAL_URL = `http://localhost:${BOT_PORT}`;
 process.env.WHATSAPP_API_KEY = 'local-dev-bot-key';

@@ -121,7 +121,7 @@ export async function recordMessage(workspaceId, conv, m) {
                 last_message_at: createdAt,
                 last_direction: m.direction,
             } : {}),
-            ...(m.direction === 'in' ? { unread_count: { increment: 1 }, hidden: false } : {}),
+            ...(m.direction === 'in' && !m.history ? { unread_count: { increment: 1 }, hidden: false } : {}),
         },
     });
     return { message, created: true };

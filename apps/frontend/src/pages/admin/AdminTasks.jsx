@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '../../context/ToastContext';
 import { taskService } from '../../lib/api';
-import { CheckCircle2, Circle, Clock, Zap, User } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Zap, User, CheckSquare } from 'lucide-react';
+import './AdminV3.css';
 
 export default function AdminTasks() {
     const toast = useToast();
@@ -23,63 +24,59 @@ export default function AdminTasks() {
         } catch (err) { toast.error(err.message); }
     };
 
-    if (loading) return <div style={{ padding: 24 }}>Cargando…</div>;
+    if (loading) return <div className="adm adm-loading">Cargando…</div>;
 
     return (
-        <div style={{ maxWidth: 880, margin: '0 auto', padding: '24px 20px' }}>
-            <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800 }}>Tareas</h1>
-            <p style={{ color: '#6e6e73', margin: '4px 0 20px' }}>
-                Recordatorios internos — incluyen los creados por automatizaciones.
-            </p>
+        <div className="adm" style={{ maxWidth: 880 }}>
+            <header className="adm-head">
+                <div>
+                    <h1><CheckSquare size={22} /> Tareas</h1>
+                    <p>Recordatorios internos, incluidos los creados por automatizaciones.</p>
+                </div>
+            </header>
 
-            <div style={{ display: 'flex', gap: 4, padding: 4, background: '#f5f5f7', borderRadius: 10, marginBottom: 20, width: 'fit-content' }}>
+            <div className="adm-seg" role="tablist">
                 {['pending', 'completed'].map((t) => (
-                    <button key={t}
-                        onClick={() => setTab(t)}
-                        style={{
-                            padding: '6px 18px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                            background: tab === t ? 'white' : 'transparent',
-                            color: tab === t ? '#1d1d1f' : '#6e6e73',
-                            fontWeight: 600, fontSize: '0.85rem',
-                            boxShadow: tab === t ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
-                        }}>
+                    <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>
                         {t === 'pending' ? 'Pendientes' : 'Completadas'}
                     </button>
                 ))}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="adm-list">
                 {tasks.map((t) => {
                     const overdue = t.due_at && new Date(t.due_at) < new Date() && !t.completed_at;
                     return (
-                        <div key={t.id} style={{
-                            display: 'flex', alignItems: 'flex-start', gap: 12, padding: 14,
-                            background: 'white', border: '1px solid', borderColor: overdue ? '#fecaca' : '#e8e8ed',
-                            borderRadius: 10,
-                        }}>
-                            <button onClick={() => tab === 'pending' ? complete(t) : taskService.reopen(t.id).then(refresh)}
-                                style={{ border: 'none', background: 'transparent', cursor: 'pointer', paddingTop: 2 }}>
-                                {t.completed_at ? <CheckCircle2 size={22} color="#16a34a" /> : <Circle size={22} color="#86868b" />}
+                        <div key={t.id} className={`adm-task${overdue ? ' is-late' : ''}`}>
+                            <button
+                                type="button"
+                                className={`adm-task__check${t.completed_at ? ' is-done' : ''}`}
+                                onClick={() => (tab === 'pending' ? complete(t) : taskService.reopen(t.id).then(refresh))}
+                                aria-label={tab === 'pending' ? 'Marcar como completada' : 'Reabrir tarea'}
+                            >
+                                {t.completed_at ? <CheckCircle2 size={22} /> : <Circle size={22} />}
                             </button>
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 600, color: '#1d1d1f', textDecoration: t.completed_at ? 'line-through' : 'none' }}>{t.title}</div>
-                                {t.description && <div style={{ fontSize: '0.85rem', color: '#6e6e73', marginTop: 4 }}>{t.description}</div>}
-                                <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: '0.75rem', color: '#86868b' }}>
-                                    {t.source === 'automation' && <span style={{ color: '#8b5cf6' }}><Zap size={11} /> automatización</span>}
+                            <div className="adm-task__main">
+                                <div className={`adm-task__title${t.completed_at ? ' is-done' : ''}`}>{t.title}</div>
+                                {t.description && <div className="adm-task__desc">{t.description}</div>}
+                                <div className="adm-task__meta">
+                                    {t.source === 'automation' && <span><Zap size={13} /> Automatización</span>}
                                     {t.due_at && (
-                                        <span style={{ color: overdue ? '#dc2626' : '#6e6e73' }}>
-                                            <Clock size={11} /> Vence {new Date(t.due_at).toLocaleString('es-MX')}
+                                        <span className={overdue ? 'is-late' : ''}>
+                                            <Clock size={13} /> Vence {new Date(t.due_at).toLocaleString('es-MX')}
                                         </span>
                                     )}
-                                    {t.assigned_to && <span><User size={11} /> asignada</span>}
+                                    {t.assigned_to && <span><User size={13} /> Asignada</span>}
                                 </div>
                             </div>
                         </div>
                     );
                 })}
                 {tasks.length === 0 && (
-                    <div style={{ padding: 40, textAlign: 'center', color: '#6e6e73', background: '#f5f5f7', borderRadius: 12 }}>
-                        {tab === 'pending' ? 'No hay tareas pendientes 🎉' : 'No hay tareas completadas aún.'}
+                    <div className="adm-empty">
+                        <CheckSquare size={26} />
+                        <h3>{tab === 'pending' ? 'No hay tareas pendientes' : 'Aún no hay tareas completadas'}</h3>
+                        <p>{tab === 'pending' ? 'Estás al día.' : 'Las que completes aparecerán aquí.'}</p>
                     </div>
                 )}
             </div>

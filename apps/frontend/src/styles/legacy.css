@@ -1,0 +1,51 @@
+/* Ajustes V3 para pantallas heredadas (maestro/auxiliar, listas) cuyo CSS vive dentro del propio componente.
+   Se apoya en la especificidad de `.page-content` para ganarle a esos bloques sin editar cada archivo. */
+
+/* Contenedores centrados de 600 px: ahora aprovechan el ancho útil sin pasarse */
+.page-content .master-requests-page,
+.page-content .auxiliary-dashboard,
+.page-content .my-requests,
+.page-content .auxiliary-payments,
+.page-content .auxiliary-orders-page {
+  max-width: 920px;
+  width: 100%;
+  padding: 0 0 48px;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+/* Encabezados: título oscuro, ícono de marca, botón de regreso con borde */
+.page-content .page-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+.page-content .page-header .header-content { flex: 1; min-width: 0; }
+.page-content .page-header .page-title { color: var(--text); font-size: 1.5rem; font-weight: 700; line-height: 1.2; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.page-content .page-header .page-title svg { color: var(--brand); flex: 0 0 auto; }
+.page-content .page-header .page-subtitle { color: var(--ink-3); font-size: 14px; margin-top: 2px; }
+.page-content .btn-back {
+  flex: 0 0 auto; width: 40px; height: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--text); border-radius: var(--r-control); cursor: pointer;
+}
+.page-content .btn-back:hover { background: var(--surface-2); }
+@media (max-width: 640px) { .page-content .page-header .page-title { font-size: 1.25rem; } }
+
+/* Estados vacíos sin verde/naranja decorativo */
+.page-content .empty-state svg { color: var(--text-3); }
+.page-content .empty-state h3 { color: var(--text); font-weight: 600; }
+
+/* Tarjetas heredadas con bordes definidos y sombra suave */
+.page-content .request-card,
+.page-content .auxiliary-card,
+.page-content .payment-card,
+.page-content .order-card,
+.page-content .summary-card {
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--sh-1);
+  background: var(--surface);
+}
+
+/* Nada se sale de su caja en listas heredadas */
+.page-content :is(.request-card, .auxiliary-card, .payment-card, .order-card, .summary-card) { min-width: 0; overflow-wrap: anywhere; }
+.page-content :is(h1, h2, h3, h4, p, strong, span) { overflow-wrap: anywhere; }
+.page-content :is(.k-chip, .badge, .nav-count, .bell__badge, button, th) { overflow-wrap: normal; }
+.page-content table { max-width: 100%; }
+.page-content .table-container { overflow-x: auto; }

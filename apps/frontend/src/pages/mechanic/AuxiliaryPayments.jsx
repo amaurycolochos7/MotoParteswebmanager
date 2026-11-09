@@ -47,8 +47,9 @@ export default function AuxiliaryPayments() {
                 paymentRequestsService.getPendingForAuxiliary(user?.id),
                 paymentRequestsService.getHistoryForAuxiliary(user?.id)
             ]);
-            setPendingPayments(pending || []);
-            setPaymentHistory(history || []);
+            // Los servicios regresan { data, error }: antes se trataban como listas y la pantalla se rompía.
+            setPendingPayments(Array.isArray(pending) ? pending : (Array.isArray(pending?.data) ? pending.data : []));
+            setPaymentHistory(Array.isArray(history) ? history : (Array.isArray(history?.data) ? history.data : []));
         } catch (error) {
             console.error('Error loading payments:', error);
             toast.error('Error al cargar pagos');

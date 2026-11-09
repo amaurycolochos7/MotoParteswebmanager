@@ -654,7 +654,7 @@ export default function OrderDetail() {
 
             {/* Pestañas (solo celular): una sección a la vez */}
             <nav className="od-tabs" role="tablist" aria-label="Secciones de la orden">
-                {[['estado', 'Estado'], ['datos', 'Moto y cliente'], ['costos', 'Costos y pagos'], ['fotos', 'Evidencias'], ...(history.length > 0 ? [['historial', 'Historial']] : [])].map(([id, label]) => (
+                {[['estado', 'Estado'], ['datos', 'Datos'], ['costos', 'Costos'], ['fotos', 'Fotos'], ...(history.length > 0 ? [['historial', 'Historial']] : [])].map(([id, label]) => (
                     <button key={id} type="button" role="tab" aria-selected={tab === id} className={`od-tab${tab === id ? ' is-active' : ''}`} onClick={() => setTab(id)}>{label}</button>
                 ))}
             </nav>

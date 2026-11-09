@@ -157,7 +157,7 @@ export default function Quotations() {
 
             <style>{`
                 .qlist { padding: 20px 16px 40px; max-width: 720px; width: 100%; margin: 0 auto; box-sizing: border-box; }
-                .qlist__filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 18px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+                .qlist__filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
                 .qlist__filters::-webkit-scrollbar { display: none; }
                 .qlist__chip { flex-shrink: 0; padding: 8px 16px; min-height: 38px; border-radius: var(--radius-pill); border: 1px solid var(--border-color); background: var(--surface-card); color: var(--text-secondary); font-family: var(--font-text); font-size: 14px; font-weight: 500; cursor: pointer; transition: all var(--transition-fast); }
                 .qlist__chip:hover { border-color: #d2d2d7; }

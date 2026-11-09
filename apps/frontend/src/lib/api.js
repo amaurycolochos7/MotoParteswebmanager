@@ -1531,6 +1531,8 @@ export const inboxService = {
     markRead(id) { return apiFetch(`/inbox/conversations/${id}/read`, { method: 'POST' }); },
     hide(id) { return apiFetch(`/inbox/conversations/${id}/hide`, { method: 'POST' }); },
     unreadCount() { return apiFetch('/inbox/unread-count'); },
+    // Pide al bot importar el historial reciente (corre en segundo plano). 409 si WhatsApp no está conectado.
+    sync() { return apiFetch('/inbox/sync', { method: 'POST' }); },
     updates(since) { return apiFetch(`/inbox/updates?since=${encodeURIComponent(since)}`); },
     // Las imágenes llevan JWT: se bajan como blob y se muestran con URL de objeto.
     async mediaBlobUrl(id) {

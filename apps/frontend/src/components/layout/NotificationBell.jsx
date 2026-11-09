@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, CalendarClock, MessageSquare } from 'lucide-react';
+import { Bell, CalendarClock } from 'lucide-react';
 
 /**
- * Campanita de la barra superior. Con pendientes tiembla suavemente y late un halo rojo.
- * Al abrirla lista que hay por atender y lleva directo a Citas o Conversaciones.
+ * Campanita de la barra superior. Avisa SOLO de solicitudes de citas por revisar:
+ * con pendientes tiembla suavemente y late un halo rojo; al abrirla lleva directo a Citas.
+ * (Los mensajes de WhatsApp no pasan por aqui: tienen su insignia junto a "Conversaciones" en el menu.)
  */
-export default function NotificationBell({ appts = 0, unread = 0, appointmentsPath, inboxPath, showInbox }) {
+export default function NotificationBell({ appts = 0, appointmentsPath }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
-  const total = appts + (showInbox ? unread : 0);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -27,19 +27,19 @@ export default function NotificationBell({ appts = 0, unread = 0, appointmentsPa
     <div ref={ref} style={{ position: 'relative' }}>
       <button
         type="button"
-        className={`bell${total > 0 ? ' bell--alert' : ''}`}
+        className={`bell${appts > 0 ? ' bell--alert' : ''}`}
         onClick={() => setOpen((v) => !v)}
-        aria-label={total > 0 ? `${total} avisos pendientes` : 'Sin avisos'}
+        aria-label={appts > 0 ? `${appts} citas por revisar` : 'Sin citas por revisar'}
         aria-expanded={open}
       >
         <Bell size={21} />
-        {total > 0 && <span className="bell__badge">{total > 99 ? '99+' : total}</span>}
+        {appts > 0 && <span className="bell__badge">{appts > 99 ? '99+' : appts}</span>}
       </button>
 
       {open && (
         <div className="bell-pop" role="menu">
-          <div className="bell-pop__head">Pendientes</div>
-          {total === 0 && <div className="bell-pop__empty">Todo al día. No hay citas ni mensajes por atender.</div>}
+          <div className="bell-pop__head">Citas por revisar</div>
+          {appts === 0 && <div className="bell-pop__empty">Todo al día. No hay solicitudes de cita por revisar.</div>}
           {appts > 0 && (
             <button type="button" className="bell-pop__item" onClick={() => go(appointmentsPath)}>
               <span className="bell-pop__ico"><CalendarClock size={18} /></span>
@@ -48,16 +48,6 @@ export default function NotificationBell({ appts = 0, unread = 0, appointmentsPa
                 <span>Acepta, propone otra hora o rechaza</span>
               </span>
               <span className="bell-pop__n">{appts}</span>
-            </button>
-          )}
-          {showInbox && unread > 0 && (
-            <button type="button" className="bell-pop__item" onClick={() => go(inboxPath)}>
-              <span className="bell-pop__ico"><MessageSquare size={18} /></span>
-              <span className="bell-pop__txt">
-                <strong>{unread === 1 ? 'Un mensaje sin leer' : `${unread} mensajes sin leer`}</strong>
-                <span>Responde desde Conversaciones</span>
-              </span>
-              <span className="bell-pop__n">{unread}</span>
             </button>
           )}
         </div>

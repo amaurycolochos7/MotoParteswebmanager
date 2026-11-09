@@ -24,6 +24,7 @@ export async function handleBotEvent(ev) {
         await applyAck(workspaceId, ev.wa_message_id, Number(ev.ack));
         return { ok: true };
     }
+    if (ev.type === 'history') return handleHistoryEvent(workspaceId, ev);
     if (ev.type !== 'message') return { ok: true, ignored: true };
 
     const direction = ev.direction === 'out' ? 'out' : 'in';
@@ -62,6 +63,39 @@ export async function handleBotEvent(ev) {
         createdAt,
     });
     return { ok: true };
+}
+
+/**
+ * Historial de un chat (importado al conectar o a mano): se guarda en orden cronológico, sin duplicar (por wa_message_id)
+ * y SIN marcar nada como no leído (son mensajes viejos, no novedades).
+ */
+export async function handleHistoryEvent(workspaceId, ev) {
+    const chat = ev.chat || {};
+    if (!chat.id || isIgnoredChat(chat.id)) return { ok: true, ignored: true };
+    const phone = phoneFromChat(chat.id, chat.numberHint);
+    if (!phone) return { ok: true, ignored: true };
+    const items = (Array.isArray(ev.messages) ? ev.messages : [])
+        .filter((m) => m && m.body)
+        .sort((x, y) => Number(x.timestamp || 0) - Number(y.timestamp || 0))
+        .slice(0, 200);
+    if (!items.length) return { ok: true, imported: 0 };
+    const conv = await upsertConversation(workspaceId, { phone, waChatId: chat.id, displayName: chat.name || null });
+    let imported = 0;
+    for (const m of items) {
+        const out = m.direction === 'out';
+        const r = await recordMessage(workspaceId, conv, {
+            direction: out ? 'out' : 'in',
+            origin: out ? 'phone' : 'client',
+            body: String(m.body),
+            mediaType: m.mediaType || null,
+            waMessageId: m.wa_message_id || null,
+            status: out ? 'sent' : 'delivered',
+            createdAt: m.timestamp ? new Date(Number(m.timestamp) * 1000) : new Date(),
+            history: true,
+        });
+        if (r.created) imported += 1;
+    }
+    return { ok: true, imported };
 }
 
 export default async function internalWaRoutes(fastify) {

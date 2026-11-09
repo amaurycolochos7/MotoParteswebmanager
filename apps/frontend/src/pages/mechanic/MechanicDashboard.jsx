@@ -3,9 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Plus, FileText, ClipboardList, ArrowRight, Bike, CalendarClock, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
-import { appointmentsService, quotationsService } from '../../lib/api';
+import { appointmentsService } from '../../lib/api';
 import { Panel, Chip, Stat, Skeleton, StatusChip, EmptyState } from '../../components/ui';
 import CommissionCard from '../../components/dashboard/CommissionCard';
+import ShopSummary from '../../components/dashboard/ShopSummary';
 import './Dashboard.css';
 
 const WEEKDAY = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -25,18 +26,8 @@ function whenLabel(iso) {
 export default function MechanicDashboard() {
   const navigate = useNavigate();
   const { user, isManager, teamRole } = useAuth();
+  const showShop = isManager || teamRole === 'maestro';
   const { orders, loading } = useData();
-
-  // Cotizaciones por autorizar
-  const [pendingQuotes, setPendingQuotes] = useState(0);
-  useEffect(() => {
-    let off = false;
-    quotationsService.getAll().then(({ data }) => {
-      if (off || !Array.isArray(data)) return;
-      setPendingQuotes(data.filter((q) => ['pendiente', 'enviada'].includes((q.status || '').toLowerCase())).length);
-    }).catch(() => {});
-    return () => { off = true; };
-  }, []);
 
   // Citas por revisar (bandeja del usuario; si aun no existe la ruta, cae a la lista general)
   const [pendingAppts, setPendingAppts] = useState([]);
@@ -62,18 +53,12 @@ export default function MechanicDashboard() {
     [orders, user],
   );
 
+  // Estado del trabajo: solo "En proceso" (todo lo abierto) y "Cerradas hoy".
   const stats = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const mine = (orders || []).filter((o) => o.mechanic_id === user?.id);
-    const nameOf = (o) => (o.status?.name || '').toLowerCase();
-    const ready = myActive.filter((o) => nameOf(o).includes('lista') || nameOf(o).includes('entregar')).length;
-    const soon = new Date(now); soon.setDate(soon.getDate() + 2);
     return {
-      inProcess: myActive.length - ready,
-      ready,
-      authorized: myActive.filter((o) => nameOf(o).includes('autorizada')).length,
-      deliveryDue: myActive.filter((o) => o.estimated_delivery_at && new Date(o.estimated_delivery_at) <= soon).length,
+      inProcess: myActive.length,
       finishedToday: mine.filter((o) => o.status?.is_terminal && new Date(o.updated_at || o.created_at) >= todayStart).length,
     };
   }, [orders, user, myActive]);
@@ -116,16 +101,12 @@ export default function MechanicDashboard() {
       <div className="dx-grid">
         {/* Comisión: lo primero que se ve, sobre todo en celular */}
         <aside className="dx-side">
-          <CommissionCard title={teamRole === 'maestro' || isManager ? 'Tu comisión' : 'Tu comisión'} />
+          <CommissionCard title="Tu comisión" />
 
           <Panel title="Estado del trabajo" className="dx-state">
             <div className="dx-statgrid">
               <button type="button" className="dx-statbtn" onClick={() => navigate('/mechanic/orders')}><Stat label="En proceso" value={stats.inProcess} /></button>
-              <button type="button" className="dx-statbtn" onClick={() => navigate('/mechanic/orders')}><Stat label="Listas" value={stats.ready} tone="ok" /></button>
-              <button type="button" className="dx-statbtn" onClick={() => navigate('/mechanic/orders')}><Stat label="Autorizadas" value={stats.authorized} /></button>
-              <button type="button" className="dx-statbtn" onClick={() => navigate('/mechanic/quotations')}><Stat label="Por autorizar" value={pendingQuotes} tone={pendingQuotes ? 'warn' : 'ink'} /></button>
-              <button type="button" className="dx-statbtn" onClick={() => navigate('/mechanic/orders')}><Stat label="Entregas 48 h" value={stats.deliveryDue} tone={stats.deliveryDue ? 'red' : 'ink'} /></button>
-              <button type="button" className="dx-statbtn" onClick={() => navigate('/mechanic/history')}><Stat label="Cerradas hoy" value={stats.finishedToday} /></button>
+              <button type="button" className="dx-statbtn" onClick={() => navigate('/mechanic/history')}><Stat label="Cerradas hoy" value={stats.finishedToday} tone="ok" /></button>
             </div>
           </Panel>
         </aside>
@@ -193,6 +174,8 @@ export default function MechanicDashboard() {
           </Panel>
         </section>
       </div>
+
+      {showShop && <ShopSummary />}
     </div>
   );
 }

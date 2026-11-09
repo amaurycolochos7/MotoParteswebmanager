@@ -203,8 +203,10 @@ export default function NewServiceOrder() {
 
     const loadMasterMechanics = async () => {
         try {
-            const masters = await orderRequestsService.getMasterMechanics();
-            setMasterMechanics(masters || []);
+            const res = await orderRequestsService.getMasterMechanics();
+            // El servicio regresa { data, error }: antes se trataba como lista y la pantalla se rompía para auxiliares.
+            const masters = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+            setMasterMechanics(masters);
             if (masters && masters.length === 1) {
                 setSelectedMaster(masters[0].id);
             }

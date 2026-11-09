@@ -519,7 +519,6 @@ export default function AppointmentCalendar() {
                                 const isExternal = apt.source === 'external';
                                 const st = apt.status;
                                 const date = effDate(apt);
-                                const color = STATUS_COLORS[st] || '#6e6e73';
                                 const alertEvent = apt.shop_alert ? (apt.events || []).find(e => ALERT_TEXT[e.type]) : null;
                                 const busy = !!actionLoading;
                                 const canFlow = isExternal && !['cancelled', 'completed'].includes(st);
@@ -527,7 +526,7 @@ export default function AppointmentCalendar() {
                                 return (
                                     <div key={apt.id} id={`apt-${apt.id}`} className={`appointment-card ${isExternal ? 'is-external' : ''} ${st === 'pending_external' ? 'is-pending' : ''} ${isPinned ? 'is-pinned' : ''}`}>
                                         {/* Barra izquierda de fecha */}
-                                        <div className="apt-date-badge" style={{ background: ['pending_external', 'proposal_sent'].includes(st) ? color : undefined }}>
+                                        <div className={`apt-date-badge apt-date--${st}`}>
                                             <div className="badge-day">{dayNum(date)}</div>
                                             <div className="badge-month-year">{monShort(date)}</div>
                                             <div className="badge-time">{fmtHour(date)}</div>
@@ -602,7 +601,7 @@ export default function AppointmentCalendar() {
                                                 </div>
                                             )}
 
-                                            <div className="apt-status-chip" style={{ background: color + '22', color }}>
+                                            <div className={`apt-status-chip apt-status--${st}`}>
                                                 {STATUS_LABELS[st] || st}
                                             </div>
 
@@ -787,159 +786,6 @@ export default function AppointmentCalendar() {
                 </div>
             )}
 
-            <style>{`                .appointments-page { min-height: calc(100vh - 120px); padding-bottom: 80px; }
-
-                .main-screen {
-                    display: flex; flex-direction: column; align-items: center;
-                    justify-content: center; min-height: 70vh;
-                    gap: var(--spacing-xl); padding: var(--spacing-xl);
-                }
-                .welcome-header { text-align: center; animation: fadeInUp 0.6s ease; }
-                @keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-                .welcome-icon { color: var(--primary); margin-bottom: var(--spacing-md); filter: drop-shadow(0 4px 12px rgba(59,130,246,.3)); }
-                .welcome-title {
-                    font-size: 2.25rem; font-weight: 800; margin-bottom: var(--spacing-sm);
-                    background: linear-gradient(135deg,#d71920 0%,#8b5cf6 100%);
-                    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-                }
-                .welcome-subtitle { color: var(--text-secondary); font-size: 1.125rem; font-weight: 500; }
-
-                .external-alert {
-                    margin-top: var(--spacing-md); display: inline-flex; align-items: center; gap: 6px;
-                    background: #fef3c7; color: #92400e; border: 1px solid #fbbf24;
-                    border-radius: var(--radius-full); padding: 6px 14px; font-size: 0.875rem;
-                    cursor: pointer; font-weight: 600; transition: all 0.2s;
-                }
-                .external-alert:hover { background: #fde68a; }
-
-                .main-buttons { display: flex; flex-direction: column; gap: var(--spacing-md); width: 100%; max-width: 420px; }
-                .btn-main {
-                    position: relative; display: flex; align-items: center; justify-content: center;
-                    gap: var(--spacing-sm); padding: var(--spacing-lg) var(--spacing-xl);
-                    background: linear-gradient(135deg, var(--primary) 0%, #d71920 100%);
-                    color: white; border: none; border-radius: var(--radius-lg);
-                    font-size: 1.0625rem; font-weight: 600; cursor: pointer;
-                    transition: all 0.2s; box-shadow: 0 4px 16px rgba(59,130,246,.25);
-                }
-                .btn-main:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(59,130,246,.35); }
-                .btn-main.btn-new { background: linear-gradient(135deg,#22c55e,#059669); box-shadow: 0 4px 16px rgba(16,185,129,.25); }
-                .btn-main.btn-new:hover { box-shadow: 0 6px 24px rgba(16,185,129,.35); }
-                .btn-main.btn-warning { background: linear-gradient(135deg,#f59e0b,#d97706); box-shadow: 0 4px 16px rgba(245,158,11,.25); }
-                .btn-badge { background: white; color: #92400e; border-radius: 999px; padding: 1px 8px; font-size: 0.8rem; font-weight: 700; margin-left: 6px; }
-
-                .list-view { animation: slideIn 0.3s ease; }
-                @keyframes slideIn { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:translateX(0); } }
-                .list-header { margin-bottom: var(--spacing-lg); padding-bottom: var(--spacing-md); border-bottom: 2px solid var(--border-color); }
-                .list-title-row { display: flex; align-items: flex-end; justify-content: space-between; }
-                .btn-back { background: transparent; border: none; color: var(--primary); font-size: 0.9375rem; font-weight: 600; cursor: pointer; padding: var(--spacing-sm) 0; margin-bottom: var(--spacing-sm); display: inline-flex; align-items: center; gap: 4px; transition: 0.15s; }
-                .btn-back:hover { transform: translateX(-4px); }
-                .list-title h2 { font-size: 1.75rem; font-weight: 700; margin-bottom: 4px; color: var(--text-primary); }
-                .list-title p { color: var(--text-secondary); font-size: 0.9375rem; margin: 0; }
-                .btn-icon { background: transparent; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 8px; cursor: pointer; display: flex; align-items: center; color: var(--text-secondary); transition: 0.15s; }
-                .btn-icon:hover { background: var(--bg-hover); color: var(--primary); }
-
-                .filter-tabs { display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); flex-wrap: wrap; }
-                .filter-tab { padding: 6px 16px; border: 1.5px solid var(--border-color); background: white; border-radius: var(--radius-full); font-size: 0.875rem; font-weight: 600; cursor: pointer; color: var(--text-secondary); transition: 0.15s; display: flex; align-items: center; gap: 6px; }
-                .filter-tab.active { border-color: var(--primary); background: var(--primary); color: white; }
-                .tab-badge { background: #ef4444; color: white; border-radius: 999px; padding: 1px 7px; font-size: 0.75rem; }
-                .filter-tab.active .tab-badge { background: white; color: var(--primary); }
-
-                .btn-new-appointment { width: 100%; display: flex; align-items: center; justify-content: center; gap: var(--spacing-sm); padding: var(--spacing-md) var(--spacing-lg); background: linear-gradient(135deg,#22c55e,#059669); color: white; border: none; border-radius: var(--radius-lg); font-size: 1rem; font-weight: 600; cursor: pointer; margin-bottom: var(--spacing-xl); transition: 0.15s; box-shadow: 0 4px 12px rgba(16,185,129,.2); }
-                .btn-new-appointment:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(16,185,129,.3); }
-
-                .empty-state { display: flex; flex-direction: column; align-items: center; gap: var(--spacing-lg); padding: var(--spacing-2xl); text-align: center; background: var(--bg-hover); border-radius: var(--radius-xl); border: 2px dashed var(--border-color); }
-                .empty-state h3 { font-size: 1.25rem; font-weight: 600; margin: 0; }
-
-                .appointments-list { display: flex; flex-direction: column; gap: var(--spacing-md); }
-
-                .appointment-card { display: flex; align-items: stretch; background: white; border: 1.5px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden; transition: 0.2s; }
-                .appointment-card.is-external { border-color: #fbbf24; }
-                .appointment-card.is-pending { border-color: #f59e0b; box-shadow: 0 0 0 2px #fef3c7; }
-                .appointment-card:hover { box-shadow: var(--shadow-md); }
-
-                .apt-date-badge { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; padding: var(--spacing-md) var(--spacing-sm); background: linear-gradient(135deg,#d71920,#a90f16); color: white; flex-shrink: 0; text-align: center; }
-                .badge-day { font-size: 1.875rem; font-weight: 800; line-height: 1; }
-                .badge-month-year { font-size: 0.7rem; text-transform: uppercase; font-weight: 700; opacity: 0.9; margin-top: 2px; }
-                .badge-time { font-size: 0.75rem; font-weight: 600; margin-top: 4px; opacity: 0.85; }
-
-                .apt-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: var(--spacing-md); }
-                .apt-client-row { display: flex; align-items: center; gap: 6px; font-size: 1rem; font-weight: 700; color: var(--text-primary); flex-wrap: wrap; }
-                .badge-web { display: inline-flex; align-items: center; gap: 3px; background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; border-radius: 999px; padding: 1px 8px; font-size: 0.7rem; font-weight: 700; }
-                .apt-meta { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; color: var(--text-secondary); }
-                .apt-status-chip { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 0.72rem; font-weight: 700; margin-top: 4px; width: fit-content; }
-
-                .apt-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-                .btn-confirm { display: flex; align-items: center; gap: 5px; padding: 6px 14px; background: #22c55e; color: white; border: none; border-radius: var(--radius-md); font-size: 0.8125rem; font-weight: 700; cursor: pointer; transition: 0.15s; }
-                .btn-confirm:hover { background: #16a34a; }
-                .btn-confirm:disabled { opacity: 0.6; cursor: not-allowed; }
-                .btn-reject { display: flex; align-items: center; gap: 5px; padding: 6px 14px; background: #ef4444; color: white; border: none; border-radius: var(--radius-md); font-size: 0.8125rem; font-weight: 700; cursor: pointer; transition: 0.15s; }
-                .btn-reject:hover { background: #dc2626; }
-                .btn-reject:disabled { opacity: 0.6; cursor: not-allowed; }
-
-                .apt-edit-btn { display: flex; align-items: center; justify-content: center; padding: 0 var(--spacing-md); color: var(--text-muted); background: transparent; border: none; cursor: pointer; transition: 0.15s; flex-shrink: 0; }
-                .apt-edit-btn:hover { color: var(--primary); background: var(--bg-hover); }
-
-                .mode-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: var(--spacing-lg); padding: 4px; background: var(--bg-hover); border-radius: var(--radius-md); }
-                .mode-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: var(--spacing-sm) var(--spacing-md); background: transparent; border: none; border-radius: var(--radius-sm); font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; transition: 0.15s; }
-                .mode-btn.active { background: white; color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,.1); }
-
-                .scope-tabs { display: inline-flex; gap: 4px; padding: 4px; background: #f1f1f4; border-radius: 12px; margin: var(--spacing-md) 0; }
-                .list-view .scope-tabs { margin: 0 0 var(--spacing-md); }
-                .scope-tabs button { border: 0; background: transparent; padding: 8px 18px; min-height: 40px; border-radius: 9px; font-size: 0.9rem; font-weight: 700; color: var(--text-secondary); cursor: pointer; }
-                .scope-tabs button.on { background: #fff; color: var(--primary); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
-                .appointment-card.is-pinned { border-color: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }
-                .apt-pinned { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #dbeafe; color: #1e40af; border-radius: var(--radius-md); padding: 4px 10px; font-size: 0.78rem; font-weight: 800; margin-bottom: 6px; }
-                .apt-pinned-close { border: 0; background: transparent; color: inherit; font-weight: 800; font-size: 0.78rem; cursor: pointer; text-decoration: underline; min-height: 28px; }
-                .apt-mech { flex-wrap: wrap; }
-                .apt-mech strong { color: var(--text-primary); }
-                .badge-asked { background: #dcfce7; color: #166534; border-radius: 999px; padding: 1px 8px; font-size: 0.7rem; font-weight: 800; }
-                .btn-order { display: inline-flex; align-items: center; gap: 5px; padding: 8px 14px; min-height: 36px; background: #1d4ed8; color: #fff; border: none; border-radius: var(--radius-md); font-size: 0.8125rem; font-weight: 700; cursor: pointer; }
-                .btn-order:hover { background: #1e40af; }
-                .apt-phone { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
-                .apt-phone:hover { color: #16a34a; }
-                .apt-notes { align-items: flex-start; }
-                .apt-notes svg { margin-top: 2px; flex-shrink: 0; }
-                .apt-notes span { white-space: pre-line; overflow-wrap: anywhere; }
-                .apt-error { width: 100%; max-width: 420px; background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; border-radius: var(--radius-md); padding: 10px 14px; font-size: 0.875rem; font-weight: 600; margin-bottom: var(--spacing-md); }
-
-                .booking-card { width: 100%; max-width: 420px; background: white; border: 1.5px dashed var(--border-color); border-radius: var(--radius-lg); padding: var(--spacing-md); display: flex; flex-direction: column; gap: 10px; margin-bottom: var(--spacing-xl); }
-                .booking-head { display: flex; gap: 10px; align-items: flex-start; color: var(--text-primary); }
-                .booking-head svg { color: var(--primary); margin-top: 2px; flex-shrink: 0; }
-                .booking-head strong { display: block; font-size: 0.95rem; }
-                .booking-head span { display: block; font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px; line-height: 1.4; }
-                .booking-url { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; background: var(--bg-hover); border-radius: var(--radius-md); padding: 8px 10px; overflow-wrap: anywhere; user-select: all; }
-                .booking-phone { width: 100%; border: 1.5px solid var(--border-color); border-radius: var(--radius-md); padding: 8px 10px; font-size: 0.875rem; background: white; color: var(--text-primary); }
-                .booking-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-                .booking-btn { flex: 1 1 140px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px; border-radius: var(--radius-md); border: 1.5px solid var(--border-color); background: white; color: var(--text-primary); font-size: 0.875rem; font-weight: 700; cursor: pointer; transition: 0.15s; }
-                .booking-btn:hover { background: var(--bg-hover); }
-                .booking-btn.wa { background: #25d366; border-color: #25d366; color: white; }
-                .booking-btn.wa:hover { background: #1ebe5b; }
-                .list-view .booking-card { max-width: none; margin-bottom: var(--spacing-lg); }
-
-                @media (max-width: 768px) {
-                    .main-buttons { max-width: 100%; }
-                    .booking-card, .apt-error { max-width: 100%; }
-                    .btn-main { font-size: 1rem; padding: var(--spacing-md) var(--spacing-lg); }
-                }
-
-                .btn-ghost-danger {
-                    background: transparent;
-                    color: var(--danger, #ef4444);
-                    border: none;
-                    font-size: 0.8125rem;
-                    cursor: pointer;
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 4px;
-                    padding: var(--spacing-sm) var(--spacing-md);
-                    border-radius: var(--radius-md);
-                }
-                .btn-ghost-danger:hover {
-                    background: rgba(239, 68, 68, 0.1);
-                }
-            
-                .btn-main.btn-dark { background: linear-gradient(135deg,#3f3f46,#18181b); box-shadow: 0 4px 16px rgba(24,24,27,.25); }
-            `}</style>
         </div>
     );
 }

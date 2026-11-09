@@ -39,8 +39,10 @@ export default function MyRequests() {
     const loadRequests = async () => {
         try {
             setLoading(true);
-            const data = await orderRequestsService.getMyRequests(user?.id);
-            setRequests(data || []);
+            const res = await orderRequestsService.getMyRequests(user?.id);
+            // El servicio devuelve { data, error }; antes la pantalla trataba la respuesta como lista y se rompía.
+            const data = Array.isArray(res) ? res : (Array.isArray(res?.data) ? res.data : []);
+            setRequests(data);
 
             // Para solicitudes aprobadas, cargar datos actuales de las órdenes
             const approvedRequests = (data || []).filter(r => r.status === 'approved' && r.created_order_id);

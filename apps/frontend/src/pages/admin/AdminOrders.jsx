@@ -334,17 +334,26 @@ export default function AdminOrders() {
                 }
 
                 .filters-bar .search-box {
-                    flex: 1;
-                    min-width: 250px;
+                    flex: 1 1 260px;
+                    min-width: 0;
                 }
 
                 .filter-group {
-                    display: flex;
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
                     gap: var(--spacing-sm);
+                    flex: 1 1 100%;
+                    min-width: 0;
                 }
 
                 .filter-group .form-select {
-                    min-width: 150px;
+                    min-width: 0;
+                    width: 100%;
+                }
+
+                @media (min-width: 1025px) {
+                    .filter-group { display: flex; flex: 0 0 auto; }
+                    .filter-group .form-select { width: auto; min-width: 150px; }
                 }
 
                 .order-number-cell {

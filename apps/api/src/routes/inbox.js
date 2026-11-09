@@ -6,6 +6,7 @@ import { resolveWorkspace } from '../middleware/workspace.js';
 import { loadActor, requirePermission } from '../lib/permissions.js';
 import { sendToClient } from '../lib/wa-send.js';
 import { digits } from '../lib/phone.js';
+import { botCall, resolveSessionId } from '../lib/wa-session.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const bad = (reply, code, error) => reply.status(code).send({ error });
@@ -99,6 +100,15 @@ export default async function inboxRoutes(fastify) {
         const items = rows.map((r) => toConversationItem(r, clients));
         const last = rows[rows.length - 1];
         return { items, next_cursor: rows.length === limit && last?.last_message_at ? new Date(last.last_message_at).toISOString() : null };
+    });
+
+    // POST /api/inbox/sync — vuelve a importar el historial de chats del teléfono (corre en el bot, en segundo plano).
+    fastify.post('/sync', async (request, reply) => {
+        const sessionId = await resolveSessionId(request.workspace.id);
+        if (!sessionId) return reply.status(409).send({ error: 'WhatsApp del taller no está configurado.' });
+        const res = await botCall(`/sessions/${sessionId}/sync-history`, { method: 'POST' });
+        if (!res.ok) return reply.status(res.status === 503 || res.unreachable ? 409 : 502).send({ error: 'WhatsApp no está conectado en este momento. Intenta cuando aparezca como conectado.' });
+        return { started: true };
     });
 
     // GET /api/inbox/unread-count — conversaciones con mensajes sin leer (campanita)

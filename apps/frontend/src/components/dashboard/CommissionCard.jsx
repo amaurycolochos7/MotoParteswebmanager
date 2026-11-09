@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, RefreshCw, Wallet } from 'lucide-react';
+import { ArrowRight, RefreshCw } from 'lucide-react';
 import { commissionService } from '../../lib/api';
 import { Segmented, Skeleton, fmtMXN } from '../ui/kit';
 import './CommissionCard.css';
@@ -36,10 +36,12 @@ export default function CommissionCard({ mechanicId = '', title = 'Tu comisión'
   useEffect(() => { load(); }, [load]);
 
   const total = Number(data?.total_comision) || 0;
+  // Vista simple: Pagada (ya cobrada) y Pendiente (liberada + por cobrar). El estado exacto por orden está en el detalle.
+  const pagada = Number(data?.pagada) || 0;
+  const pendiente = (Number(data?.liberada) || 0) + (Number(data?.por_cobrar) || 0);
   const parts = [
-    { id: 'pagada', label: 'Pagada', hint: 'Ya te la entregaron', value: Number(data?.pagada) || 0, cls: 'is-paid' },
-    { id: 'liberada', label: 'Liberada', hint: 'Cliente liquidó: lista para pagarte', value: Number(data?.liberada) || 0, cls: 'is-ready' },
-    { id: 'por_cobrar', label: 'Por cobrar', hint: 'Falta que el cliente liquide', value: Number(data?.por_cobrar) || 0, cls: 'is-pending' },
+    { id: 'pagada', label: 'Pagada', hint: 'Ya te la entregaron', value: pagada, cls: 'is-paid' },
+    { id: 'pendiente', label: 'Pendiente', hint: 'Aún no se te paga (incluye lo que falta que el cliente liquide)', value: pendiente, cls: 'is-pending' },
   ];
   const sum = parts.reduce((a, p) => a + p.value, 0) || 1;
 
@@ -47,7 +49,6 @@ export default function CommissionCard({ mechanicId = '', title = 'Tu comisión'
     <section className={`cc${compact ? ' cc--compact' : ''}`}>
       <header className="cc__head">
         <div className="cc__ttl">
-          <span className="cc__ico"><Wallet size={16} /></span>
           <h3>{title}</h3>
         </div>
         <Segmented items={PERIODS} value={period} onChange={setPeriod} />

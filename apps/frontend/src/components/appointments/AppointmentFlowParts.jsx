@@ -239,56 +239,7 @@ export function BlockedDaysModal({ onClose, onChanged }) {
     );
 }
 
-/* ── Estilos del flujo ────────────────────────────────────────────────── */
+/* Los estilos del flujo viven en pages/mechanic/AppointmentsV2.css (V3). */
 export function FlowStyles() {
-    return (
-        <style>{`
-            .af-modal { max-width: 480px; }
-            .af-hint { color: var(--text-secondary); font-size: .9rem; line-height: 1.5; margin: 0 0 14px; }
-            .af-hint.small { font-size: .8rem; margin: 6px 0 0; }
-            .af-opt { color: var(--text-muted, #86868b); font-weight: 400; }
-            .af-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-            .af-warn { display: flex; align-items: center; gap: 6px; color: #b91c1c; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 8px 12px; font-size: .85rem; font-weight: 600; margin: 4px 0 10px; }
-            .af-warn-box { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: 8px; padding: 10px 14px; font-size: .85rem; margin-bottom: 12px; }
-            .af-warn-box ul { margin: 6px 0 6px 18px; }
-            .af-blocked-form { grid-template-columns: 1fr 1.4fr auto; align-items: end; }
-            .af-add { margin-bottom: 14px; }
-            .af-days { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: auto; }
-            .af-day { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-hover); }
-            .af-day strong { display: block; font-size: .9rem; text-transform: capitalize; }
-            .af-day span { font-size: .78rem; color: var(--text-secondary); }
-            .af-day-x { border: 0; background: transparent; color: #dc2626; cursor: pointer; padding: 6px; border-radius: 6px; }
-            .af-day-x:hover { background: #fee2e2; }
-
-            .af-notice { position: relative; width: 100%; max-width: 560px; border-radius: 10px; padding: 14px 40px 14px 16px; margin-bottom: 16px; font-size: .88rem; }
-            .af-notice.ok { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
-            .af-notice.warn { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; }
-            .af-notice p { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 8px; font-weight: 600; line-height: 1.45; }
-            .af-notice p:last-child { margin-bottom: 0; }
-            .af-notice-x { position: absolute; right: 10px; top: 10px; border: 0; background: transparent; cursor: pointer; color: inherit; opacity: .7; }
-            .af-notice-text { width: 100%; border: 1px solid rgba(0,0,0,.15); border-radius: 8px; padding: 10px; font: inherit; font-size: .82rem; background: #fff; color: #111; resize: vertical; }
-            .af-notice-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-            .af-notice-link { font-weight: 400 !important; font-size: .78rem; word-break: break-all; opacity: .85; }
-            .af-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1.5px solid rgba(0,0,0,.18); background: #fff; color: #111; font-size: .82rem; font-weight: 700; cursor: pointer; text-decoration: none; }
-            .af-btn.wa { background: #25d366; border-color: #25d366; color: #fff; }
-
-            /* tarjeta de cita: acciones y avisos del cliente */
-            .apt-alert { display: flex; gap: 10px; align-items: center; justify-content: space-between; background: #eff6ff; border: 1px solid #93c5fd; color: #1e3a8a; border-radius: 8px; padding: 8px 12px; font-size: .82rem; font-weight: 600; margin: 6px 0 2px; }
-            .apt-alert button { border: 0; background: #1d4ed8; color: #fff; border-radius: 6px; padding: 4px 10px; font-size: .75rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
-            .apt-proposal { font-size: .82rem; color: #1d4ed8; background: #eff6ff; border-radius: 8px; padding: 6px 10px; margin-top: 4px; line-height: 1.45; }
-            .apt-actions .btn-propose, .apt-actions .btn-plain { display: flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: var(--radius-md); font-size: .8125rem; font-weight: 700; cursor: pointer; border: 1.5px solid var(--border-color); background: #fff; color: var(--text-primary); transition: .15s; }
-            .apt-actions .btn-propose { background: #2563eb; border-color: #2563eb; color: #fff; }
-            .apt-actions .btn-propose:hover { background: #1d4ed8; }
-            .apt-actions .btn-plain:hover { background: var(--bg-hover); }
-            .apt-actions .btn-plain.danger { color: #dc2626; border-color: #fca5a5; }
-            .apt-actions button:disabled { opacity: .6; cursor: not-allowed; }
-            .apt-history-toggle { border: 0; background: transparent; color: var(--text-secondary); font-size: .75rem; font-weight: 600; cursor: pointer; padding: 4px 0; text-align: left; text-decoration: underline; }
-            .apt-history { margin: 4px 0 0; padding: 0; list-style: none; font-size: .75rem; color: var(--text-secondary); border-left: 2px solid var(--border-color); }
-            .apt-history li { padding: 2px 0 2px 10px; }
-            .apt-history b { color: var(--text-primary); }
-            .apt-trash { display: flex; align-items: center; justify-content: center; padding: 0 var(--spacing-md); color: var(--text-muted); background: transparent; border: none; cursor: pointer; flex-shrink: 0; }
-            .apt-trash:hover { color: #dc2626; background: #fef2f2; }
-            @media (max-width: 520px) { .af-row, .af-blocked-form { grid-template-columns: 1fr; } .af-add { width: 100%; } }
-        `}</style>
-    );
+    return null;
 }

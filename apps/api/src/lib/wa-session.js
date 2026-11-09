@@ -133,6 +133,8 @@ export async function logoutWorkspaceSession(workspaceId) {
 
 /** Taller al que pertenece una sesión del bot (para los eventos entrantes). */
 export async function workspaceOfSession(sessionId) {
+    // Un id que no es UUID jamás es una sesión válida (evita que Prisma lance un error de columna).
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(sessionId || ''))) return null;
     const ws = await unscoped(() => prisma.workspace.findFirst({
         where: { whatsapp_session_profile_id: sessionId }, select: { id: true },
     }));

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import QRCode from 'qrcode';
+import { importHistory } from '../inbox-events.js';
 
 const router = Router();
 
@@ -70,6 +71,17 @@ router.get('/:mechanicId/qr', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: 'Error generating QR' });
     }
+});
+
+// POST /api/sessions/:mechanicId/sync-history — vuelve a importar el historial de chats a la bandeja (corre en segundo plano).
+router.post('/:mechanicId/sync-history', async (req, res) => {
+    const sessionManager = req.app.get('sessionManager');
+    const session = sessionManager.getSession(req.params.mechanicId);
+    if (!session || !session.isConnected || !session.client) {
+        return res.status(503).json({ error: 'Sesión de WhatsApp no disponible' });
+    }
+    importHistory(session.client, req.params.mechanicId).catch((err) => console.warn('⚠️ [inbox] sync-history:', err.message));
+    res.json({ started: true });
 });
 
 // POST /api/sessions/:mechanicId/start

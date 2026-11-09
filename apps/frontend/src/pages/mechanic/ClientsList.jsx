@@ -329,15 +329,6 @@ export default function ClientsList() {
                 )}
             </div>
 
-            {/* Floating Add Button */}
-            <button
-                className="fab-button"
-                onClick={openAddModal}
-                title="Agregar cliente"
-            >
-                <Plus size={24} />
-            </button>
-
             {/* Add/Edit Client Modal */}
             {showModal && (
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>

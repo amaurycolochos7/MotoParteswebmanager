@@ -87,10 +87,10 @@ export default function AdminShopQR() {
             <style>
                 body { font-family: system-ui, sans-serif; text-align: center; padding: 40px; }
                 h1 { font-size: 2rem; margin: 0 0 6px; }
-                h2 { font-size: 1.1rem; color: #474747; margin: 0 0 30px; font-weight: 500; }
-                .qr { display: inline-block; padding: 20px; border: 2px dashed #86868b; border-radius: 20px; }
-                .footer { margin-top: 30px; color: #474747; font-size: 0.95rem; }
-                .brand { margin-top: 40px; color: #86868b; font-size: 0.8rem; }
+                h2 { font-size: 1.1rem; color: var(--text-2); margin: 0 0 30px; font-weight: 500; }
+                .qr { display: inline-block; padding: 20px; border: 2px dashed var(--text-3); border-radius: 20px; }
+                .footer { margin-top: 30px; color: var(--text-2); font-size: 0.95rem; }
+                .brand { margin-top: 40px; color: var(--text-3); font-size: 0.8rem; }
             </style></head><body>${printable}</body></html>`);
         w.document.close();
         w.focus();
@@ -215,33 +215,36 @@ export default function AdminShopQR() {
 
 const styles = `
 .sqr-page { padding: 24px; max-width: 1200px; margin: 0 auto; }
-.sqr-header h1 { display: flex; align-items: center; gap: 10px; font-size: 1.8rem; font-weight: 800; margin: 0 0 6px; color: #1d1d1f; }
-.sqr-header p { color: #6e6e73; margin: 0 0 28px; max-width: 640px; line-height: 1.5; }
+.sqr-header h1 { display: flex; align-items: center; gap: 10px; font-size: 1.8rem; font-weight: 800; margin: 0 0 6px; color: var(--text); }
+.sqr-header p { color: var(--text-2); margin: 0 0 28px; max-width: 640px; line-height: 1.5; }
 .sqr-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 30px; align-items: start; }
 @media (max-width: 860px) { .sqr-grid { grid-template-columns: 1fr; } }
-.sqr-form { background: white; border: 1px solid #e8e8ed; border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 18px; }
+.sqr-form { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 18px; }
 .sqr-field { display: flex; flex-direction: column; gap: 6px; }
-.sqr-field label { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: #1d1d1f; font-size: 0.9rem; }
-.sqr-field input, .sqr-field textarea { padding: 10px 14px; border: 1.5px solid #d2d2d7; border-radius: 10px; font-size: 0.95rem; font-family: inherit; resize: vertical; }
-.sqr-field input:focus, .sqr-field textarea:focus { outline: none; border-color: #ef4444; box-shadow: 0 0 0 4px rgba(239,68,68,0.1); }
-.sqr-field small { color: #6e6e73; font-size: 0.8rem; }
+.sqr-field label { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--text); font-size: 0.9rem; }
+.sqr-field input, .sqr-field textarea { padding: 10px 14px; border: 1.5px solid var(--line-strong); border-radius: 10px; font-size: 0.95rem; font-family: inherit; resize: vertical; }
+.sqr-field input:focus, .sqr-field textarea:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 4px rgba(239,68,68,0.1); }
+.sqr-field small { color: var(--text-2); font-size: 0.8rem; }
 .sqr-url-row { display: flex; gap: 8px; align-items: center; }
-.sqr-url { flex: 1; padding: 10px 12px; border: 1px solid #d2d2d7; border-radius: 10px; font-family: monospace; font-size: 0.82rem; background: #f5f5f7; color: #474747; }
+.sqr-url { flex: 1; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; font-family: monospace; font-size: 0.82rem; background: var(--surface-2); color: var(--text-2); }
 .sqr-btn-primary, .sqr-btn-secondary { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease; border: none; white-space: nowrap; }
-.sqr-btn-primary { background: linear-gradient(135deg,#ef4444,#dc2626); color: white; }
+.sqr-btn-primary { background: var(--brand); color: white; }
 .sqr-btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(239,68,68,0.25); }
 .sqr-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.sqr-btn-secondary { background: white; color: #1d1d1f; border: 1.5px solid #d2d2d7; }
-.sqr-btn-secondary:hover:not(:disabled) { background: #f5f5f7; border-color: #86868b; }
+.sqr-btn-secondary { background: var(--surface); color: var(--text); border: 1.5px solid var(--line-strong); }
+.sqr-btn-secondary:hover:not(:disabled) { background: var(--surface-2); border-color: var(--text-3); }
 .sqr-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 .sqr-actions { display: flex; gap: 10px; flex-wrap: wrap; padding-top: 8px; }
-.sqr-info { display: flex; gap: 10px; padding: 12px 14px; background: #fde7e8; border: 1px solid #f6cdd0; border-radius: 10px; color: #a90f16; font-size: 0.88rem; line-height: 1.5; }
+.sqr-info { display: flex; gap: 10px; padding: 12px 14px; background: var(--brand-50); border: 1px solid var(--brand-200); border-radius: 10px; color: var(--brand-deep); font-size: 0.88rem; line-height: 1.5; }
 .sqr-info svg { flex-shrink: 0; margin-top: 2px; }
-.sqr-preview { background: white; border: 2px dashed #d2d2d7; border-radius: 20px; padding: 30px; text-align: center; }
-#mp-shop-qr-printable h1 { font-size: 1.6rem; margin: 0 0 4px; color: #1d1d1f; }
-#mp-shop-qr-printable h2 { font-size: 0.95rem; color: #6e6e73; margin: 0 0 20px; font-weight: 500; }
-#mp-shop-qr-printable .qr { display: inline-block; padding: 14px; background: white; border-radius: 14px; }
-#mp-shop-qr-printable .footer { color: #474747; font-size: 0.88rem; margin: 18px 0 0; }
-#mp-shop-qr-printable .brand { color: #86868b; font-size: 0.78rem; margin: 18px 0 0; }
-.sqr-empty { width: 240px; height: 240px; display: flex; align-items: center; justify-content: center; color: #86868b; font-size: 0.9rem; text-align: center; padding: 20px; }
+.sqr-preview { background: var(--surface); border: 2px dashed var(--line-strong); border-radius: 20px; padding: 30px; text-align: center; }
+#mp-shop-qr-printable h1 { font-size: 1.6rem; margin: 0 0 4px; color: var(--text); }
+#mp-shop-qr-printable h2 { font-size: 0.95rem; color: var(--text-2); margin: 0 0 20px; font-weight: 500; }
+#mp-shop-qr-printable .qr { display: inline-block; max-width: 100%; box-sizing: border-box; padding: 14px; background: var(--surface); border-radius: 14px; }
+/* El QR se encoge para caber en celular (no se sale de su caja) */
+#mp-shop-qr-printable .qr canvas { max-width: 100%; height: auto !important; }
+@media (max-width: 480px) { .sqr-preview { padding: 16px; } #mp-shop-qr-printable .qr { padding: 8px; } }
+#mp-shop-qr-printable .footer { color: var(--text-2); font-size: 0.88rem; margin: 18px 0 0; }
+#mp-shop-qr-printable .brand { color: var(--text-3); font-size: 0.78rem; margin: 18px 0 0; }
+.sqr-empty { width: 240px; height: 240px; display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: 0.9rem; text-align: center; padding: 20px; }
 `;

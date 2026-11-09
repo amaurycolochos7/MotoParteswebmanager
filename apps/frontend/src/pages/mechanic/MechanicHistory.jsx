@@ -838,27 +838,25 @@ export default function MechanicHistory() {
           flex-direction: column;
           gap: var(--spacing-md);
         }
-
         .mechanic-highlight {
           display: flex;
           align-items: center;
           gap: var(--spacing-md);
-          padding: var(--spacing-md);
-          background: linear-gradient(135deg, #d71920 0%, #d71920 100%);
-          border-radius: var(--radius-md);
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+          padding: 12px 14px;
+          background: var(--surface-2);
+          border: 1px solid var(--line);
+          border-radius: var(--r-control);
+          min-width: 0;
         }
-
         .mechanic-icon-badge {
-          width: 48px;
-          height: 48px;
-          background: rgba(255, 255, 255, 0.25);
-          backdrop-filter: blur(10px);
-          border-radius: var(--radius-md);
+          width: 40px;
+          height: 40px;
+          background: var(--brand-50);
+          border-radius: var(--r-pill);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: white;
+          color: var(--brand);
           flex-shrink: 0;
         }
 
@@ -866,21 +864,17 @@ export default function MechanicHistory() {
           flex: 1;
           min-width: 0;
         }
-
         .mechanic-label {
-          font-size: 0.6875rem;
-          color: rgba(255, 255, 255, 0.85);
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          font-weight: 600;
-          margin-bottom: 4px;
+          font-size: 0.75rem;
+          color: var(--ink-3);
+          font-weight: 500;
+          margin-bottom: 2px;
         }
-
         .mechanic-name-large {
-          font-size: 1.25rem;
-          font-weight: 700;
-          color: white;
-          line-height: 1.2;
+          font-size: 1rem;
+          font-weight: 600;
+          color: var(--text);
+          overflow-wrap: anywhere;
         }
 
         .info-grid {
@@ -1126,10 +1120,9 @@ export default function MechanicHistory() {
           padding: var(--spacing-md);
           border: 1px solid var(--border-color);
         }
-
         .mechanic-section {
-          background: linear-gradient(135deg, #d71920 0%, #d71920 100%);
-          border: none;
+          background: var(--surface-2);
+          border: 1px solid var(--line);
         }
 
         .section-header {

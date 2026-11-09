@@ -82,83 +82,26 @@ export default function Login() {
 
   return (
     <div className="login-page">
-      {/* Background decorations */}
-      <div className="login-bg-decor">
-        <div className="bg-circle bg-circle-1"></div>
-        <div className="bg-circle bg-circle-2"></div>
-        <div className="bg-circle bg-circle-3"></div>
-      </div>
-
       <div className="login-container">
         <div className="login-card">
           {/* Logo */}
           <div className="login-header">
-            <div className="login-logo-container">
-              <img
-                src="/logo.png"
-                alt="MotoPartes Club"
-                className="login-logo-img"
-              />
-            </div>
-            <h1 className="login-title">
-              <span className="title-moto">MOTO</span>
-              <span className="title-partes">PARTES</span>
-            </h1>
-            <p className="login-subtitle">Sistema de Gestión de Taller</p>
+            <img src="/logo-mark.png" alt="MotoPartes Club" className="login-logo-img" width="177" height="129" />
+            <h1 className="login-title">Iniciar sesión</h1>
+            <p className="login-subtitle">Sistema de gestión de taller</p>
           </div>
 
           {/* Formulario */}
           <form onSubmit={handleSubmit} className={`login-form ${shake ? 'shake' : ''}`}>
             {/* Error display with animation */}
             {error && (
-              <div
-                key={errorKey}
-                style={{
-                  padding: '14px 16px',
-                  marginBottom: '16px',
-                  borderRadius: '14px',
-                  background: errorType === 'inactive'
-                    ? 'var(--warning-light)'
-                    : 'var(--danger-light)',
-                  border: '1px solid transparent',
-                  animation: 'errorSlideIn 0.4s ease-out',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-                  <div style={{
-                    width: '46px',
-                    height: '46px',
-                    minWidth: '46px',
-                    borderRadius: '12px',
-                    background: errorType === 'inactive' ? '#fde68a' : '#fecaca',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    animation: 'iconPulse 0.5s ease-out',
-                  }}>
-                    {errorType === 'inactive'
-                      ? <UserX size={24} color="#b45309" />
-                      : <XCircle size={24} color="#dc2626" />}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <strong style={{
-                      display: 'block',
-                      fontSize: '16px',
-                      fontWeight: 700,
-                      color: errorType === 'inactive' ? '#92400e' : '#991b1b',
-                      marginBottom: '6px'
-                    }}>
-                      {errorType === 'inactive' ? '🚫 Cuenta Desactivada' : '❌ Datos Incorrectos'}
-                    </strong>
-                    <p style={{
-                      margin: 0,
-                      fontSize: '14px',
-                      lineHeight: '1.5',
-                      color: '#474747'
-                    }}>
-                      {error}
-                    </p>
-                  </div>
+              <div key={errorKey} className={`login-error ${errorType === 'inactive' ? 'is-warn' : 'is-error'}`} role="alert">
+                <span className="login-error__ico">
+                  {errorType === 'inactive' ? <UserX size={20} /> : <XCircle size={20} />}
+                </span>
+                <div className="login-error__txt">
+                  <strong>{errorType === 'inactive' ? 'Cuenta desactivada' : 'Datos incorrectos'}</strong>
+                  <p>{error}</p>
                 </div>
               </div>
             )}
@@ -232,344 +175,42 @@ export default function Login() {
       </div>
 
       <style>{`
-        .login-page {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--surface-canvas);
-          padding: var(--space-24);
-          position: relative;
-          overflow: hidden;
-        }
-
-        .login-bg-decor { display: none; }
-
-        .bg-circle { display: none; }
-
-        @keyframes errorSlideIn {
-          0% { 
-            opacity: 0; 
-            transform: translateY(-20px) scale(0.95); 
-          }
-          100% { 
-            opacity: 1; 
-            transform: translateY(0) scale(1); 
-          }
-        }
-
-        @keyframes iconPulse {
-          0% { transform: scale(0.5); }
-          50% { transform: scale(1.1); }
-          100% { transform: scale(1); }
-        }
-
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
-          20%, 40%, 60%, 80% { transform: translateX(8px); }
-        }
-
-        .login-form.shake {
-          animation: shake 0.6s ease-in-out;
-        }
-
-        .login-container {
-          width: 100%;
-          max-width: 440px;
-          position: relative;
-          z-index: 1;
-        }
-
-        .login-card {
-          background: var(--surface-card);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-xl);
-          box-shadow: var(--shadow-lg);
-          padding: 40px 36px;
-        }
-
-        .login-header {
-          text-align: center;
-          margin-bottom: 32px;
-        }
-
-        .login-logo-container {
-          width: 140px;
-          height: 140px;
-          margin: 0 auto 20px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          animation: logoEntry 0.8s ease-out;
-        }
-
-        @keyframes logoEntry {
-          from {
-            opacity: 0;
-            transform: scale(0.8) translateY(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-
-        .login-logo-img {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-        }
-
-        .login-title {
-          font-size: 2rem;
-          font-weight: 700;
-          margin-bottom: 8px;
-          letter-spacing: -0.022em;
-          display: flex;
-          justify-content: center;
-          gap: 6px;
-        }
-
-        .title-moto {
-          color: var(--text-primary);
-        }
-
-        .title-partes {
-          color: var(--text-primary);
-        }
-
-        .login-subtitle {
-          color: var(--text-secondary);
-          font-size: 1rem;
-          font-weight: 400;
-        }
-
-        .login-form {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-
-        .login-input-wrapper {
-          background: var(--bg-input);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-md);
-          transition: all 0.2s ease;
-        }
-
-        .login-input-wrapper:focus-within {
-          border-color: var(--primary);
-          background: var(--surface-card);
-          box-shadow: 0 0 0 4px rgba(215, 25, 32, 0.12);
-        }
-
-        .login-input-wrapper .form-input {
-          background: transparent;
-          border: none;
-        }
-
-        .login-input-wrapper .form-input:focus {
-          box-shadow: none;
-        }
-
-        /* Shake Animation */
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-          20%, 40%, 60%, 80% { transform: translateX(5px); }
-        }
-
-        .login-form.shake {
-          animation: shake 0.5s ease-in-out;
-        }
-
-        /* Error Box Styles */
-        .login-error-box {
-          display: flex;
-          align-items: flex-start;
-          gap: 14px;
-          padding: 16px 18px;
-          border-radius: 14px;
-          animation: slideIn 0.3s ease-out;
-        }
-
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .login-error-box.credentials {
-          background: linear-gradient(135deg, #fef2f2, #fee2e2);
-          border: 2px solid #fecaca;
-        }
-
-        .login-error-box.credentials .error-icon {
-          color: #dc2626;
-          background: #fee2e2;
-        }
-
-        .login-error-box.inactive {
-          background: linear-gradient(135deg, #fffbeb, #fef3c7);
-          border: 2px solid #fde68a;
-        }
-
-        .login-error-box.inactive .error-icon {
-          color: #d97706;
-          background: #fef3c7;
-        }
-
-        .login-error-box.empty {
-          background: linear-gradient(135deg, #eef1f4, #fde7e8);
-          border: 2px solid #f6cdd0;
-        }
-
-        .login-error-box.empty .error-icon {
-          color: #0284c7;
-          background: #fde7e8;
-        }
-
-        .error-icon {
-          width: 44px;
-          height: 44px;
-          min-width: 44px;
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .error-content {
-          flex: 1;
-        }
-
-        .error-title {
-          display: block;
-          font-size: 0.9375rem;
-          font-weight: 700;
-          margin-bottom: 4px;
-          color: #1d1d1f;
-        }
-
-        .error-message {
-          margin: 0;
-          font-size: 0.8125rem;
-          line-height: 1.5;
-          color: #474747;
-        }
-
-        .password-toggle {
-          position: absolute;
-          right: 14px;
-          top: 50%;
-          transform: translateY(-50%);
-          background: none;
-          border: none;
-          color: #86868b;
-          cursor: pointer;
-          padding: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: color 0.2s;
-        }
-
-        .password-toggle:hover {
-          color: #1d1d1f;
-        }
-
-        .login-submit-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          width: 100%;
-          padding: 15px 24px;
-          min-height: 50px;
-          background: var(--primary);
-          color: white;
-          border: none;
-          border-radius: var(--radius-pill);
-          font-size: 1rem;
-          font-weight: 600;
-          letter-spacing: -0.01em;
-          cursor: pointer;
-          transition: background 0.2s ease, transform 0.1s ease;
-          box-shadow: none;
-          margin-top: 8px;
-        }
-
-        .login-submit-btn:hover:not(:disabled) {
-          background: var(--primary-hover);
-        }
-
-        .login-submit-btn:active:not(:disabled) {
-          transform: scale(0.99);
-        }
-
-        .login-submit-btn:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
-        }
-
-        .login-demo-info {
-          margin-top: 28px;
-          padding: 16px;
-          background: linear-gradient(135deg, #eef1f4 0%, #fde7e8 100%);
-          border: 1px solid #f6cdd0;
-          border-radius: 12px;
-          text-align: center;
-          font-size: 0.875rem;
-          color: #0369a1;
-        }
-
-        .login-demo-info strong {
-          color: #0c4a6e;
-        }
-
-        .login-demo-info p {
-          margin: 0;
-        }
-
-        .login-demo-info p:last-child {
-          margin-top: 4px;
-          font-family: monospace;
-          font-size: 0.8rem;
-        }
-
-        .login-footer {
-          text-align: center;
-          margin-top: 24px;
-          color: #6e6e73;
-          font-size: 0.8rem;
-        }
-
-        /* Mobile improvements */
-        @media (max-width: 480px) {
-          .login-card {
-            padding: 32px 24px;
-            border-radius: 20px;
-          }
-
-          .login-logo-container {
-            width: 120px;
-            height: 120px;
-          }
-
-          .login-title {
-            font-size: 1.75rem;
-          }
-
-          .login-submit-btn {
-            padding: 14px 20px;
-          }
-        }
+        .login-page { min-height: 100vh; width: 100%; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background: var(--bg); }
+        .login-container { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 20px; }
+        .login-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--sh-2); padding: 32px 28px 28px; }
+        .login-header { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 24px; }
+        .login-logo-img { height: 112px; width: auto; max-width: 100%; object-fit: contain; margin-bottom: 16px; }
+        .login-title { font-size: 1.5rem; font-weight: 700; line-height: 1.2; color: var(--text); }
+        .login-subtitle { margin-top: 4px; font-size: 14px; color: var(--ink-3); }
+        .login-form { display: flex; flex-direction: column; gap: 16px; }
+        .login-form .form-group { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+        .login-form .form-label { font-size: 13px; font-weight: 500; color: var(--text-2); }
+        .login-input-wrapper { position: relative; display: block; }
+        .login-input-wrapper .input-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
+        .login-input-wrapper .form-input { width: 100%; min-height: 46px; padding: 10px 44px 10px 40px; font-size: 16px; border: 1px solid var(--line-strong); border-radius: var(--r-control); background: var(--surface); color: var(--text); box-sizing: border-box; }
+        .login-input-wrapper .form-input:focus { border-color: var(--brand); box-shadow: var(--ring); outline: none; }
+        .login-input-wrapper .password-toggle { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: var(--r-control); color: var(--text-3); cursor: pointer; }
+        .login-input-wrapper .password-toggle:hover { background: var(--surface-2); color: var(--text); }
+        .login-submit-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 46px; margin-top: 4px; border: 1px solid var(--brand); border-radius: var(--r-control); background: var(--brand); color: #fff; font: 600 15px var(--font-sans); cursor: pointer; box-shadow: var(--sh-1); transition: background 120ms ease; }
+        .login-submit-btn:hover:not(:disabled) { background: var(--brand-hover); border-color: var(--brand-hover); }
+        .login-submit-btn:focus-visible { box-shadow: var(--ring); }
+        .login-submit-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+        .login-submit-btn .spinner { display: inline-block; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: login-spin 0.7s linear infinite; }
+        .login-error { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: var(--r-control); border: 1px solid var(--danger-line); background: var(--danger-bg); animation: login-in 0.3s ease-out; }
+        .login-error.is-warn { border-color: var(--warning-line); background: var(--warning-bg); }
+        .login-error__ico { flex: 0 0 auto; display: inline-flex; margin-top: 1px; color: var(--danger); }
+        .login-error.is-warn .login-error__ico { color: var(--warning); }
+        .login-error__txt { min-width: 0; }
+        .login-error__txt strong { display: block; font-size: 14px; font-weight: 600; color: var(--text); }
+        .login-error__txt p { margin: 2px 0 0; font-size: 13.5px; line-height: 1.45; color: var(--text-2); overflow-wrap: anywhere; }
+        .login-footer { text-align: center; font-size: 12.5px; color: var(--ink-3); }
+        .login-footer p { margin: 0; }
+        .login-form.shake { animation: login-shake 0.4s ease; }
+        @keyframes login-spin { to { transform: rotate(360deg); } }
+        @keyframes login-in { from { opacity: 0; transform: translateY(-4px); } }
+        @keyframes login-shake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+        @media (max-width: 480px) { .login-card { padding: 24px 18px 20px; } .login-logo-img { height: 96px; } }
+        @media (prefers-reduced-motion: reduce) { .login-form.shake, .login-error { animation: none; } }
       `}</style>
     </div>
   );

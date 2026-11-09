@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { automationService, templateService } from '../../lib/api';
-import { Zap, Play, Pause, CheckCircle2, XCircle, AlertTriangle, Plus, FileText, Trash2 } from 'lucide-react';
+import { Zap, Play, Pause, CheckCircle2, AlertTriangle, FileText, Trash2, ArrowRight, Timer, Repeat } from 'lucide-react';
+import './AdminV3.css';
 
 const TRIGGER_LABELS = {
     'order.created': 'Orden registrada',
@@ -14,6 +15,8 @@ const TRIGGER_LABELS = {
     'appointment.upcoming_24h': 'Cita en 24h',
     'appointment.upcoming_2h': 'Cita en 2h',
     'order.idle_3_days': 'Orden sin actividad 3+ días',
+    'appointment.confirmed': 'Cita confirmada',
+    'appointment.rejected': 'Cita rechazada',
     'client.first_visit_anniversary': 'Aniversario del cliente (1 año)',
 };
 
@@ -68,96 +71,66 @@ export default function AdminAutomations() {
         } catch (err) { toast.error(err.message); }
     };
 
-    if (loading) return <div style={{ padding: 24 }}>Cargando…</div>;
+    if (loading) return <div className="adm adm-loading">Cargando…</div>;
 
     const canEdit = workspaceRole === 'owner' || workspaceRole === 'admin';
     const enabledCount = automations.filter((a) => a.enabled).length;
     const planLimit = activeWorkspace?.plan?.features?.automations;
 
     return (
-        <div style={{ maxWidth: 1040, margin: '0 auto', padding: '24px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20, marginBottom: 24, flexWrap: 'wrap' }}>
+        <div className="adm">
+            <header className="adm-head">
                 <div>
-                    <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800, color: '#1d1d1f' }}>
-                        <Zap size={22} style={{ verticalAlign: '-4px' }} /> Automatizaciones
-                    </h1>
-                    <p style={{ margin: '4px 0 0', color: '#6e6e73' }}>
-                        Reglas que disparan acciones cuando suceden eventos en tu taller.
-                    </p>
+                    <h1><Zap size={22} /> Automatizaciones</h1>
+                    <p>Reglas que disparan acciones cuando suceden eventos en tu taller.</p>
                 </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#6e6e73' }}>
+                <div className="adm-actions">
+                    <span className="adm-count">
                         {enabledCount} activas{planLimit && planLimit !== null ? ` / ${planLimit === null ? '∞' : planLimit}` : ''}
                     </span>
-                    <Link to="/admin/templates" className="btn-ghost">
-                        <FileText size={14} /> Plantillas
+                    <Link to="/admin/templates" className="k-btn k-btn--ghost k-btn--sm">
+                        <FileText size={15} /> Plantillas
                     </Link>
                 </div>
-            </div>
+            </header>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="adm-list">
                 {automations.map((auto) => (
-                    <div
-                        key={auto.id}
-                        style={{
-                            display: 'flex',
-                            gap: 16,
-                            padding: 16,
-                            background: 'white',
-                            border: '1px solid',
-                            borderColor: auto.enabled ? '#86efac' : '#e8e8ed',
-                            borderLeft: auto.enabled ? '4px solid #16a34a' : '4px solid #d2d2d7',
-                            borderRadius: 12,
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                        }}
-                    >
-                        <div style={{ flex: 1, minWidth: 260 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                <strong style={{ color: '#1d1d1f', fontSize: '1rem' }}>{auto.name}</strong>
-                                {auto.is_default && (
-                                    <span style={{ fontSize: '0.7rem', padding: '2px 8px', background: '#f5f5f7', borderRadius: 999, color: '#474747' }}>
-                                        default
-                                    </span>
-                                )}
+                    <div key={auto.id} className={`adm-item${auto.enabled ? ' is-on' : ''}`}>
+                        <div className="adm-item__main">
+                            <div className="adm-item__title">
+                                <strong>{auto.name}</strong>
+                                {auto.is_default && <span className="adm-badge">Predeterminada</span>}
                                 {auto.enabled
-                                    ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: '#16a34a' }}><CheckCircle2 size={13} />Activa</span>
-                                    : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: '#86868b' }}><Pause size={13} />Pausada</span>}
+                                    ? <span className="adm-badge adm-badge--ok"><CheckCircle2 size={13} /> Activa</span>
+                                    : <span className="adm-badge"><Pause size={13} /> Pausada</span>}
                             </div>
-                            <div style={{ fontSize: '0.86rem', color: '#6e6e73', marginTop: 4 }}>
-                                {auto.description || ''}
-                            </div>
-                            <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: '0.8rem', color: '#474747', flexWrap: 'wrap' }}>
-                                <span>⚡ {TRIGGER_LABELS[auto.trigger] || auto.trigger}</span>
-                                <span>→ {ACTION_LABELS[auto.action] || auto.action}</span>
+                            {auto.description && <p className="adm-item__desc">{auto.description}</p>}
+                            <div className="adm-item__meta">
+                                <span><Zap size={14} /> {TRIGGER_LABELS[auto.trigger] || auto.trigger}</span>
+                                <span><ArrowRight size={14} /> {ACTION_LABELS[auto.action] || auto.action}</span>
                                 {auto.delay_minutes > 0 && (
-                                    <span>⏱ +{auto.delay_minutes < 60 ? `${auto.delay_minutes}m` : `${Math.round(auto.delay_minutes / 60)}h`}</span>
+                                    <span><Timer size={14} /> +{auto.delay_minutes < 60 ? `${auto.delay_minutes} min` : `${Math.round(auto.delay_minutes / 60)} h`}</span>
                                 )}
-                                {auto.run_count > 0 && <span>✓ {auto.run_count} runs</span>}
+                                {auto.run_count > 0 && <span><Repeat size={14} /> {auto.run_count} ejecuciones</span>}
                                 {auto.fail_count > 0 && (
-                                    <span style={{ color: '#dc2626' }}>
-                                        <AlertTriangle size={12} /> {auto.fail_count} fallos
-                                    </span>
+                                    <span className="adm-btn-danger"><AlertTriangle size={14} /> {auto.fail_count} fallos</span>
                                 )}
                             </div>
-                            {auto.last_error && (
-                                <div style={{ fontSize: '0.78rem', color: '#b91c1c', marginTop: 4 }}>
-                                    Último error: {auto.last_error}
-                                </div>
-                            )}
+                            {auto.last_error && <div className="adm-error">Último error: {auto.last_error}</div>}
                         </div>
                         {canEdit && (
-                            <div style={{ display: 'flex', gap: 6 }}>
+                            <div className="adm-item__side">
                                 <button
+                                    type="button"
                                     onClick={() => toggle(auto)}
-                                    className={auto.enabled ? 'btn-ghost' : 'btn-primary'}
-                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                                    className={`k-btn k-btn--sm ${auto.enabled ? 'k-btn--ghost' : ''}`}
                                 >
-                                    {auto.enabled ? (<><Pause size={14} /> Pausar</>) : (<><Play size={14} /> Activar</>)}
+                                    {auto.enabled ? (<><Pause size={15} /> Pausar</>) : (<><Play size={15} /> Activar</>)}
                                 </button>
                                 {!auto.is_default && (
-                                    <button onClick={() => remove(auto)} className="btn-ghost" style={{ color: '#b91c1c' }}>
-                                        <Trash2 size={14} />
+                                    <button type="button" onClick={() => remove(auto)} className="k-btn k-btn--ghost k-btn--sm adm-btn-danger" aria-label={`Eliminar ${auto.name}`}>
+                                        <Trash2 size={15} />
                                     </button>
                                 )}
                             </div>
@@ -167,18 +140,12 @@ export default function AdminAutomations() {
             </div>
 
             {automations.length === 0 && (
-                <div style={{ padding: 40, textAlign: 'center', color: '#6e6e73', background: '#f5f5f7', borderRadius: 12 }}>
-                    Aún no tienes automatizaciones configuradas.
+                <div className="adm-empty">
+                    <Zap size={26} />
+                    <h3>Aún no tienes automatizaciones</h3>
+                    <p>Cuando se configuren, aparecerán aquí.</p>
                 </div>
             )}
-
-            <style>{`
-                .btn-primary, .btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; border: none; cursor: pointer; transition: all 0.15s; text-decoration: none; white-space: nowrap; }
-                .btn-primary { background: linear-gradient(135deg, #16a34a, #15803d); color: white; }
-                .btn-primary:hover { transform: translateY(-1px); }
-                .btn-ghost { background: white; color: #1d1d1f; border: 1px solid #e8e8ed; }
-                .btn-ghost:hover { background: #f5f5f7; }
-            `}</style>
         </div>
     );
 }

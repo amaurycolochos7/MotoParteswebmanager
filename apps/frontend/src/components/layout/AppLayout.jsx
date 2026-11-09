@@ -27,7 +27,7 @@ function buildAdminGroups({ canViewInbox, isSuper }) {
     const groups = [
         {
             id: 'operacion', title: 'Operación', items: [
-                { to: '/admin', icon: LayoutDashboard, label: 'Panel', end: true },
+                { to: '/admin', icon: LayoutDashboard, label: 'Inicio', end: true },
                 { to: '/admin/orders', icon: ClipboardList, label: 'Órdenes' },
                 { to: '/mechanic/new-order', icon: PlusCircle, label: 'Nueva orden' },
                 { to: '/mechanic/appointments', icon: Calendar, label: 'Citas', badge: 'appts' },
@@ -118,7 +118,6 @@ function buildWorkGroups({ teamRole, isManager, canViewInbox }) {
     if (isManager) {
         groups.push({
             id: 'admin', title: 'Administración', items: [
-                { to: '/admin', icon: LayoutDashboard, label: 'Panel del taller', end: true },
                 { to: '/admin/team', icon: UserCog, label: 'Equipo' },
                 { to: '/admin/whatsapp', icon: MessageSquare, label: 'WhatsApp del taller' },
                 { to: '/admin/printing', icon: Printer, label: 'Impresión' },
@@ -127,6 +126,18 @@ function buildWorkGroups({ teamRole, isManager, canViewInbox }) {
     }
     return groups;
 }
+
+
+// Título de la barra superior cuando la ruta no está en el menú (p. ej. pantallas de /mechanic abiertas desde el modo admin).
+const ROUTE_TITLES = [
+    ['/mechanic/new-order', 'Nueva orden'], ['/mechanic/orders', 'Órdenes'], ['/mechanic/order/', 'Orden'],
+    ['/admin/order/', 'Orden'], ['/admin/orders/', 'Orden'], ['/mechanic/quotations/new', 'Nueva cotización'],
+    ['/mechanic/quotations', 'Cotizaciones'], ['/mechanic/clients', 'Clientes'], ['/mechanic/lookup', 'Buscar cliente'],
+    ['/mechanic/appointments', 'Citas'], ['/mechanic/history', 'Historial'], ['/mechanic/earnings', 'Mis ganancias'],
+    ['/mechanic/requests', 'Solicitudes'], ['/mechanic/auxiliaries', 'Mis auxiliares'], ['/mechanic/my-requests', 'Mis solicitudes'],
+    ['/mechanic/my-payments', 'Mis pagos'], ['/mechanic/team', 'Equipo'], ['/mechanic/inbox', 'Conversaciones'], ['/mechanic/whatsapp', 'WhatsApp'],
+    ['/mechanic', 'Inicio'],
+];
 
 const COLLAPSE_KEY = 'mp_nav_collapsed_v2';
 const readCollapsed = () => { try { return JSON.parse(localStorage.getItem(COLLAPSE_KEY) || 'null'); } catch { return null; } };
@@ -139,7 +150,6 @@ export default function AppLayout() {
 
     // Panel de administración: perfil admin global, o gerencia dentro de /admin.
     const adminMode = isAdmin() || (isManager && location.pathname.startsWith('/admin'));
-    const inboxPath = adminMode ? '/admin/inbox' : '/mechanic/inbox';
 
     const groups = useMemo(
         () => (adminMode
@@ -174,7 +184,9 @@ export default function AppLayout() {
         groups.forEach((g) => g.items.forEach((it) => {
             if (pathMatches(it) && (!best || it.to.length > best.to.length)) best = it;
         }));
-        return best?.label || '';
+        if (best?.label) return best.label;
+        const hit = ROUTE_TITLES.find(([prefix]) => location.pathname === prefix || location.pathname.startsWith(prefix.endsWith('/') ? prefix : prefix + '/'));
+        return hit ? hit[1] : '';
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [groups, location.pathname]);
 
@@ -188,7 +200,7 @@ export default function AppLayout() {
             <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label="Menú principal">
                 <div className="sidebar-header">
                     <div className="sidebar-logo">
-                        <img src="/logo-motopartes.png" alt="MotoPartes Club" className="logo-image" />
+                        <img src="/logo-mark.png" alt="MotoPartes Club" className="logo-image" width="82" height="60" />
                     </div>
                     <button type="button" className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Cerrar menú"><X size={20} /></button>
                 </div>
@@ -244,17 +256,15 @@ export default function AppLayout() {
                     <button type="button" className="bell shell-topbar__menu" onClick={() => setSidebarOpen(true)} aria-label="Abrir menú">
                         <Menu size={22} />
                     </button>
-                    <img className="shell-topbar__logo" src="/logo-motopartes.png" alt="MotoPartes" />
+                    <img className="shell-topbar__logo" src="/logo-mark.png" alt="MotoPartes" width="44" height="32" />
                     <h2 className="shell-topbar__title">{currentTitle}</h2>
                     <div className="shell-topbar__spacer" />
                     <div className="shell-topbar__actions">
                         <NotificationBell
                             appts={badges.appts}
-                            unread={badges.unread}
-                            showInbox={canViewInbox}
                             appointmentsPath="/mechanic/appointments"
-                            inboxPath={inboxPath}
                         />
+                        <span className="shell-topbar__avatar" title={user?.full_name || ''} aria-hidden="true">{initialsOf(user?.full_name)}</span>
                     </div>
                 </header>
 
@@ -264,15 +274,8 @@ export default function AppLayout() {
             </main>
 
             <style>{`
-                .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(23, 20, 15, 0.55); z-index: 999; }
-                .sidebar-close { display: none; margin-left: auto; width: 36px; height: 36px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: transparent; color: #fff; align-items: center; justify-content: center; cursor: pointer; }
                 .sidebar-header { display: flex; align-items: center; }
-                .nav-group-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; background: transparent; border: none; cursor: pointer; text-align: left; }
-                .nav-group-btn:hover { color: #fff; }
-                @media (max-width: 768px) {
-                    .sidebar-overlay { display: block; }
-                    .sidebar-close { display: inline-flex; }
-                }
+                .nav-group-btn { width: 100%; }
             `}</style>
         </div>
     );

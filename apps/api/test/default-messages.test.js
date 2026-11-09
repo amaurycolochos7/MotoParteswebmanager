@@ -80,3 +80,58 @@ test('withoutAtiende reconstruye el texto anterior por defecto (para mejorarlo s
     assert.ok(!withoutAtiende(d.template.body).includes('{atiende}'));
     assert.notEqual(withoutAtiende(d.template.body), d.template.body);
 });
+
+// ── Reconciliación de automatizaciones (caso real de producción) ───────────
+import { planAutomationFixes } from '../src/lib/default-messages.js';
+
+const OLD = '2026-04-19T00:00:00Z';
+const NEW = '2026-11-08T00:00:00Z';
+const mk = (id, name, trigger, enabled, filter, dedup, updated_at, is_default = true) => (
+    { id, name, trigger, enabled, filter, is_default, params: dedup ? { dedup_per_order: true } : {}, updated_at }
+);
+const STATUSES = ['Registrada', 'En Revisión', 'Autorizada', 'En Reparación', 'Lista para Entregar', 'Entregada', 'Cancelada'];
+
+test('apaga la automatización vieja duplicada y conserva la que tiene dedup', () => {
+    const plan = planAutomationFixes([
+        mk('legacy', 'Confirmación de ingreso', 'order.created', true, {}, false, OLD),
+        mk('formal', 'Confirmación de ingreso', 'order.created', true, {}, true, NEW),
+    ], STATUSES);
+    assert.deepEqual(plan.disable, ['legacy']);
+});
+
+test('corrige el filtro "Lista" cuando el estado real se llama "Lista para Entregar"', () => {
+    const plan = planAutomationFixes([mk('l', 'Lista para recoger', 'order.status_changed', true, { status_name: 'Lista' }, true, NEW)], STATUSES);
+    assert.deepEqual(plan.fixFilter, [{ id: 'l', filter: { status_key: 'lista' } }]);
+});
+
+test('no toca un filtro que sí coincide con un estado real ni automatizaciones que no son por defecto', () => {
+    const plan = planAutomationFixes([
+        mk('a', 'Entrega', 'order.status_changed', true, { status_name: 'Entregada' }, true, NEW),
+        mk('b', 'Mía', 'order.created', true, {}, false, OLD, false),
+        mk('c', 'Mía', 'order.created', true, {}, false, NEW, false),
+    ], STATUSES);
+    assert.deepEqual(plan, { disable: [], fixFilter: [] });
+});
+
+test('no apaga automatizaciones distintas (otro nombre o filtro) ni las que ya están apagadas', () => {
+    const plan = planAutomationFixes([
+        mk('x', 'Estado: autorizada', 'order.status_changed', true, { status_key: 'autorizada' }, true, NEW),
+        mk('y', 'Estado: cancelada', 'order.status_changed', true, { status_key: 'cancelada' }, true, NEW),
+        mk('z', 'Estado: autorizada', 'order.status_changed', false, { status_key: 'autorizada' }, false, OLD),
+    ], STATUSES);
+    assert.deepEqual(plan.disable, []);
+});
+
+test('es idempotente: aplicar el plan y volver a planear no da nada', () => {
+    const A = [
+        mk('legacy', 'Confirmación de ingreso', 'order.created', true, {}, false, OLD),
+        mk('formal', 'Confirmación de ingreso', 'order.created', true, {}, true, NEW),
+        mk('l', 'Lista para recoger', 'order.status_changed', true, { status_name: 'Lista' }, true, NEW),
+    ];
+    const p1 = planAutomationFixes(A, STATUSES);
+    for (const a of A) {
+        if (p1.disable.includes(a.id)) a.enabled = false;
+        const f = p1.fixFilter.find((x) => x.id === a.id); if (f) a.filter = f.filter;
+    }
+    assert.deepEqual(planAutomationFixes(A, STATUSES), { disable: [], fixFilter: [] });
+});

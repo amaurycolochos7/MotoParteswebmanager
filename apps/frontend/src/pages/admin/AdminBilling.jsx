@@ -12,7 +12,10 @@ import {
     TrendingUp,
     Loader2,
     XCircle,
+    Check,
 } from 'lucide-react';
+import { Segmented } from '../../components/ui/kit';
+import './AdminV3.css';
 
 function money(n) {
     return n === 0 ? 'Gratis' : `$${Number(n).toLocaleString('es-MX')}`;
@@ -118,7 +121,7 @@ export default function AdminBilling() {
     };
 
     if (loading || !status) {
-        return <div style={{ padding: 32 }}><Loader2 className="spin" size={18} /> Cargando…</div>;
+        return <div className="adm adm-loading"><Loader2 className="adm-spin" size={20} /> Cargando…</div>;
     }
 
     const currentPlan = status.plan;
@@ -130,80 +133,55 @@ export default function AdminBilling() {
     const pendingCancel = status.subscription?.cancel_at && !status.subscription?.canceled_at;
 
     return (
-        <div style={{ maxWidth: 980, margin: '0 auto', padding: '24px 20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20, marginBottom: 24, flexWrap: 'wrap' }}>
+        <div className="adm">
+            <header className="adm-head">
                 <div>
-                    <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800, color: '#1d1d1f' }}>Facturación y plan</h1>
-                    <p style={{ margin: '4px 0 0', color: '#6e6e73' }}>Consulta tu plan, uso y cambia de plan cuando quieras.</p>
+                    <h1>Facturación y plan</h1>
+                    <p>Consulta tu plan, uso y cambia de plan cuando quieras.</p>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: '#fef2f2', borderRadius: 999, border: '1px solid #fecaca' }}>
-                    <Sparkles size={16} color="#ef4444" />
-                    <strong style={{ color: '#dc2626', fontSize: '0.9rem' }}>
-                        Plan {currentPlan?.name || 'Free'}
-                    </strong>
-                </div>
-            </div>
+                <span className="adm-badge adm-badge--brand" style={{ padding: '6px 14px', fontSize: 14 }}>
+                    <Sparkles size={15} /> Plan {currentPlan?.name || 'Free'}
+                </span>
+            </header>
 
-            {/* Trial banner */}
             {isTrialing && !isFlagship && (
-                <div style={{ padding: 16, borderRadius: 12, background: 'linear-gradient(135deg, #fde7e8, #fde7e8)', border: '1px solid #f6cdd0', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                <div className="adm-banner adm-banner--brand">
                     <div>
-                        <strong style={{ color: '#a90f16', display: 'block', marginBottom: 4 }}>
-                            Estás probando el plan Pro gratis
-                        </strong>
-                        <span style={{ color: '#a90f16', fontSize: '0.9rem' }}>
-                            {trialLeft > 0 ? `Quedan ${trialLeft} días de prueba.` : 'La prueba terminó. Elige un plan para no perder las funciones Pro.'}
-                        </span>
+                        <strong>Estás probando el plan Pro gratis</strong>
+                        <span>{trialLeft > 0 ? `Quedan ${trialLeft} días de prueba.` : 'La prueba terminó. Elige un plan para no perder las funciones Pro.'}</span>
                     </div>
-                    <button className="btn-primary" onClick={() => document.getElementById('plans-section').scrollIntoView({ behavior: 'smooth' })}>
+                    <button type="button" className="k-btn k-btn--sm" onClick={() => document.getElementById('plans-section').scrollIntoView({ behavior: 'smooth' })}>
                         Elegir plan
                     </button>
                 </div>
             )}
 
-            {/* Cancelation banner */}
             {pendingCancel && (
-                <div style={{ padding: 16, borderRadius: 12, background: '#fff7ed', border: '1px solid #fed7aa', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                <div className="adm-banner adm-banner--warn">
                     <div>
-                        <strong style={{ color: '#c2410c', display: 'block', marginBottom: 4 }}>
-                            Suscripción cancelada al final del periodo
-                        </strong>
-                        <span style={{ color: '#9a3412', fontSize: '0.9rem' }}>
-                            Seguirás teniendo acceso hasta el {new Date(status.subscription.cancel_at).toLocaleDateString('es-MX')}.
-                        </span>
+                        <strong>Suscripción cancelada al final del periodo</strong>
+                        <span>Seguirás teniendo acceso hasta el {new Date(status.subscription.cancel_at).toLocaleDateString('es-MX')}.</span>
                     </div>
-                    <button className="btn-ghost" onClick={handleResume}>Reactivar</button>
+                    <button type="button" className="k-btn k-btn--ghost k-btn--sm" onClick={handleResume}>Reactivar</button>
                 </div>
             )}
 
-            {/* Past-due banner */}
             {status.subscription_status === 'past_due' && (
-                <div style={{ padding: 16, borderRadius: 12, background: '#fef2f2', border: '1px solid #fca5a5', marginBottom: 20 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                        <AlertTriangle size={18} color="#dc2626" />
-                        <strong style={{ color: '#991b1b' }}>Tu último pago falló</strong>
+                <div className="adm-banner adm-banner--red" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <AlertTriangle size={18} />
+                        <strong style={{ margin: 0 }}>Tu último pago falló</strong>
                     </div>
-                    <p style={{ margin: 0, color: '#7f1d1d', fontSize: '0.88rem' }}>
-                        Actualiza tu tarjeta desde el portal antes de que terminen 7 días o tu taller bajará al plan Free automáticamente.
-                    </p>
-                    <button className="btn-primary" style={{ marginTop: 10 }} onClick={handlePortal}>
-                        <ExternalLink size={14} /> Abrir portal de pagos
+                    <span>Actualiza tu tarjeta desde el portal antes de que terminen 7 días o tu taller bajará al plan Free automáticamente.</span>
+                    <button type="button" className="k-btn k-btn--sm" onClick={handlePortal}>
+                        <ExternalLink size={15} /> Abrir portal de pagos
                     </button>
                 </div>
             )}
 
-            {/* Usage */}
-            <div className="bill-grid" style={{ marginBottom: 28 }}>
-                <UsageCard
-                    label="Órdenes este mes"
-                    used={status.usage.orders_count}
-                    limit={currentPlan?.features?.orders_per_month}
-                />
-                <UsageCard
-                    label="Mensajes WhatsApp"
-                    used={status.usage.whatsapp_messages}
-                    limit={currentPlan?.features?.whatsapp_messages}
-                />
+            <div className="adm-stats adm-usage">
+                <UsageCard label="Órdenes este mes" used={status.usage.orders_count} limit={currentPlan?.features?.orders_per_month} />
+                <UsageCard label="Mensajes de WhatsApp" used={status.usage.whatsapp_messages} limit={currentPlan?.features?.whatsapp_messages} />
                 <UsageCard
                     label="Almacenamiento"
                     used={(Number(status.usage.storage_bytes) / (1024 ** 3)).toFixed(2) + ' GB'}
@@ -213,78 +191,62 @@ export default function AdminBilling() {
             </div>
 
             {isFlagship ? (
-                <div style={{ padding: 20, background: 'linear-gradient(135deg, #fef3c7, #fde68a)', borderRadius: 14, border: '1px solid #fcd34d' }}>
-                    <strong style={{ color: '#92400e' }}>Cortesía flagship</strong>
-                    <p style={{ margin: '6px 0 0', color: '#78350f', fontSize: '0.9rem' }}>
-                        Este taller tiene acceso perpetuo e ilimitado a todas las funciones sin cobro. No hay nada que elegir.
-                    </p>
+                <div className="adm-banner adm-banner--warn">
+                    <div>
+                        <strong>Cortesía flagship</strong>
+                        <span>Este taller tiene acceso perpetuo e ilimitado a todas las funciones sin cobro. No hay nada que elegir.</span>
+                    </div>
                 </div>
             ) : (
                 <>
-                    {/* Billing actions */}
                     {status.subscription?.stripe_subscription_id && (
-                        <div style={{ marginBottom: 28, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                            <button className="btn-ghost" onClick={handlePortal}>
-                                <ExternalLink size={14} /> Portal de pagos
+                        <div className="adm-actions" style={{ marginBottom: 24 }}>
+                            <button type="button" className="k-btn k-btn--ghost k-btn--sm" onClick={handlePortal}>
+                                <ExternalLink size={15} /> Portal de pagos
                             </button>
                             {!pendingCancel && (
-                                <button className="btn-ghost" onClick={handleCancel} style={{ color: '#b91c1c' }}>
-                                    <XCircle size={14} /> Cancelar suscripción
+                                <button type="button" className="k-btn k-btn--ghost k-btn--sm adm-btn-danger" onClick={handleCancel}>
+                                    <XCircle size={15} /> Cancelar suscripción
                                 </button>
                             )}
                         </div>
                     )}
 
-                    {/* Plans */}
                     <div id="plans-section">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 12 }}>
-                            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#1d1d1f' }}>Elige tu plan</h2>
-                            <div style={{ display: 'flex', background: '#f5f5f7', borderRadius: 10, padding: 4 }}>
-                                <button
-                                    onClick={() => setInterval('month')}
-                                    className={`tab ${interval === 'month' ? 'active' : ''}`}
-                                >Mensual</button>
-                                <button
-                                    onClick={() => setInterval('year')}
-                                    className={`tab ${interval === 'year' ? 'active' : ''}`}
-                                >Anual <span style={{ fontSize: '0.7rem', color: '#16a34a' }}>-20%</span></button>
-                            </div>
+                        <div className="adm-planhead">
+                            <h2>Elige tu plan</h2>
+                            <Segmented
+                                items={[{ id: 'month', label: 'Mensual' }, { id: 'year', label: 'Anual (-20%)' }]}
+                                value={interval}
+                                onChange={setInterval}
+                            />
                         </div>
 
-                        <div className="bill-plans">
+                        <div className="adm-plans">
                             {plans.map((plan) => {
                                 const isCurrent = currentPlan?.code === plan.code;
                                 const price = interval === 'year' ? plan.price_mxn_yearly : plan.price_mxn_monthly;
                                 return (
-                                    <div key={plan.code} className={`bill-plan ${plan.code === 'pro' ? 'hl' : ''}`}>
+                                    <div key={plan.code} className={`adm-plan${plan.code === 'pro' ? ' is-hl' : ''}`}>
                                         <h3>{plan.name}</h3>
-                                        <div className="bill-price">
-                                            <span className="amount">{money(price)}</span>
-                                            {price > 0 && <span className="per">/ {interval === 'year' ? 'año' : 'mes'}</span>}
+                                        <div className="adm-plan__price">
+                                            <b>{money(price)}</b>
+                                            {price > 0 && <span>/ {interval === 'year' ? 'año' : 'mes'}</span>}
                                         </div>
                                         <ul>
-                                            <li>{prettyLimit(plan.features?.orders_per_month)} órdenes / mes</li>
-                                            <li>{prettyLimit(plan.features?.users)} usuarios</li>
-                                            <li>{prettyLimit(plan.features?.whatsapp_messages)} mensajes WhatsApp</li>
-                                            <li>{plan.features?.storage_gb ? `${plan.features.storage_gb} GB` : 'Ilimitado'} almacenamiento</li>
-                                            <li>Soporte: {plan.features?.support === 'community' ? 'Comunidad' : plan.features?.support === 'whatsapp-priority' ? 'WhatsApp priority' : 'WhatsApp'}</li>
+                                            <li><Check size={15} /> {prettyLimit(plan.features?.orders_per_month)} órdenes al mes</li>
+                                            <li><Check size={15} /> {prettyLimit(plan.features?.users)} usuarios</li>
+                                            <li><Check size={15} /> {prettyLimit(plan.features?.whatsapp_messages)} mensajes de WhatsApp</li>
+                                            <li><Check size={15} /> {plan.features?.storage_gb ? `${plan.features.storage_gb} GB` : 'Ilimitado'} de almacenamiento</li>
+                                            <li><Check size={15} /> Soporte: {plan.features?.support === 'community' ? 'Comunidad' : plan.features?.support === 'whatsapp-priority' ? 'WhatsApp prioritario' : 'WhatsApp'}</li>
                                         </ul>
                                         {plan.code === 'free' ? (
-                                            <button className="btn-ghost" disabled style={{ width: '100%' }}>
-                                                Plan gratis
-                                            </button>
+                                            <button type="button" className="k-btn k-btn--ghost" disabled>Plan gratis</button>
                                         ) : isCurrent ? (
-                                            <button className="btn-ghost" disabled style={{ width: '100%' }}>
-                                                <CheckCircle2 size={14} /> Tu plan actual
-                                            </button>
+                                            <button type="button" className="k-btn k-btn--ghost" disabled><CheckCircle2 size={15} /> Tu plan actual</button>
                                         ) : (
-                                            <button
-                                                className="btn-primary"
-                                                style={{ width: '100%' }}
-                                                disabled={changing === plan.code}
-                                                onClick={() => handleCheckout(plan.code)}
-                                            >
-                                                {changing === plan.code ? 'Redirigiendo…' : (<><CreditCard size={14} /> Elegir {plan.name}</>)}
+                                            <button type="button" className="k-btn" disabled={changing === plan.code} onClick={() => handleCheckout(plan.code)}>
+                                                {changing === plan.code ? 'Redirigiendo…' : (<><CreditCard size={15} /> Elegir {plan.name}</>)}
                                             </button>
                                         )}
                                     </div>
@@ -294,30 +256,6 @@ export default function AdminBilling() {
                     </div>
                 </>
             )}
-
-            <style>{`
-                .bill-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-                @media (max-width: 720px) { .bill-grid { grid-template-columns: 1fr; } }
-                .bill-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
-                .bill-plan { background: white; border: 2px solid #e8e8ed; border-radius: 14px; padding: 22px 18px; display: flex; flex-direction: column; gap: 8px; }
-                .bill-plan.hl { border-color: #ef4444; box-shadow: 0 12px 28px rgba(239,68,68,0.12); }
-                .bill-plan h3 { margin: 0 0 4px; font-size: 1.15rem; color: #1d1d1f; }
-                .bill-price .amount { font-size: 1.8rem; font-weight: 800; color: #1d1d1f; }
-                .bill-price .per { font-size: 0.85rem; color: #6e6e73; margin-left: 4px; }
-                .bill-plan ul { list-style: none; padding: 0; margin: 10px 0; display: flex; flex-direction: column; gap: 6px; font-size: 0.85rem; color: #474747; }
-                .bill-plan ul li:before { content: '✓ '; color: #16a34a; font-weight: 700; }
-                .tab { border: none; background: transparent; padding: 6px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #6e6e73; cursor: pointer; }
-                .tab.active { background: white; color: #1d1d1f; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
-                .spin { animation: spin 1s linear infinite; }
-                @keyframes spin { to { transform: rotate(360deg); } }
-                .btn-primary, .btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer; transition: all 0.2s; }
-                .btn-primary { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 4px 12px rgba(239,68,68,0.22); }
-                .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 16px rgba(239,68,68,0.3); }
-                .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-                .btn-ghost { background: white; color: #1d1d1f; border: 2px solid #e8e8ed; }
-                .btn-ghost:hover:not(:disabled) { background: #f5f5f7; }
-                .btn-ghost:disabled { opacity: 0.55; cursor: default; }
-            `}</style>
         </div>
     );
 }
@@ -331,20 +269,13 @@ function UsageCard({ label, used, limit, raw }) {
             : `${Number(used).toLocaleString('es-MX')} / ${Number(limit).toLocaleString('es-MX')}`;
     const near = pct >= 80;
     return (
-        <div style={{ background: 'white', border: '1px solid #e8e8ed', borderRadius: 14, padding: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#6e6e73', fontSize: '0.85rem', marginBottom: 8 }}>
-                <TrendingUp size={14} />
-                {label}
-            </div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: near ? '#dc2626' : '#1d1d1f' }}>{text}</div>
+        <div className="adm-stat">
+            <div className="adm-stat__label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><TrendingUp size={14} /> {label}</div>
+            <div className={`adm-stat__value${near ? ' is-bad' : ''}`}>{text}</div>
             {!raw && limit !== null && limit !== undefined && (
-                <div style={{ height: 6, background: '#f5f5f7', borderRadius: 999, marginTop: 10, overflow: 'hidden' }}>
-                    <div style={{ width: `${pct}%`, height: '100%', background: near ? '#ef4444' : '#10b981', transition: 'width 0.3s' }}></div>
-                </div>
+                <div className={`adm-bar${near ? ' is-near' : ''}`}><div style={{ width: `${pct}%` }} /></div>
             )}
-            {raw && limit && (
-                <div style={{ color: '#86868b', fontSize: '0.8rem', marginTop: 6 }}>de {limit}</div>
-            )}
+            {raw && limit && <div className="adm-hint" style={{ marginTop: 6 }}>de {limit}</div>}
         </div>
     );
 }

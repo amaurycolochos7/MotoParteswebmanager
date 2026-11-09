@@ -27,9 +27,9 @@ function beep() {
 }
 
 /**
- * Contadores de la campanita: citas por revisar y mensajes sin leer.
- * - Mecanico/maestro/auxiliar: solo SUS citas pendientes (`mine`). Gerencia: todas (`count`).
- * - Mensajes: solo si el usuario puede ver la bandeja.
+ * Contadores del panel.
+ * - `appts` (campanita): citas por revisar. Mecanico/maestro/auxiliar: solo SUS citas (`mine`). Gerencia: todas (`count`).
+ * - `unread` (solo insignia junto a "Conversaciones" del menu): mensajes sin leer, si el usuario puede ver la bandeja.
  */
 export function useBadges({ userId, isManager, canViewInbox }) {
   const [state, setState] = useState({ appts: 0, unread: 0 });
@@ -52,8 +52,8 @@ export function useBadges({ userId, isManager, canViewInbox }) {
       }
       if (!alive) return;
       const prev = last.current;
-      if ((prev.appts !== null && appts !== null && appts > prev.appts)
-        || (prev.unread !== null && unread !== null && unread > prev.unread)) beep();
+      // Solo las citas por revisar hacen sonar el aviso; los mensajes solo suman al contador del menú.
+      if (prev.appts !== null && appts !== null && appts > prev.appts) beep();
       last.current = { appts: appts ?? prev.appts, unread: unread ?? prev.unread };
       setState((s) => ({ appts: appts ?? s.appts, unread: unread ?? s.unread }));
     };

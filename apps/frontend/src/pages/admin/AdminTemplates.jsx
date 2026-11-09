@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { templateService } from '../../lib/api';
-import { FileText, MessageCircle, Save, X } from 'lucide-react';
+import { FileText, MessageCircle, Save, X, Plus } from 'lucide-react';
+import './AdminV3.css';
 
 const SAMPLE_VARS = {
     cliente: 'Juan Pérez',
@@ -17,6 +18,7 @@ const SAMPLE_VARS = {
     mecanico: 'Carlos Ruiz',
     portal_link: 'https://motopartes.cloud/orden/abc123',
     google_reviews: 'https://g.page/r/xyz',
+    atiende: '\n• Te atiende: Carlos Ruiz (WhatsApp 961 123 4567)',
 };
 
 function preview(body) {
@@ -24,6 +26,8 @@ function preview(body) {
         Object.prototype.hasOwnProperty.call(SAMPLE_VARS, key) ? SAMPLE_VARS[key] : m
     );
 }
+
+const VARIABLES = ['cliente', 'marca', 'modelo', 'folio', 'total', 'taller', 'portal_link', 'google_reviews', 'hora', 'atiende'];
 
 export default function AdminTemplates() {
     const { workspaceRole } = useAuth();
@@ -56,78 +60,78 @@ export default function AdminTemplates() {
     };
 
     const canEdit = workspaceRole === 'owner' || workspaceRole === 'admin';
-    if (loading) return <div style={{ padding: 24 }}>Cargando…</div>;
+    if (loading) return <div className="adm adm-loading">Cargando…</div>;
 
     return (
-        <div style={{ maxWidth: 1040, margin: '0 auto', padding: '24px 20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, gap: 20, flexWrap: 'wrap' }}>
+        <div className="adm">
+            <header className="adm-head">
                 <div>
-                    <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800 }}>
-                        <FileText size={22} style={{ verticalAlign: '-4px' }} /> Plantillas de mensaje
-                    </h1>
-                    <p style={{ margin: '4px 0 0', color: '#6e6e73' }}>
-                        Textos reutilizables con placeholders como <code>{'{cliente}'}</code>, <code>{'{folio}'}</code>, <code>{'{total}'}</code>.
+                    <h1><FileText size={22} /> Plantillas de mensaje</h1>
+                    <p>
+                        Textos reutilizables con variables como <span className="adm-code">{'{cliente}'}</span>, <span className="adm-code">{'{folio}'}</span> y <span className="adm-code">{'{total}'}</span>.
+                        Usa <span className="adm-code">{'{atiende}'}</span> para mostrar quién atiende al cliente.
                     </p>
                 </div>
                 {canEdit && (
-                    <button className="btn-primary" onClick={() => setEditing({ name: '', body: '', channel: 'whatsapp' })}>
-                        + Nueva plantilla
+                    <button type="button" className="k-btn" onClick={() => setEditing({ name: '', body: '', channel: 'whatsapp' })}>
+                        <Plus size={16} /> Nueva plantilla
                     </button>
                 )}
-            </div>
+            </header>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
+            <div className="adm-grid adm-grid--2">
                 {templates.map((t) => (
-                    <div key={t.id} style={{ padding: 16, background: 'white', border: '1px solid #e8e8ed', borderRadius: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                            <strong style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <MessageCircle size={14} color="#16a34a" /> {t.name}
-                            </strong>
-                            {t.is_default && <span style={{ fontSize: '0.7rem', padding: '2px 8px', background: '#f5f5f7', borderRadius: 999, color: '#474747' }}>default</span>}
+                    <div key={t.id} className="adm-tpl">
+                        <div className="adm-tpl__head">
+                            <strong><MessageCircle size={15} /> {t.name}</strong>
+                            {t.is_default && <span className="adm-badge">Predeterminada</span>}
                         </div>
-                        <div style={{ fontSize: '0.85rem', color: '#474747', lineHeight: 1.5, background: '#f5f5f7', padding: 10, borderRadius: 8, marginBottom: 8, whiteSpace: 'pre-wrap' }}>
-                            {preview(t.body)}
-                        </div>
+                        <div className="adm-tpl__body">{preview(t.body)}</div>
                         {canEdit && (
-                            <button className="btn-ghost" onClick={() => setEditing({ ...t })} style={{ fontSize: '0.82rem' }}>Editar</button>
+                            <button type="button" className="k-btn k-btn--ghost k-btn--sm" style={{ alignSelf: 'flex-start' }} onClick={() => setEditing({ ...t })}>Editar</button>
                         )}
                     </div>
                 ))}
             </div>
 
+            {templates.length === 0 && (
+                <div className="adm-empty">
+                    <FileText size={26} />
+                    <h3>Aún no hay plantillas</h3>
+                    <p>Crea la primera con el botón Nueva plantilla.</p>
+                </div>
+            )}
+
             {editing && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 100 }}>
-                    <div style={{ background: 'white', borderRadius: 14, padding: 24, width: '100%', maxWidth: 640, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                            <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>{editing.id ? 'Editar plantilla' : 'Nueva plantilla'}</h2>
-                            <button onClick={() => setEditing(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}><X size={18} /></button>
+                <div className="adm-overlay" onClick={() => setEditing(null)}>
+                    <div className="adm-modal" role="dialog" aria-modal="true" aria-label={editing.id ? 'Editar plantilla' : 'Nueva plantilla'} onClick={(e) => e.stopPropagation()}>
+                        <div className="adm-modal__head">
+                            <h2>{editing.id ? 'Editar plantilla' : 'Nueva plantilla'}</h2>
+                            <button type="button" className="adm-modal__close" onClick={() => setEditing(null)} aria-label="Cerrar"><X size={18} /></button>
                         </div>
-                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: 4 }}>Nombre</label>
-                        <input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} style={inp} placeholder="Ej. Confirmación de ingreso" />
-                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginTop: 14, marginBottom: 4 }}>Mensaje</label>
-                        <textarea value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} rows={5} style={{ ...inp, fontFamily: 'inherit', resize: 'vertical' }} placeholder="Hola {cliente}, tu {marca} {modelo} está lista. Folio: {folio}." />
-                        <div style={{ fontSize: '0.75rem', color: '#6e6e73', marginTop: 4 }}>
-                            Variables: <code>{'{cliente}'}</code> <code>{'{marca}'}</code> <code>{'{modelo}'}</code> <code>{'{folio}'}</code> <code>{'{total}'}</code> <code>{'{taller}'}</code> <code>{'{portal_link}'}</code> <code>{'{google_reviews}'}</code> <code>{'{hora}'}</code>
+                        <div className="adm-field">
+                            <label htmlFor="tpl-name">Nombre</label>
+                            <input id="tpl-name" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="Ej. Confirmación de ingreso" />
                         </div>
-                        <div style={{ marginTop: 14, padding: 12, background: '#f5f5f7', borderRadius: 10 }}>
-                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6e6e73', marginBottom: 6 }}>VISTA PREVIA</div>
-                            <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem' }}>{preview(editing.body)}</div>
+                        <div className="adm-field">
+                            <label htmlFor="tpl-body">Mensaje</label>
+                            <textarea id="tpl-body" value={editing.body} onChange={(e) => setEditing({ ...editing, body: e.target.value })} rows={6} placeholder="Hola {cliente}, tu {marca} {modelo} está lista. Folio: {folio}." />
+                            <p className="adm-hint">
+                                Variables:{' '}
+                                {VARIABLES.map((v) => <span key={v} className="adm-code" style={{ marginRight: 4 }}>{`{${v}}`}</span>)}
+                            </p>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
-                            <button className="btn-ghost" onClick={() => setEditing(null)}>Cancelar</button>
-                            <button className="btn-primary" onClick={save}><Save size={14} /> Guardar</button>
+                        <div className="adm-preview">
+                            <div className="adm-preview__label">Vista previa</div>
+                            <div className="adm-preview__body">{preview(editing.body)}</div>
+                        </div>
+                        <div className="adm-modal__foot">
+                            <button type="button" className="k-btn k-btn--ghost" onClick={() => setEditing(null)}>Cancelar</button>
+                            <button type="button" className="k-btn" onClick={save}><Save size={15} /> Guardar</button>
                         </div>
                     </div>
                 </div>
             )}
-
-            <style>{`
-                .btn-primary, .btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; border: none; cursor: pointer; }
-                .btn-primary { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
-                .btn-ghost { background: white; color: #1d1d1f; border: 1px solid #e8e8ed; }
-                .btn-ghost:hover { background: #f5f5f7; }
-            `}</style>
         </div>
     );
 }
-const inp = { width: '100%', padding: 10, border: '2px solid #e8e8ed', borderRadius: 8, fontSize: '0.92rem', background: '#f5f5f7', outline: 'none' };

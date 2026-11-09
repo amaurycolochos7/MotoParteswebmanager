@@ -1,8 +1,9 @@
 // Migraciones de datos que corren al arrancar la API (V2). TODAS son idempotentes: correrlas dos veces no duplica ni pisa nada.
 //   1) Sesión única de WhatsApp por taller: se toma la que YA estaba conectada (sin volver a escanear el QR).
-//   2) Plantillas + automatizaciones por defecto de los mensajes de orden (el servidor es el único remitente).
+//   2) Plantillas + automatizaciones por defecto de los mensajes de orden (el servidor es el único remitente),
+//      y ordenarlas: apagar duplicadas activas y corregir filtros que nunca coinciden (p. ej. "Lista" vs "Lista para Entregar").
 import { migrateWorkspaceSessions } from './wa-session.js';
-import { ensureDefaultMessages, workspacesWithWhatsApp } from './default-messages.js';
+import { ensureDefaultMessages, reconcileOrderAutomations, workspacesWithWhatsApp } from './default-messages.js';
 
 export async function runStartupMigrations(log = console) {
     const summary = { sessions_assigned: 0, defaults: {} };
@@ -14,6 +15,8 @@ export async function runStartupMigrations(log = console) {
     try {
         for (const wsId of await workspacesWithWhatsApp()) {
             summary.defaults[wsId] = await ensureDefaultMessages(wsId);
+            // Apaga duplicadas activas (mismo aviso dos veces) y corrige filtros que nunca coinciden con el estado real del taller.
+            summary.defaults[wsId].reconcile = await reconcileOrderAutomations(wsId);
         }
     } catch (e) {
         log.error?.(`[migraciones] mensajes por defecto fallaron: ${e.message}`);

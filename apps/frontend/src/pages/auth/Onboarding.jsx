@@ -101,14 +101,10 @@ export default function Onboarding() {
 
     return (
         <div className="onb-page">
-            <div className="onb-decor">
-                <div className="bg-circle bg-circle-1"></div>
-                <div className="bg-circle bg-circle-2"></div>
-            </div>
             <div className="onb-container">
                 <div className="onb-card">
                     <div className="onb-head">
-                        <img src="/logo.png" alt="MotoPartes" className="onb-logo" />
+                        <img src="/logo-mark.png" alt="MotoPartes" className="onb-logo" />
                         <div>
                             <h1 className="onb-title">Configura tu taller</h1>
                             <p className="onb-sub">Paso {step} de 4 — puedes cambiar todo luego en Ajustes</p>
@@ -213,44 +209,41 @@ export default function Onboarding() {
 }
 
 const onbStyles = `
-.onb-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #ffffff; padding: 20px; position: relative; overflow: hidden; }
-.onb-decor { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.bg-circle { position: absolute; border-radius: 50%; opacity: 0.1; }
-.bg-circle-1 { width: 600px; height: 600px; background: linear-gradient(135deg, #ef4444, #dc2626); top: -200px; right: -200px; }
-.bg-circle-2 { width: 400px; height: 400px; background: linear-gradient(135deg, #d71920, #d71920); bottom: -100px; left: -100px; }
-.onb-container { width: 100%; max-width: 560px; position: relative; z-index: 1; }
-.onb-card { background: white; border-radius: 20px; padding: 36px 32px; box-shadow: 0 20px 50px rgba(0,0,0,0.15); }
-.onb-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
-.onb-logo { width: 56px; height: 56px; object-fit: contain; }
-.onb-title { font-size: 1.4rem; font-weight: 800; margin: 0; color: #1d1d1f; letter-spacing: -0.3px; }
-.onb-sub { font-size: 0.85rem; color: #6e6e73; margin: 4px 0 0; }
-.onb-steps { display: flex; gap: 8px; margin-bottom: 24px; }
-.onb-step-dot { flex: 1; height: 5px; background: #e8e8ed; border-radius: 3px; transition: all 0.2s ease; }
-.onb-step-dot.active { background: linear-gradient(90deg, #ef4444, #dc2626); }
-.onb-step-dot.done { background: #16a34a; }
-.onb-body { display: flex; flex-direction: column; gap: 8px; }
+.onb-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 24px 16px; }
+.onb-container { width: 100%; max-width: 560px; }
+.onb-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--sh-2); padding: 32px 28px; }
+.onb-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; min-width: 0; }
+.onb-logo { height: 52px; width: auto; max-width: 40%; object-fit: contain; flex: 0 0 auto; }
+.onb-title { font-size: 1.25rem; font-weight: 700; margin: 0; color: var(--text); line-height: 1.25; }
+.onb-sub { font-size: 13.5px; color: var(--ink-3); margin: 4px 0 0; }
+.onb-steps { display: flex; gap: 6px; margin-bottom: 24px; }
+.onb-step-dot { flex: 1; height: 4px; background: var(--surface-3); border-radius: var(--r-pill); transition: background 160ms ease; }
+.onb-step-dot.active { background: var(--brand); }
+.onb-step-dot.done { background: var(--success); }
+.onb-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .onb-body-center { align-items: center; text-align: center; }
-.onb-icon { width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #ef4444; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
-.onb-icon-success { background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #16a34a; width: 80px; height: 80px; }
-.onb-body h2 { font-size: 1.2rem; font-weight: 700; color: #1d1d1f; margin: 0; }
-.onb-body p { color: #6e6e73; font-size: 0.9rem; line-height: 1.5; margin: 0 0 8px; }
-.onb-input { padding: 12px 14px; border: 2px solid #e8e8ed; border-radius: 10px; font-size: 0.95rem; background: #f5f5f7; }
-.onb-input:focus { outline: none; border-color: #ef4444; background: white; box-shadow: 0 0 0 4px rgba(239,68,68,0.1); }
-.form-label { font-size: 0.85rem; font-weight: 600; color: #1d1d1f; margin-top: 8px; display: block; }
-.onb-colors { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.onb-color-pick { width: 100%; height: 48px; border: 2px solid #e8e8ed; border-radius: 10px; cursor: pointer; background: transparent; padding: 2px; }
-.onb-color-hex { font-family: monospace; font-size: 0.8rem; color: #6e6e73; text-align: center; margin-top: 4px; }
-.onb-preview { border-radius: 12px; padding: 18px 20px; margin-top: 14px; }
-.onb-folio-preview { margin-top: 14px; padding: 12px 16px; background: #f5f5f7; border-radius: 10px; color: #474747; font-size: 0.9rem; }
+.onb-icon { width: 56px; height: 56px; border-radius: var(--r-pill); background: var(--brand-50); color: var(--brand); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+.onb-icon-success { background: var(--success-bg); color: var(--success); width: 64px; height: 64px; }
+.onb-body h2 { font-size: 1.125rem; font-weight: 600; color: var(--text); margin: 0; }
+.onb-body p { color: var(--text-2); font-size: 14px; line-height: 1.5; margin: 0 0 8px; }
+.onb-input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--r-control); font-size: 16px; background: var(--surface); box-sizing: border-box; }
+.onb-input:focus { outline: none; border-color: var(--brand); box-shadow: var(--ring); }
+.form-label { font-size: 13px; font-weight: 500; color: var(--text-2); margin-top: 8px; display: block; }
+.onb-colors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.onb-color-pick { width: 100%; height: 44px; border: 1px solid var(--line-strong); border-radius: var(--r-control); cursor: pointer; background: transparent; padding: 2px; }
+.onb-color-hex { font-size: 12.5px; color: var(--ink-3); text-align: center; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.onb-preview { border-radius: var(--r-card); padding: 18px 20px; margin-top: 14px; }
+.onb-folio-preview { margin-top: 14px; padding: 12px 16px; background: var(--surface-2); border-radius: var(--r-control); color: var(--text-2); font-size: 14px; }
 .onb-checklist { list-style: none; padding: 0; margin: 14px 0 4px; text-align: left; display: flex; flex-direction: column; gap: 8px; }
-.onb-checklist li { display: flex; align-items: center; gap: 8px; color: #474747; font-size: 0.88rem; }
-.onb-checklist li svg { color: #16a34a; flex-shrink: 0; }
-.onb-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 28px; }
+.onb-checklist li { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 14px; }
+.onb-checklist li svg { color: var(--success); flex-shrink: 0; }
+.onb-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 28px; flex-wrap: wrap; }
 .onb-next { flex: 1; }
-.btn-primary, .btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 0.95rem; border: none; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; text-decoration: none; }
-.btn-primary { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 4px 12px rgba(239,68,68,0.25); }
+.btn-primary, .btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px; border-radius: var(--r-control); font-weight: 600; font-size: 14.5px; cursor: pointer; transition: background 120ms ease; white-space: nowrap; text-decoration: none; }
+.btn-primary { background: var(--brand); color: #fff; border: 1px solid var(--brand); box-shadow: var(--sh-1); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(239,68,68,0.35); }
-.btn-ghost { background: transparent; color: #1d1d1f; border: 2px solid #e8e8ed; }
-.btn-ghost:hover:not(:disabled) { background: #f5f5f7; }
+.btn-primary:hover:not(:disabled) { background: var(--brand-hover); border-color: var(--brand-hover); }
+.btn-ghost { background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); }
+.btn-ghost:hover:not(:disabled) { background: var(--surface-2); }
+@media (max-width: 480px) { .onb-card { padding: 24px 18px; } }
 `;

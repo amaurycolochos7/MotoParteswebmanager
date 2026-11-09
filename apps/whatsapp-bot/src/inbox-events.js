@@ -92,6 +92,10 @@ async function forward(client, sessionId, msg, direction) {
 
 /** Engancha los eventos a un cliente de whatsapp-web.js. */
 export function attachInboxListeners(client, sessionId) {
+    // Al quedar lista la sesion, se importa el historial reciente (con una pausa para no competir con el arranque).
+    client.on('ready', () => {
+        setTimeout(() => { importHistory(client, sessionId).catch(() => {}); }, 25000);
+    });
     client.on('message', (msg) => {
         forward(client, sessionId, msg, 'in').catch((e) => console.warn(`⚠️ [inbox] mensaje entrante: ${e.message}`));
     });
@@ -103,4 +107,74 @@ export function attachInboxListeners(client, sessionId) {
         if (!msg?.fromMe || !msg.id?._serialized) return;
         post({ type: 'ack', sessionId, wa_message_id: msg.id._serialized, ack }).catch(() => {});
     });
+}
+
+// ── Importación del historial ────────────────────────────────────────────────
+// Al conectar (y cuando se pida a mano) se leen los chats recientes del teléfono para que "Conversaciones" muestre TODO,
+// no solo lo que llegue desde ahora. Solo texto y etiquetas de multimedia (no se descargan archivos históricos).
+// Nunca debe romper la sesión: cada paso va con tiempo límite y try/catch.
+const importing = new Set();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function withTimeout(promise, ms, what) {
+    let t;
+    return Promise.race([
+        promise,
+        new Promise((_, rej) => { t = setTimeout(() => rej(new Error(`${what} tardó más de ${Math.round(ms / 1000)} s`)), ms); }),
+    ]).finally(() => clearTimeout(t));
+}
+
+/** ¿Este chat entra al historial? (puro) Solo conversaciones 1 a 1: nada de grupos, estados, difusiones ni canales. */
+export function shouldImportChat(chat) {
+    if (!chat || chat.isGroup) return false;
+    const id = chat.id?._serialized || '';
+    const server = chat.id?.server || '';
+    if (!id || id.startsWith('status@') || server === 'broadcast' || server === 'newsletter' || server === 'g.us') return false;
+    return true;
+}
+
+export async function importHistory(client, sessionId, { maxChats = 200, perChat = 60, pauseMs = 200 } = {}) {
+    if (importing.has(sessionId)) return { running: true };
+    importing.add(sessionId);
+    const stats = { chats: 0, messages: 0, errors: 0 };
+    try {
+        console.log(`📥 [inbox] importando historial de la sesión ${sessionId}…`);
+        const all = await withTimeout(client.getChats(), 120000, 'getChats');
+        const list = all.filter(shouldImportChat)
+            .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+            .slice(0, maxChats);
+        for (const chat of list) {
+            try {
+                const msgs = await withTimeout(chat.fetchMessages({ limit: perChat }), 30000, 'fetchMessages');
+                let name = chat.name || null; let numberHint = null;
+                try {
+                    const c = await withTimeout(chat.getContact(), 10000, 'getContact');
+                    name = c?.pushname || c?.name || name;
+                    numberHint = c?.number || null;
+                } catch { /* sin datos del contacto: la API usa el id del chat */ }
+                const items = (msgs || []).filter(shouldForward).map((m) => ({
+                    direction: m.fromMe ? 'out' : 'in',
+                    body: bodyOf(m),
+                    wa_message_id: m.id?._serialized || null,
+                    timestamp: m.timestamp || null,
+                    mediaType: m.type === 'chat' ? null : m.type,
+                })).filter((m) => m.body);
+                if (items.length) {
+                    await post({ type: 'history', sessionId, chat: { id: chat.id._serialized, name, numberHint }, messages: items });
+                    stats.messages += items.length;
+                }
+                stats.chats += 1;
+            } catch (e) {
+                stats.errors += 1;
+                console.warn(`⚠️ [inbox] historial de un chat falló: ${e.message}`);
+            }
+            await sleep(pauseMs);
+        }
+        console.log(`✅ [inbox] historial importado: ${stats.chats} chats, ${stats.messages} mensajes, ${stats.errors} errores`);
+    } catch (e) {
+        stats.errors += 1;
+        console.warn(`⚠️ [inbox] no se pudo importar el historial: ${e.message}`);
+    } finally {
+        importing.delete(sessionId);
+    }
+    return stats;
 }

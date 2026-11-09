@@ -121,3 +121,70 @@ export async function workspacesWithWhatsApp() {
     }));
     return rows.map((r) => r.id);
 }
+
+/**
+ * Plan puro (sin BD) para ordenar las automatizaciones de mensajes de orden de un taller:
+ *  1) Duplicadas: dos automatizaciones por defecto ACTIVAS con el mismo trigger, nombre y filtro mandan el mismo
+ *     aviso dos veces. Se conserva una (la que tiene dedup_per_order y, si empatan, la más reciente) y se apagan las demás.
+ *  2) Filtro que nunca puede coincidir: { status_name: 'Lista' } cuando el taller no tiene un estado llamado exactamente
+ *     así pero sí uno equivalente ("Lista para Entregar"). Se cambia a { status_key: 'lista' }.
+ * Solo toca automatizaciones por defecto (is_default) de los triggers de orden. Idempotente: con el resultado aplicado, un segundo
+ * plan sale vacío.
+ */
+export function planAutomationFixes(automations, statusNames) {
+    const plan = { disable: [], fixFilter: [] };
+    const orderTriggers = new Set(['order.created', 'order.status_changed']);
+    const mine = (automations || []).filter((a) => a.is_default && orderTriggers.has(a.trigger));
+
+    // 2) filtros imposibles (se aplica primero para que el agrupado de duplicados use el filtro ya corregido)
+    const exactNames = new Set((statusNames || []).map((n) => String(n)));
+    const keysAvailable = new Set((statusNames || []).map((n) => statusKeyOf(n)).filter(Boolean));
+    const effectiveFilter = new Map();
+    for (const a of mine) {
+        const f = a.filter && typeof a.filter === 'object' ? a.filter : {};
+        const keys = Object.keys(f);
+        let eff = f;
+        if (keys.length === 1 && keys[0] === 'status_name' && !exactNames.has(f.status_name)) {
+            const k = statusKeyOf(f.status_name);
+            if (k && keysAvailable.has(k)) {
+                eff = { status_key: k };
+                plan.fixFilter.push({ id: a.id, filter: eff });
+            }
+        }
+        effectiveFilter.set(a.id, eff);
+    }
+
+    // 1) duplicadas activas
+    const groups = new Map();
+    for (const a of mine) {
+        if (!a.enabled) continue;
+        const key = `${a.trigger}|${a.name}|${JSON.stringify(effectiveFilter.get(a.id))}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(a);
+    }
+    for (const list of groups.values()) {
+        if (list.length < 2) continue;
+        const score = (a) => (a.params?.dedup_per_order === true ? 1e15 : 0) + new Date(a.updated_at || 0).getTime();
+        list.sort((x, y) => score(y) - score(x));
+        for (const loser of list.slice(1)) plan.disable.push(loser.id);
+    }
+    return plan;
+}
+
+/** Aplica planAutomationFixes a un taller. Devuelve contadores para el log. */
+export async function reconcileOrderAutomations(workspaceId) {
+    const [automations, statuses] = await Promise.all([
+        unscoped(() => prisma.automation.findMany({
+            where: { workspace_id: workspaceId, is_default: true, trigger: { in: ['order.created', 'order.status_changed'] } },
+        })),
+        unscoped(() => prisma.orderStatus.findMany({ where: { workspace_id: workspaceId }, select: { name: true } })),
+    ]);
+    const plan = planAutomationFixes(automations, statuses.map((s) => s.name));
+    for (const fix of plan.fixFilter) {
+        await unscoped(() => prisma.automation.update({ where: { id: fix.id }, data: { filter: fix.filter } }));
+    }
+    for (const id of plan.disable) {
+        await unscoped(() => prisma.automation.update({ where: { id }, data: { enabled: false } }));
+    }
+    return { filters_fixed: plan.fixFilter.length, duplicates_disabled: plan.disable.length };
+}

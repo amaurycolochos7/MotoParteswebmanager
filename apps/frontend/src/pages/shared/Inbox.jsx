@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import {
   Search, ArrowLeft, Send, EyeOff, UserRound, Bike, ClipboardList, CalendarClock, Plus, Printer,
-  Check, CheckCheck, Clock, AlertCircle, MessageSquare, Bot, Smartphone, ImageOff, PanelRight, Loader2,
+  Check, CheckCheck, Clock, AlertCircle, MessageSquare, Bot, Smartphone, ImageOff, PanelRight, Loader2, RefreshCw,
 } from 'lucide-react';
 import { inboxService, printService } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
@@ -89,6 +89,7 @@ function InboxView() {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [showCard, setShowCard] = useState(false);
+  const [sync, setSync] = useState({ busy: false, kind: '', msg: '' }); // importación manual de chats
   const sinceRef = useRef(new Date(0).toISOString());
   const endRef = useRef(null);
   const stickRef = useRef(true);
@@ -211,6 +212,20 @@ function InboxView() {
   };
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
 
+  /* Importar los chats recientes de WhatsApp (corre en segundo plano en el bot). El polling de 4 s recoge lo nuevo. */
+  const syncChats = async () => {
+    if (sync.busy) return;
+    setSync({ busy: true, kind: 'info', msg: 'Importando tus chats… aparecerán en unos segundos' });
+    try {
+      await inboxService.sync();
+      setSync({ busy: false, kind: 'info', msg: 'Importando tus chats… aparecerán en unos segundos' });
+      [5000, 12000, 25000].forEach((ms) => setTimeout(loadList, ms));
+      setTimeout(() => setSync((s) => (s.kind === 'info' ? { busy: false, kind: '', msg: '' } : s)), 30000);
+    } catch (e) {
+      setSync({ busy: false, kind: 'error', msg: e?.message || 'No se pudo iniciar la importación.' });
+    }
+  };
+
   const hide = async () => {
     if (!activeId) return;
     try { await inboxService.hide(activeId); setList((l) => l.filter((c) => c.id !== activeId)); closeChat(); toast.success('Conversación oculta. Reaparece si el cliente escribe.'); }
@@ -302,9 +317,20 @@ function InboxView() {
       {/* ------------------- Lista ------------------- */}
       <section className="ib-list">
         <header className="ib-list__head">
-          <h1>Conversaciones</h1>
-          {unreadTotal > 0 && <Chip tone="red">{unreadTotal} sin leer</Chip>}
+          <div className="ib-list__title">
+            <h1>Conversaciones</h1>
+            {unreadTotal > 0 && <Chip tone="red">{unreadTotal} sin leer</Chip>}
+          </div>
+          <button type="button" className="k-btn k-btn--ghost k-btn--sm ib-sync" onClick={syncChats} disabled={sync.busy} title="Importar tus chats de WhatsApp">
+            <RefreshCw size={15} className={sync.busy ? 'ib-spin' : ''} /> Sincronizar chats
+          </button>
         </header>
+        {sync.msg && (
+          <div className={`k-note ${sync.kind === 'error' ? 'k-note--red' : 'k-note--info'} ib-sync-note`} role="status">
+            {sync.kind === 'error' ? <AlertCircle size={16} /> : <Loader2 size={16} className="ib-spin" />}
+            <span>{sync.msg}</span>
+          </div>
+        )}
         <div className="ib-list__tools">
           <label className="k-search"><Search size={17} /><input placeholder="Buscar nombre o número" value={q} onChange={(e) => setQ(e.target.value)} /></label>
           <Segmented items={[{ id: 'todas', label: 'Todas' }, { id: 'no_leidas', label: 'No leídas' }]} value={onlyUnread} onChange={setOnlyUnread} />
@@ -316,7 +342,23 @@ function InboxView() {
           ))}
           {listState === 'error' && <div className="ib-empty"><AlertCircle size={22} /><p>No se pudo cargar la bandeja.</p><button type="button" className="k-btn k-btn--ghost k-btn--sm" onClick={loadList}>Reintentar</button></div>}
           {listState === 'ok' && list.length === 0 && (
-            <div className="ib-empty"><MessageSquare size={26} /><h3>{q || onlyUnread === 'no_leidas' ? 'Sin resultados' : 'Aún no hay conversaciones'}</h3><p>{q || onlyUnread === 'no_leidas' ? 'Prueba con otra búsqueda.' : 'Cuando un cliente escriba al número del taller, aparecerá aquí.'}</p></div>
+            <div className="ib-empty">
+              <MessageSquare size={26} />
+              {q || onlyUnread === 'no_leidas' ? (
+                <>
+                  <h3>Sin resultados</h3>
+                  <p>Prueba con otra búsqueda.</p>
+                </>
+              ) : (
+                <>
+                  <h3>Aún no hay conversaciones</h3>
+                  <p>Al conectar WhatsApp se importan tus chats recientes. Si no aparecen, toca Sincronizar chats.</p>
+                  <button type="button" className="k-btn k-btn--ghost k-btn--sm" onClick={syncChats} disabled={sync.busy}>
+                    <RefreshCw size={15} className={sync.busy ? 'ib-spin' : ''} /> Sincronizar chats
+                  </button>
+                </>
+              )}
+            </div>
           )}
           {list.map((c) => (
             <button key={c.id} type="button" className={`ib-item${c.id === activeId ? ' is-active' : ''}${c.unread_count > 0 ? ' is-unread' : ''}`} onClick={() => open(c.id)}>
