@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
+import { guardOrder } from '../lib/visibility.js';
 import { assertWithinLimit, incrementUsageAsync, PlanLimitError } from '../lib/billing.js';
 import PDFDocument from 'pdfkit';
 
@@ -233,6 +234,7 @@ function generatePDF(order, client, motorcycle, workspace) {
 export default async function orderPdfRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
     fastify.addHook('preHandler', resolveWorkspace);
+    fastify.addHook('preHandler', guardOrder((r) => r.params?.id));
 
     // POST /api/order-pdf/:id/send
     fastify.post('/:id/send', async (request, reply) => {

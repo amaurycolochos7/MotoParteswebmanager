@@ -70,6 +70,13 @@ Un solo número del taller; los chats se reparten entre los maestros (`WaConvers
 `GET /api/inbox/conversations/:id/avatar` -> imagen (404 si no tiene); `POST .../avatar/refresh` la vuelve a pedir ahora. La foto se pide al bot en segundo plano (`POST /sessions/:id/profile-pic { chatId }` -> `{data,mime}|{none:true}|{error}`), de una en una, y se revisa de nuevo cada 7 días.
 Bot: `POST /send-file { mechanicId, chatId, base64, mimetype, filename, caption, asDocument }`.
 
+## Separación por mecánico
+Cada mecánico/maestro ve **solo lo suyo**; las excepciones compartidas son **los clientes** (lista, búsqueda e historial del cliente) y **WhatsApp** (Conversaciones). Se aplica en el servidor (`lib/visibility.js`), no en las pantallas:
+- owner/admin: todo el taller · maestro: lo suyo + lo de sus auxiliares directos (`supervised_by`) · mecánico/auxiliar: solo lo suyo.
+- **Órdenes** (mecánico asignado o aprobador), **cotizaciones** (quien las creó), **citas** (mecánico asignado), con todo lo que cuelga de ellas: cobros, fotos, avances, PDF, tickets. Una ruta con un id ajeno responde **404** (no 403: no se revela que existe).
+- `GET /orders`, `/quotations`, `/appointments`, `/photos`, `/order-updates`, `/stats/*` y `/tasks` ya llegan filtrados. Quien no es dueño/administrador y crea una orden sin mecánico (o asignada a alguien fuera de su equipo) la deja a su nombre.
+- Siguen compartidos: `GET /orders/client/:id` (historial del cliente), clientes, `/inbox/*`, días sin servicio.
+
 ## Comisiones
 `GET /api/earnings/summary?mechanicId=&period=week|month|all` (cada quien su propio resumen; admin/maestro pueden pedir de otros dentro de su alcance) ->
 `{ rate, period_start, period_end, orders_count, por_cobrar, liberada, pagada, total_comision, labor_total, items:[{ order_id, order_number, date, labor_amount, commission_rate, earned_amount, commission_status }] }`

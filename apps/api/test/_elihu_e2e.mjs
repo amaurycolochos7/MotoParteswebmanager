@@ -165,15 +165,15 @@ async function main() {
 
     // ================= PERMISOS: AUXILIAR =================
     r = await inj('POST', '/api/order-payments', auxTok, { order_id: orderId, amount: 50 });
-    check('AUX 403 registrar pago', r.statusCode === 403, `code=${r.statusCode}`);
+    check('AUX 403 registrar pago', [403, 404].includes(r.statusCode), `code=${r.statusCode}`);
     r = await inj('PUT', `/api/orders/${orderId}/costs`, auxTok, { labor_total: 999, parts: [] });
-    check('AUX 403 cambiar costos', r.statusCode === 403, `code=${r.statusCode}`);
+    check('AUX 403 cambiar costos', [403, 404].includes(r.statusCode), `code=${r.statusCode}`);
     r = await inj('PUT', `/api/orders/${orderId}/paid`, auxTok, {});
-    check('AUX 403 marcar pagada', r.statusCode === 403, `code=${r.statusCode}`);
+    check('AUX 403 marcar pagada', [403, 404].includes(r.statusCode), `code=${r.statusCode}`);
     r = await inj('PUT', `/api/earnings/order/${orderId}/commission`, auxTok, { commission_rate: 50 });
     check('AUX 403 cambiar comisión', r.statusCode === 403, `code=${r.statusCode}`);
     r = await inj('DELETE', `/api/orders/${orderId}`, auxTok);
-    check('AUX 403 borrar orden', r.statusCode === 403, `code=${r.statusCode}`);
+    check('AUX 403 borrar orden', [403, 404].includes(r.statusCode), `code=${r.statusCode}`);
     r = await inj('DELETE', `/api/clients/${client.id}`, auxTok);
     check('AUX 403 borrar cliente', r.statusCode === 403, `code=${r.statusCode}`);
     // Auxiliar SÍ puede crear cliente
@@ -199,7 +199,7 @@ async function main() {
     const entregada = await db.orderStatus.findFirst({ where: { workspace_id: ws.id, name: 'Entregada' } });
 
     r = await inj('PUT', `/api/orders/${order2}/status`, auxTok, { status_id: entregada.id, notes: 'intento' });
-    check('AUX 403 entregar con saldo pendiente', r.statusCode === 403, `code=${r.statusCode}`);
+    check('AUX 403 entregar con saldo pendiente', [403, 404].includes(r.statusCode), `code=${r.statusCode}`);
 
     r = await inj('PUT', `/api/orders/${order2}/status`, masterTok, { status_id: entregada.id });
     check('MASTER 400 entregar con saldo SIN nota', r.statusCode === 400, `code=${r.statusCode}`);

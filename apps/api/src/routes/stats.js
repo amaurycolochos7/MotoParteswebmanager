@@ -1,13 +1,15 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
+import { visibleMechanicIds, orderScope } from '../lib/visibility.js';
 
 export default async function statsRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
     fastify.addHook('preHandler', resolveWorkspace);
 
     // GET /api/stats/dashboard
-    fastify.get('/dashboard', async () => {
+    fastify.get('/dashboard', async (request) => {
+        const scope = orderScope(await visibleMechanicIds(request), request.user.id); // cada quien ve lo suyo
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -15,10 +17,10 @@ export default async function statsRoutes(fastify) {
         monthAgo.setMonth(monthAgo.getMonth() - 1);
 
         const [todayOrders, activeOrders, monthOrders] = await Promise.all([
-            prisma.order.count({ where: { created_at: { gte: today } } }),
-            prisma.order.count({ where: { is_paid: false } }),
+            prisma.order.count({ where: { created_at: { gte: today }, ...scope } }),
+            prisma.order.count({ where: { is_paid: false, ...scope } }),
             prisma.order.findMany({
-                where: { is_paid: true, paid_at: { gte: monthAgo } },
+                where: { is_paid: true, paid_at: { gte: monthAgo }, ...scope },
                 select: { total_amount: true }
             })
         ]);
@@ -32,6 +34,8 @@ export default async function statsRoutes(fastify) {
     fastify.get('/mechanics', async (request) => {
         const { startDate, endDate } = request.query;
         const where = { is_paid: true };
+        const ids = await visibleMechanicIds(request);
+        if (ids !== null) where.mechanic_id = { in: ids }; // el rendimiento de los demás mecánicos solo lo ve el dueño/administrador
         if (startDate) where.created_at = { ...(where.created_at || {}), gte: new Date(startDate) };
         if (endDate) where.created_at = { ...(where.created_at || {}), lte: new Date(endDate) };
 

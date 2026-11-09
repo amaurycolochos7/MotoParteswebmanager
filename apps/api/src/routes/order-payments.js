@@ -9,6 +9,7 @@ import {
     money,
 } from '../lib/payments.js';
 import { syncOrderEarnings, applyCommissionStatuses } from '../lib/commissions.js';
+import { guardOrder } from '../lib/visibility.js';
 
 // Who may touch money? ELIHU 14: the auxiliary can create orders but must NOT
 // register/edit/cancel payments nor mark as paid. Owner/admin/master-mechanic
@@ -50,6 +51,16 @@ async function reconcileOrder(tx, orderId) {
 export default async function orderPaymentsRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
     fastify.addHook('preHandler', resolveWorkspace);
+    // Solo quien tiene la orden (o dueño/administrador) puede ver o registrar sus pagos. El id puede ser el de la orden o el de un pago.
+    fastify.addHook('preHandler', guardOrder(async (r) => {
+        if (r.params?.orderId) return r.params.orderId;
+        if (r.body?.order_id) return r.body.order_id;
+        if (r.params?.id) {
+            const p = await prisma.orderPayment.findFirst({ where: { id: r.params.id }, select: { order_id: true } });
+            return p?.order_id || null;
+        }
+        return null;
+    }));
 
     // GET /api/order-payments/order/:orderId — lista de abonos + resumen.
     // Lectura: cualquier miembro del workspace.

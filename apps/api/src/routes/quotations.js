@@ -2,6 +2,7 @@ import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
 import { generateOrderNumber } from '../lib/order-number.js';
+import { visibleMechanicIds, quotationScope, guardQuotation } from '../lib/visibility.js';
 
 // Helper: generate a quotation number "COT-YY-NNNN" — sequence per workspace.
 // The Prisma extension auto-scopes findFirst() to the active workspace, so the
@@ -61,11 +62,13 @@ export default async function quotationsRoutes(fastify) {
     fastify.register(async function authenticatedRoutes(app) {
         app.addHook('preHandler', authenticate);
         app.addHook('preHandler', resolveWorkspace);
+        // Cada mecánico/maestro solo ve y toca las cotizaciones que creó él (o su equipo).
+        app.addHook('preHandler', guardQuotation((r) => r.params?.id));
 
         // GET /api/quotations  — opcional ?status= y ?client_id=
         app.get('/', async (request) => {
             const { status, client_id } = request.query;
-            const where = {};
+            const where = { ...quotationScope(await visibleMechanicIds(request)) };
             if (status) where.status = status;
             if (client_id) where.client_id = client_id;
             return prisma.quotation.findMany({

@@ -1,10 +1,20 @@
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
+import { guardOrder, visibleMechanicIds, orderScope } from '../lib/visibility.js';
 
 export default async function photosRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
     fastify.addHook('preHandler', resolveWorkspace);
+    fastify.addHook('preHandler', guardOrder(async (r) => {
+        if (r.query?.orderId) return r.query.orderId;
+        if (r.body?.order_id) return r.body.order_id;
+        if (r.params?.id) {
+            const p = await prisma.orderPhoto.findFirst({ where: { id: r.params.id }, select: { order_id: true } });
+            return p?.order_id || null;
+        }
+        return null;
+    }));
 
     // POST /api/photos - Upload photo (URL-based, storage handled by frontend or external)
     fastify.post('/', async (request) => {
@@ -28,8 +38,9 @@ export default async function photosRoutes(fastify) {
     // GET /api/photos?orderId=
     fastify.get('/', async (request) => {
         const { orderId } = request.query;
+        const ids = await visibleMechanicIds(request);
         return prisma.orderPhoto.findMany({
-            where: orderId ? { order_id: orderId } : {},
+            where: { ...(orderId ? { order_id: orderId } : {}), ...(ids === null ? {} : { order: orderScope(ids, request.user.id) }) },
             orderBy: { created_at: 'desc' }
         });
     });

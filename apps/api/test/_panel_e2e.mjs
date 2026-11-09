@@ -130,7 +130,7 @@ try {
     ok(r.status === 200 && o1.mechanic_id === m1.id, 'owner/admin sin mechanic_id: se usa el mecanico preferido', JSON.stringify(r.json?.error));
     ok(Date.now() - t0 < 5000, 'el aviso por WhatsApp no bloquea la respuesta', `${Date.now() - t0}ms`);
     r = await call('POST', '/orders', mech1, { client_id: B.id, motorcycle_id: B1.id });
-    ok(r.status === 200 && r.json.mechanic_id === null, 'mecanico sin mechanic_id: no se fuerza el preferido', String(r.json?.mechanic_id));
+    ok(r.status === 200 && r.json.mechanic_id === m1.id, 'mecanico sin mechanic_id: la orden queda a su nombre (cada quien ve lo suyo)', String(r.json?.mechanic_id));
     r = await call('POST', '/orders', admin, {
         client_id: A.id, motorcycle_id: A1.id, mechanic_id: m1.id,
         services: [{ name: 'Revision de frenos', price: 200, cost: 0, quantity: 1 }],

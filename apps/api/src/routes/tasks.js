@@ -1,6 +1,7 @@
 import prisma, { workspaceContext } from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
+import { visibleMechanicIds } from '../lib/visibility.js';
 
 function unscoped(fn) {
     return workspaceContext.run({ workspaceId: null }, fn);
@@ -14,6 +15,8 @@ export default async function tasksRoutes(fastify) {
     fastify.get('/', async (request) => {
         const { status = 'pending', mine } = request.query || {};
         const where = { workspace_id: request.workspace.id };
+        // Las tareas internas son del dueño/administrador; cada quien solo ve las que se le asignaron
+        if ((await visibleMechanicIds(request)) !== null) where.assigned_to = request.user.id;
         if (status === 'pending') where.completed_at = null;
         if (status === 'completed') where.completed_at = { not: null };
         if (mine === '1') where.assigned_to = request.user.id;

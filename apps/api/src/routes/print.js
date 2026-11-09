@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace, requireRole } from '../middleware/workspace.js';
+import { guardOrder } from '../lib/visibility.js';
 import { assertWithinLimit, incrementUsageAsync, PlanLimitError } from '../lib/billing.js';
 import { resolvePrintSettings, sanitizePrintSettings } from '../lib/print-settings.js';
 import { buildTicketDoc, buildTestDoc, toEscPos, toPlainText, toPdf80 } from '../lib/ticket.js';
@@ -95,6 +96,7 @@ async function enqueue({ request, kind, doc, settings, orderId = null, title, co
 export default async function printRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
     fastify.addHook('preHandler', resolveWorkspace);
+    fastify.addHook('preHandler', guardOrder((r) => r.params?.orderId));
 
     // ── Ajustes + estado ──────────────────────────────────────────────
     fastify.get('/settings', async (request) => {

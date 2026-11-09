@@ -295,7 +295,7 @@ try {
     ok(r.status === 200 && r.json.length >= 3 && r.json.every((a) => a.assigned_mechanic_id === mA.id), 'mine=1 solo trae las citas del mecánico');
     ok(r.json[0].mechanic && r.json[0].mechanic.full_name === mA.full_name, 'cada fila trae mechanic {id, full_name}');
     r = await api('GET', '/api/appointments', null, tokA);
-    ok(r.json.some((a) => a.assigned_mechanic_id === mB.id), 'sin mine=1 el listado sigue trayendo todo el taller');
+    ok(r.json.every((a) => a.assigned_mechanic_id === mA.id), 'sin mine=1 un mecánico NO ve las citas de otros (cada quien las suyas)');
     r = await api('GET', `/api/appointments/${appt1.id}`, null, tokA);
     ok(r.status === 200 && r.json.id === appt1.id && r.json.public_link && r.json.client?.full_name === 'Juan Pérez López' && r.json.mechanic?.id === mA.id, 'GET /:id trae la cita completa con enlace');
     r = await api('GET', '/api/appointments/no-es-un-id', null, tokA);

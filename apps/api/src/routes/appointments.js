@@ -3,6 +3,7 @@ import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
 import { fireEvent } from '../lib/events.js';
 import { loadActor, isAdminRole } from '../lib/permissions.js';
+import { visibleMechanicIds, appointmentScope, guardAppointment } from '../lib/visibility.js';
 import { syncAppointmentToCalendar, removeAppointmentFromCalendar } from '../lib/calendar-sync.js';
 import {
     FINAL_STATUSES, DATE_RE, PROPOSAL_TTL_H, TZ_OFFSET,
@@ -33,6 +34,8 @@ const reasonOf = (v) => (typeof v === 'string' ? v.trim().slice(0, 300) : '');
 export default async function appointmentsRoutes(fastify) {
     fastify.addHook('preHandler', authenticate);
     fastify.addHook('preHandler', resolveWorkspace);
+    // Cada mecánico/maestro solo ve y toca SUS citas (las asignadas a él o a su equipo). Los días sin servicio son del taller.
+    fastify.addHook('preHandler', guardAppointment((r) => (String(r.routeOptions?.url || '').includes('/blocked-days') ? null : r.params?.id)));
 
     // `mechanic` (solo nombre) permite que los mensajes al cliente digan quien lo atiende.
     const load = (id) => prisma.appointment.findFirst({ where: { id }, include: { client: true, motorcycle: true, mechanic: { select: { id: true, full_name: true, phone: true } } } });
@@ -49,7 +52,9 @@ export default async function appointmentsRoutes(fastify) {
         if (mine === '1' || mine === 'true') where.assigned_mechanic_id = request.user.id;
         else if (mechanicId) where.assigned_mechanic_id = mechanicId;
         if (status) where.status = status;
-        const rows = await prisma.appointment.findMany({ where, include: INCLUDE, orderBy: { scheduled_date: 'asc' } });
+        const rows = await prisma.appointment.findMany({
+            where: { AND: [where, appointmentScope(await visibleMechanicIds(request))] }, include: INCLUDE, orderBy: { scheduled_date: 'asc' },
+        });
         return rows.map(withLink);
     });
 

@@ -6,6 +6,7 @@ import { fireEvent } from '../lib/events.js';
 import { generateOrderNumber } from '../lib/order-number.js';
 import { computeOrderFinance } from '../lib/payments.js';
 import { syncOrderEarnings, releaseCommissionIfPaid } from '../lib/commissions.js';
+import { visibleMechanicIds, orderScope, guardOrder } from '../lib/visibility.js';
 import { statusKeyOf } from '../lib/default-messages.js';
 import { sendWhatsApp } from '../lib/appointment-flow.js';
 
@@ -94,13 +95,17 @@ export default async function ordersRoutes(fastify) {
     fastify.register(async function authenticatedRoutes(app) {
         app.addHook('preHandler', authenticate);
         app.addHook('preHandler', resolveWorkspace);
+        // Cada mecánico/maestro solo toca SUS órdenes (y las de su equipo): cualquier ruta con :id ajeno responde 404.
+        app.addHook('preHandler', guardOrder((r) => r.params?.id));
 
         // GET /api/orders
         app.get('/', async (request) => {
             const { mechanicId } = request.query;
-            const where = mechanicId ? { mechanic_id: mechanicId } : {};
+            const ids = await visibleMechanicIds(request);
+            const filters = [orderScope(ids, request.user.id)];
+            if (mechanicId) filters.push({ mechanic_id: mechanicId });
             return prisma.order.findMany({
-                where,
+                where: { AND: filters },
                 include: ORDER_INCLUDE,
                 orderBy: { created_at: 'desc' }
             });
@@ -181,6 +186,12 @@ export default async function ordersRoutes(fastify) {
             }
             if (!data.mechanic_id && preferredProfile && ['owner', 'admin'].includes(request.workspaceRole)) {
                 data.mechanic_id = preferredProfile.id;
+            }
+
+            // Separación por mecánico: quien no es dueño/administrador solo crea órdenes para sí o para su equipo
+            {
+                const ids = await visibleMechanicIds(request);
+                if (ids !== null && (!data.mechanic_id || !ids.includes(data.mechanic_id))) data.mechanic_id = request.user.id;
             }
 
             // Generate public token
@@ -584,7 +595,7 @@ export default async function ordersRoutes(fastify) {
         });
 
         // ============ UPDATE ORDER COSTS (labor + parts) ============
-        fastify.put('/:id/costs', { preHandler: [authenticate, resolveWorkspace] }, async (request, reply) => {
+        fastify.put('/:id/costs', { preHandler: [authenticate, resolveWorkspace, guardOrder((r) => r.params?.id)] }, async (request, reply) => {
             if (!canEditMoney(request)) return denyMoney(reply);
             const { id } = request.params;
             const { labor_total, parts, mark_as_paid } = request.body;

@@ -12,7 +12,7 @@ import './ShopSummary.css';
  * órdenes de hoy, activas, ingresos del mes, clientes y órdenes activas por mecánico.
  */
 export default function ShopSummary() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isManager } = useAuth();
   const { orders, clients, users } = useData();
 
   const metrics = useMemo(() => {
@@ -40,10 +40,10 @@ export default function ShopSummary() {
   }, [users, orders]);
 
   return (
-    <section className="ss" aria-label="Resumen del taller">
+    <section className="ss" aria-label={isManager ? 'Resumen del taller' : 'Mi resumen'}>
       <header className="ss__head">
         <span className="ss__ico"><Store size={16} /></span>
-        <h2>Resumen del taller</h2>
+        <h2>{isManager ? 'Resumen del taller' : 'Mi resumen'}</h2>
       </header>
 
       <div className="ss__grid">
