@@ -108,7 +108,8 @@ router.post('/:mechanicId/fetch-media', async (req, res) => {
     }
     try {
         const r = await fetchMedia(session.client, req.body?.waMessageId);
-        if (r?.error) console.warn(`⚠️ [inbox] fetch-media ${req.body?.waMessageId}: ${r.error}${r.detail ? ' ' + r.detail : ''}`);
+        if (r?.error) console.warn(`⚠️ [inbox] fetch-media ${req.body?.waMessageId}: ${r.error}${r.detail ? ' ' + r.detail : ''}${r.diag ? ' DIAG ' + JSON.stringify(r.diag) : ''}`);
+        else if (r?.via) console.log(`📥 [inbox] fetch-media ok (${r.via}): ${r.mime} ${r.size} bytes`);
         res.json(r || { error: 'sin_respuesta' });
     } catch (err) {
         console.warn('⚠️ [inbox] fetch-media:', err.message);

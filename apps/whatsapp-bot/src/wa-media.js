@@ -53,6 +53,8 @@ export async function downloadMediaFromStore(client, serializedId, { maxBytes = 
     if (!serializedId) return { error: 'sin_id' };
     if (!client?.pupPage?.evaluate) return { error: 'sin_pagina' };
     return withTimeout(client.pupPage.evaluate(async (msgId, max) => {
+        const errors = [];
+        const note = (tag, e) => errors.push(tag + ': ' + String((e && e.message) || e).slice(0, 110));
         try {
             const C = window.require('WAWebCollections');
             const msg = C.Msg.get(msgId) || (await C.Msg.getMessagesById([msgId]))?.messages?.[0];
@@ -60,28 +62,75 @@ export async function downloadMediaFromStore(client, serializedId, { maxBytes = 
             const declared = Number(msg.size || (msg.mediaData && msg.mediaData.size) || 0);
             if (declared && declared > max) return { error: 'muy_grande', size: declared };
             if (msg.mediaData.mediaStage === 'REUPLOADING') return { error: 'expirado' };
-            if (msg.mediaData.mediaStage != 'RESOLVED') {
-                await msg.downloadMedia({ downloadEvenIfExpensive: true, rmrReason: 1 });
-            }
+
+            const toBase64 = async (bytes) => {
+                let bin = '';
+                const step = 0x8000;
+                for (let i = 0; i < bytes.length; i += step) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + step));
+                return btoa(bin);
+            };
+            const done = async (bytes, via) => {
+                if (bytes.length > max) return { error: 'muy_grande', size: bytes.length };
+                return {
+                    data: await toBase64(bytes), mime: msg.mimetype || null, filename: msg.filename || null, size: bytes.length,
+                    seconds: msg.duration ? Number(msg.duration) : null, via,
+                };
+            };
+            const blobToBytes = async (blob) => new Uint8Array(await blob.arrayBuffer());
+
+            // Paso 1: que WhatsApp Web baje y descifre el archivo (llena msg.mediaData.mediaBlob).
+            try {
+                if (msg.mediaData.mediaStage != 'RESOLVED') await msg.downloadMedia({ downloadEvenIfExpensive: true, rmrReason: 1 });
+            } catch (e) { note('downloadMedia', e); }
+
+            // Estrategia B: el blob que ya dejó el propio mensaje.
+            try {
+                const mb = msg.mediaData.mediaBlob;
+                let blob = null;
+                if (mb) {
+                    if (typeof Blob !== 'undefined' && mb instanceof Blob) blob = mb;
+                    else if (typeof mb.forceToBlob === 'function') blob = await mb.forceToBlob();
+                    else if (mb._blob && typeof mb._blob.arrayBuffer === 'function') blob = mb._blob;
+                    else if (typeof mb.blob === 'function') blob = await mb.blob();
+                }
+                if (blob && blob.size) return await done(await blobToBytes(blob), 'mediaBlob');
+                if (!mb) errors.push('mediaBlob: vacío');
+            } catch (e) { note('mediaBlob', e); }
+
+            // Estrategia A: el administrador de descargas, igual que la librería (con mimetype por si esta versión lo pide).
             const stage = String(msg.mediaData.mediaStage || '');
-            if (stage.includes('ERROR') || stage === 'FETCHING') return { error: 'no_disponible', stage };
-            const mockQpl = { addAnnotations() { return this; }, addPoint() { return this; } };
-            const buf = await window.require('WAWebDownloadManager').downloadManager.downloadAndMaybeDecrypt({
-                directPath: msg.directPath, encFilehash: msg.encFilehash, filehash: msg.filehash,
-                mediaKey: msg.mediaKey, mediaKeyTimestamp: msg.mediaKeyTimestamp, type: msg.type,
-                signal: new AbortController().signal, downloadQpl: mockQpl,
-            });
-            const bytes = new Uint8Array(buf);
-            if (bytes.length > max) return { error: 'muy_grande', size: bytes.length };
-            let bin = '';
-            const step = 0x8000;
-            for (let i = 0; i < bytes.length; i += step) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + step));
+            if (!(stage.includes('ERROR') || stage === 'FETCHING')) {
+                const dm = window.require('WAWebDownloadManager').downloadManager;
+                const mockQpl = { addAnnotations() { return this; }, addPoint() { return this; } };
+                const base = {
+                    directPath: msg.directPath, encFilehash: msg.encFilehash, filehash: msg.filehash,
+                    mediaKey: msg.mediaKey, mediaKeyTimestamp: msg.mediaKeyTimestamp, type: msg.type,
+                    signal: new AbortController().signal, downloadQpl: mockQpl,
+                };
+                for (const [tag, extra, fn] of [
+                    ['maybeDecrypt+mime', { mimetype: msg.mimetype }, 'downloadAndMaybeDecrypt'],
+                    ['maybeDecrypt', {}, 'downloadAndMaybeDecrypt'],
+                    ['downloadAndDecrypt', {}, 'downloadAndDecrypt'],
+                ]) {
+                    try {
+                        if (typeof dm[fn] !== 'function') { errors.push(tag + ': no existe'); continue; }
+                        const buf = await dm[fn]({ ...base, ...extra });
+                        const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+                        if (bytes.length) return await done(bytes, tag);
+                        errors.push(tag + ': vacío');
+                    } catch (e) { note(tag, e); }
+                }
+            } else errors.push('etapa ' + stage);
+
+            let dmKeys = '';
+            try { dmKeys = Object.keys(window.require('WAWebDownloadManager').downloadManager || {}).slice(0, 14).join(','); } catch (e) { dmKeys = 'ERR'; }
             return {
-                data: btoa(bin), mime: msg.mimetype || null, filename: msg.filename || null, size: bytes.length,
-                seconds: msg.duration ? Number(msg.duration) : null,
+                error: 'no_disponible',
+                detail: errors.join(' | ').slice(0, 480),
+                diag: { stage, tipo: msg.type, mime: msg.mimetype || null, tieneClave: !!msg.mediaKey, tieneRuta: !!msg.directPath, dmKeys, mediaDataKeys: Object.keys(msg.mediaData || {}).slice(0, 14).join(',') },
             };
         } catch (e) {
-            return { error: 'fallo', detail: String((e && e.message) || e).slice(0, 160) };
+            return { error: 'fallo', detail: String((e && e.message) || e).slice(0, 200) };
         }
     }, serializedId, maxBytes), timeoutMs, 'descarga del archivo');
 }
