@@ -4,8 +4,11 @@
 import prisma from './prisma.js';
 import { toLocal10, digits, phoneVariants } from './phone.js';
 
-export const MEDIA_MAX_BYTES = 2 * 1024 * 1024;
-export const MEDIA_RETENTION_DAYS = 30;
+export const MEDIA_MAX_BYTES = 12 * 1024 * 1024; // por archivo (audio, imagen, video corto, documento)
+export const MEDIA_RETENTION_DAYS = 90;          // pasado ese tiempo se borra la copia; se vuelve a pedir a WhatsApp si alguien la abre
+export const MEDIA_TYPES = new Set(['image', 'sticker', 'audio', 'ptt', 'video', 'document']);
+/** Tipo de archivo válido (image, sticker, audio, ptt, video, document) o null. */
+export const normalizeMediaType = (t) => (MEDIA_TYPES.has(String(t || '').toLowerCase()) ? String(t).toLowerCase() : null);
 
 /** Teléfono canónico (10 dígitos MX o dígitos completos) a partir del id de chat de WhatsApp. */
 export function phoneFromChat(chatId, hintNumber) {
@@ -92,7 +95,18 @@ export async function storeMedia(workspaceId, { mime, base64 }) {
 export async function recordMessage(workspaceId, conv, m) {
     if (m.waMessageId) {
         const dup = await prisma.waMessage.findFirst({ where: { workspace_id: workspaceId, wa_message_id: m.waMessageId } });
-        if (dup) return { message: dup, created: false };
+        if (dup) {
+            // Un mensaje ya guardado sin datos de archivo (importado antes) los recibe ahora.
+            const patch = {};
+            const mt = normalizeMediaType(m.mediaType);
+            if (mt && !dup.media_type) patch.media_type = mt;
+            if (m.mediaMime && !dup.media_mime) patch.media_mime = m.mediaMime;
+            if (m.mediaName && !dup.media_name) patch.media_name = m.mediaName;
+            if (m.mediaSeconds && !dup.media_seconds) patch.media_seconds = Math.round(Number(m.mediaSeconds));
+            if (m.mediaId && !dup.media_id) patch.media_id = m.mediaId;
+            if (Object.keys(patch).length) return { message: await prisma.waMessage.update({ where: { id: dup.id }, data: patch }), created: false };
+            return { message: dup, created: false };
+        }
     }
     const createdAt = m.createdAt || new Date();
     let message;
@@ -106,6 +120,10 @@ export async function recordMessage(workspaceId, conv, m) {
                 origin: m.origin,
                 body: m.body || '',
                 media_id: m.mediaId || null,
+                media_type: normalizeMediaType(m.mediaType),
+                media_mime: m.mediaMime || null,
+                media_name: m.mediaName ? String(m.mediaName).slice(0, 200) : null,
+                media_seconds: m.mediaSeconds ? Math.round(Number(m.mediaSeconds)) : null,
                 status: m.status || (m.direction === 'in' ? 'delivered' : 'sent'),
                 sent_by: m.sentBy || null,
                 error: m.error || null,
@@ -212,4 +230,37 @@ export async function mergeDuplicateConversations(workspaceId) {
         });
     }
     return merged;
+}
+
+/**
+ * Mensaje SALIENTE del historial que el servidor ya tenía registrado sin id de WhatsApp (automático o del panel):
+ * se le asigna el id en vez de crear otra copia. Ventana de ±3 minutos y mismo texto.
+ */
+export async function claimHistoryOutbound(workspaceId, conversationId, body, waMessageId, at) {
+    if (!waMessageId) return null;
+    const t = at instanceof Date ? at : new Date(at);
+    const from = new Date(t.getTime() - 3 * 60 * 1000);
+    const to = new Date(t.getTime() + 3 * 60 * 1000);
+    const candidates = await prisma.waMessage.findMany({
+        where: {
+            workspace_id: workspaceId, conversation_id: conversationId, direction: 'out', origin: { in: ['auto', 'panel'] },
+            wa_message_id: null, created_at: { gte: from, lte: to },
+        },
+        take: 20,
+    });
+    const wanted = comparableBody(body);
+    const hit = candidates.find((c) => comparableBody(c.body) === wanted);
+    if (!hit) return null;
+    return prisma.waMessage.update({ where: { id: hit.id }, data: { wa_message_id: waMessageId, status: betterStatus(hit.status, 'sent') } });
+}
+
+/**
+ * Borra los mensajes de cliente/teléfono SIN id de WhatsApp de una conversación (importados antes de que se guardara el id: de ahí
+ * salieron copias repetidas). Se llama justo después de importar el historial CON ids, que los reemplaza. Devuelve cuántos borró.
+ */
+export async function purgeUntaggedHistory(workspaceId, conversationId) {
+    const res = await prisma.waMessage.deleteMany({
+        where: { workspace_id: workspaceId, conversation_id: conversationId, wa_message_id: null, origin: { in: ['client', 'phone'] } },
+    });
+    return res.count;
 }

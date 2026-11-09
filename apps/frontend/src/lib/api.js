@@ -1536,6 +1536,24 @@ export const inboxService = {
     // Pide a WhatsApp mensajes ANTERIORES de una conversación (como hacer scroll hacia arriba). Devuelve { added, total }.
     loadOlder(id) { return apiFetch(`/inbox/conversations/${id}/load-older`, { method: 'POST' }); },
     updates(since) { return apiFetch(`/inbox/updates?since=${encodeURIComponent(since)}`); },
+    // Archivo de un mensaje (audio, sticker, imagen, video, documento). El servidor lo baja de WhatsApp la primera vez.
+    async messageMediaBlob(messageId) {
+        const headers = {};
+        const token = getToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        if (activeWorkspaceId) headers['x-workspace-id'] = activeWorkspaceId;
+        const res = await fetch(`${API_URL}/inbox/messages/${messageId}/media`, { headers });
+        if (!res.ok) {
+            const j = await res.json().catch(() => ({}));
+            throw new Error(j.error || 'No se pudo cargar el archivo.');
+        }
+        const blob = await res.blob();
+        return { url: URL.createObjectURL(blob), type: blob.type };
+    },
+    // Nota de voz grabada en el panel (base64 + tipo + duración). El servidor la convierte y la envía por WhatsApp.
+    sendVoice(id, { audio_base64, mime, seconds }) {
+        return apiFetch(`/inbox/conversations/${id}/voice`, { method: 'POST', body: jbody({ audio_base64, mime, seconds }) });
+    },
     // Las imágenes llevan JWT: se bajan como blob y se muestran con URL de objeto.
     async mediaBlobUrl(id) {
         const headers = {};

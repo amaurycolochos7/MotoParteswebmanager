@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import {
   Search, ArrowLeft, Send, EyeOff, UserRound, Bike, ClipboardList, CalendarClock, Plus, Printer,
-  Check, CheckCheck, Clock, AlertCircle, MessageSquare, Bot, Smartphone, ImageOff, PanelRight, Loader2, RefreshCw, History,
+  Check, CheckCheck, Clock, AlertCircle, MessageSquare, Bot, Smartphone, ImageOff, PanelRight, Loader2, RefreshCw, History, Mic, Trash2,
 } from 'lucide-react';
 import { inboxService, printService } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Avatar, Chip, Drawer, Segmented, Skeleton, fmtWhen } from '../../components/ui/kit';
+import { MessageMedia, captionOf, useVoiceRecorder, MAX_SECONDS } from './InboxMedia';
 import './Inbox.css';
 
 const POLL_MS = 4000;
@@ -17,6 +18,8 @@ const fmtPhone = (p) => {
   const l = d.length >= 10 ? d.slice(-10) : d;
   return l.length === 10 ? `${l.slice(0, 3)} ${l.slice(3, 6)} ${l.slice(6)}` : (p || '');
 };
+/** '[Nota de voz]' -> 'Nota de voz'; '[Imagen] pie' -> 'Imagen: pie' */
+const cleanPreview = (p) => String(p || '').replace(/^\[([^\]]+)\]\s*(.*)$/, (_m, a, b) => (b ? a + ': ' + b : a));
 const nameOf = (c) => c?.client?.full_name || c?.display_name || fmtPhone(c?.phone) || 'Número sin nombre';
 
 function dayLabel(iso) {
@@ -54,14 +57,16 @@ function MediaImage({ media }) {
 function Bubble({ m }) {
   const out = m.direction === 'out';
   const origin = m.origin;
+  const isSticker = m.media?.type === 'sticker';
+  const text = captionOf(m);
   return (
-    <div className={`ib-msg ${out ? 'is-out' : 'is-in'} ib-msg--${origin}`}>
+    <div className={`ib-msg ${out ? 'is-out' : 'is-in'} ib-msg--${origin}${isSticker ? ' ib-msg--sticker' : ''}`}>
       <div className="ib-bubble">
         {out && origin === 'auto' && <span className="ib-tag"><Bot size={11} /> Mensaje automático</span>}
         {out && origin === 'phone' && <span className="ib-tag"><Smartphone size={11} /> Desde el teléfono</span>}
         {out && origin === 'panel' && m.sent_by?.full_name && <span className="ib-tag">{m.sent_by.full_name.split(' ')[0]}</span>}
-        {m.media && <MediaImage media={m.media} />}
-        {m.body && <p>{m.body}</p>}
+        {m.media && <MessageMedia m={m} />}
+        {text && <p>{text}</p>}
         <span className="ib-meta">
           {new Date(m.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
           {out && <Ticks status={m.status} />}
@@ -91,6 +96,8 @@ function InboxView() {
   const [showCard, setShowCard] = useState(false);
   const [sync, setSync] = useState({ busy: false, kind: '', msg: '' }); // importación manual de chats
   const [older, setOlder] = useState({ loading: false, none: false, note: '' }); // mensajes anteriores del chat abierto
+  const recorder = useVoiceRecorder();
+  const [voiceBusy, setVoiceBusy] = useState(false);
   const sinceRef = useRef(new Date(0).toISOString());
   const endRef = useRef(null);
   const stickRef = useRef(true);
@@ -212,6 +219,36 @@ function InboxView() {
       toast.error(e.message || 'No se pudo enviar el mensaje');
     } finally { setSending(false); }
   };
+  /* Notas de voz: grabar -> (cancelar | enviar). Se muestra al instante y se reemplaza por la respuesta del servidor. */
+  const startVoice = async () => {
+    try { await recorder.start(); } catch (e) { toast.error(e.message || 'No se pudo iniciar la grabación'); }
+  };
+  const sendVoice = async () => {
+    if (voiceBusy || !activeId) return;
+    if (recorder.seconds < 1) { recorder.cancel(); toast.error('La nota de voz es muy corta.'); return; }
+    setVoiceBusy(true);
+    let rec;
+    try { rec = await recorder.stop(); } catch (e) { setVoiceBusy(false); toast.error(e.message || 'No se pudo terminar la grabación'); return; }
+    const localUrl = URL.createObjectURL(rec.blob);
+    const tmp = { id: `tmp-${Date.now()}`, direction: 'out', origin: 'panel', body: '[Nota de voz]', status: 'queued', created_at: new Date().toISOString(), sent_by: null,
+      media: { type: 'ptt', seconds: rec.seconds, available: true, localUrl, message_id: null } };
+    stickRef.current = true;
+    setMsgs((m) => [...m, tmp]);
+    try {
+      const saved = await inboxService.sendVoice(activeId, { audio_base64: rec.base64, mime: rec.mime, seconds: rec.seconds });
+      setMsgs((m) => m.map((x) => (x.id === tmp.id ? { ...saved, media: { ...(saved.media || {}), localUrl } } : x)));
+      mergeConv([{ id: activeId, last_message_preview: 'Nota de voz', last_message_at: new Date().toISOString(), last_direction: 'out' }]);
+    } catch (e) {
+      setMsgs((m) => m.map((x) => (x.id === tmp.id ? { ...x, status: 'failed' } : x)));
+      toast.error(e.message || 'No se pudo enviar la nota de voz');
+    } finally { setVoiceBusy(false); }
+  };
+  useEffect(() => { if (recorder.state === 'recording' && recorder.seconds >= MAX_SECONDS) sendVoice(); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recorder.seconds, recorder.state]);
+  // Cambiar de conversación descarta una grabación a medias
+  useEffect(() => { recorder.cancel(); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId]);
+
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
 
   /* Importar los chats recientes de WhatsApp (corre en segundo plano en el bot). El polling de 4 s recoge lo nuevo. */
@@ -394,7 +431,7 @@ function InboxView() {
               <span className="ib-item__main">
                 <span className="ib-item__top"><strong>{nameOf(c)}</strong><time>{fmtWhen(c.last_message_at)}</time></span>
                 <span className="ib-item__bot">
-                  <span className="ib-item__prev">{c.last_direction === 'out' ? 'Tú: ' : ''}{c.last_message_preview || 'Imagen'}</span>
+                  <span className="ib-item__prev">{c.last_direction === 'out' ? 'Tú: ' : ''}{cleanPreview(c.last_message_preview) || 'Archivo'}</span>
                   {c.unread_count > 0 && <span className="ib-badge">{c.unread_count > 99 ? '99+' : c.unread_count}</span>}
                 </span>
               </span>
@@ -445,15 +482,29 @@ function InboxView() {
             </div>
 
             <footer className="ib-compose">
-              <textarea
-                rows={1}
-                placeholder="Escribe un mensaje…"
-                value={text}
-                onChange={(e) => { setText(e.target.value); e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`; }}
-                onKeyDown={onKey}
-                aria-label="Mensaje"
-              />
-              <button type="button" className="ib-send" onClick={send} disabled={!text.trim() || sending} aria-label="Enviar"><Send size={19} /></button>
+              {recorder.state === 'recording' ? (
+                <div className="ib-rec" role="status" aria-live="polite">
+                  <button type="button" className="ib-rec__cancel" onClick={recorder.cancel} aria-label="Cancelar grabación" disabled={voiceBusy}><Trash2 size={20} /></button>
+                  <span className="ib-rec__dot" aria-hidden="true" />
+                  <span className="ib-rec__time">{recorder.fmt(recorder.seconds)}</span>
+                  <span className="ib-rec__hint">Grabando nota de voz…</span>
+                  <button type="button" className="ib-send" onClick={sendVoice} disabled={voiceBusy} aria-label="Enviar nota de voz"><Send size={19} /></button>
+                </div>
+              ) : (
+                <>
+                  <textarea
+                    rows={1}
+                    placeholder="Escribe un mensaje…"
+                    value={text}
+                    onChange={(e) => { setText(e.target.value); e.target.style.height = 'auto'; e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`; }}
+                    onKeyDown={onKey}
+                    aria-label="Mensaje"
+                  />
+                  {text.trim()
+                    ? <button type="button" className="ib-send" onClick={send} disabled={sending} aria-label="Enviar"><Send size={19} /></button>
+                    : <button type="button" className="ib-send ib-send--mic" onClick={startVoice} aria-label="Grabar nota de voz"><Mic size={20} /></button>}
+                </>
+              )}
             </footer>
             <p className="ib-hint">Enter envía · Shift+Enter nueva línea. {isManager ? 'Sale del número del taller.' : 'Sale del número del taller, con tu nombre en el registro.'}</p>
           </>

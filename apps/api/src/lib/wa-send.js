@@ -9,7 +9,7 @@
 import prisma from './prisma.js';
 import { toLocal10, toWaNumber, digits } from './phone.js';
 import { botCall, resolveSessionId } from './wa-session.js';
-import { upsertConversation, recordMessage, betterStatus } from './wa-inbox.js';
+import { upsertConversation, recordMessage, betterStatus, storeMedia, isRealPhone } from './wa-inbox.js';
 
 export const RETRY_WINDOW_MS = 30 * 60 * 1000;
 const BACKOFF_SECONDS = [15, 30, 60, 120, 240, 480, 900];
@@ -193,4 +193,35 @@ export async function logOutbound(workspaceId, phone, body, { origin = 'panel', 
         console.error('[wa-send] logOutbound:', e.message);
         return null;
     }
+}
+
+/**
+ * Nota de voz escrita desde el panel: se guarda el audio (para poder oírlo en la conversación), se manda por el bot
+ * (que lo convierte a ogg/opus, el formato de WhatsApp) y se registra el mensaje. No se reintenta: si falla, queda como fallido.
+ * @returns {{ sent:boolean, id?:string, reason?:string, error?:string }}
+ */
+export async function sendVoiceToClient(workspaceId, conv, { base64, mime, seconds }, ctx = {}) {
+    const chatId = conv.wa_chat_id && /^\d+@(lid|c\.us)$/.test(conv.wa_chat_id)
+        ? conv.wa_chat_id
+        : (isRealPhone(conv.phone) ? `${toWaNumber(conv.phone)}@c.us` : null);
+    if (!chatId) return { sent: false, reason: 'sin_chat', error: 'No se conoce el chat de WhatsApp de esta conversación.' };
+    const mediaId = await storeMedia(workspaceId, { mime: mime || 'audio/webm', base64 });
+    if (!mediaId) return { sent: false, reason: 'archivo_invalido', error: 'El audio está vacío o es demasiado grande.' };
+    const { message: record } = await recordMessage(workspaceId, conv, {
+        direction: 'out', origin: 'panel', body: '[Nota de voz]', mediaId, mediaType: 'ptt', mediaMime: mime || 'audio/webm',
+        mediaSeconds: seconds || null, status: 'queued', sentBy: ctx.sentBy || null,
+    });
+    const sessionId = await resolveSessionId(workspaceId);
+    if (!sessionId) {
+        await markMessage(record.id, { status: 'failed', error: 'No hay sesión de WhatsApp configurada.' });
+        return { sent: false, id: record.id, reason: 'whatsapp_desconectado', error: 'No hay sesión de WhatsApp configurada.' };
+    }
+    const r = await botCall('/send-voice', { method: 'POST', body: { mechanicId: sessionId, chatId, base64 }, timeoutMs: 60_000 });
+    if (r.ok) {
+        await markMessage(record.id, { wa_message_id: r.data?.messageId || undefined, status: 'sent' });
+        return { sent: true, id: record.id };
+    }
+    const reason = reasonOf(r);
+    await markMessage(record.id, { status: 'failed', error: String(r.error || reason).slice(0, 300) });
+    return { sent: false, id: record.id, reason, error: r.error };
 }

@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { BOT_KEY, workspaceOfSession } from '../lib/wa-session.js';
 import {
     isIgnoredChat, phoneFromChat, upsertConversation, recordMessage, claimPendingOutbound, applyAck, storeMedia,
+    claimHistoryOutbound, purgeUntaggedHistory,
 } from '../lib/wa-inbox.js';
 import prisma from '../lib/prisma.js';
 
@@ -58,6 +59,9 @@ export async function handleBotEvent(ev) {
         body,
         mediaId,
         mediaType: ev.mediaType || (ev.media?.mime ? String(ev.media.mime).split('/')[0] : null),
+        mediaMime: ev.media?.mime || ev.mediaMime || null,
+        mediaName: ev.mediaName || null,
+        mediaSeconds: ev.mediaSeconds || null,
         waMessageId: ev.wa_message_id || null,
         status: direction === 'in' ? 'delivered' : 'sent',
         createdAt,
@@ -68,6 +72,9 @@ export async function handleBotEvent(ev) {
 /**
  * Historial de un chat (importado al conectar o a mano): se guarda en orden cronológico, sin duplicar (por wa_message_id)
  * y SIN marcar nada como no leído (son mensajes viejos, no novedades).
+ * - Un saliente que el servidor ya tenía registrado (automático / del panel) recibe su id en vez de duplicarse.
+ * - Con `replaceUntagged`, al terminar se borran los mensajes viejos de ese chat que se guardaron SIN id de WhatsApp
+ *   (importaciones anteriores a la corrección del id): este historial, que sí trae ids, los reemplaza.
  */
 export async function handleHistoryEvent(workspaceId, ev) {
     const chat = ev.chat || {};
@@ -77,25 +84,37 @@ export async function handleHistoryEvent(workspaceId, ev) {
     const items = (Array.isArray(ev.messages) ? ev.messages : [])
         .filter((m) => m && m.body)
         .sort((x, y) => Number(x.timestamp || 0) - Number(y.timestamp || 0))
-        .slice(0, 200);
+        .slice(0, 400);
     if (!items.length) return { ok: true, imported: 0 };
     const conv = await upsertConversation(workspaceId, { phone, waChatId: chat.id, displayName: chat.name || null });
     let imported = 0;
+    let tagged = 0;
     for (const m of items) {
         const out = m.direction === 'out';
+        const createdAt = m.timestamp ? new Date(Number(m.timestamp) * 1000) : new Date();
+        if (m.wa_message_id) tagged += 1;
+        if (out && m.wa_message_id) {
+            const claimed = await claimHistoryOutbound(workspaceId, conv.id, m.body, m.wa_message_id, createdAt);
+            if (claimed) continue;
+        }
         const r = await recordMessage(workspaceId, conv, {
             direction: out ? 'out' : 'in',
             origin: out ? 'phone' : 'client',
             body: String(m.body),
             mediaType: m.mediaType || null,
+            mediaMime: m.mediaMime || null,
+            mediaName: m.mediaName || null,
+            mediaSeconds: m.mediaSeconds || null,
             waMessageId: m.wa_message_id || null,
             status: out ? 'sent' : 'delivered',
-            createdAt: m.timestamp ? new Date(Number(m.timestamp) * 1000) : new Date(),
+            createdAt,
             history: true,
         });
         if (r.created) imported += 1;
     }
-    return { ok: true, imported };
+    let replaced = 0;
+    if (ev.replaceUntagged && tagged > 0) replaced = await purgeUntaggedHistory(workspaceId, conv.id);
+    return { ok: true, imported, replaced };
 }
 
 export default async function internalWaRoutes(fastify) {
@@ -103,7 +122,7 @@ export default async function internalWaRoutes(fastify) {
         if (!safeEqual(request.headers['x-api-key'], BOT_KEY)) return reply.status(401).send({ error: 'No autorizado' });
     });
 
-    fastify.post('/event', { bodyLimit: 6 * 1024 * 1024 }, async (request, reply) => {
+    fastify.post('/event', { bodyLimit: 24 * 1024 * 1024 }, async (request, reply) => {
         try {
             const r = await handleBotEvent(request.body || {});
             if (!r.ok) return reply.status(r.status || 400).send({ error: r.reason });

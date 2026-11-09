@@ -4,10 +4,10 @@ import prisma from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { resolveWorkspace } from '../middleware/workspace.js';
 import { loadActor, requirePermission } from '../lib/permissions.js';
-import { sendToClient } from '../lib/wa-send.js';
+import { sendToClient, sendVoiceToClient } from '../lib/wa-send.js';
 import { digits } from '../lib/phone.js';
 import { botCall, resolveSessionId } from '../lib/wa-session.js';
-import { isRealPhone } from '../lib/wa-inbox.js';
+import { isRealPhone, storeMedia, MEDIA_MAX_BYTES } from '../lib/wa-inbox.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const bad = (reply, code, error) => reply.status(code).send({ error });
@@ -54,7 +54,13 @@ export default async function inboxRoutes(fastify) {
             direction: m.direction,
             origin: m.origin,
             body: m.body,
-            media: m.media_id && mime ? { id: m.media_id, type: mediaType(mime), mime } : null,
+            // Con tipo conocido el panel pide el archivo por mensaje (GET /messages/:id/media), que lo baja de WhatsApp la 1a vez.
+            media: (m.media_type || (m.media_id && mime))
+                ? {
+                    id: m.media_id || null, message_id: m.id, type: m.media_type || mediaType(mime), mime: mime || m.media_mime || null,
+                    seconds: m.media_seconds ?? null, name: m.media_name || null, available: !!m.media_id,
+                }
+                : null,
             status: m.status,
             sent_by: m.sent_by ? { id: m.sent_by, full_name: namesById.get(m.sent_by) || null } : null,
             created_at: m.created_at,
@@ -231,6 +237,56 @@ export default async function inboxRoutes(fastify) {
         if (!conv) return bad(reply, 404, 'Conversación no encontrada.');
         await prisma.waConversation.update({ where: { id: conv.id }, data: { hidden: true, unread_count: 0 } });
         return { success: true };
+    });
+
+    // GET /api/inbox/messages/:id/media — el archivo de un mensaje (audio, sticker, imagen, video, documento).
+    // Si aún no está guardado se pide a WhatsApp (por el id del mensaje) y se conserva para la próxima.
+    fastify.get('/messages/:id/media', async (request, reply) => {
+        const m = UUID_RE.test(String(request.params.id || '')) ? await prisma.waMessage.findFirst({ where: { id: request.params.id } }) : null;
+        if (!m || !(m.media_type || m.media_id)) return bad(reply, 404, 'Archivo no encontrado.');
+        let media = m.media_id ? await prisma.waMedia.findFirst({ where: { id: m.media_id } }) : null;
+        if (!media) {
+            if (!m.wa_message_id) return bad(reply, 404, 'Este archivo ya no está disponible.');
+            const sessionId = await resolveSessionId(request.workspace.id);
+            if (!sessionId) return bad(reply, 409, 'WhatsApp del taller no está configurado.');
+            const r = await botCall(`/sessions/${sessionId}/fetch-media`, { method: 'POST', body: { waMessageId: m.wa_message_id }, timeoutMs: 75_000 });
+            if (!r.ok) return bad(reply, 409, 'WhatsApp no está conectado en este momento. Intenta cuando aparezca como conectado.');
+            const d = r.data || {};
+            if (d.error || !d.data) {
+                const msg = d.error === 'expirado' ? 'El archivo ya expiró en WhatsApp.'
+                    : d.error === 'muy_grande' ? 'El archivo es demasiado grande para verlo aquí.'
+                        : 'No se pudo cargar el archivo (puede que ya no esté en WhatsApp).';
+                return bad(reply, d.error === 'muy_grande' ? 413 : 404, msg);
+            }
+            const mediaId = await storeMedia(request.workspace.id, { mime: d.mime || m.media_mime || 'application/octet-stream', base64: d.data });
+            if (!mediaId) return bad(reply, 413, 'El archivo es demasiado grande para verlo aquí.');
+            await prisma.waMessage.update({
+                where: { id: m.id },
+                data: { media_id: mediaId, media_mime: d.mime || m.media_mime || undefined, media_name: d.filename || m.media_name || undefined, media_seconds: d.seconds ? Math.round(d.seconds) : (m.media_seconds ?? undefined) },
+            });
+            media = await prisma.waMedia.findFirst({ where: { id: mediaId } });
+        }
+        reply.header('content-type', media.mime).header('cache-control', 'private, max-age=86400');
+        return reply.send(Buffer.from(media.data));
+    });
+
+    // POST /api/inbox/conversations/:id/voice { audio_base64, mime, seconds } — nota de voz desde el panel
+    fastify.post('/conversations/:id/voice', { bodyLimit: 16 * 1024 * 1024 }, async (request, reply) => {
+        const conv = await loadConversation(request.params.id);
+        if (!conv) return bad(reply, 404, 'Conversación no encontrada.');
+        const actor = await loadActor(request);
+        if (!actor.can_send_messages && !['owner', 'admin', 'maestro'].includes(actor.role)) return bad(reply, 403, 'No tienes permiso para enviar mensajes.');
+        const b64 = String(request.body?.audio_base64 || '').replace(/^data:[^,]*,/, '');
+        if (!b64) return bad(reply, 400, 'No llegó el audio.');
+        if (Math.ceil(b64.length * 0.75) > MEDIA_MAX_BYTES) return bad(reply, 413, 'El audio es demasiado largo.');
+        const seconds = Math.min(Math.max(Math.round(Number(request.body?.seconds) || 0), 0), 3600);
+        const r = await sendVoiceToClient(request.workspace.id, conv, { base64: b64, mime: String(request.body?.mime || 'audio/webm').slice(0, 80), seconds }, { sentBy: actor.id });
+        await prisma.waConversation.update({ where: { id: conv.id }, data: { unread_count: 0, hidden: false } });
+        const row = r.id ? await prisma.waMessage.findFirst({ where: { id: r.id } }) : null;
+        const [message] = row ? await toMessages([row]) : [null];
+        if (!r.sent) return reply.status(502).send({ error: r.error || 'No se pudo enviar la nota de voz.', message });
+        reply.status(201);
+        return message;
     });
 
     // GET /api/inbox/media/:id — binario con control de acceso (mismo taller + permiso de bandeja)

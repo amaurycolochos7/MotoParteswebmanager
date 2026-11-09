@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { convertToOggOpus } from '../wa-media.js';
 
 const router = Router();
 
@@ -90,6 +91,24 @@ router.post('/send-document', async (req, res) => {
         const result = await session.sendDocument(phone, message || '', base64, filename || 'document.pdf', mimetype || 'application/pdf');
         res.json(result);
     } catch (err) {
+        res.status(500).json({ error: err.message, fallback: true });
+    }
+});
+
+// POST /api/send-voice — nota de voz desde el panel.
+// Body: { mechanicId, chatId, base64, mimetype }. El audio se convierte a ogg/opus (formato de WhatsApp) con ffmpeg.
+router.post('/send-voice', async (req, res) => {
+    const sessionManager = req.app.get('sessionManager');
+    const { mechanicId, chatId, base64 } = req.body || {};
+    if (!chatId || !base64) return res.status(400).json({ error: 'chatId y base64 son requeridos' });
+    const session = mechanicId ? sessionManager.getSession(mechanicId) : null;
+    if (!session || !session.isConnected) return res.status(503).json({ error: 'Sesión de WhatsApp no disponible', fallback: true });
+    try {
+        const ogg = await convertToOggOpus(Buffer.from(String(base64), 'base64'));
+        const result = await session.sendVoice(chatId, ogg.toString('base64'));
+        res.json({ ...result, converted: true });
+    } catch (err) {
+        console.warn('⚠️ send-voice:', err.message);
         res.status(500).json({ error: err.message, fallback: true });
     }
 });

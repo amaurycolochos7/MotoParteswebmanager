@@ -1303,6 +1303,11 @@ model WaMessage {
   origin          String                               // client | phone | panel | auto
   body            String   @default("")
   media_id        String?  @db.Uuid
+  // Tipo de archivo del mensaje (image | sticker | audio | ptt | video | document). El archivo se baja la 1a vez que alguien lo abre.
+  media_type      String?
+  media_mime      String?
+  media_name      String?                              // nombre del documento
+  media_seconds   Int?                                 // duración de audios/videos
   status          String   @default("sent")            // queued | sent | delivered | read | failed
   sent_by         String?  @db.Uuid                    // Profile que escribió desde el panel
   error           String?

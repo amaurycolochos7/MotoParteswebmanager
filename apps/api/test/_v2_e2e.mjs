@@ -364,9 +364,9 @@ try {
     ok(mr.status === 200 && mr.headers.get('content-type') === 'image/png' && buf.equals(png), 'descarga la imagen con control de acceso');
     ok((await fetch(`${BASE}/api/inbox/media/${imgMsg.media.id}`, { headers: { Authorization: `Bearer ${T.mecanico}` } })).status === 403, 'sin permiso de bandeja no ve la imagen');
     ok((await fetch(`${BASE}/api/inbox/media/${imgMsg.media.id}`, { headers: { Authorization: `Bearer ${T.ownerB}` } })).status === 403 || true, 'otro taller no ve la imagen');
-    const big = Buffer.alloc(2 * 1024 * 1024 + 10, 1).toString('base64');
+    const big = Buffer.alloc(12 * 1024 * 1024 + 10, 1).toString('base64'); // el tope por archivo es 12 MB
     await ev({ type: 'message', direction: 'in', from: `52${cPhone}@c.us`, body: '[Imagen]', mediaType: 'image', media: { mime: 'image/png', base64: big }, wa_message_id: `IN-${TAG}-6`, timestamp: Math.floor(Date.now() / 1000) });
-    ok((await prisma.waMessage.findFirst({ where: { wa_message_id: `IN-${TAG}-6` } }))?.media_id === null, 'imágenes de más de 2 MB no se guardan (queda el texto)');
+    ok((await prisma.waMessage.findFirst({ where: { wa_message_id: `IN-${TAG}-6` } }))?.media_id === null, 'archivos de más de 12 MB no se guardan (queda el texto)');
 
     // ── 6. Multi-taller ──────────────────────────────────────────────────
     section('Multi-taller: el otro taller no ve nada');

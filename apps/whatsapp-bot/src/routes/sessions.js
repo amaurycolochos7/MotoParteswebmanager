@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import QRCode from 'qrcode';
-import { importHistory, importChatHistory } from '../inbox-events.js';
+import { importHistory, importChatHistory, fetchMedia } from '../inbox-events.js';
 
 const router = Router();
 
@@ -95,6 +95,23 @@ router.post('/:mechanicId/load-chat', async (req, res) => {
         res.json(await importChatHistory(session.client, req.params.mechanicId, req.body?.chatId, req.body?.limit));
     } catch (err) {
         console.warn('⚠️ [inbox] load-chat:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/sessions/:mechanicId/fetch-media { waMessageId } — baja un archivo (audio, video, documento, imagen) por id de mensaje.
+router.post('/:mechanicId/fetch-media', async (req, res) => {
+    const sessionManager = req.app.get('sessionManager');
+    const session = sessionManager.getSession(req.params.mechanicId);
+    if (!session || !session.isConnected || !session.client) {
+        return res.status(503).json({ error: 'Sesión de WhatsApp no disponible' });
+    }
+    try {
+        const r = await fetchMedia(session.client, req.body?.waMessageId);
+        if (r?.error) console.warn(`⚠️ [inbox] fetch-media ${req.body?.waMessageId}: ${r.error}${r.detail ? ' ' + r.detail : ''}`);
+        res.json(r || { error: 'sin_respuesta' });
+    } catch (err) {
+        console.warn('⚠️ [inbox] fetch-media:', err.message);
         res.status(500).json({ error: err.message });
     }
 });

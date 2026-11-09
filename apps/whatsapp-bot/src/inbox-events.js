@@ -7,7 +7,7 @@
 // Nunca debe romper la sesión: todo va dentro de try/catch y los fallos solo se registran.
 const API_URL = (process.env.API_INTERNAL_URL || 'http://api:3000').replace(/\/$/, '');
 const API_KEY = process.env.WHATSAPP_API_KEY || 'motopartes-whatsapp-key';
-const MAX_MEDIA_BYTES = 2 * 1024 * 1024;
+import { msgSerializedId, downloadMediaFromStore, LIVE_MEDIA_TYPES, MAX_MEDIA_BYTES } from './wa-media.js';
 
 // Tipos de WhatsApp que NO son conversación (avisos del sistema, llamadas, mensajes eliminados...).
 const IGNORED_TYPES = new Set([
@@ -64,13 +64,16 @@ async function forward(client, sessionId, msg, direction) {
         numberHint = contact?.number || null;
     } catch { /* sin datos del contacto: la API usa el id del chat */ }
 
+    const waId = msgSerializedId(msg);
     let media = null;
-    if (msg.hasMedia && msg.type === 'image') {
+    // Imagen, sticker, audio y nota de voz se bajan en cuanto llegan; video y documentos se piden cuando alguien los abre.
+    if (msg.hasMedia && LIVE_MEDIA_TYPES.has(msg.type)) {
         try {
-            const m = await msg.downloadMedia();
-            if (m?.data && Math.ceil(m.data.length * 0.75) <= MAX_MEDIA_BYTES) media = { mime: m.mimetype, base64: m.data };
+            const m = await downloadMediaFromStore(client, waId, { maxBytes: MAX_MEDIA_BYTES });
+            if (m?.data) media = { mime: m.mime || msg._data?.mimetype || null, base64: m.data };
+            else if (m?.error) console.warn(`⚠️ [inbox] archivo ${msg.type} no descargado (${m.error}${m.detail ? ': ' + m.detail : ''})`);
         } catch (e) {
-            console.warn(`⚠️ [inbox] no se pudo descargar la imagen: ${e.message}`);
+            console.warn(`⚠️ [inbox] no se pudo descargar el archivo: ${e.message}`);
         }
     }
 
@@ -81,13 +84,20 @@ async function forward(client, sessionId, msg, direction) {
         from: msg.from,
         to: msg.to,
         body: bodyOf(msg),
-        wa_message_id: msg.id?._serialized || null,
+        wa_message_id: waId,
         timestamp: msg.timestamp || Math.floor(Date.now() / 1000),
         name,
         numberHint,
         mediaType: msg.type === 'chat' ? null : msg.type,
+        mediaName: msg.type === 'document' ? (msg._data?.filename || null) : null,
+        mediaSeconds: msg.duration ? Number(msg.duration) : (msg._data?.duration ? Number(msg._data.duration) : null),
         media,
     });
+}
+
+/** Baja un archivo concreto por id de mensaje (lo pide el panel cuando alguien abre un audio, video o documento viejo). */
+export async function fetchMedia(client, waMessageId) {
+    return downloadMediaFromStore(client, waMessageId, { maxBytes: MAX_MEDIA_BYTES });
 }
 
 /** Engancha los eventos a un cliente de whatsapp-web.js. */
@@ -104,8 +114,9 @@ export function attachInboxListeners(client, sessionId) {
         forward(client, sessionId, msg, 'out').catch((e) => console.warn(`⚠️ [inbox] mensaje saliente: ${e.message}`));
     });
     client.on('message_ack', (msg, ack) => {
-        if (!msg?.fromMe || !msg.id?._serialized) return;
-        post({ type: 'ack', sessionId, wa_message_id: msg.id._serialized, ack }).catch(() => {});
+        const waId = msgSerializedId(msg);
+        if (!msg?.fromMe || !waId) return;
+        post({ type: 'ack', sessionId, wa_message_id: waId, ack }).catch(() => {});
     });
 }
 
@@ -189,7 +200,17 @@ async function messagesFromStore(client, chatId, limit, deep = false) {
             }
         }
         const msgs = chat.msgs.getModelsArray().slice(-n).map((m) => ({
-            sid: m.id && m.id._serialized,
+            // MsgKey no trae `_serialized` en esta versión: se arma <fromMe>_<chat>_<id>[_<participante>].
+            sid: (function () {
+                const k = m.id; if (!k) return null;
+                if (k._serialized) return k._serialized;
+                const w = (x) => (x && (x._serialized || (x.user && x.server ? x.user + '@' + x.server : null))) || null;
+                const r = w(k.remote); if (!r || !k.id) return null;
+                return (k.fromMe ? 'true' : 'false') + '_' + r + '_' + k.id + (k.participant ? '_' + w(k.participant) : '');
+            })(),
+            duration: m.duration ? Number(m.duration) : null,
+            filename: typeof m.filename === 'string' ? m.filename : null,
+            mimetype: typeof m.mimetype === 'string' ? m.mimetype : null,
             fromMe: !!(m.id ? m.id.fromMe : m.fromMe),
             type: m.type,
             body: typeof m.body === 'string' ? m.body : '',
@@ -202,6 +223,7 @@ async function messagesFromStore(client, chatId, limit, deep = false) {
     if (!Array.isArray(res) && res?.deep && !deepNote) { deepNote = res.deep; console.log(`📥 [inbox] carga de mensajes anteriores (primer chat): ${res.deep}`); }
     return rows.map((m) => ({
         id: { _serialized: m.sid }, fromMe: m.fromMe, type: m.type, body: m.body, caption: m.caption, timestamp: m.t,
+        duration: m.duration, filename: m.filename, mimetype: m.mimetype,
         from: m.fromMe ? 'yo@c.us' : chatId, to: m.fromMe ? chatId : 'yo@c.us',
     }));
 }
@@ -226,11 +248,14 @@ export async function importChatHistory(client, sessionId, chatId, limit = 200) 
     const items = msgs.filter(shouldForward).map((m) => ({
         direction: m.fromMe ? 'out' : 'in',
         body: bodyOf(m),
-        wa_message_id: m.id?._serialized || null,
+        wa_message_id: msgSerializedId(m),
         timestamp: m.timestamp || null,
         mediaType: m.type === 'chat' ? null : m.type,
+        mediaMime: m.mimetype || null,
+        mediaSeconds: m.duration || null,
+        mediaName: m.filename || null,
     })).filter((m) => m.body);
-    if (items.length) await post({ type: 'history', sessionId, chat: { id: chatId, name: null, numberHint: null }, messages: items });
+    if (items.length) await post({ type: 'history', sessionId, chat: { id: chatId, name: null, numberHint: null }, messages: items, replaceUntagged: true });
     console.log(`📥 [inbox] chat ${chatId}: ${items.length} mensajes leídos (carga de anteriores: ${deepNote || 'n/d'})`);
     return { messages: items.length };
 }
@@ -270,12 +295,15 @@ export async function importHistory(client, sessionId, { maxChats = 200, perChat
                 const items = (msgs || []).filter(shouldForward).map((m) => ({
                     direction: m.fromMe ? 'out' : 'in',
                     body: bodyOf(m),
-                    wa_message_id: m.id?._serialized || null,
+                    wa_message_id: msgSerializedId(m),
                     timestamp: m.timestamp || null,
                     mediaType: m.type === 'chat' ? null : m.type,
+                    mediaMime: m.mimetype || null,
+                    mediaSeconds: m.duration || null,
+                    mediaName: m.filename || null,
                 })).filter((m) => m.body);
                 if (items.length) {
-                    await post({ type: 'history', sessionId, chat: { id: chat.id._serialized, name, numberHint }, messages: items });
+                    await post({ type: 'history', sessionId, chat: { id: chat.id._serialized, name, numberHint }, messages: items, replaceUntagged: true });
                     stats.messages += items.length;
                 }
                 stats.chats += 1;

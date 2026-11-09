@@ -728,6 +728,23 @@ class WhatsAppSession extends EventEmitter {
         });
     }
 
+    /** Envía una NOTA DE VOZ (ogg/opus en base64) a un chat por su id real (…@lid / …@c.us). */
+    async sendVoice(chatId, base64Data) {
+        if (!this.isConnected || !this.client) {
+            throw new Error(`Session ${this.mechanicId} not connected`);
+        }
+        if (!/^\d+@(lid|c\.us)$/.test(String(chatId || ''))) throw new Error('chatId inválido');
+        const media = new MessageMedia('audio/ogg; codecs=opus', base64Data, 'voice.ogg');
+        console.log(`🎤 Sending voice note to ${chatId}...`);
+        const key = createHash('sha1').update(String(base64Data)).digest('hex');
+        return this._dedupeSend('voice', chatId, key, async () => this._sendAndConfirm(
+            chatId,
+            () => this.client.sendMessage(chatId, media, { sendAudioAsVoice: true }),
+            { kind: 'media' },
+            'voice'
+        ));
+    }
+
     async sendDocument(phone, message, base64Data, filename, mimetype) {
         if (!this.isConnected || !this.client) {
             throw new Error(`Session ${this.mechanicId} not connected`);

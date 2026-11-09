@@ -3,6 +3,7 @@ FROM node:20-bookworm
 # Install Chromium and ALL system dependencies for Puppeteer/Chrome
 RUN apt-get update && apt-get install -y \
     chromium \
+    ffmpeg \
     libx11-xcb1 \
     libxcomposite1 \
     libxdamage1 \
