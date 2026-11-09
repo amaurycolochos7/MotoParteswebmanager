@@ -3,6 +3,7 @@
 //  - ensureDefaultMessages(): migración idempotente que crea/activa las plantillas+automatizaciones por defecto.
 import prisma, { workspaceContext } from './prisma.js';
 import { DEFAULTS } from '../../prisma/seed-automation-defaults.js';
+import { LEGACY_BODIES } from './legacy-template-bodies.js';
 
 const unscoped = (fn) => workspaceContext.run({ workspaceId: null }, fn);
 
@@ -48,10 +49,21 @@ export function isUntouched(row, toleranceMs = 5000) {
 export const withoutAtiende = (body) => String(body || '').replace('{atiende}', '');
 
 /**
+ * ¿Se puede reemplazar el texto guardado por el nuevo por defecto sin pisar nada de una persona?
+ * Sí cuando es EXACTAMENTE un texto anterior por defecto: el de antes de {atiende} o el trato formal anterior ("Estimada/o...").
+ */
+export function isReplaceableBody(current, spec) {
+    if (current === spec.template.body) return false;
+    if (current === withoutAtiende(spec.template.body)) return true;
+    const old = LEGACY_BODIES[spec.key];
+    return !!old && (current === old || current === withoutAtiende(old));
+}
+
+/**
  * Crea o activa las plantillas y automatizaciones de orden de un taller. Idempotente. Reglas:
  *  - Si no existen, se crean ACTIVADAS (el taller ya tenía WhatsApp y antes la pantalla mandaba estos avisos).
  *  - Si existen y nadie las tocó (updated_at ≈ created_at) y estaban apagadas, se activan.
- *  - Una plantilla solo se actualiza (para agregar {atiende}) si su texto es EXACTAMENTE el anterior por defecto.
+ *  - Una plantilla solo se actualiza (para agregar {atiende}, o por el cambio a trato neutral de "tú") si su texto es EXACTAMENTE un texto anterior por defecto.
  *  - Nunca se pisa nada que una persona editó, ni se reactiva lo que alguien apagó a propósito.
  * Devuelve contadores para el log.
  */
@@ -68,7 +80,7 @@ export async function ensureDefaultMessages(workspaceId) {
                 data: { workspace_id: workspaceId, name: spec.template.name, channel: spec.template.channel, body: spec.template.body, is_default: true },
             }));
             out.templates_created += 1;
-        } else if (tpl.body !== spec.template.body && tpl.body === withoutAtiende(spec.template.body)) {
+        } else if (isReplaceableBody(tpl.body, spec)) {
             tpl = await unscoped(() => prisma.messageTemplate.update({ where: { id: tpl.id }, data: { body: spec.template.body } }));
             out.templates_upgraded += 1;
         }

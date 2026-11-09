@@ -59,7 +59,7 @@ export default function Signup() {
                 businessType: 'motorcycle',
                 referralSlug: refSlug || null,
             });
-            toast.success(res?.message || '¡Bienvenido a MotoPartes!');
+            toast.success(res?.message || '¡Te damos la bienvenida a MotoPartes!');
             // El referral ya fue atribuido en el backend (si era válido) —
             // limpiamos el localStorage para que no se atribuya 2 veces.
             clearStoredReferral();

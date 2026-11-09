@@ -94,11 +94,11 @@ export const getOrderLinkMessage = (clientName, motorcycle, link) => {
         ``,
         `*ORDEN DE SERVICIO REGISTRADA*`,
         ``,
-        `Su motocicleta *${motorcycle}* ha sido recibida en nuestro taller.`,
+        `Tu motocicleta *${motorcycle}* ha sido recibida en nuestro taller.`,
         ``,
         link ? link : null,
         link ? `` : null,
-        `Le mantendremos informado sobre el avance de su servicio.`,
+        `Te mantendremos al tanto del avance de tu servicio.`,
         ``,
         FOOTER,
     ].filter(line => line !== null).join('\n');
@@ -113,7 +113,7 @@ export const getUpdateNotificationMessage = (clientName, updateTitle, link) => {
         ``,
         `*ACTUALIZACION DE SERVICIO*`,
         ``,
-        `Se registro una novedad en su servicio:`,
+        `Se registro una novedad en tu servicio:`,
         `_"${updateTitle}"_`,
         ``,
         link ? link : null,
@@ -131,7 +131,7 @@ export const getReadyForPickupMessage = (clientName, motorcycle, orderNumber, to
         ``,
         `🏁 *Orden ${orderNumber} · Lista para entregar*`,
         ``,
-        `¡Buenas noticias! Su *${motorcycle}* ya está lista y le espera en el taller.`,
+        `¡Buenas noticias! Tu *${motorcycle}* ya está lista y te espera en el taller.`,
     ];
 
     if (totalAmount > 0) {
@@ -144,7 +144,7 @@ export const getReadyForPickupMessage = (clientName, motorcycle, orderNumber, to
     lines.push(`Lun a Vie · 9:00 a 18:00`);
     lines.push(`Sábados · 9:00 a 14:00`);
     lines.push(``);
-    lines.push(`Le esperamos. Cualquier duda, quedamos a sus órdenes. 🙌`);
+    lines.push(`Te esperamos. Cualquier duda, aquí estamos. 🙌`);
     lines.push(``);
     lines.push(FOOTER);
 
@@ -160,9 +160,9 @@ export const getDeliveryNotificationMessage = (clientName, motorcycle, orderNumb
         ``,
         `📦 *Orden ${orderNumber} · Entregada*`,
         ``,
-        `Su *${motorcycle}* fue entregada. Fue un gusto atenderle.`,
+        `Tu *${motorcycle}* fue entregada. Fue un gusto atenderte.`,
         ``,
-        `Si más adelante necesita mantenimiento o cualquier ajuste, estamos a sus órdenes. ¡Buen camino! 🏍️`,
+        `Si más adelante necesitas mantenimiento o cualquier ajuste, aquí estamos. ¡Buen camino! 🏍️`,
         ``,
         FOOTER,
     ].join('\n');
@@ -178,7 +178,7 @@ export const getEvidenceMessage = (clientName, motorcycle, orderNumber, note) =>
         ``,
         `📸 *Orden ${orderNumber} · Evidencia del servicio*`,
         ``,
-        `Le compartimos una imagen del estado de su *${motorcycle}*:`,
+        `Te compartimos una imagen del estado de tu *${motorcycle}*:`,
     ];
 
     if (note && note.trim()) {
@@ -270,7 +270,7 @@ export const getStatusChangeMessage = (statusName, data) => {
                 ``,
                 `*${orderNumber} - AUTORIZADA*`,
                 ``,
-                `Su cotización fue autorizada y abrimos la orden de servicio para su *${motorcycle}*.`,
+                `Tu cotización fue autorizada y abrimos la orden de servicio para tu *${motorcycle}*.`,
                 `En breve comenzamos el trabajo.`,
                 ``,
                 FOOTER,
@@ -308,7 +308,7 @@ export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trac
         ``,
         `✅ *Orden ${orderNumber} · Registrada*`,
         ``,
-        `Recibimos su *${motorcycle}* en el taller y ya quedó registrada. A partir de aquí le mantendremos al tanto de cada avance por este medio.`,
+        `Recibimos tu *${motorcycle}* en el taller y ya quedó registrada. A partir de aquí te mantendremos al tanto de cada avance por este medio.`,
     ];
 
     // Add service details if provided
@@ -366,12 +366,12 @@ export const getOrderCreatedMessage = (clientName, motorcycle, orderNumber, trac
         } else {
             // No costs defined yet — inform client costs will be sent later
             lines.push(``);
-            lines.push(`En cuanto revisemos su motocicleta le enviaremos el presupuesto detallado (mano de obra y refacciones) para su autorización.`);
+            lines.push(`En cuanto revisemos tu motocicleta te enviaremos el presupuesto detallado (mano de obra y refacciones) para tu autorización.`);
         }
     }
 
     lines.push(``);
-    lines.push(`Cualquier duda, con gusto le atendemos por aquí. 🙌`);
+    lines.push(`Cualquier duda, con gusto te atendemos por aquí. 🙌`);
 
     if (trackingLink) {
         lines.push(``);
@@ -393,9 +393,9 @@ export const getInReviewMessage = (clientName, motorcycle, orderNumber, tracking
         ``,
         `*${orderNumber} - EN REVISION*`,
         ``,
-        `Su motocicleta *${motorcycle}* se encuentra en revision por nuestro equipo tecnico.`,
+        `Tu motocicleta *${motorcycle}* se encuentra en revision por nuestro equipo tecnico.`,
         ``,
-        `Estamos evaluando los trabajos necesarios. Le mantendremos informado.`,
+        `Estamos evaluando los trabajos necesarios y te mantendremos al tanto.`,
         ``,
         trackingLink ? `Seguimiento: ${trackingLink}` : null,
         ``,
@@ -412,9 +412,9 @@ export const getInRepairMessage = (clientName, motorcycle, orderNumber, tracking
         ``,
         `🔧 *Orden ${orderNumber} · En reparación*`,
         ``,
-        `Ya estamos trabajando en su *${motorcycle}*. Nuestro equipo la está atendiendo para dejarla en óptimas condiciones.`,
+        `Ya estamos trabajando en tu *${motorcycle}*. Nuestro equipo la está atendiendo para dejarla en óptimas condiciones.`,
         ``,
-        `Le avisaremos en cuanto esté lista.`,
+        `Te avisaremos en cuanto esté lista.`,
         ``,
         trackingLink ? `Seguimiento: ${trackingLink}` : null,
         ``,
@@ -431,7 +431,7 @@ export const getInProgressMessage = (clientName, motorcycle, orderNumber, tracki
         ``,
         `🔧 *Orden ${orderNumber} · En proceso*`,
         ``,
-        `Seguimos trabajando en su *${motorcycle}*. Avanza según lo previsto y le avisaremos en cuanto haya novedades.`,
+        `Seguimos trabajando en tu *${motorcycle}*. Avanza según lo previsto y te avisaremos en cuanto haya novedades.`,
         ``,
         trackingLink ? `Seguimiento: ${trackingLink}` : null,
         ``,
@@ -448,7 +448,7 @@ export const getAwaitingPartsMessage = (clientName, motorcycle, orderNumber, tra
         ``,
         `*${orderNumber} - ESPERANDO REFACCIONES*`,
         ``,
-        `Le informamos que el servicio de su motocicleta *${motorcycle}* requiere refacciones que ya fueron solicitadas.`,
+        `Te informamos que el servicio de tu motocicleta *${motorcycle}* requiere refacciones que ya fueron solicitadas.`,
         ``,
         `En cuanto esten disponibles, continuaremos con la reparacion.`,
         ``,
@@ -467,9 +467,9 @@ export const getCancelledMessage = (clientName, motorcycle, orderNumber) => {
         ``,
         `*${orderNumber} - CANCELADA*`,
         ``,
-        `La orden de servicio de su motocicleta *${motorcycle}* ha sido cancelada.`,
+        `La orden de servicio de tu motocicleta *${motorcycle}* ha sido cancelada.`,
         ``,
-        `Si tiene alguna duda, estamos a sus ordenes.`,
+        `Si tienes alguna duda, aquí estamos.`,
         ``,
         FOOTER,
     ].join('\n');
@@ -484,7 +484,7 @@ export const getGenericStatusMessage = (clientName, motorcycle, orderNumber, sta
         ``,
         `*${orderNumber} - ${statusName.toUpperCase()}*`,
         ``,
-        `Su motocicleta *${motorcycle}* cambio a estado: *${statusName}*.`,
+        `Tu motocicleta *${motorcycle}* cambio a estado: *${statusName}*.`,
         ``,
         trackingLink ? `Seguimiento: ${trackingLink}` : null,
         ``,
@@ -541,7 +541,7 @@ export const getServiceOrderMessage = (clientName, motorcycle, orderNumber, link
         pdfUrl ? `` : null,
         link ? link : null,
         link ? `` : null,
-        `Le informaremos cada avance de su servicio.`,
+        `Te informaremos cada avance de tu servicio.`,
         ``,
         FOOTER,
     ].filter(line => line !== null).join('\n');
@@ -573,7 +573,7 @@ export const getNewServiceAddedMessage = (
         ``,
         `*${orderNumber} - SERVICIO ADICIONAL*`,
         ``,
-        `Se ha agregado un servicio a su orden:`,
+        `Se ha agregado un servicio a tu orden:`,
         ``,
         `🔧 *${newService.name}*`,
     ];
@@ -593,7 +593,7 @@ export const getNewServiceAddedMessage = (
     lines.push(`  *Saldo pendiente: $${remaining.toLocaleString('es-MX')}*`);
 
     lines.push(``);
-    lines.push(`Cualquier duda, estamos a sus ordenes.`);
+    lines.push(`Cualquier duda, aquí estamos.`);
     lines.push(``);
     lines.push(FOOTER);
 
@@ -648,7 +648,7 @@ export const getDetailedOrderMessage = (
     const linkSection = link ? `\n${link}` : '';
 
     // Contacto
-    let contactSection = 'Cualquier duda, estamos a sus ordenes por este medio.';
+    let contactSection = 'Cualquier duda, aquí estamos por este medio.';
     if (contactInfo && contactInfo.isSupervisor && contactInfo.mechanicPhone) {
         const name = contactInfo.mechanicName || 'nuestro equipo';
         const phone = formatPhoneForDisplay(contactInfo.mechanicPhone);

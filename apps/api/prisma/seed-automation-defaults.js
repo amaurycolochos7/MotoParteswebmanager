@@ -12,7 +12,7 @@ export const DEFAULTS = [
         template: {
             name: 'Confirmación de ingreso',
             channel: 'whatsapp',
-            body: 'Hola, {cliente}. 👋\n\n✅ *Orden {folio} · Registrada con éxito*\n\nLe informamos que hemos recibido su *{moto}* en nuestro taller. A partir de este momento, utilizaremos este medio para mantenerlo notificado sobre cada avance en el servicio.\n\n• *Motivo de ingreso:* {motivo}{atiende}\n\n*Próximos pasos:*\nUna vez concluida la evaluación técnica de su motocicleta, le haremos llegar el presupuesto detallado, que incluye mano de obra y refacciones, para su revisión y autorización.\n\nSi tiene alguna duda o requerimiento adicional, quedamos a su entera disposición por este chat.\n\nAtentamente,\n*MotoPartes Club · Taller V. Carranza*',
+            body: "Hola, {cliente}. 👋\n\n✅ *Orden {folio} · Registrada con éxito*\n\nTe informamos que recibimos tu *{moto}* en nuestro taller. A partir de ahora usaremos este medio para compartirte cada avance del servicio.\n\n• *Motivo de ingreso:* {motivo}{atiende}\n\n*Próximos pasos:*\nCuando termine la evaluación técnica de tu motocicleta, te enviaremos el presupuesto detallado, con mano de obra y refacciones, para tu revisión y autorización.\n\nSi tienes alguna duda o necesitas algo más, escríbenos por este chat.\n\nAtentamente,\n*MotoPartes Club · Taller V. Carranza*",
         },
         automation: {
             name: 'Confirmación de ingreso',
@@ -43,7 +43,7 @@ export const DEFAULTS = [
         template: {
             name: 'Lista para recoger',
             channel: 'whatsapp',
-            body: 'Estimada {cliente},\n\nNos complace informarle que el servicio de su *{moto}* ha concluido con éxito. Su unidad ya se encuentra lista para ser retirada en nuestras instalaciones.\n\n• *Orden de servicio:* {folio}\n• *Total a liquidar:* {total}{atiende}\n\n*Horarios de entrega:*\n\n• Lunes a Viernes: 9:00 a 18:00 hrs.\n• Sábados: 9:00 a 14:00 hrs.\n\nAgradecemos su confianza. Si tiene alguna duda o requiere asistencia adicional, quedamos a su entera disposición.\n\nAtentamente,\n*MotoPartes · Taller V. Carranza*',
+            body: "*{cliente}*,\n\nTe informamos que el servicio de tu *{moto}* ha concluido con éxito y ya se encuentra listo para ser entregado en nuestras instalaciones.\n\n• *Orden de servicio:* {folio}\n• *Total a liquidar:* {total}{atiende}\n\n*Horarios de entrega:*\n\n• Lunes a Viernes: 9:00 a 18:00 hrs.\n• Sábados: 9:00 a 14:00 hrs.\n\nGracias por tu confianza. Si tienes alguna duda o necesitas algo más, estamos para ayudarte.\n\nAtentamente,\n*MotoPartes · Taller V. Carranza*",
         },
         automation: {
             name: 'Lista para recoger',
@@ -156,7 +156,7 @@ export const DEFAULTS = [
         template: {
             name: 'Estado: en revisión',
             channel: 'whatsapp',
-            body: "*{cliente}*,\n\n*{folio} - EN REVISIÓN*\n\nSu motocicleta *{moto}* se encuentra en revisión por nuestro equipo técnico.{atiende}\n\nEstamos evaluando los trabajos necesarios. Le mantendremos informado.\n\n*{taller}*",
+            body: "*{cliente}*,\n\n*{folio} - EN REVISIÓN*\n\nTu motocicleta *{moto}* está en revisión con nuestro equipo técnico.{atiende}\n\nEstamos evaluando los trabajos necesarios y te mantendremos al tanto.\n\n*{taller}*",
         },
         automation: {
             name: 'Estado: en revisión',
@@ -172,7 +172,7 @@ export const DEFAULTS = [
         template: {
             name: 'Estado: autorizada',
             channel: 'whatsapp',
-            body: "*{cliente}*,\n\n*{folio} - AUTORIZADA*\n\nSu cotización fue autorizada y abrimos la orden de servicio para su *{moto}*.{atiende}\n\nEn breve comenzamos el trabajo.\n\n*{taller}*",
+            body: "*{cliente}*,\n\n*{folio} - AUTORIZADA*\n\nTu cotización fue autorizada y abrimos la orden de servicio para tu *{moto}*.{atiende}\n\nEn breve comenzamos el trabajo.\n\n*{taller}*",
         },
         automation: {
             name: 'Estado: autorizada',
@@ -188,7 +188,7 @@ export const DEFAULTS = [
         template: {
             name: 'Estado: en proceso',
             channel: 'whatsapp',
-            body: "Hola *{cliente}*\n\n*Orden {folio} · En proceso*\n\nYa estamos trabajando en su *{moto}*. Nuestro equipo la está atendiendo para dejarla en óptimas condiciones.{atiende}\n\nLe avisaremos en cuanto esté lista.\n\n*{taller}*",
+            body: "Hola *{cliente}*\n\n*Orden {folio} · En proceso*\n\nYa estamos trabajando en tu *{moto}*. Nuestro equipo la está atendiendo para dejarla en óptimas condiciones.{atiende}\n\nTe avisaremos en cuanto esté lista.\n\n*{taller}*",
         },
         automation: {
             name: 'Estado: en proceso',
@@ -204,7 +204,7 @@ export const DEFAULTS = [
         template: {
             name: 'Estado: esperando refacciones',
             channel: 'whatsapp',
-            body: "*{cliente}*,\n\n*{folio} - ESPERANDO REFACCIONES*\n\nLe informamos que el servicio de su motocicleta *{moto}* requiere refacciones que ya fueron solicitadas.{atiende}\n\nEn cuanto estén disponibles, continuaremos con la reparación.\n\n*{taller}*",
+            body: "*{cliente}*,\n\n*{folio} - ESPERANDO REFACCIONES*\n\nTe informamos que el servicio de tu motocicleta *{moto}* requiere refacciones que ya fueron solicitadas.{atiende}\n\nEn cuanto estén disponibles, continuaremos con la reparación.\n\n*{taller}*",
         },
         automation: {
             name: 'Estado: esperando refacciones',
@@ -220,7 +220,7 @@ export const DEFAULTS = [
         template: {
             name: 'Estado: entregada',
             channel: 'whatsapp',
-            body: "Hola *{cliente}*\n\n*Orden {folio} · Entregada*\n\nSu *{moto}* fue entregada. Fue un gusto atenderle.{atiende}\n\nSi más adelante necesita mantenimiento o cualquier ajuste, estamos a sus órdenes. ¡Buen camino!\n\n*{taller}*",
+            body: "Hola *{cliente}*\n\n*Orden {folio} · Entregada*\n\nTu *{moto}* fue entregada. Fue un gusto atenderte.{atiende}\n\nSi más adelante necesitas mantenimiento o cualquier ajuste, aquí estamos. ¡Buen camino!\n\n*{taller}*",
         },
         automation: {
             name: 'Estado: entregada',
@@ -236,7 +236,7 @@ export const DEFAULTS = [
         template: {
             name: 'Estado: cancelada',
             channel: 'whatsapp',
-            body: "*{cliente}*,\n\n*{folio} - CANCELADA*\n\nLa orden de servicio de su motocicleta *{moto}* ha sido cancelada.\n\nSi tiene alguna duda, estamos a sus órdenes.\n\n*{taller}*",
+            body: "*{cliente}*,\n\n*{folio} - CANCELADA*\n\nLa orden de servicio de tu motocicleta *{moto}* ha sido cancelada.\n\nSi tienes alguna duda, estamos para ayudarte.\n\n*{taller}*",
         },
         automation: {
             name: 'Estado: cancelada',

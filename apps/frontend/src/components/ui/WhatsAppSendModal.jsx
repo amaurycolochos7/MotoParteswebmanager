@@ -75,8 +75,8 @@ export default function WhatsAppSendModal({ isOpen, onClose, phone = '', clientN
         {
             label: '👋 Bienvenida',
             text: clientName
-                ? `Hola *${clientName}* 👋\n\n¡Bienvenido a *Motopartes*! Estamos a tus órdenes para cualquier servicio o consulta sobre tu motocicleta.\n\n_Tu taller de confianza_ 🔧✨`
-                : `¡Hola! 👋\n\n¡Bienvenido a *Motopartes*! Estamos a tus órdenes para cualquier servicio o consulta.\n\n_Tu taller de confianza_ 🔧✨`
+                ? `Hola *${clientName}* 👋\n\n¡Te damos la bienvenida a *Motopartes*! Aquí estamos para cualquier servicio o consulta sobre tu motocicleta.\n\n_Tu taller de confianza_ 🔧✨`
+                : `¡Hola! 👋\n\n¡Te damos la bienvenida a *Motopartes*! Aquí estamos para cualquier servicio o consulta.\n\n_Tu taller de confianza_ 🔧✨`
         },
         {
             label: '🔔 Recordatorio',

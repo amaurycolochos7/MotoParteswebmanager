@@ -7,7 +7,7 @@ const SEEDED = [
     { shortcut: 'qr-bot', title: 'Cómo reescanear QR del bot', category: 'whatsapp',
       body_md: 'Hola,\n\nPara reconectar el bot de WhatsApp:\n1. Entra al panel y ve a "Conectar Bot" en el menú de mecánico.\n2. Escanea el QR con tu celular (WhatsApp → Dispositivos vinculados → Vincular un dispositivo).\n3. Espera 30-60 segundos a que autentique.\n\nCualquier duda, respóndeme aquí.' },
     { shortcut: 'welcome-pro', title: 'Bienvenida Plan Pro', category: 'billing',
-      body_md: '¡Bienvenido al plan Pro! 🎉\n\nYa tienes acceso a:\n- Órdenes ilimitadas\n- 3 sesiones de WhatsApp\n- Branding completo con tu logo\n- 5 automatizaciones\n\nSi necesitas ayuda con el setup, respóndeme aquí.' },
+      body_md: '¡Te damos la bienvenida al plan Pro! 🎉\n\nYa tienes acceso a:\n- Órdenes ilimitadas\n- 3 sesiones de WhatsApp\n- Branding completo con tu logo\n- 5 automatizaciones\n\nSi necesitas ayuda con el setup, respóndeme aquí.' },
     { shortcut: 'pago-fallido', title: 'Pago fallido', category: 'billing',
       body_md: 'Hola,\n\nNotamos que tu pago mensual no pasó. Por favor verifica que tu tarjeta tenga saldo o actualízala en Ajustes → Suscripción.\n\nTienes 7 días para regularizar antes de que el plan baje a Free.' },
     { shortcut: 'bug-reportado', title: 'Bug registrado', category: 'technical',

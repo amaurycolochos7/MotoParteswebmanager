@@ -329,7 +329,7 @@ export default async function authRoutes(fastify) {
             const loginPayload = await buildLoginResponse(result.newUser);
             return reply.send({
                 success: true,
-                message: `¡Bienvenido a MotoPartes! Tu taller "${result.workspace.name}" está listo. Tienes 7 días gratis en el plan Pro.`,
+                message: `¡Te damos la bienvenida a MotoPartes! Tu taller "${result.workspace.name}" está listo. Tienes 7 días gratis en el plan Pro.`,
                 ...loginPayload,
             });
         } catch (error) {

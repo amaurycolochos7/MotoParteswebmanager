@@ -146,7 +146,7 @@ export default function AdminDashboard() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">Bienvenido, {user?.full_name}</p>
+          <p className="page-subtitle">Hola, {user?.full_name}</p>
         </div>
       </div>
 

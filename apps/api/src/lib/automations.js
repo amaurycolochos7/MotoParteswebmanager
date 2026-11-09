@@ -68,7 +68,7 @@ async function buildVars(workspaceId, context) {
             }
             // {moto} = "marca modelo" listo para usar en el mensaje, con fallback
             // seguro si la orden no tiene moto asociada.
-            vars.moto = [vars.marca, vars.modelo].filter(Boolean).join(' ').trim() || 'su motocicleta';
+            vars.moto = [vars.marca, vars.modelo].filter(Boolean).join(' ').trim() || 'motocicleta';
             // {atiende} = linea lista para el mensaje ("Te atiende: Nombre (WhatsApp 961 123 4567)"),
             // o vacio si la orden no tiene mecanico. Los datos sueltos tambien estan disponibles.
             vars.atiende = '';
