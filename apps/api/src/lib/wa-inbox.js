@@ -172,3 +172,44 @@ export async function purgeOldMedia(now = new Date()) {
     const res = await prisma.waMedia.deleteMany({ where: { id: { in: list } } });
     return res.count;
 }
+
+/**
+ * Fusiona conversaciones duplicadas del mismo chat de WhatsApp (mismo wa_chat_id). Pasaba cuando un chat @lid se creó primero con su
+ * teléfono real y después, sin ese dato, con el id interno. Se conserva la que tiene teléfono real (o la más antigua), se mueven
+ * TODOS los mensajes, se suman los no leídos y se recalcula el último mensaje. Idempotente: devuelve cuántas fusionó.
+ */
+export async function mergeDuplicateConversations(workspaceId) {
+    const convs = await prisma.waConversation.findMany({
+        where: { workspace_id: workspaceId, wa_chat_id: { not: null } },
+        select: { id: true, phone: true, wa_chat_id: true, display_name: true, client_id: true, unread_count: true, hidden: true, created_at: true },
+    });
+    const groups = new Map();
+    for (const c of convs) {
+        if (!groups.has(c.wa_chat_id)) groups.set(c.wa_chat_id, []);
+        groups.get(c.wa_chat_id).push(c);
+    }
+    let merged = 0;
+    for (const list of groups.values()) {
+        if (list.length < 2) continue;
+        list.sort((a, b) => (isRealPhone(b.phone) - isRealPhone(a.phone)) || (new Date(a.created_at) - new Date(b.created_at)));
+        const [primary, ...others] = list;
+        for (const other of others) {
+            await prisma.waMessage.updateMany({ where: { conversation_id: other.id }, data: { conversation_id: primary.id } });
+            primary.unread_count += other.unread_count || 0;
+            primary.display_name = primary.display_name || other.display_name;
+            primary.client_id = primary.client_id || other.client_id;
+            primary.hidden = primary.hidden && other.hidden;
+            await prisma.waConversation.delete({ where: { id: other.id } });
+            merged += 1;
+        }
+        const last = await prisma.waMessage.findFirst({ where: { conversation_id: primary.id }, orderBy: { created_at: 'desc' } });
+        await prisma.waConversation.update({
+            where: { id: primary.id },
+            data: {
+                unread_count: primary.unread_count, display_name: primary.display_name, client_id: primary.client_id, hidden: primary.hidden,
+                ...(last ? { last_message_preview: previewOf(last.body, last.media_id ? 'image' : null), last_message_at: last.created_at, last_direction: last.direction } : {}),
+            },
+        });
+    }
+    return merged;
+}
