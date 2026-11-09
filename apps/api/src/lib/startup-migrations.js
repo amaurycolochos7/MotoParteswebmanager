@@ -5,6 +5,7 @@
 import { migrateWorkspaceSessions } from './wa-session.js';
 import { mergeDuplicateConversations } from './wa-inbox.js';
 import { syncAssignments } from './wa-assign.js';
+import { backfillMissingEarnings } from './commission-backfill.js';
 import { ensureDefaultMessages, reconcileOrderAutomations, workspacesWithWhatsApp } from './default-messages.js';
 
 export async function runStartupMigrations(log = console) {
@@ -23,6 +24,8 @@ export async function runStartupMigrations(log = console) {
             summary.defaults[wsId].conversations_merged = await mergeDuplicateConversations(wsId);
             // Reparte los chats entre los maestros según sus órdenes, citas y respuestas (los asignados a mano no se tocan).
             summary.defaults[wsId].conversations_assigned = await syncAssignments(wsId);
+            // Comisiones de órdenes ya cobradas este mes que quedaron sin comisión (cobro por abonos).
+            summary.defaults[wsId].earnings_backfilled = await backfillMissingEarnings(wsId);
         }
     } catch (e) {
         log.error?.(`[migraciones] mensajes por defecto fallaron: ${e.message}`);

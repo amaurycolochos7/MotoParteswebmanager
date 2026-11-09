@@ -5,7 +5,7 @@ import { assertWithinLimit, incrementUsageAsync, PlanLimitError } from '../lib/b
 import { fireEvent } from '../lib/events.js';
 import { generateOrderNumber } from '../lib/order-number.js';
 import { computeOrderFinance } from '../lib/payments.js';
-import { recalcEarnings } from '../lib/commissions.js';
+import { syncOrderEarnings, releaseCommissionIfPaid } from '../lib/commissions.js';
 import { statusKeyOf } from '../lib/default-messages.js';
 import { sendWhatsApp } from '../lib/appointment-flow.js';
 
@@ -455,12 +455,13 @@ export default async function ordersRoutes(fastify) {
                 });
 
                 // Comisiones del mecanico (y de su maestro si es auxiliar): lib/commissions.js
-                await recalcEarnings(tx, {
+                await syncOrderEarnings(tx, {
                     orderId: id,
                     workspaceId: updated.workspace_id,
                     mechanicId: updated.mechanic_id,
                     laborTotal,
                 });
+                await releaseCommissionIfPaid(tx, id);
 
                 return updated;
             });
@@ -634,17 +635,17 @@ export default async function ordersRoutes(fastify) {
                         include: ORDER_INCLUDE,
                     });
 
-                    // ============ REPARTO AUTOMATICO DE GANANCIAS (lib/commissions.js) ============
-                    // Al marcar la orden como pagada se reparte labor_total entre el mecanico y,
-                    // si es auxiliar con supervisor, tambien su maestro.
-                    if (mark_as_paid === true) {
-                        await recalcEarnings(tx, {
-                            orderId: id,
-                            workspaceId: updated.workspace_id,
-                            mechanicId: updated.mechanic_id,
-                            laborTotal: updated.labor_total,
-                        });
-                    }
+                    // ============ COMISIONES (lib/commissions.js) ============
+                    // La comisión del mecánico (y de su maestro, si es auxiliar) se crea/actualiza al guardar la mano de obra:
+                    // queda pendiente hasta que el cliente liquide (por abonos o al marcar pagada) y entonces se libera.
+                    // Una comisión que ya se pagó al mecánico no se toca.
+                    await syncOrderEarnings(tx, {
+                        orderId: id,
+                        workspaceId: updated.workspace_id,
+                        mechanicId: updated.mechanic_id,
+                        laborTotal: updated.labor_total,
+                    });
+                    await releaseCommissionIfPaid(tx, id);
 
                     return updated;
                 });

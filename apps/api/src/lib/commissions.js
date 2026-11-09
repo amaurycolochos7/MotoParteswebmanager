@@ -7,6 +7,8 @@
 //    Si la suma de porcentajes (auxiliar + maestro) pasa de 100 se escalan proporcionalmente.
 //  - Cada fila nace con commission_status = PENDING_PAYMENT (la libera el pago completo del cliente).
 
+import { computeOrderFinance, nextCommissionStatus } from './payments.js';
+
 const num = (v) => {
     const n = parseFloat(v);
     return Number.isFinite(n) ? n : 0;
@@ -97,6 +99,50 @@ export async function recalcEarnings(tx, { orderId, workspaceId, mechanicId, lab
     }));
     await tx.mechanicEarning.createMany({ data });
     return data;
+}
+
+/**
+ * Deja la comisión de una orden al día con su mano de obra. Es lo que debe llamarse SIEMPRE que cambia la mano de obra o se
+ * registra un pago (antes solo se creaba al marcar la orden pagada por la ruta anterior, y las órdenes cobradas por abonos
+ * —el flujo normal— se quedaban sin comisión: la tarjeta marcaba $0.00).
+ *  - Sin mecánico o sin mano de obra: no hay comisión (se quitan las filas que aún estén pendientes).
+ *  - Una comisión que ya se pagó al mecánico (o se canceló) NUNCA se toca.
+ *  - Si ya existe y coincide con la mano de obra actual, no se vuelve a crear (conserva su fecha y su estado).
+ */
+export async function syncOrderEarnings(tx, { orderId, workspaceId, mechanicId, laborTotal, now = new Date() }) {
+    const rows = await tx.mechanicEarning.findMany({ where: { order_id: orderId } });
+    if (rows.some((r) => r.is_paid === true || r.commission_status === 'PAID' || r.commission_status === 'CANCELLED')) return rows;
+    const labor = num(laborTotal);
+    if (!mechanicId || labor <= 0) {
+        if (rows.length) await tx.mechanicEarning.deleteMany({ where: { order_id: orderId } });
+        return [];
+    }
+    if (rows.length && rows.every((r) => Math.abs(num(r.labor_amount) - labor) < 0.005)) return rows;
+    await recalcEarnings(tx, { orderId, workspaceId, mechanicId, laborTotal: labor, now });
+    return tx.mechanicEarning.findMany({ where: { order_id: orderId } });
+}
+
+/**
+ * Libera (READY_TO_PAY) las comisiones de una orden ya liquidada y deja pendientes las de una que no. Nunca baja una PAID/CANCELLED.
+ * Una orden marcada pagada sin abonos (flujo anterior) cuenta como liquidada.
+ */
+export async function releaseCommissionIfPaid(tx, orderId) {
+    const order = await tx.order.findUnique({ where: { id: orderId } });
+    if (!order) return;
+    const payments = await tx.orderPayment.findMany({ where: { order_id: orderId } });
+    const finance = computeOrderFinance(order, payments);
+    const settled = order.is_paid === true && payments.filter((p) => !p.cancelled_at).length === 0;
+    const effective = settled ? { ...finance, is_fully_paid: true } : finance;
+    const rows = await tx.mechanicEarning.findMany({ where: { order_id: orderId } });
+    for (const e of rows) {
+        const next = nextCommissionStatus(e.commission_status, effective);
+        if (next === e.commission_status) continue;
+        // updateMany (no update): el filtro por taller de Prisma lee la fila fuera de la transacción y NO ve las recién creadas en ella
+        await tx.mechanicEarning.updateMany({
+            where: { id: e.id },
+            data: { commission_status: next, commission_released_at: next === 'READY_TO_PAY' ? new Date() : null },
+        });
+    }
 }
 
 // ── Resumen para el inicio / "Mis ganancias" ──────────────────────────────
