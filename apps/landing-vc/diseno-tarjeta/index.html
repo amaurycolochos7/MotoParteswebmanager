@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow"/>
   <meta name="google" content="notranslate"/>
   <meta name="theme-color" content="#0b0b0c"/>
-  <title>Diseño de tarjeta · MotoPartes × Vento</title>
+  <title>Diseños para imprimir · MotoPartes × Vento</title>
   <style>
     :root { --ink:#0b0b0c; --soft:#5b5b61; --line:#e6e6ea; --bg:#f5f5f7; --red:#e30613; --red-d:#bd0510; }
     * { box-sizing: border-box; }
@@ -15,43 +15,52 @@
     header { margin-bottom:28px; }
     .eyebrow { margin:0 0 6px; font-size:.8rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--red); }
     h1 { margin:0 0 10px; font-size:clamp(1.6rem,4.4vw,2.2rem); line-height:1.15; letter-spacing:-.01em; }
-    .lead { margin:0; max-width:62ch; color:var(--soft); }
+    .lead { margin:0; max-width:64ch; color:var(--soft); }
     .specs { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 0; padding:0; list-style:none; }
     .specs li { padding:5px 11px; font-size:.82rem; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:999px; }
+    .group { margin:32px 0 12px; font-size:.85rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--soft); }
     .card { margin:0 0 20px; padding:20px; background:#fff; border:1px solid var(--line); border-radius:16px; }
     .card h2 { margin:0 0 4px; font-size:1.2rem; }
     .card .sub { margin:0 0 14px; color:var(--soft); font-size:.95rem; }
     .preview { display:block; width:100%; height:auto; margin:0 0 16px; border-radius:12px; background:#ececef; }
     .dl { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
     .opt { display:flex; flex-direction:column; gap:8px; padding:14px; border:1px solid var(--line); border-radius:12px; }
-    .opt p { margin:0; color:var(--soft); font-size:.88rem; }
+    .opt p { margin:0; color:var(--soft); font-size:.88rem; flex:1; }
     .opt strong { font-size:.95rem; }
     .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:48px; padding:12px 16px; font:inherit; font-weight:700; color:#fff; text-decoration:none; background:var(--red); border-radius:10px; }
     .btn:hover { background:var(--red-d); }
     .btn:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
     .btn.alt { color:var(--ink); background:#fff; border:2px solid var(--ink); }
     .btn.alt:hover { background:var(--ink); color:#fff; }
+    .llavero { display:grid; grid-template-columns:minmax(0,250px) 1fr; gap:20px; align-items:start; }
+    .llavero .preview { margin:0; }
+    .llavero .dl { grid-template-columns:1fr; }
     footer { margin-top:8px; color:var(--soft); font-size:.88rem; }
-    @media (max-width:640px) { .dl { grid-template-columns:1fr; } .card { padding:16px; } }
+    footer p { margin:0 0 6px; }
+    @media (max-width:640px) {
+      .dl { grid-template-columns:1fr; } .card { padding:16px; }
+      .llavero { grid-template-columns:1fr; } .llavero .preview { max-width:300px; margin:0 auto; }
+    }
   </style>
 </head>
 <body>
 <main class="wrap">
   <header>
     <p class="eyebrow">MotoPartes × Vento</p>
-    <h1>Diseño de la tarjeta</h1>
-    <p class="lead">Tira de 10 × 2 cm con extremos redondeados, lista para imprimir y recortar. Elige un diseño y descárgalo en alta calidad.</p>
+    <h1>Diseños para imprimir</h1>
+    <p class="lead">Tarjeta en tira y llavero, listos para imprimir y recortar. Elige un diseño y descárgalo en alta calidad.</p>
     <ul class="specs" aria-label="Características de los archivos">
-      <li>PNG transparente</li>
+      <li>PNG de alta calidad</li>
       <li>1200 dpi</li>
-      <li>4724 × 945 px</li>
-      <li>100 × 20 mm</li>
+      <li>Fondo transparente</li>
     </ul>
   </header>
 
+  <h2 class="group">Tarjeta · tira de 10 × 2 cm</h2>
+
   <section class="card" aria-labelledby="dA">
     <h2 id="dA">Diseño A · Bloque rojo</h2>
-    <p class="sub">Blanco con un bloque rojo a la derecha para el código QR.</p>
+    <p class="sub">Blanco con un bloque rojo a la derecha para el código QR. 4724 × 945 px.</p>
     <img class="preview" src="vista-A.jpg" width="1300" height="377" alt="Vista previa del diseño A: logos de MotoPartes y Vento, y bloque rojo con el QR" loading="lazy"/>
     <div class="dl">
       <div class="opt">
@@ -69,7 +78,7 @@
 
   <section class="card" aria-labelledby="dB">
     <h2 id="dB">Diseño B · Blanco</h2>
-    <p class="sub">Todo blanco, con el código QR al centro entre los dos logos.</p>
+    <p class="sub">Todo blanco, con el código QR al centro entre los dos logos. 4724 × 945 px.</p>
     <img class="preview" src="vista-B.jpg" width="1300" height="377" alt="Vista previa del diseño B: logo de MotoPartes, QR al centro y logo de Vento" loading="lazy"/>
     <div class="dl">
       <div class="opt">
@@ -85,7 +94,37 @@
     </div>
   </section>
 
-  <footer>El código QR abre la página de citas de MotoPartes. Imprime los archivos al 100 % de su tamaño, sin ajustar a la página.</footer>
+  <h2 class="group">Llavero · 5 × 7.5 cm</h2>
+
+  <section class="card" aria-labelledby="dL">
+    <h2 id="dL">Llavero · Agenda tu cita</h2>
+    <p class="sub">Vertical, con orificio arriba. Banner blanco con los logos de MotoPartes y Vento, y el código QR para agendar cita.</p>
+    <div class="llavero">
+      <img class="preview" src="vista-llavero.jpg" width="700" height="999" alt="Vista previa del llavero: banner blanco con los logos de MotoPartes y Vento, título Agenda tu cita y código QR" loading="lazy"/>
+      <div class="dl">
+        <div class="opt">
+          <strong>Recortado (transparente)</strong>
+          <p>Ya recortado a la forma, con el orificio perforado. 2362 × 3543 px. Para colocarlo en la hoja y cortar.</p>
+          <a class="btn" href="llavero-recortado-transparente.png" download="Llavero-recortado-transparente-1200dpi-50x75mm.png">Descargar</a>
+        </div>
+        <div class="opt">
+          <strong>Con sangrado de 2 mm</strong>
+          <p>El arte se extiende 2 mm por cada lado, sin recorte ni orificio. 2551 × 3732 px. Para mandarlo a una imprenta.</p>
+          <a class="btn alt" href="llavero-con-sangrado.png" download="Llavero-con-sangrado-1200dpi-54x79mm.png">Descargar</a>
+        </div>
+        <div class="opt">
+          <strong>Línea de corte</strong>
+          <p>Contorno y orificio en magenta, para que la imprenta sepa dónde cortar y perforar. Va junto con el de sangrado.</p>
+          <a class="btn alt" href="llavero-linea-de-corte.png" download="Llavero-linea-de-corte-1200dpi-54x79mm.png">Descargar</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>El código QR abre la página de citas de MotoPartes. Imprime los archivos al 100 % de su tamaño, sin ajustar a la página.</p>
+    <p>Llavero: el orificio mide 4 mm y va centrado, a 5.4 mm del borde superior.</p>
+  </footer>
 </main>
 </body>
 </html>
