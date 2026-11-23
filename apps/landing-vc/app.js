@@ -193,7 +193,7 @@ function initForm() {
   const tel = $('telefono');
   const TOTAL = 6;
 
-  const st = { step: 1, phone: '', known: null, motoId: '', addingMoto: false, mechId: '', mechName: '', mechs: null, mechState: 'idle' };
+  const st = { step: 1, phone: '', known: null, motoId: '', addingMoto: false, mechId: '', mechName: '', mechs: null, mechState: 'idle', svc: '' };
 
   const isNet = e => !!e && (e.name === 'TypeError' || e.name === 'AbortError');
   const NET_MSG = 'No hay conexión con el servidor. Revisa tu internet e inténtalo de nuevo.';
@@ -378,12 +378,34 @@ function initForm() {
   }
 
   /* ── Paso 3: servicio ── */
+  const GARANTIA_VENTO = 'Garantía Vento';
+  /* Garantía Vento o servicio de la lista. Con garantía se esconde la lista (y se vacía) para que no quede un valor suelto. */
+  function setSvcMode(mode) {
+    st.svc = mode;
+    document.querySelectorAll('#svcCards .pick-card').forEach(b => {
+      const on = b.dataset.svc === mode;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    $('svcCards').classList.remove('error');
+    $('svcListWrap').hidden = mode !== 'otro';
+    if (mode !== 'otro') {
+      $('tipo_servicio').value = ''; $('tipo_servicio').classList.remove('error');
+      $('otroWrap').hidden = true; $('otro_servicio').value = ''; $('otro_servicio').classList.remove('error');
+    }
+  }
+  document.querySelectorAll('#svcCards .pick-card').forEach(b => {
+    b.addEventListener('click', () => { setSvcMode(b.dataset.svc); say('step3Msg', ''); });
+  });
   function serviceValue() {
+    if (st.svc === 'garantia') return GARANTIA_VENTO;
     const v = $('tipo_servicio').value;
     return v === 'Otro' ? $('otro_servicio').value.trim() : v;
   }
   function validateStep3() {
     say('step3Msg', '');
+    if (!st.svc) { say('step3Msg', 'Elige si es garantía Vento u otro servicio.', true); return false; }
+    if (st.svc === 'garantia') return true;
     const sel = $('tipo_servicio').value;
     $('tipo_servicio').classList.toggle('error', !sel);
     const otroBad = sel === 'Otro' && !$('otro_servicio').value.trim();
@@ -636,6 +658,7 @@ function initForm() {
   $('againBtn').addEventListener('click', () => {
     form.reset();
     ['otroWrap', 'otraMarcaWrap'].forEach(id => { $(id).hidden = true; });
+    setSvcMode('');
     st.phone = ''; st.known = null; st.motoId = ''; st.addingMoto = false; st.mechId = ''; st.mechName = '';
     $('knownBox').hidden = true; $('newBox').hidden = true; $('motoForm').hidden = true;
     say('lookupMsg', ''); say('step2Msg', ''); say('step3Msg', ''); say('step5Msg', ''); $('step1Skip').hidden = true;
