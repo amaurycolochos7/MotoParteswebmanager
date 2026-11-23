@@ -21,7 +21,7 @@ const profiles = [
         id: "0dc9ae6e-9d14-4d28-8651-1baf72ea2558",
         email: "motoblaker91@gmail.com",
         password_hash: "admin123",
-        full_name: "Elihu hernandez hernandez",
+        full_name: "Elihu Hernández Gordillo",
         phone: "9631911772",
         role: "admin_mechanic",
         commission_percentage: 100,
