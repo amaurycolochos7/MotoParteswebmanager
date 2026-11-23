@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es" translate="no">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="robots" content="noindex, nofollow"/>
+  <meta name="google" content="notranslate"/>
+  <meta name="theme-color" content="#0b0b0c"/>
+  <title>Diseño de tarjeta · MotoPartes × Vento</title>
+  <style>
+    :root { --ink:#0b0b0c; --soft:#5b5b61; --line:#e6e6ea; --bg:#f5f5f7; --red:#e30613; --red-d:#bd0510; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.5; }
+    .wrap { max-width:920px; margin:0 auto; padding:32px 16px 56px; }
+    header { margin-bottom:28px; }
+    .eyebrow { margin:0 0 6px; font-size:.8rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--red); }
+    h1 { margin:0 0 10px; font-size:clamp(1.6rem,4.4vw,2.2rem); line-height:1.15; letter-spacing:-.01em; }
+    .lead { margin:0; max-width:62ch; color:var(--soft); }
+    .specs { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 0; padding:0; list-style:none; }
+    .specs li { padding:5px 11px; font-size:.82rem; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:999px; }
+    .card { margin:0 0 20px; padding:20px; background:#fff; border:1px solid var(--line); border-radius:16px; }
+    .card h2 { margin:0 0 4px; font-size:1.2rem; }
+    .card .sub { margin:0 0 14px; color:var(--soft); font-size:.95rem; }
+    .preview { display:block; width:100%; height:auto; margin:0 0 16px; border-radius:12px; background:#ececef; }
+    .dl { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .opt { display:flex; flex-direction:column; gap:8px; padding:14px; border:1px solid var(--line); border-radius:12px; }
+    .opt p { margin:0; color:var(--soft); font-size:.88rem; }
+    .opt strong { font-size:.95rem; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:48px; padding:12px 16px; font:inherit; font-weight:700; color:#fff; text-decoration:none; background:var(--red); border-radius:10px; }
+    .btn:hover { background:var(--red-d); }
+    .btn:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+    .btn.alt { color:var(--ink); background:#fff; border:2px solid var(--ink); }
+    .btn.alt:hover { background:var(--ink); color:#fff; }
+    footer { margin-top:8px; color:var(--soft); font-size:.88rem; }
+    @media (max-width:640px) { .dl { grid-template-columns:1fr; } .card { padding:16px; } }
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <p class="eyebrow">MotoPartes × Vento</p>
+    <h1>Diseño de la tarjeta</h1>
+    <p class="lead">Tira de 10 × 2 cm con extremos redondeados, lista para imprimir y recortar. Elige un diseño y descárgalo en alta calidad.</p>
+    <ul class="specs" aria-label="Características de los archivos">
+      <li>PNG transparente</li>
+      <li>1200 dpi</li>
+      <li>4724 × 945 px</li>
+      <li>100 × 20 mm</li>
+    </ul>
+  </header>
+
+  <section class="card" aria-labelledby="dA">
+    <h2 id="dA">Diseño A · Bloque rojo</h2>
+    <p class="sub">Blanco con un bloque rojo a la derecha para el código QR.</p>
+    <img class="preview" src="vista-A.jpg" width="1300" height="377" alt="Vista previa del diseño A: logos de MotoPartes y Vento, y bloque rojo con el QR" loading="lazy"/>
+    <div class="dl">
+      <div class="opt">
+        <strong>Con guía de corte</strong>
+        <p>Una línea gris fina marca el borde. Es la mejor opción para imprimir en papel blanco.</p>
+        <a class="btn" href="tira-A-con-guia-de-corte.png" download="Tira-A-con-guia-de-corte-1200dpi-100x20mm.png">Descargar</a>
+      </div>
+      <div class="opt">
+        <strong>Sin guía (transparente)</strong>
+        <p>Solo el diseño, sin línea. Para troquel o para colocarlo sobre otro fondo.</p>
+        <a class="btn alt" href="tira-A-sin-guia-transparente.png" download="Tira-A-sin-guia-transparente-1200dpi-100x20mm.png">Descargar</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="dB">
+    <h2 id="dB">Diseño B · Blanco</h2>
+    <p class="sub">Todo blanco, con el código QR al centro entre los dos logos.</p>
+    <img class="preview" src="vista-B.jpg" width="1300" height="377" alt="Vista previa del diseño B: logo de MotoPartes, QR al centro y logo de Vento" loading="lazy"/>
+    <div class="dl">
+      <div class="opt">
+        <strong>Con guía de corte</strong>
+        <p>Una línea gris fina marca el borde. Es la mejor opción para imprimir en papel blanco.</p>
+        <a class="btn" href="tira-B-con-guia-de-corte.png" download="Tira-B-con-guia-de-corte-1200dpi-100x20mm.png">Descargar</a>
+      </div>
+      <div class="opt">
+        <strong>Sin guía (transparente)</strong>
+        <p>Solo el diseño, sin línea. Para troquel o para colocarlo sobre otro fondo.</p>
+        <a class="btn alt" href="tira-B-sin-guia-transparente.png" download="Tira-B-sin-guia-transparente-1200dpi-100x20mm.png">Descargar</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>El código QR abre la página de citas de MotoPartes. Imprime los archivos al 100 % de su tamaño, sin ajustar a la página.</footer>
+</main>
+</body>
+</html>
