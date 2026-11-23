@@ -701,7 +701,7 @@ export default function OrderDetail() {
                                     disabled={active || changingStatus}
                                 >
                                     {active && <Check size={13} />}
-                                    {s.label}
+                                    <span>{s.label}</span>
                                 </button>
                             );
                         })}

@@ -277,8 +277,14 @@ function AppRoutes() {
   );
 }
 
-// Visible error boundary so a runtime crash inside the app shows the actual
-// stack on screen instead of leaving a blank page. Temporary diagnostic.
+// Si algo se rompe dentro de la app, en vez de una pantalla en blanco (o un texto técnico en inglés)
+// se muestra un aviso claro en español con un botón para volver a cargar.
+// Los fallos de "el nodo ya no es hijo" los causa un traductor o extensión del navegador que cambia
+// la pantalla por debajo de React (ver lib/domGuard.js): esos se recuperan solos con una recarga,
+// una sola vez por minuto para no caer en un bucle.
+const RELOAD_KEY = 'motopartes_error_reload';
+const isDomMismatch = (e) => /insertBefore|removeChild|not a child|NotFoundError/i.test(`${e?.name || ''} ${e?.message || e || ''}`);
+
 class AppErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -290,42 +296,47 @@ class AppErrorBoundary extends React.Component {
   componentDidCatch(error, info) {
     console.error('[AppErrorBoundary]', error, info);
     this.setState({ info });
+    if (isDomMismatch(error)) {
+      try {
+        const last = Number(sessionStorage.getItem(RELOAD_KEY) || 0);
+        if (Date.now() - last > 60 * 1000) {
+          sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+          window.location.reload();
+        }
+      } catch { /* sin sessionStorage: se queda el aviso con el botón */ }
+    }
   }
   render() {
-    if (this.state.error) {
-      return (
-        <div style={{
-          padding: 24,
-          fontFamily: 'ui-monospace, monospace',
-          fontSize: 12,
-          background: '#fef2f2',
-          color: '#7f1d1d',
-          minHeight: '100vh',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-        }}>
-          <h2 style={{ fontSize: 18, marginBottom: 12, color: '#b91c1c' }}>
-            Runtime error in app
-          </h2>
-          <div style={{ marginBottom: 12 }}>
-            <strong>Message:</strong> {String(this.state.error?.message || this.state.error)}
-          </div>
-          {this.state.error?.stack && (
-            <details open>
-              <summary style={{ cursor: 'pointer', marginBottom: 8 }}>Stack</summary>
-              {this.state.error.stack}
-            </details>
-          )}
-          {this.state.info?.componentStack && (
-            <details open>
-              <summary style={{ cursor: 'pointer', marginBottom: 8 }}>Component stack</summary>
-              {this.state.info.componentStack}
-            </details>
-          )}
+    if (!this.state.error) return this.props.children;
+    const detail = [
+      String(this.state.error?.message || this.state.error),
+      this.state.error?.stack,
+      this.state.info?.componentStack,
+    ].filter(Boolean).join('\n\n');
+    return (
+      <div translate="no" style={{
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 24, background: '#f5f5f7', color: '#0b0b0c',
+        fontFamily: '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+      }}>
+        <div style={{ width: '100%', maxWidth: 440, padding: 24, background: '#fff', border: '1px solid #e6e6ea', borderRadius: 16, textAlign: 'center' }}>
+          <h1 style={{ margin: '0 0 8px', fontSize: 22 }}>Algo salió mal</h1>
+          <p style={{ margin: '0 0 20px', color: '#5b5b61', lineHeight: 1.5 }}>
+            La pantalla tuvo un problema, pero tu información está a salvo. Toca el botón para volver a cargar.
+          </p>
+          <button type="button" onClick={() => window.location.reload()} style={{
+            width: '100%', minHeight: 48, padding: '12px 16px', font: 'inherit', fontWeight: 700,
+            color: '#fff', background: '#dc2626', border: 0, borderRadius: 10, cursor: 'pointer',
+          }}>
+            Recargar
+          </button>
+          <details style={{ marginTop: 16, textAlign: 'left', color: '#5b5b61', fontSize: 12 }}>
+            <summary style={{ cursor: 'pointer' }}>Detalle técnico (para soporte)</summary>
+            <pre style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: 11 }}>{detail}</pre>
+          </details>
         </div>
-      );
-    }
-    return this.props.children;
+      </div>
+    );
   }
 }
 
